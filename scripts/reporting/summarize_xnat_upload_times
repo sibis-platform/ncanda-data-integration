@@ -25,11 +25,11 @@
 ##  with the N-CANDA Data Component Software Suite.  If not, see
 ##  <http://www.gnu.org/licenses/>.
 ##
-##  $Revision: 345 $
+##  $Revision$
 ##
-##  $LastChangedDate: 2013-05-16 15:33:07 -0700 (Thu, 16 May 2013) $
+##  $LastChangedDate$
 ##
-##  $LastChangedBy: torosean $
+##  $LastChangedBy$
 ##
 
 import datetime

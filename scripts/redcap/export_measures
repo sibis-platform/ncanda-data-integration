@@ -25,11 +25,11 @@
 ##  with the N-CANDA Data Component Software Suite.  If not, see
 ##  <http://www.gnu.org/licenses/>.
 ##
-##  $Revision: 1528 $
+##  $Revision$
 ##
-##  $LastChangedDate: 2014-06-12 12:38:45 -0700 (Thu, 12 Jun 2014) $
+##  $LastChangedDate$
 ##
-##  $LastChangedBy: torstenrohlfing $
+##  $LastChangedBy$
 ##
 
 import argparse

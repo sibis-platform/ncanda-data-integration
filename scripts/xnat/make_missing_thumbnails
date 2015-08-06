@@ -28,11 +28,11 @@
 ##  with the N-CANDA Data Component Software Suite.  If not, see
 ##  <http://www.gnu.org/licenses/>.
 ##
-##  $Revision: 778 $
+##  $Revision$
 ##
-##  $LastChangedDate: 2014-01-06 14:40:13 -0800 (Mon, 06 Jan 2014) $
+##  $LastChangedDate$
 ##
-##  $LastChangedBy: torstenrohlfing $
+##  $LastChangedBy$
 ##
 
 import pyxnat

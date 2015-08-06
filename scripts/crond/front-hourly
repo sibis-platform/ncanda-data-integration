@@ -25,11 +25,11 @@
 ##  with the N-CANDA Data Component Software Suite.  If not, see
 ##  <http://www.gnu.org/licenses/>.
 ##
-##  $Revision: 120 $
+##  $Revision$
 ##
-##  $LastChangedDate: 2013-03-12 21:16:42 -0700 (Tue, 12 Mar 2013) $
+##  $LastChangedDate$
 ##
-##  $LastChangedBy: torsten_at_home $
+##  $LastChangedBy$
 ##
 
 [ -r $HOME/.bashrc ] && . $HOME/.bashrc

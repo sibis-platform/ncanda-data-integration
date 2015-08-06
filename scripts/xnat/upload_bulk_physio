@@ -25,11 +25,11 @@
 ##  with the N-CANDA Data Component Software Suite.  If not, see
 ##  <http://www.gnu.org/licenses/>.
 ##
-##  $Revision: 604 $
+##  $Revision$
 ##
-##  $LastChangedDate: 2013-10-14 14:45:33 -0700 (Mon, 14 Oct 2013) $
+##  $LastChangedDate$
 ##
-##  $LastChangedBy: torstenrohlfing $
+##  $LastChangedBy$
 ##
 
 # Setup command line parser
