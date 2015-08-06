@@ -1,35 +1,13 @@
 #!/usr/bin/env python
 
 ##
-##  Copyright 2012, 2013 SRI International
-##
-##  http://nitrc.org/projects/ncanda-datacore/
-##
-##  This file is part of the N-CANDA Data Component Software Suite, developed
-##  and distributed by the Data Integration Component of the National
-##  Consortium on Alcohol and NeuroDevelopment in Adolescence, supported by
-##  the U.S. National Institute on Alcohol Abuse and Alcoholism (NIAAA) under
-##  Grant No. 1U01 AA021697
-##
-##  The N-CANDA Data Component Software Suite is free software: you can
-##  redistribute it and/or modify it under the terms of the GNU General Public
-##  License as published by the Free Software Foundation, either version 3 of
-##  the License, or (at your option) any later version.
-##
-##  The N-CANDA Data Component Software Suite is distributed in the hope that it
-##  will be useful, but WITHOUT ANY WARRANTY; without even the implied
-##  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-##  GNU General Public License for more details.
-##
-##  You should have received a copy of the GNU General Public License along
-##  with the N-CANDA Data Component Software Suite.  If not, see
-##  <http://www.gnu.org/licenses/>.
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
 ##
 ##  $Revision$
-##
+##  $LastChangedBy$
 ##  $LastChangedDate$
 ##
-##  $LastChangedBy$
 """
 ==================
 REDCap Form Locker
@@ -47,7 +25,6 @@ python redcap_form_locker.py --project ncanda_subject_visit_log
                              --lock or --unlock
 """
 __author__ = 'Nolan Nichols <https://orcid.org/0000-0003-1099-3328>'
-__license__ = 'http'
 
 import os
 import sys
