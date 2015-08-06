@@ -47,6 +47,7 @@ python redcap_form_locker.py --project ncanda_subject_visit_log
                              --lock or --unlock
 """
 __author__ = 'Nolan Nichols <https://orcid.org/0000-0003-1099-3328>'
+__license__ = 'http'
 
 import os
 import sys
