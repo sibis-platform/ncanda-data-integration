@@ -414,38 +414,46 @@ def main(args=None):
     # convert to date type
     df.loc[:, 'experiment_date'] = df.experiment_date.astype('datetime64')
 
-    # find the earliest exam date for each given subject
-    baseline_date = df.groupby('subject_id')['experiment_date'].nsmallest(1)
-    baseline_idx = baseline_date.index.levels[2].values
-    baseline_df = df[df.experiment_id.isin(baseline_idx)]
+    result = pd.DataFrame()
+    for subject_id in df.subject_id.drop_duplicates():
+        subject_df = df[df.subject_id == subject_id]
 
-    # Find window for 1 year follow-up
-    followup_yr1_min = baseline_df.experiment_date + pd.datetools.Day(n=270)
-    followup_yr1_max = baseline_df.experiment_date + pd.datetools.Day(n=450)
+        # find the earliest exam date for each given subject
+        baseline_date = subject_df.groupby('subject_id')['experiment_date'].nsmallest(1)
+        baseline_df = subject_df[subject_df.experiment_date == baseline_date[0]]
 
-    # filter for specific scan types
-    t1_df = baseline_df[baseline_df.scan_type.isin(t1_scan_types)]
-    t2_df = baseline_df[baseline_df.scan_type.isin(t2_scan_types)]
+        # Find window for 1 year follow-up
+        followup_yr1_min = baseline_df.experiment_date + pd.datetools.Day(n=270)
+        followup_yr1_max = baseline_df.experiment_date + pd.datetools.Day(n=450)
 
-    # add quality column
-    t1_usable = t1_df[t1_df.quality == 'usable']
-    t2_usable = t2_df[t2_df.quality == 'usable']
+        followup_yr1_df = subject_df[(subject_df.experiment_date > followup_yr1_min[0]) &
+                                     (subject_df.experiment_date < followup_yr1_max[0])]
 
-    # report columns
-    columns = ['site_id', 'subject_id', 'experiment_id',
-               'experiment_date', 'quality', 'excludefromanalysis', 'note']
-    t1_recs = t1_usable.loc[:, columns].to_records(index=False)
-    t2_recs = t2_usable.loc[:, columns].to_records(index=False)
+        # filter for specific scan types
+        t1_df = followup_yr1_df[followup_yr1_df.scan_type.isin(t1_scan_types)]
+        t2_df = followup_yr1_df[followup_yr1_df.scan_type.isin(t2_scan_types)]
 
-    t1_report = pd.DataFrame(t1_recs, index=t1_usable.experiment_id)
-    t2_report = pd.DataFrame(t2_recs, index=t2_usable.experiment_id)
+        # add quality column
+        t1_usable = t1_df[t1_df.quality == 'usable']
+        t2_usable = t2_df[t2_df.quality == 'usable']
 
-    t1_t2_report = t1_report.join(t2_report.quality,
-                                  lsuffix='_t1',
-                                  rsuffix='_t2',
-                                  how='inner')
+        # report columns
+        columns = ['site_id', 'subject_id', 'experiment_id',
+                   'experiment_date', 'quality', 'excludefromanalysis', 'note']
+        t1_recs = t1_usable.loc[:, columns].to_records(index=False)
+        t2_recs = t2_usable.loc[:, columns].to_records(index=False)
 
-    t1_t2_report.to_csv(args.outfile)
+        t1_report = pd.DataFrame(t1_recs, index=t1_usable.experiment_id)
+        t2_report = pd.DataFrame(t2_recs, index=t2_usable.experiment_id)
+
+        t1_t2_report = t1_report.join(t2_report.quality,
+                                      lsuffix='_t1',
+                                      rsuffix='_t2',
+                                      how='inner')
+        if t1_t2_report.shape[0]:
+            result = result.append(t1_t2_report)
+
+    result.to_csv(args.outfile)
 
 if __name__ == "__main__":
     import sys
