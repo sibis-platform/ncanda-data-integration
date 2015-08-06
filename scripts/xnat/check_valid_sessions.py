@@ -12,7 +12,6 @@ import glob
 import json
 import tempfile
 
-import redcap
 import requests
 import pandas as pd
 from lxml import etree
@@ -422,16 +421,20 @@ def main(args=None):
         baseline_date = subject_df.groupby('subject_id')['experiment_date'].nsmallest(1)
         baseline_df = subject_df[subject_df.experiment_date == baseline_date[0]]
 
-        # Find window for 1 year follow-up
-        followup_yr1_min = baseline_df.experiment_date + pd.datetools.Day(n=270)
-        followup_yr1_max = baseline_df.experiment_date + pd.datetools.Day(n=450)
+        # Find window for follow-up
+        followup_min = baseline_df.experiment_date + pd.datetools.Day(n=args.min)
+        followup_max = baseline_df.experiment_date + pd.datetools.Day(n=args.max)
 
-        followup_yr1_df = subject_df[(subject_df.experiment_date > followup_yr1_min[0]) &
-                                     (subject_df.experiment_date < followup_yr1_max[0])]
+        followup_df = subject_df[(subject_df.experiment_date > followup_min[0]) &
+                                 (subject_df.experiment_date < followup_max[0])]
+
+        # Create report for baseline visit
+        if args.baseline:
+            followup_df = baseline_df
 
         # filter for specific scan types
-        t1_df = followup_yr1_df[followup_yr1_df.scan_type.isin(t1_scan_types)]
-        t2_df = followup_yr1_df[followup_yr1_df.scan_type.isin(t2_scan_types)]
+        t1_df = followup_df[followup_df.scan_type.isin(t1_scan_types)]
+        t2_df = followup_df[followup_df.scan_type.isin(t2_scan_types)]
 
         # add quality column
         t1_usable = t1_df[t1_df.quality == 'usable']
@@ -459,16 +462,27 @@ if __name__ == "__main__":
     import sys
     import argparse
 
-    parser = argparse.ArgumentParser(prog='ncanda_t1_t2_baseline_usability.py',
+    parser = argparse.ArgumentParser(prog='check_valid_sessions.py',
                                      description=__doc__)
     parser.add_argument('-c', '--config',
                         type=str,
                         default=os.path.join(os.path.expanduser('~'),
                                              '.server_config', 'ncanda.cfg'))
+    parser.add_argument('-b', '--baseline',
+                        action='store_true',
+                        help='Create report for baseline visit.')
     parser.add_argument('-e', '--experimentsdir',
                         type=str,
                         default='/tmp/experiments',
                         help='Name of experiments xml directory')
+    parser.add_argument('--min',
+                        type=int,
+                        default=180,
+                        help='Minimum days from baseline')
+    parser.add_argument('--max',
+                        type=int,
+                        default=540,
+                        help='Maximum days from baseline')
     parser.add_argument('-o', '--outfile',
                         type=str,
                         default='/tmp/usable_t1_t2_baseline.csv',
