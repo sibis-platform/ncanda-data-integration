@@ -1,0 +1,61 @@
+
+  *** to create the alcohol diagnoses to be used in analysis of  the
+      genotypic data;
+  *** code originally written by Joe Mullaney;
+  *** modified for sII,,sIV NSR;
+/****************************************************/
+/*   Create the Alcohol DXs for ICD-10 and DSM-IV   */
+/****************************************************/
+keep icd10_m2 dsm4_m2 coga_m2 icd10_m1 dsm4_m1 coga_m1;
+label icd10_m2='al gen dx:icd10+never drank';
+label icd10_m1='al gen dx:icd10+never drank+no sx';
+label dsm4_m2='al gen dx:dsm4+never drank';
+label dsm4_m1='al gen dx:dsm4+never drank+no sx';
+label coga_m2='al gen dx:coga+never drank';
+label coga_m1='al gen dx:coga+never drank+no sx';
+/****************************************************/
+/******************************************************************************/
+/*   Model 2 dxs are the original Affected/Unaffected diagnoses               */
+/******************************************************************************/
+   icd10_m2=alcddpdx;
+   dsm4_m2=ald4dpdx;
+   if alfgn=5 and aldrdpdx=5  then coga_m2=5;
+      else if alfgn ne . and aldrdpdx ne .  then coga_m2=1;
+      else coga_m2=.;
+/******************************************************************************/
+/*                                                                            */
+/*   Revise Model 2 DXs to change those who never drank to UNKNOWN .          */
+/*                                                                            */
+/******************************************************************************/
+  if al1=1 and al1a=1  then do;
+      coga_m2=0;
+      dsm4_m2=0;
+      icd10_m2=0;
+   end;
+   dkdx=0;
+/******************************************************************************/
+/*   Model 1 dxs : all affected diagnoses remain affected.  Unaffecteds Dxs   */
+/*                 are changed to Unknown if any of the following are true .  */
+/*                                                                            */
+/*            1) Never Drank (Lifelong abstainer)                             */
+/*            2) Dependent by one of the other criteria                       */
+/*            3) Has any SXs of dependence by any criteria                    */
+/*            4) Has any SXs of abuse by any criteria                         */
+/*                                                                            */
+/******************************************************************************/
+   if al1=1 and al1a=1  then dkdx=dkdx+1;   *** Never Drank;
+   if alcddpdx ne 1  then dkdx+1;
+   if ald4dpdx ne 1  then dkdx+1;
+   if aldrdpdx ne 1  then dkdx+1; 
+   if aldraba1 ne 1 then dxdx+1;
+   if aldraba2 ne 1 then dxdx+1;
+   if alfgncnt gt 0  then dkdx+1;
+   if aldrdpsx>0  then dkdx+1;
+   if alcddpsx>0  then dkdx+1;
+   if ald4dpsx>0  then dkdx+1;  
+   if ald4absx>0 then dkdx+1;
+   icd10_m1=icd10_m2;   if dkdx>0 and icd10_m1=1  then icd10_m1=0;
+   dsm4_m1=dsm4_m2;   if dkdx>0 and dsm4_m1=1  then dsm4_m1=0;
+   coga_m1=coga_m2;   if dkdx>0 and coga_m1=1  then coga_m1=0;
+
+

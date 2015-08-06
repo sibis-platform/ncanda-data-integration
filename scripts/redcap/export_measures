@@ -1,0 +1,214 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2012-2014 SRI International
+##
+##  http://nitrc.org/projects/ncanda-datacore/
+##
+##  This file is part of the N-CANDA Data Component Software Suite, developed
+##  and distributed by the Data Integration Component of the National
+##  Consortium on Alcohol and NeuroDevelopment in Adolescence, supported by
+##  the U.S. National Institute on Alcohol Abuse and Alcoholism (NIAAA) under
+##  Grant No. 1U01 AA021697
+##
+##  The N-CANDA Data Component Software Suite is free software: you can
+##  redistribute it and/or modify it under the terms of the GNU General Public
+##  License as published by the Free Software Foundation, either version 3 of
+##  the License, or (at your option) any later version.
+##
+##  The N-CANDA Data Component Software Suite is distributed in the hope that it
+##  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+##  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License along
+##  with the N-CANDA Data Component Software Suite.  If not, see
+##  <http://www.gnu.org/licenses/>.
+##
+##  $Revision: 1528 $
+##
+##  $LastChangedDate: 2014-06-12 12:38:45 -0700 (Thu, 12 Jun 2014) $
+##
+##  $LastChangedBy: torstenrohlfing $
+##
+
+import argparse
+import sys
+import os
+import re
+import subprocess
+
+import time
+import datetime
+date_format_ymd = '%Y-%m-%d'
+
+import pandas
+
+import redcap
+import pyxnat
+
+import export_mr_sessions_pipeline as mrpipeline
+import export_redcap_to_pipeline as rcpipeline
+import redcap_form_locker as rclocker
+
+# Setup command line parser
+parser = argparse.ArgumentParser( description="For all subjects and visits in the REDCap database, export demographics, clinical measures, NP test scores, and other configured information into the pipeline directory tree.", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
+parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument( "--locked_form_report", help="Output a report indicating locked forms ", action="store_true")
+parser.add_argument( "--site", help="Limit export by site (SRI, UCSD, OHSU, UPMC, DUKE). Multiple sites can be listed, separated by comma (',')", action="store", default=None )
+parser.add_argument( "--events", help="Limit export by event labels (e.g., 'baseline_visit_arm_1'). Multiple events can be listed, separated by comma (',')", action="store", default=None )
+parser.add_argument( "--subject", help="Limit export by subject site id (e.g., 'X-12345-X-9').", action="store", default=None )
+parser.add_argument( "--export", help="Limit export by output file (e.g., 'cddr'; do not include '.txt' suffix). Multiple exports can be listed, separated by comma (',')", action="store", default=None )
+parser.add_argument( "--datadict-dir", help="Provides a directory in which the script creates data dictionaries for all supported export files.", action="store", default=None )
+parser.add_argument( "pipelinedir", help="Root directory of the image analysis pipeline.", action="store")
+args = parser.parse_args()
+
+# Open connection with REDCap server
+redcap_token_path = os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' )
+redcap_token_file = open( redcap_token_path, 'r' )
+redcap_token = redcap_token_file.read().strip()
+
+redcap_project = redcap.Project( 'https://ncanda.sri.com/redcap/api/', redcap_token, verify_ssl=False)
+form_event_mapping = redcap_project.export_fem( format='df' )
+
+# Organize REDCap metadata, e.g., filter all confidential fields out of export lists, and make code-to-label lookup dictionaries
+rcpipeline.organize_metadata( redcap_project.metadata )
+
+# If a directory for creating data dictionaries is given, make those first
+if args.datadict_dir:
+    rcpipeline.create_datadicts( args.datadict_dir )
+
+# Open a connection with REDCap MySQL server.
+if args.locked_form_report:
+    cfg = os.path.join(os.path.expanduser("~"), '.server_config/redcap-mysql.cfg')
+    engine = rclocker.create_connection(cfg)
+    if args.verbose:
+        print "Configured to output a report of locked forms..."
+        print "Connected to REDCap MySQL: {0}".format(engine)
+
+# Open connection with XNAT server
+xnat = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+
+#
+# Get subject and project IDs
+#
+try:
+    subject_project_list = xnat.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_LABEL', 'xnat:subjectData/SUBJECT_ID','xnat:subjectData/PROJECT'] ).where( [ ('xnat:subjectData/SUBJECT_LABEL','LIKE', '%')] ).items()
+except:
+    sys.exit( "ERROR: retrieving subject list from XNAT failed." )
+
+subject_project_dict = dict()
+subject_label_to_sid_dict = dict()
+for ( subject_label, subject_id, projects ) in subject_project_list:
+    subject_project_dict[subject_label] = ( subject_id, projects )
+    subject_label_to_sid_dict[subject_label] = subject_id
+
+# Function to get a subject's next visit - this is so we can exclude MRI collected after the next visit date, but still within N days
+def get_subject_next_visit_date( subject, after_visit_date ):
+    subject_visit_dates = visit_log_redcap.xs( subject, level=0 )['visit_date'].dropna()
+    subject_visit_dates = subject_visit_dates[ subject_visit_dates.index.map( lambda key: key != 'recovery_baseline_arm_2' ) ] # Exclude "Recovery" baseline from list - this will usually be the MR day of a normal visit
+    later_visits_this_subject = sorted( [ date for date in subject_visit_dates.tolist() if date > after_visit_date ] )
+    if len( later_visits_this_subject ) > 0:
+        return later_visits_this_subject[0]
+    else:
+        return None
+
+#
+# Number of days between two dates (signed value is returned - negative if second date is before first)
+#
+def days_between_dates( date_from_str, date_to_str, date_format=date_format_ymd ):
+    return (datetime.datetime.strptime( date_to_str, date_format_ymd ) - datetime.datetime.strptime( date_from_str, date_format_ymd ) ).days
+
+#
+# Main program loop
+#
+baseline_events = ['baseline_visit_arm_1','baseline_visit_arm_4']
+subject_data = redcap_project.export_records(fields=['dob', 'exclude', 'enroll_exception', 'siblings_enrolled', 'siblings_id1', 'hispanic', 'race', 'race_other_code'], events=baseline_events, event_name='unique', format='df' )
+subject_data = pandas.concat( [ subject_data.xs( event, level=1 ) for event in baseline_events ] )
+subject_data['siblings_id1'] = subject_data['siblings_id1'].map( lambda x: subject_label_to_sid_dict[x] if x in subject_label_to_sid_dict.keys() else '' )
+
+visit_log_redcap = redcap_project.export_records(fields=['redcap_data_access_group', 'visit_date', 'mri_qa_completed', 'mri_t1_age', 'mri_dti_age', 'mri_rsfmri_age' ], event_name='unique', export_data_access_groups=True, format='df' )
+
+if args.site:
+    sites = args.site.lower().split( ',' )
+    visit_log_redcap = visit_log_redcap[ visit_log_redcap['redcap_data_access_group'].map( lambda dag: dag in sites ) ]
+
+forms_by_event_dict = dict()
+for event in redcap_project.events:
+    event_id = event['unique_event_name']
+    forms_by_event_dict[event_id] = set( form_event_mapping[form_event_mapping['unique_event_name'] == event_id ]['form_name'].tolist() )
+
+# Filter out all excluded subjects
+visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: False if subject_data['exclude'][key[0]] == 1 else True ) ]
+
+# Limit to selected events
+if args.events:
+    events = args.events.lower().split( ',' )
+    visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: key[1] in events ) ]
+
+# Filter out events not yet supported by the pipeline exporter
+visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: key[1] in mrpipeline.event_lookup.keys() ) ]
+
+# Limit to selected export files
+if args.export:
+    select_exports = args.export.lower().split( ',' )
+else:
+    select_exports = None
+
+if args.verbose:
+    print "Exporting %d REDCap records." % len( visit_log_redcap )
+
+if args.subject:
+    visit_log_redcap = visit_log_redcap.loc[[args.subject]]
+
+# Iterate over all remaining rows
+for [key,row] in visit_log_redcap.iterrows():
+    if key[0] not in subject_label_to_sid_dict.keys():
+        if args.verbose:
+            print "Missing XNAT ID for subject",key[0]
+    else:
+        subject_xnat_id = subject_label_to_sid_dict[key[0]]
+        visit_date = str(row['visit_date'])
+        if visit_date == 'nan':
+            if args.verbose:
+                print "Missing '%s' visit date for subject %s" % ( key[1], key[0] )
+        else:
+            this_subject_data = subject_data.ix[key[0]]
+            subject_dob_str = str( this_subject_data['dob'] )
+            if not re.match( '[0-9]{4}-[0-9]{2}-[0-9]{2}', subject_dob_str ):
+                print "Missing or invalid birthdate '%s' for subject %s" % ( subject_dob_str, key[0] )
+            else:
+                visit_age = days_between_dates( subject_dob_str, visit_date ) / 365.242
+
+                # Check if pipeline directory given and export imaging series there
+                if (this_subject_data['exclude'] != 1):
+                    (arm_code,visit_code,subject_datadir_rel) = (None, None, None)
+                    try:
+                        (arm_code,visit_code,subject_datadir_rel) = mrpipeline.translate_subject_and_event( subject_xnat_id, key[1] )
+                    except:
+                        if args.verbose:
+                            print "Event",key[1],"is not supported yet."
+
+                    if arm_code != None:
+                        subject_datadir = os.path.join( args.pipelinedir, subject_datadir_rel )
+                        rcpipeline.export( redcap_project, key, this_subject_data, visit_age, row, arm_code, visit_code, subject_xnat_id, subject_datadir, forms_by_event_dict[key[1]], select_exports=select_exports, verbose=args.verbose )
+
+                        # Write report of forms locked for this subject, arm, visit
+                        if args.locked_form_report:
+                            if args.verbose:
+                                print "Creating a report of locked forms for: " \
+                                      "{0}, {1}, {2}".format(subject_xnat_id, arm_code, visit_code)
+                            if arm_code != 'standard' or visit_code != 'baseline':
+                                if args.verbose:
+                                    print "Currently only standard arm and baseline visit is supported..."
+                                continue
+                            # Get a dataframe of the locked forms
+                            arm = "{0} Protocol".format(arm_code.capitalize())
+                            visit = "{0} visit".format(visit_code.capitalize())
+                            locked_forms = rclocker.report_locked_forms(key[0], subject_xnat_id,
+                                                                        forms_by_event_dict[key[1]], 'ncanda_subject_visit_log',
+                                                                        arm, visit, engine)
+                            filename = os.path.join(os.path.abspath(subject_datadir), 'measures', 'locked_forms.csv')
+                            rcpipeline.safe_csv_export(locked_forms, filename, verbose=args.verbose)
+                            if args.verbose:
+                                print "Writing a report of locked forms to: {0}".format(filename)

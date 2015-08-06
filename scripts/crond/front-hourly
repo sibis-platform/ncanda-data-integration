@@ -1,0 +1,63 @@
+#!/bin/bash
+
+##
+##  Copyright 2013-2014 SRI International
+##
+##  http://nitrc.org/projects/ncanda-datacore/
+##
+##  This file is part of the N-CANDA Data Component Software Suite, developed
+##  and distributed by the Data Integration Component of the National
+##  Consortium on Alcohol and NeuroDevelopment in Adolescence, supported by
+##  the U.S. National Institute on Alcohol Abuse and Alcoholism (NIAAA) under
+##  Grant No. 1U01 AA021697
+##
+##  The N-CANDA Data Component Software Suite is free software: you can
+##  redistribute it and/or modify it under the terms of the GNU General Public
+##  License as published by the Free Software Foundation, either version 3 of
+##  the License, or (at your option) any later version.
+##
+##  The N-CANDA Data Component Software Suite is distributed in the hope that it
+##  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+##  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License along
+##  with the N-CANDA Data Component Software Suite.  If not, see
+##  <http://www.gnu.org/licenses/>.
+##
+##  $Revision: 120 $
+##
+##  $LastChangedDate: 2013-03-12 21:16:42 -0700 (Tue, 12 Mar 2013) $
+##
+##  $LastChangedBy: torsten_at_home $
+##
+
+[ -r $HOME/.bashrc ] && . $HOME/.bashrc
+
+# Import some useful functions
+. $(dirname $0)/crontools.sh
+
+# Run QA on fBIRN and ADNI phantom scans
+catch_output_email nolan.nichols@gmail.com,kilian.pohl@sri.com "NCANDA XNAT: Phantom QA Messages (phantom_qa)" ${HOME}/scripts/xnat/phantom_qa
+
+# Import data from the sites' data capture laptops into REDCap and reconcile imported with longitudinal data
+catch_output_email weiwei.chu@sri.com,nolan.nichols@gmail.com "NCANDA: Laptop Data Import Stage 1 (harvester)" ${HOME}/scripts/import/laptops/harvester ${HOME}/laptops/ncanda ${HOME}/laptops/imported
+
+# At midnight PST, run full update; otherwise, add only previously-missing data
+update_args=""
+hour=$(date +%H)
+if [ ${hour} -ne 0 ]; then
+    update_args+=" --missing-only"
+fi
+
+catch_output_email weiwei.chu@sri.com,nolan.nichols@gmail.com "NCANDA: Laptop Data Import Stage 2 (update_visit_date)" ${HOME}/scripts/import/laptops/update_visit_data --max-days-after-visit 120 ${update_args}
+
+# REDCap updates
+update_args=""
+hour=$(date +%H)
+if [ ${hour} -eq 0 ]; then
+    update_args+="--update-all"
+fi
+catch_output_email weiwei.chu@sri.com,nolan.nichols@gmail.com "NCANDA REDCap: Update Scores (update_summary_scores)" ${HOME}/scripts/redcap/update_summary_scores ${update_args}
+
+catch_output_email weiwei.chu@sri.com,nolan.nichols@gmail.com "NCANDA REDCap: Update Form Status (update_bulk_forms)" ${HOME}/scripts/redcap/update_bulk_forms

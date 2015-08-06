@@ -1,0 +1,491 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2012-2014 SRI International
+##
+##  http://nitrc.org/projects/ncanda-datacore/
+##
+##  This file is part of the N-CANDA Data Component Software Suite, developed
+##  and distributed by the Data Integration Component of the National
+##  Consortium on Alcohol and NeuroDevelopment in Adolescence, supported by
+##  the U.S. National Institute on Alcohol Abuse and Alcoholism (NIAAA) under
+##  Grant No. 1U01 AA021697
+##
+##  The N-CANDA Data Component Software Suite is free software: you can
+##  redistribute it and/or modify it under the terms of the GNU General Public
+##  License as published by the Free Software Foundation, either version 3 of
+##  the License, or (at your option) any later version.
+##
+##  The N-CANDA Data Component Software Suite is distributed in the hope that it
+##  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+##  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License along
+##  with the N-CANDA Data Component Software Suite.  If not, see
+##  <http://www.gnu.org/licenses/>.
+##
+##  $Revision$
+##
+##  $LastChangedDate$
+##
+##  $LastChangedBy$
+##
+
+import argparse
+import sys
+import os
+import re
+import subprocess
+
+import time
+import datetime
+date_format_ymd = '%Y-%m-%d'
+
+import pandas
+
+import redcap
+import pyxnat
+
+import import_mr_sessions_stroop as stroop
+import export_mr_sessions_pipeline as mrpipeline
+import export_redcap_to_pipeline as rcpipeline
+
+# Setup command line parser
+parser = argparse.ArgumentParser( description="For all subjects and visits in the REDCap database, find MR sessions in XNAT", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
+parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument( "--max-days-after-visit", help="Maximum number of days the scan session can be after the entered 'visit date' in REDCap to be assigned to a given event.", action="store", default=120, type=int)
+parser.add_argument( "--site", help="Limit processing by site (SRI, UCSD, OHSU, UPMC, DUKE). Multiple sites can be listed, separated by comma (',')", action="store", default=None )
+parser.add_argument( "--pipeline-root-dir", help="Root directory of the image analysis pipeline. Newly detected imaging series will be converted to NIFTI files and put here for processing. ", action="store")
+parser.add_argument( "--run-pipeline-script", help="Run image processing pipeline if new files were exported.", action="store")
+parser.add_argument( "-f", "--force-update", help="Update all records in REDCap, overwriting existing data", action="store_true")
+parser.add_argument( "--missing-only", help="Only consider missing records in REDCap, rather than unverified ones also.", action="store_true")
+parser.add_argument( "--force-update-stroop", help="Update all Stroop records in REDCap, overwriting existing data", action="store_true")
+parser.add_argument( "--no-stroop", help="Do not check for, or upload, MRI Stroop results (ePrime files in XNAT)", action="store_true")
+parser.add_argument( "-n", "--no-upload", help="Only check correspondences; do not upload results to REDCap", action="store_true")
+args = parser.parse_args()
+
+# Open connection with REDCap server
+redcap_token_path = os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' )
+redcap_token_file = open( redcap_token_path, 'r' )
+redcap_token = redcap_token_file.read().strip()
+
+redcap_project = redcap.Project( 'https://ncanda.sri.com/redcap/api/', redcap_token, verify_ssl=False)
+form_event_mapping = redcap_project.export_fem( format='df' )
+
+# Organize REDCap metadata, e.g., filter all confidential fields out of export lists, and make code-to-label lookup dictionaries
+rcpipeline.organize_metadata( redcap_project.metadata )
+
+# Open connection with XNAT server
+xnat = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+
+#
+# Get subject and project IDs
+#
+try:
+    subject_project_list = xnat.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_LABEL', 'xnat:subjectData/SUBJECT_ID','xnat:subjectData/PROJECT'] ).where( [ ('xnat:subjectData/SUBJECT_LABEL','LIKE', '%')] ).items()
+except:
+    sys.exit( "ERROR: retrieving subject list from XNAT failed." )
+
+subject_project_dict = dict()
+subject_label_to_sid_dict = dict()
+for ( subject_label, subject_id, projects ) in subject_project_list:
+    subject_project_dict[subject_label] = ( subject_id, projects )
+    subject_label_to_sid_dict[subject_label] = subject_id
+
+#
+# Get all scan sessions in permissible date range for a given subject and visit
+#
+try:
+    xnat_sessions_fields = ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SUBJECT_ID','xnat:mrSessionData/PROJECTS','xnat:mrSessionData/DATE','xnat:mrSessionData/SCANNER']
+    xnat_sessions_list = xnat.select( 'xnat:mrSessionData', xnat_sessions_fields ).where( [ ('xnat:mrSessionData/SESSION_ID','LIKE', '%') ] ).items()
+except:
+    sys.exit( "ERROR: retrieving session list from XNAT failed." )
+
+xnat_sessions_dict = dict()
+for ( session_id, session_subject_id, projects, date, scanner ) in xnat_sessions_list:
+    xnat_sessions_dict[session_id] = ( date, scanner, projects )
+
+def get_sessions_in_range( xnat, subject_label, project_id, subject_id, date_range_from, date_range_to ):
+    sessions_in_range = [ ( session_id, projects, date ) 
+                          for ( session_id, session_subject_id, projects, date, scanner ) in xnat_sessions_list 
+                          if (subject_id == session_subject_id) and (date >= date_range_from) and (date <= date_range_to)]
+    if not len( sessions_in_range ):
+        if today >= date_range_to:
+            print 'No MR session for Subject %s between %s and %s' % (subject_label, date_range_from, date_range_to)
+
+    return sessions_in_range
+
+# Get URIs for spiral data (Stroop and resting state, where they exist)
+def get_spiral_uris( xnat_eid_list ):
+    for xnat_eid in xnat_eid_list:
+        resource_dict_list = xnat._get_json( '/data/experiments/%s/resources/?format=json' %xnat_eid )
+ 	  
+        spiral_uri = ''
+	spiralrest_uri = ''	         
+        for res in resource_dict_list:
+            if 'spiral' in res['label'].lower():
+                resource_id = res['xnat_abstractresource_id']
+                eid = res['cat_id']
+                obj = xnat._get_json('/data/experiments/%s/resources/%s/files?format=json' %(eid, resource_id))
+		if len( obj ) > 0:    
+                    file_path = obj[0]['Name']
+                    if 'rest' in res['label'].lower():
+                        spiralrest_uri = "/".join([eid, resource_id, file_path])
+                    else:
+                        spiral_uri = "/".join([eid, resource_id, file_path])
+ 	  	                     
+    return (spiral_uri, spiralrest_uri)
+
+#
+# Get ADNI phantom scans from XNAT
+#
+try:
+    xnat_phantom_sessions_list = xnat.select( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SCANNER','xnat:mrSessionData/DATE'] ).where( [ ('xnat:mrSessionData/LABEL','LIKE', '%-99999-P-9-%') ] ).items()
+except:
+    sys.exit( "ERROR: retrieving phantom session list from XNAT failed." )
+
+def get_phantom_scans_for_date( date, scanner ):
+    return [ session for (session,sscanner,sdate) in xnat_phantom_sessions_list if (sdate == date) and (sscanner == scanner) ]
+
+def get_phantom_scans_for_date_24h( yesterday, tomorrow, scanner ):
+    return [ session for (session,sscanner,sdate) in xnat_phantom_sessions_list if ((sdate == yesterday) or (sdate == tomorrow)) and (sscanner == scanner) ]
+
+# Get one or more custom variables from XML representation of experiment
+def get_custom_variables( experiment, field_names, default_value=None ):
+    xml = experiment.get()
+    values = []
+    for field_name in field_names:
+        field_regex = '.*<xnat:field name="%s">(.*?)</xnat:field>' % field_name.lower()
+        match = re.match( field_regex, xml, flags=re.DOTALL )
+        if match:
+            values.append( re.sub( '\s*<!--.*?-->\s*', '', match.group( 1 ), flags=re.DOTALL ) )
+        else:
+            values.append( default_value )
+    return values
+
+#
+# Get list of all usable scans in the experiments listed
+#
+def get_usable_scans_list( xnat, xnat_eid_list ):
+    result = []
+
+    for xnat_eid in xnat_eid_list:
+        for scan in xnat.select.experiment( xnat_eid ).scans('*').get():
+            ( type, quality ) = xnat.select.experiment( xnat_eid ).scan( scan ).attrs.mget(['type','quality'])
+            if quality == 'usable':
+                result.append( ( type, xnat_eid, scan ) )
+
+    return result
+
+#
+# Number of days between two dates (signed value is returned - negative if second date is before first)
+#
+def days_between_dates( date_from_str, date_to_str, date_format=date_format_ymd ):
+    return (datetime.datetime.strptime( date_to_str, date_format_ymd ) - datetime.datetime.strptime( date_from_str, date_format_ymd ) ).days
+
+#
+# Get scans from a list, selected by type
+#
+ncanda_scan_types = [ 't1spgr', 'mprage', 't2fse', 'dti6b500pepolar', 'dti60b1000', 'rsfmri' ]
+
+def get_scans_by_type( usable_scans_list, visit_date ):
+    result = dict()
+    for type in ncanda_scan_types:
+        # Get list of scans for this type; as we go, compute and sort by number of days between visit date and scan date
+        scans = sorted( [ (eid, scan, days_between_dates(visit_date,xnat_sessions_dict[eid][0])) for (scan_type,eid,scan) in usable_scans_list if re.match( '^ncanda-%s-v1$' % type, scan_type ) ], key=lambda x: abs(x[2]) )
+        if (len( scans ) == 1) or (len( scans ) > 1 and scans[0][2] < scans[1][2]): # either only one usable scan, or unique usable scan with lowest number of days after "visit_date"
+            result[type] = scans[0]
+        elif len( scans ) > 1:
+            print "ERROR: more than one scan of type",type,"on the same date\n\t",scans
+
+    return result
+
+#
+# Get fieldmap series for a given scan series (either DTI or rs-fMRI) - this can be more than one, because Siemens writes two under the same type
+#
+def get_fieldmap_scans( usable_scans_list, for_scan ):
+    return [ (eid,scan) for (type,eid,scan) in usable_scans_list if 'grefieldmap' in type and for_scan[0]==eid ]
+
+#
+# Encode session and scan in a single string
+#
+def encode_session_and_scan( session_and_scan, type_list ):
+    for type in type_list:
+        if type in session_and_scan.keys():
+            return "%s/%s" % (session_and_scan[type][0],session_and_scan[type][1])
+    return ""
+
+#
+# Get data from XNAT for one subject/visit date
+#
+#  Returned result is a dictionary of keys and values to enter into the REDCap record for this subject/visit
+#
+today = time.strftime(date_format_ymd)
+
+def get_xnat_data( redcap_key, xnat, visit_date, date_of_birth, next_visit_date, mri_inspection_completed ):
+    subject = redcap_key[0]
+    event = redcap_key[1]
+
+    result = dict()
+
+    # Initialize result as "nothing there"
+    result['mr_session_report_complete'] = '';
+    result['mri_xnat_sid'] = ''
+    result['mri_xnat_eids'] = ''
+    result['mri_qa_completed'] = '';
+    result['mri_t1_date'] = ''
+    result['mri_t1_age'] = ''
+    result['mri_dti_date'] = ''
+    result['mri_dti_age'] = ''
+    result['mri_rsfmri_date'] = ''
+    result['mri_rsfmri_age'] = ''
+    result['mri_notes'] = '';
+    result['mri_adni_phantom'] = ''
+    result['mri_adni_phantom_eid'] = ''
+
+    result['mri_series_t1'] = ''
+    result['mri_series_t2'] = ''
+    result['mri_series_dti6b500pepolar'] = ''
+    result['mri_series_dti60b1000'] = ''
+    result['mri_series_dti_fieldmap'] = ''
+    result['mri_series_rsfmri'] = ''
+    result['mri_series_rsfmri_fieldmap'] = ''
+
+    # First, see if this subject is in the XNAT database and has a scan session for the given date or later
+    visit_date_plusNd = (datetime.datetime.strptime( visit_date, date_format_ymd) + datetime.timedelta(args.max_days_after_visit)).strftime(date_format_ymd)
+    # If we have a date for the next visit, and it's earlier than +N days (could be for "Recovery" final visit), then use that date instead
+    if next_visit_date and next_visit_date < visit_date_plusNd:
+        visit_date_plusNd = next_visit_date
+
+    if args.verbose:
+        print "Checking",subject,'/',event,"- visit date",visit_date,"to",visit_date_plusNd
+
+    # Get project and subject IDs for this subject by name
+    if not subject in subject_project_dict.keys():
+        if args.verbose:
+            print "Subject",subject,"cannot be found in XNAT."
+        return result
+
+    (xnat_sid, xnat_pid) = subject_project_dict[subject]
+    result['mri_xnat_sid'] = xnat_sid
+
+    # Get all experiments for this subject within the given range of the visit date
+    xnat_session_data = get_sessions_in_range( xnat, subject, xnat_pid, xnat_sid, visit_date, visit_date_plusNd )
+    if not len( xnat_session_data ):
+	if today > visit_date_plusNd:
+            print "Missing MRI for subject",subject,"/",event,"- visit date",visit_date
+        return result    
+
+    # Get the experiment IDs for all sessions in the given range
+    xnat_eid_list = [ session for (session,project,date) in xnat_session_data ]
+    if not len( xnat_eid_list ):
+        return result
+
+    # For all experiments we have found, get list of all "usable" scans
+    usable_scans_list = get_usable_scans_list( xnat, xnat_eid_list )
+
+    # Now each of the standard NCANDA scans from the usable list - select closes to "visit_date" if there is more than one for a given type
+    scans_by_type = get_scans_by_type( usable_scans_list, visit_date )
+
+    result['mri_series_t1'] = encode_session_and_scan( scans_by_type, ['t1spgr','mprage'] )
+    result['mri_series_t2'] = encode_session_and_scan( scans_by_type, ['t2fse'] )
+    result['mri_series_dti6b500pepolar'] = encode_session_and_scan( scans_by_type, ['dti6b500pepolar'] )
+
+    # Get fieldmap series for the DTI and the rs-fMRI scans
+    if 'dti60b1000' in scans_by_type.keys():
+        result['mri_series_dti60b1000'] = encode_session_and_scan( scans_by_type, ['dti60b1000'] )
+        fieldmaps_dti60 = get_fieldmap_scans( usable_scans_list, scans_by_type['dti60b1000'] )
+        result['mri_series_dti_fieldmap'] = ' '.join( [ '%s/%s' % (eid,scan) for (eid,scan) in fieldmaps_dti60 ] )
+
+    if 'rsfmri' in scans_by_type.keys():
+        result['mri_series_rsfmri'] = encode_session_and_scan( scans_by_type, ['rsfmri'] )
+        fieldmaps_rsfmri = get_fieldmap_scans( usable_scans_list, scans_by_type['rsfmri'] )
+        result['mri_series_rsfmri_fieldmap'] = ' '.join( [ '%s/%s' % (eid,scan) for (eid,scan) in fieldmaps_rsfmri ] )
+
+    for xnat_eid in xnat_eid_list:
+        result['mri_xnat_eids'] += xnat_eid + ' '
+        experiment_note = xnat.select.project( xnat_pid ).subject( xnat_sid ).experiment( xnat_eid ).attrs.get( 'note' ).strip()
+        if len( experiment_note ) > 0:
+            result['mri_notes'] += '[%s] %s ' % (xnat_eid,re.sub( '&quot;', '"', experiment_note ) )
+
+    # Take off extra spaces
+    result['mri_xnat_eids'] = result['mri_xnat_eids'].strip()
+    result['mri_notes'] = result['mri_notes'].strip()
+
+    # Get date and age for DTI scan (use DTI60 because DTI6 may be bad or missing, and fieldmap used instead)
+    if 'dti60b1000' in scans_by_type.keys():
+        result['mri_dti_date'] = xnat_sessions_dict[scans_by_type['dti60b1000'][0]][0]
+        result['mri_dti_age'] = str( days_between_dates( date_of_birth, result['mri_dti_date'] ) / 365.242 )
+
+    # Get date and age for resting-state fMRI scan
+    if 'rsfmri' in scans_by_type.keys():
+        result['mri_rsfmri_date'] = xnat_sessions_dict[scans_by_type['rsfmri'][0]][0]
+        result['mri_rsfmri_age'] = str( days_between_dates( date_of_birth, result['mri_rsfmri_date'] ) / 365.242 )
+
+    # Get the uri's for the spiral task and spiral resting state
+    (result['mri_eid_spiral_stroop'], result['mri_eid_spiral_rest']) = get_spiral_uris(xnat_eid_list)
+
+    # Get the T1w data (MPRAGE or SPGR) and its associated ADNI phantom scan
+    if 't1spgr' in scans_by_type.keys():
+        t1w_experiment_data = xnat_sessions_dict[scans_by_type['t1spgr'][0]]
+    elif 'mprage' in scans_by_type.keys():
+        t1w_experiment_data = xnat_sessions_dict[scans_by_type['mprage'][0]]
+    else:
+        t1w_experiment_data = None
+
+    if t1w_experiment_data:
+        # Compute age at T1w scan
+        result['mri_t1_date'] = t1w_experiment_data[0]
+        result['mri_t1_age'] = str( days_between_dates( date_of_birth, t1w_experiment_data[0] ) / 365.242 )
+
+        # Find ADNI phantom scan in appropriate date range (either same day or within 24h)
+        # Found same-day phantom scan?
+        phantom_scans = get_phantom_scans_for_date( t1w_experiment_data[0], t1w_experiment_data[1] )
+        if len(phantom_scans):
+            result['mri_adni_phantom'] = '1' # Found same day
+            result['mri_adni_phantom_eid'] = phantom_scans[0]
+        else:
+            # No - look one day before and after
+            this_date = datetime.datetime.strptime( t1w_experiment_data[0], date_format_ymd )
+            tomorrow = (this_date + datetime.timedelta(1)).strftime(date_format_ymd)
+            yesterday = (this_date - datetime.timedelta(1)).strftime(date_format_ymd)
+                        
+            # Search for all sessions on previous day after given time, or next day before given time (we already know there isn't a scan on the same date)
+            phantom_scans = get_phantom_scans_for_date_24h( yesterday, tomorrow, t1w_experiment_data[1] )
+            
+            # Found it now or not?
+            if len(phantom_scans):
+                result['mri_adni_phantom'] = '2' # Found 24h
+                result['mri_adni_phantom_eid'] = phantom_scans[0]
+            else:
+                result['mri_adni_phantom'] = '3' # Missing
+   
+    # Get custom variables of the "Reading" group
+    t1w_experiment = xnat.select.project( xnat_pid ).subject( xnat_sid ).experiment( re.sub( '/.*', '', result['mri_series_t1'] ) )    
+    [ result['mri_datetodvd'], result['mri_findingsdate'], result['mri_findings'], 
+      result['mri_excludefromanalysis'], result['mri_referredtopi'] ] = get_custom_variables( t1w_experiment, [ 'DateToDVD', 'FindingsDate', 'Findings', 'ExcludeFromAnalysis', 'ReferredToPI' ], '' )
+    
+    # Check if images have received reading and have either been labeled 'normal' or marked as checked
+    if (result['mri_findings'].lower() == 'normal') or mri_inspection_completed:
+        result['mri_qa_completed'] = '1'
+    else:
+        result['mri_qa_completed'] = '0'
+
+    # Set completion status of REDCap form based on whether QA is done (all sessions/scans looked at and no showstoppers in clinical reading)
+    all_sessions_and_scans_used = [ sscn for sscn in [ result['mri_series_t1'], result['mri_series_t2'], result['mri_series_dti6b500pepolar'], result['mri_series_dti60b1000'],
+                                                       result['mri_series_dti_fieldmap'], result['mri_series_rsfmri'], result['mri_series_rsfmri_fieldmap'] ] if sscn != '' ]
+    if len( all_sessions_and_scans_used ) > 0:
+        mandatory_fields = [ result[f] for f in ['mri_adni_phantom', 'mri_adni_phantom_eid', 'mri_series_t1', 'mri_series_t2', 'mri_series_dti6b500pepolar', 'mri_series_dti60b1000',
+                                                 'mri_series_dti_fieldmap', 'mri_series_rsfmri', 'mri_series_rsfmri_fieldmap'] ]
+        if (result['mri_qa_completed'] == '1') and not ('' in mandatory_fields):
+            result['mr_session_report_complete'] = '2'
+        else:
+            result['mr_session_report_complete'] = '1'
+    else:
+        result['mr_session_report_complete'] = '0'
+
+    # Return the result
+    return result
+
+
+# Function to get a subject's next visit - this is so we can exclude MRI collected after the next visit date, but still within N days
+def get_subject_next_visit_date( subject, after_visit_date ):
+    subject_visit_dates = visit_log_redcap.xs( subject, level=0 )['visit_date'].dropna()
+    subject_visit_dates = subject_visit_dates[ subject_visit_dates.index.map( lambda key: key != 'recovery_baseline_arm_2' ) ] # Exclude "Recovery" baseline from list - this will usually be the MR day of a normal visit
+    later_visits_this_subject = sorted( [ date for date in subject_visit_dates.tolist() if date > after_visit_date ] )
+    if len( later_visits_this_subject ) > 0:
+        return later_visits_this_subject[0]
+    else:
+        return None
+
+#
+# Main program loop
+#
+baseline_events = ['baseline_visit_arm_1','baseline_visit_arm_4'] # these are the "baseline" events of the study arms that have them
+subject_data = redcap_project.export_records(fields=['dob', 'exclude', 'enroll_exception', 'siblings_enrolled', 'siblings_id1'], events=baseline_events, event_name='unique', format='df' )
+subject_data = pandas.concat( [ subject_data.xs( event, level=1 ) for event in baseline_events ] )
+subject_data['siblings_id1'] = subject_data['siblings_id1'].map( lambda x: subject_label_to_sid_dict[x] if x in subject_label_to_sid_dict.keys() else '' )
+
+visit_log_redcap = redcap_project.export_records(fields=['redcap_data_access_group', 'visit_date', 'visit_ignore', 'mr_session_report_complete', 'mri_xnat_sid', 'mri_stroop_complete', 'mri_inspection'], event_name='unique', export_data_access_groups=True, format='df' )
+if args.site:
+    sites = args.site.lower().split( ',' )
+    visit_log_redcap = visit_log_redcap[ visit_log_redcap['redcap_data_access_group'].map( lambda dag: dag in sites ) ]
+
+# Select only events that have the "MRI Session Report" form
+mri_events_list = form_event_mapping[form_event_mapping['form_name'] == 'mr_session_report' ]['unique_event_name'].tolist()
+mr_sessions_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda x: x[1] in mri_events_list ) ][['visit_date', 'visit_ignore___yes', 'mr_session_report_complete', 'mri_xnat_sid', 'mri_inspection___completed']]
+
+forms_by_event_dict = dict()
+for event in redcap_project.events:
+    event_id = event['unique_event_name']
+    forms_by_event_dict[event_id] = set( form_event_mapping[form_event_mapping['unique_event_name'] == event_id ]['form_name'].tolist() )
+
+# Have pipeline feeder check for "excluded" subjects that might have previously entered the pipeline
+if args.pipeline_root_dir:    
+    excluded_subjects = mr_sessions_redcap[ mr_sessions_redcap.index.map( lambda key: subject_data['exclude'][key[0]] == 1 ) ]['mri_xnat_sid'].dropna().tolist()
+    mrpipeline.check_excluded_subjects( excluded_subjects, args.pipeline_root_dir )
+
+# Filter out all records marked as "Complete", unless user instructed otherwise
+if not args.force_update:
+    mr_sessions_redcap = mr_sessions_redcap[ ~(mr_sessions_redcap['mr_session_report_complete'] > 1) ]
+if args.missing_only:
+    mr_sessions_redcap = mr_sessions_redcap[ ~(mr_sessions_redcap['mr_session_report_complete'] > 0) ]
+
+# Filter out all excluded subjects
+mr_sessions_redcap = mr_sessions_redcap[ mr_sessions_redcap.index.map( lambda key: False if subject_data['exclude'][key[0]] == 1 else True ) ]
+
+if args.verbose:
+    print "Checking %d REDCap records." % len( mr_sessions_redcap )
+
+# Iterate over all remaining rows
+records_uploaded = 0
+for [key,row] in mr_sessions_redcap.iterrows():
+    visit_date = str(visit_log_redcap['visit_date'][key])
+    if visit_date == 'nan': 
+        if float(row['visit_ignore___yes']) != 1:
+            print "Missing '%s' visit date for subject %s" % ( key[1], key[0] )
+    else:
+        this_subject_data = subject_data.ix[key[0]]
+        if str( this_subject_data['dob'] ) == 'nan':
+            print "Missing birthdate for subject %s" % key[0]
+        else:
+            visit_age = days_between_dates( this_subject_data['dob'], visit_date ) / 365.242
+            xnat_data = get_xnat_data( key, xnat, visit_date, this_subject_data['dob'], get_subject_next_visit_date( key[0], visit_date ), row['mri_inspection___completed'] )
+
+            if xnat_data['mri_xnat_eids'] != '':
+                # Check whether this MR session also has Stroop data
+                (stroop_eid,stroop_resource,stroop_file) = (None, None, None)
+                if not args.no_stroop:
+                    if args.force_update_stroop or not visit_log_redcap['mri_stroop_complete'][key] > 0:
+                        (stroop_eid,stroop_resource,stroop_file) = stroop.check_for_stroop( xnat, xnat_data['mri_xnat_eids'].split( ' ' ), verbose=args.verbose )
+                        if stroop_eid != None:
+                            stroop.import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, redcap_token, key, verbose=args.verbose, no_upload=args.no_upload )
+
+                # Check if pipeline directory given and export imaging series there
+                if args.pipeline_root_dir and (this_subject_data['exclude'] != 1):
+                    mrpipeline.export_and_queue( xnat, xnat_data, key, args.pipeline_root_dir, run_pipeline_script=args.run_pipeline_script, stroop=(stroop_eid,stroop_resource,stroop_file), verbose=args.verbose )
+
+            if not args.no_upload and (xnat_data['mr_session_report_complete'] > 0 or args.force_update):
+                # Make session data into dict for REDCap import
+                record = dict( row )
+                (record['study_id'], record['redcap_event_name']) = key
+                for (key,value) in xnat_data.iteritems():
+                    record[key] = value
+        
+                import_response = redcap_project.import_records( [record], overwrite='overwrite' )
+                if 'count' in import_response.keys():
+                    records_uploaded += import_response['count']
+
+                if 'error' in import_response.keys():
+                    print "UPLOAD ERROR:", import_response['error'],record
+            
+                if 'records' in import_response.keys():
+                    for r in import_response['records']:
+                        print "\t", r
+                    
+if args.verbose:
+    if not args.no_upload:
+        print "Successfully uploaded %d/%d records to REDCap." % ( records_uploaded, len( mr_sessions_redcap ) )
+    else:
+        print "Suppressed uploading of %d records to REDCap." % ( len( mr_sessions_redcap ) )

@@ -1,0 +1,183 @@
+
+  label OCobD4dx='OCD, Obsessions,DSMIV';
+  label OCcpD4dx='OCD, Compulsions,DSMIV';
+  keep occpd4dx ocobd4dx;
+ /*******************************************************/
+ /* OBSESSIVE COMPULSIVE DISORDER      */
+ /*******************************************************/
+
+ /*******************************************************/
+ /* OBSESSIONS, CRITERION A          */
+ /*******************************************************/
+ ocobd4a1=1;
+ if OC1probe=5 then ocobd4a1=5;
+ else
+   if OC1probe=3 then ocobd4a1=3;
+   else
+      if OC1probe=4 then ocobd4a1=4;
+      else
+         if (OCp1 in(1,5,.K))*(OC1probe=.) then ocdoba1=9;;**if probe value not
+                                      assigned because of DK along the way; 
+
+ocobd4a2=1;
+if oc1a=1 | oc1b=1 then ocobd4a2=5;
+else
+   if oc1a=.K | oc1b=.K then ocobd4a2=9;
+
+ocobd4a3=1;
+if oc2=5 then ocobd4a3=5;
+else
+   if oc2=.K then ocobd4a3=9;
+
+ocobd4a4=1;
+if oc3=5 then ocobd4a4=5;
+else
+   if oc3=.K then ocobd4a4=9;
+
+ocobd4a=1;
+if (ocobd4a1=5)*(ocobd4a2=5)*(ocobd4a3=5)*(ocobd4a4=5) then ocobd4a=5;
+else
+   if (ocobd4a1=3)*(ocobd4a2=5)*(ocobd4a3=5)*(ocobd4a4=5) then ocobd4a=3;
+   else
+      if (ocobd4a1=4)*(ocobd4a2=5)*(ocobd4a3=5)*(ocobd4a4=5) then ocobd4a=4;
+      else
+         if (ocobd4a1 in(3,4,5,.K))*(ocobd4a2 in(5,.K))*
+             (ocobd4a3 in(5,.K))*(ocobd4a4 in(5,.K)) then ocobd4a=9;
+ /*******************************************************/
+ /* OBSESSIONS, CRITERION B           */
+ /*******************************************************/
+ocobd4b=1;
+if oc4=5 then ocobd4b=5;
+else
+   if oc4=.K then ocobd4b=9;
+ /*******************************************************/
+ /* OBSESSIONS, CRITERION C           */
+ /*******************************************************/
+ocobd4c=1;
+if oc7=5 | oc7a=5 then ocobd4c=5;
+else
+   if oc7=.K | oc7a=.K then ocobd4c=9;
+ /*******************************************************/
+ /* OBSESSIONS, CRITERION D           */
+ /*******************************************************/
+ocobd4d=1;
+ if (ocobd4a2=5)*(oc5=1) then ocobd4d=5;
+ else
+   if (ocobd4a2 in(5,.K))*(oc5 in(1,.K)) then ocobd4d=9;
+
+ /*******************************************************/
+ /* OBSESSIONS, CRITERION E           */
+/*******************************************************/
+ocobd4e=1;
+if (OC1probe=5)*(oc6=1) then ocobd4e=5;
+else
+   if (OC1probe in(5,.K))*(oc6 in(1,.K)) then ocobd4e=9;
+
+/*************************/
+/*OBSESSIONS, DSM-IV DX */
+/*************************/
+ocobd4dx=1;
+if (ocobd4a=5)*(ocobd4b=5)*(ocobd4c=5)*(ocobd4d=5)
+   *(ocobd4e=5) then ocobd4dx=5;
+else
+   if (ocobd4a=3)*(ocobd4b=5)*(ocobd4c=5)*(ocobd4d=5)
+      *(ocobd4e=1) then ocobd4dx=3;
+   else
+      if (ocobd4a=4)*(ocobd4b=5)*(ocobd4c=5)*(ocobd4d=5)
+         *(ocobd4e=1) then ocobd4dx=4;
+      else
+         if (ocobd4b in(5,9))*(ocobd4c in(5,9))*
+            (ocobd4d in(5,9))*
+            (((ocobd4a in(5,9))*(ocobd4e in(5,9)))|
+            ((ocobd4a in(3,4,9))*(ocobd4e in(1,9))))
+               then ocobd4dx=9;
+
+if oc1 in(.,.K) then do;
+   ocobd4a=.;ocobd4b=.;ocobd4c=.;ocobd4d=.;ocobd4e=.;
+   ocobd4dx=.;
+end;
+
+ /*******************************************************/
+ /* COMPULSIONS, CRITERION A          */
+ /*******************************************************/
+ occpd4a1=1;
+ if oc9probe=5 then occpd4a1=5;
+ else
+   if oc9probe=3 then occpd4a1=3;
+   else
+      if oc9probe=4 then occpd4a1=4;
+      else
+         if (ocp1 in(5,1,.K))*(oc9probe=.) then occpd4a1=9;**if probe value not
+                                      assigned because of DK along the way; 
+
+occpd4a2=1;
+if oc9a=5 | oc10=5 then occpd4a2=5;
+else
+   if oc9a=.K | oc10=.K then occpd4a2=9;
+
+occpd4a=1;
+if (occpd4a1=5)*(occpd4a2=5) then occpd4a=5;
+else
+   if (occpd4a1=3)*(occpd4a2=5) then occpd4a=3;
+   else
+      if (occpd4a1=4)*(occpd4a2=5) then occpd4a=4;
+      else
+         if (occpd4a1 in(3,4,5,9))*(occpd4a2 in(5,9))
+             then occpd4a=9;
+ /*******************************************************/
+ /* COMPULSIONS, CRITERION B           */
+ /*******************************************************/
+occpd4b=1;
+if oc11=5 then occpd4b=5;
+else
+   if oc11=.K then occpd4b=9;
+ /*******************************************************/
+ /* COMPULSIONS, CRITERION C           */
+ /*******************************************************/
+occpd4c=1;
+if oc15=5 | oc15=5 then occpd4c=5;
+else
+   if oc15=.K | oc15a=.K then occpd4c=9;
+ /*******************************************************/
+ /* COMPULSIONS, CRITERION D           */
+ /*  Note:      unaffecteds will be assigned value 5 for this criterion  */
+ /*         but will not meet full criteria for the diagnosis       */
+ /*******************************************************************/
+occpd4d=1;
+ if (oc12 not in(5,9))*(oc13 not in(5,9)) then occpd4d=5;
+ else
+   if (oc12=.K)|(oc13=.K) then occpd4d=9;
+
+ /*******************************************************/
+ /* COMPULSIONS, CRITERION E           */
+/*******************************************************/
+occpd4e=1;
+if (oc9probe=5)*(oc14=1) then occpd4e=5;
+else
+   if (oc9probe in(5,9))*(oc14 in(1,.K)) then occpd4e=9;
+
+/*************************/
+/*COMPULSIONS, DSM-IV DX */
+/*************************/
+occpd4dx=1;
+if (occpd4a=5)*(occpd4b=5)*(occpd4c=5)*(occpd4d=5)
+   *(occpd4e=5) then occpd4dx=5;
+else
+   if (occpd4a=3)*(occpd4b=5)*(occpd4c=5)*(occpd4d=5)
+      *(occpd4e=1) then occpd4dx=3;
+   else
+      if (occpd4a=4)*(occpd4b=5)*(occpd4c=5)*(occpd4d=5)
+         *(occpd4e=1) then occpd4dx=4;
+      else
+         if (occpd4b in(5,9))*(occpd4c in(5,9))*
+            (occpd4d in(5,9))*
+            (((occpd4a in(5,9))*(occpd4e in(5,9)))|
+            ((occpd4a in(3,4,9))*(occpd4e in(1,9))))
+             then occpd4dx=9;
+
+
+if oc1 in(.,.K) then do;
+   /*occpd4a=.;occpd4b=.;occpd4c=.;occpd4d=.;occpd4e=.;*/
+   occpd4dx=.;ocobd4dx=.;
+
+end;

@@ -1,0 +1,97 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2013 SRI International
+##
+##  http://nitrc.org/projects/ncanda-datacore/
+##
+##  This file is part of the N-CANDA Data Component Software Suite, developed
+##  and distributed by the Data Integration Component of the National
+##  Consortium on Alcohol and NeuroDevelopment in Adolescence, supported by
+##  the U.S. National Institute on Alcohol Abuse and Alcoholism (NIAAA) under
+##  Grant No. 1U01 AA021697
+##
+##  The N-CANDA Data Component Software Suite is free software: you can
+##  redistribute it and/or modify it under the terms of the GNU General Public
+##  License as published by the Free Software Foundation, either version 3 of
+##  the License, or (at your option) any later version.
+##
+##  The N-CANDA Data Component Software Suite is distributed in the hope that it
+##  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+##  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License along
+##  with the N-CANDA Data Component Software Suite.  If not, see
+##  <http://www.gnu.org/licenses/>.
+##
+##  $Revision: 345 $
+##
+##  $LastChangedDate: 2013-05-16 15:33:07 -0700 (Thu, 16 May 2013) $
+##
+##  $LastChangedBy: torosean $
+##
+
+import datetime
+from matplotlib.dates import date2num
+from prettytable import PrettyTable
+import numpy as np
+from pyxnat import Interface
+import os
+
+conf = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' )
+interface = Interface( config=conf )
+ 
+#unique elements of a list
+def unique(seq, idfun=None): 
+   # order preserving
+   if idfun is None:
+       def idfun(x): return x
+   seen = {}
+   result = []
+   for item in seq:
+       marker = idfun(item)
+       if marker in seen: continue
+       seen[marker] = 1
+       result.append(item)
+   return result
+# get the date into a friendly format
+def numconv(dt):
+    dd = datetime.datetime.strptime(dt, "%Y-%m-%d")
+    return dd
+ 
+#extract all session ids with session insert date, session project and sesion scan date
+sess = interface.select( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/INSERT_DATE','xnat:mrSessionData/PROJECT','xnat:mrSessionData/DATE']).all().items()
+ 
+#numpy verrsion of the above information matrix
+nns = np.array(sess)
+ 
+# the difference in days between  insert date and scan date, i.e the delays    
+datdiff=np.array([date2num(numconv(ins[0:10])) for ins in nns[:,1]])-np.array([date2num(numconv(ee[0:10])) for ee in nns[:,3]])
+# create the first row with the stat labels
+x = PrettyTable(["Days", "Average", "Median", "Maximum","Minimum","Standard Dev"])
+#for a project in a unique list of projects
+for inpt in unique(nns[:,2]):
+   x.add_row(['','','','','',''])    
+   x.add_row([inpt,'','','','',''])
+   #for interval of 8 days...to infinity        
+   for interv in [8,31, 61, float('inf')]:
+      
+      sinterv = str(interv)
+      #get the correct delay based on 1).project, and 2).interval
+      delays=datdiff[np.where(np.logical_and(inpt == nns[:,2] , (np.array(date2num(datetime.datetime.today())) -np.array([date2num(numconv(ins[0:10])) for ins in nns[:,1]])) < interv  ))]
+      
+      #statistics
+      if len( delays ):
+         aved = round(np.average(delays),1)
+         stdd= round(np.std(delays),1)
+         medi = round(np.median(delays),1) 
+         maxim = round(max(delays),1)
+         minim = round(min(delays),1)
+         x.add_row([sinterv,aved,medi,maxim,minim,stdd])
+      else:
+         x.add_row([sinterv,0,0,0,0,0])
+# fix column alignment    
+x.align = "r"
+#x.align['Day'] = "c"
+print x

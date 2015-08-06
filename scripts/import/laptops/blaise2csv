@@ -1,0 +1,217 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2012-2014 SRI International
+##
+##  http://nitrc.org/projects/ncanda-datacore/
+##
+##  This file is part of the N-CANDA Data Component Software Suite, developed
+##  and distributed by the Data Integration Component of the National
+##  Consortium on Alcohol and NeuroDevelopment in Adolescence, supported by
+##  the U.S. National Institute on Alcohol Abuse and Alcoholism (NIAAA) under
+##  Grant No. 1U01 AA021697
+##
+##  The N-CANDA Data Component Software Suite is free software: you can
+##  redistribute it and/or modify it under the terms of the GNU General Public
+##  License as published by the Free Software Foundation, either version 3 of
+##  the License, or (at your option) any later version.
+##
+##  The N-CANDA Data Component Software Suite is distributed in the hope that it
+##  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+##  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License along
+##  with the N-CANDA Data Component Software Suite.  If not, see
+##  <http://www.gnu.org/licenses/>.
+##
+##  $Revision$
+##
+##  $LastChangedDate$
+##
+##  $LastChangedBy$
+##
+
+import argparse
+import tempfile
+import shutil
+import re
+import os
+import subprocess
+import pandas
+import string
+import sys
+
+import ssaga
+
+#
+# Score SSAGA using SAS scripts 
+#
+# This function makes the following assumptions about the operating environment:
+#
+# 1. SAS is installed in ~/.wine/drive_c/Program\ Files/SAS/SAS\ 9.1/
+#
+# 2. Drive "S:" is mapped to the directory with the SAS scoring scripts
+#
+def score_ssaga( filename_asc ):
+    if not os.path.exists( '/tmp/ssaga' ):
+        os.makedirs( '/tmp/ssaga' )
+    shutil.copy( filename_asc, '/tmp/ssaga/NSSAGA_v3_ASC' )
+
+    sas_path = os.path.join( os.path.expanduser("~"), '.wine', 'drive_c', 'Program Files', 'SAS', 'SAS 9.1', 'sas.exe' )
+    for sas_script in ['crtpreNSSAGA_v3.sas', 'crtNSSAGA.sas', 'crtalldx.sas', 'toCSV.sas']:
+        sas_script_path = 'S:\\%s' % sas_script
+        try:
+            subprocess.check_call( ['wine', sas_path, '-SYSIN', sas_script_path, '-NOSPLASH'], stderr=devnull )
+        except:
+            print 'ERROR: SAS script',sas_script,'cannot be run for',filename_asc
+            shutil.rmtree( '/tmp/ssaga' )
+            raise Exception()
+
+    data = pandas.io.parsers.read_csv( '/tmp/ssaga/dx_nssaga.csv' )
+    shutil.rmtree( '/tmp/ssaga' )
+    return data
+
+# Extract record ID and date of test from a single ASC file record
+def get_id_and_date( record ):
+    subject_id = record[0:11].strip()
+
+    # Catch subject IDs with missing hyphens and fix.
+    match_id = re.search( '^([A-F])([0-9]{5})([MFT])([0-9])$', subject_id )
+    if match_id:
+        subject_id = "%s-%s-%s-%s" % ( match_id.group(1), match_id.group(2), match_id.group(3), match_id.group(4) )
+        
+    date_of_test = '%s-%s-%s' % ( record[15:19], record[13:15], record[11:13] )
+    record_id = re.sub( ' ', '_', '%s-%s' % ( subject_id, date_of_test ) )
+
+    return (record_id,date_of_test)
+
+#
+# Process an ASC file, record by record
+#
+def process_ascfile( ascfile_name ):
+    ascfile = open( ascfile_name, 'r' )
+    try:
+        for record in ascfile:
+            (record_id,date_of_test) = get_id_and_date( record )
+
+            # First write an ASC file for this record; we run this through SAS for scoring
+            filename_asc = os.path.join( output_directory, '%s.asc' % record_id )
+            if not os.path.exists( filename_asc ) or args.overwrite:
+                output_file_asc = open( filename_asc, 'w' );
+                try:
+                    output_file_asc.write( record )
+                finally:
+                    output_file_asc.close()
+
+            if not args.no_csv:
+                # Second, create file with raw fields if it does not yet exist
+                filename_fields = os.path.join( output_directory, '%s-fields.csv' % record_id )
+                if not os.path.exists( filename_fields ) or args.overwrite:
+                    ssaga_fields = dict()
+                    for field in ssaga.fields_to_copy:
+                        ssaga_fields['ssaga_%s_%s' % ( args.ssaga_type, string.lower( field ) )] = ssaga.get_field( record, field ).strip()
+                
+                    ssaga_fields['record_id'] = record_id
+                    ssaga_fields['ssaga_%s_dotest' % ( args.ssaga_type ) ] = date_of_test
+                    ssaga_fields['ssaga_%s_copy_complete' % ( args.ssaga_type ) ] = 1
+                    ssaga_fields['visit_information_complete'] = 1;
+        
+                    try:
+                        pandas.DataFrame( [ ssaga_fields ] ).to_csv( filename_fields, index=False )
+                        print filename_fields
+                    except:
+                        pass
+
+            if not (args.no_csv or args.no_sas):
+                # Third, create file with SAS-based scores if it does not yet exist
+                filename_scores = os.path.join( output_directory, '%s.csv' % record_id )
+                if os.path.exists( filename_asc ) and (not os.path.exists( filename_scores ) or args.overwrite):
+                    try:
+                        ssaga_scores = score_ssaga( filename_asc )
+                    except:
+                        continue
+
+                    ssaga_scores.rename( columns = lambda s: string.lower( "ssaga_%s_%s" % (args.ssaga_type,s) ), inplace=True )
+                    ssaga_scores['record_id'] = record_id
+                    ssaga_scores['ssaga_%s_dotest' % ( args.ssaga_type ) ] = date_of_test
+                    ssaga_scores['ssaga_%s_complete' % ( args.ssaga_type ) ] = 1
+                    ssaga_scores['visit_information_complete'] = 1;
+            
+                    try:
+                        ssaga_scores.to_csv( filename_scores, index=False )                    
+                        print filename_scores
+                    except:
+                        pass
+
+    finally:
+        ascfile.close()
+
+#
+# Process Blaise database: first extract ASC file using Manipula, then call process_ascfile
+#
+def process_blaise( infile ):
+    # Copy all necessary Blaise files into temporary directory
+    tempdir = tempfile.mkdtemp()
+
+    for suffix in ['bdb', 'bdm', 'bfi', 'bjk', 'bla', 'bmi', 'bpk', 'bxi']:
+        shutil.copy( re.sub( 'bdb$', suffix, infile ), tempdir )
+    for suffix in ['man', 'msu', 'msx']:
+        shutil.copy( os.path.join( os.path.expanduser("~"), 'src', 'manipula', 'crtNSSAGA_v3.%s' % suffix ), tempdir )
+
+    # Run Manipula
+    olddir = os.getcwd() 
+    os.chdir( tempdir )
+    try:
+        subprocess.check_call( ['wine', os.path.join( os.path.expanduser("~"), 'src', 'manipula', 'Manipula.exe' ), 'crtNSSAGA_v3.man' ], stderr=devnull )
+    except:
+        sys.exit( 'ERROR: could not run wine/Manipula' )
+
+    # Finally, hand ASC file to scoring and extractor function
+    process_ascfile( 'NSSAGA_v3_asc' )
+
+    # Remove temp dir
+    os.chdir( olddir )
+    shutil.rmtree( tempdir )
+
+
+# Setup command line parser
+parser = argparse.ArgumentParser( description="Convert SSAGA survey from Blaise database or ASC file to CSV files (two output file per subject - one with survey fields copied, a second with SAS-based DX scores; only new files will be created)" )
+parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument( "--no-xvfb", help="Use current X server - do not start Xfvb to run Wine", action="store_true")
+parser.add_argument( "--no-csv", help="Do not create CSV output files, only intermediate ASC files.", action="store_true")
+parser.add_argument( "--no-sas", help="Do not run SAS_based scoring. Only create ASC files and CSV files with copied survey fields.", action="store_true")
+parser.add_argument( "--overwrite", help="Overwrite existing CSV files.", action="store_true")
+parser.add_argument( "infile", help="Input Blaise database file (*.bdb) or pre-extracted ASC file (*.asc). This this is a BDB file, Manipula will first be run to create an ASC file.")
+parser.add_argument( "ssaga_type", help="SSAGA type, e.g., 'youth' or 'parent'.")
+parser.add_argument( "outdir", help="Output directory. All CSV files are created in this directory")
+args = parser.parse_args()
+
+# Determine directory name - create if it doesn't exist
+output_directory = os.path.join( args.outdir, args.ssaga_type )
+if not os.path.exists( output_directory ):
+    os.makedirs( output_directory )
+
+#
+# Start virtual X server for Wine/Manipula/SAS
+#
+devnull = open( '/dev/null', 'w' )
+if not args.no_xvfb:
+    Xvfb = subprocess.Popen(["Xvfb", ":555"], stderr=devnull, stdout=devnull )
+    os.putenv( 'DISPLAY', ':555' )
+
+#
+# Process file, either Blaise database or pre-extracted ASC file
+#
+if re.match( '.*\.[Aa][Ss][Cc]$', args.infile ):
+    process_ascfile( args.infile )
+else:
+    process_blaise( args.infile )
+
+#
+# Close virtual X server
+#
+if not args.no_xvfb:
+    Xvfb.terminate()
+devnull.close()
+

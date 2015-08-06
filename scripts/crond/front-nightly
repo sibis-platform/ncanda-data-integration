@@ -1,0 +1,67 @@
+#!/bin/bash
+
+##
+##  Copyright 2013-2014 SRI International
+##
+##  http://nitrc.org/projects/ncanda-datacore/
+##
+##  This file is part of the N-CANDA Data Component Software Suite, developed
+##  and distributed by the Data Integration Component of the National
+##  Consortium on Alcohol and NeuroDevelopment in Adolescence, supported by
+##  the U.S. National Institute on Alcohol Abuse and Alcoholism (NIAAA) under
+##  Grant No. 1U01 AA021697
+##
+##  The N-CANDA Data Component Software Suite is free software: you can
+##  redistribute it and/or modify it under the terms of the GNU General Public
+##  License as published by the Free Software Foundation, either version 3 of
+##  the License, or (at your option) any later version.
+##
+##  The N-CANDA Data Component Software Suite is distributed in the hope that it
+##  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+##  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License along
+##  with the N-CANDA Data Component Software Suite.  If not, see
+##  <http://www.gnu.org/licenses/>.
+##
+##  $Revision: 120 $
+##
+##  $LastChangedDate: 2013-03-12 21:16:42 -0700 (Tue, 12 Mar 2013) $
+##
+##  $LastChangedBy: torsten_at_home $
+##
+
+[ -r $HOME/.bashrc ] && . $HOME/.bashrc
+
+# Import some useful functions
+. $(dirname $0)/crontools.sh
+
+######################################
+# XNAT / Imaging Related
+######################################
+
+# Check MR session names etc. in XNAT
+catch_output_email nolan.nichols@gmail.com,kilian.pohl@sri.com "NCANDA XNAT: Check Object Names Messgae (check_object_names)" ${HOME}/scripts/xnat/check_object_names --send-mail --zip-root /fs/storage/share/burn2dvd
+
+# Check for new or updated sessions and
+catch_output_email nolan.nichols@gmail.com,kilian.pohl@sri.com "NCANDA XNAT: Check New Sessions Message (check_new_sessions)" ${HOME}/scripts/xnat/check_new_sessions --send-mail-to dolf@synapse.sri.com,kilian.pohl@sri.com,nolan.nichols@gmail.com,yzhang83@stanford.edu
+
+# Check whether any MR sessions are missing corresponding phantom scans
+catch_output_email nolan.nichols@gmail.com,kilian.pohl@sri.com "NCANDA XNAT: Phantom Scan Messages (check_phantom_scans)" ${HOME}/scripts/xnat/check_phantom_scans --check-all
+
+# Run fMRI QA on subjects ## Currently disabled because it isn't looked at but takes a long time to run
+##catch_output_email daniel.cuneo@sri.com "NCANDA XNAT: Subject fMRI QA Messages" ${HOME}/scripts/xnat/fmri_qa_subjects
+
+######################################
+# REDCap / NP / Clinical Data Related
+######################################
+
+# Import data from UPenn into REDCap
+catch_output_email weiwei.chu@sri.com,nolan.nichols@gmail.com "NCANDA REDCap: WebCNP Import Messages (cnp2redcap)" ${HOME}/scripts/import/webcnp/cnp2redcap --last-3-months
+
+# Check whether subject birth dates and gender match checksum digit, plus whether all subjects on study arms appear in main arm also
+catch_output_email weiwei.chu@sri.com,nolan.nichols@gmail.com "NCANDA REDCap: Subject ID Checks (check_subject_ids)" ${HOME}/scripts/redcap/check_subject_ids
+
+# Check (and update, if necessary) drinking exception status
+catch_output_email weiwei.chu@sri.com,nolan.nichols@gmail.com "NCANDA REDCap: Undeclared Drinking Exceptions (check_exceptions)" ${HOME}/scripts/redcap/check_exceptions --update-fn

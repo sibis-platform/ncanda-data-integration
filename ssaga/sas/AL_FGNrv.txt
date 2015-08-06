@@ -1,0 +1,205 @@
+********************************************************;
+/******************************************/
+/*      ALCOHOLISM, FEIGHNER              */
+/******************************************/
+keep alfgn alfgn_a alfgn_b alfgn_c alfgn_d;
+keep alfgncnt;
+label alfgn='alcoholism, Feighner:5=def,3=prob,9=UK';
+label alfgn_a=alcoholism, Feighner, group 1;
+label alfgn_b=alcoholism, Feighner, group 2;
+label alfgn_c=alcoholism, Feighner, group 3;
+label alfgn_d=alcoholism, Feighner, group 4;
+label alfgncnt='num pos Feighner alcohol groups';
+
+array alfgngrp(4) alfgn_a alfgn_b alfgn_c alfgn_d;
+do i=1 to 4;
+   alfgngrp(i)=1;
+end;
+
+alfgn=1;
+
+/******************************************/
+/*        GROUP 1   (ALFGN_A)             */
+/******************************************/
+**** withdrawal;
+cnt5=0;cnt9=0;
+array alfnga1_(11) al37_1-al37_9 al38 al39;
+do i=1 to 11;
+   if alfnga1_(i)=5 then cnt5+1;
+   else
+      if alfnga1_(i)=.K then cnt9+1;
+end;
+if cnt5>0 then alfgnga1=5;
+else
+   if cnt9>0 then alfgnga1=9;
+
+**** medical complications;
+cnt5=0;cnt9=0;
+array alfnga2_(7) al31_1-al31_7;
+do i=1 to 7;
+   if alfnga2_(i)=5 then cnt5+1;
+   else
+      if alfnga2_(i)=.K then cnt9+1;
+end;
+if cnt5>0 then alfgnga2=5;
+else
+   if cnt9>0 then alfgnga2=9;
+
+***blackouts;
+if al17b>=2 or al17b1=5 then alfgnga3=5;
+else
+   if al17b1=.K then alfgnga3=9;
+
+*** binges or benders;
+if al16b>=2 or al16b1=5 then alfgnga4=5;
+else
+   if al16b1=.K then alfgnga4=9;
+
+
+***********************;
+cnt5=0;cnt9=0;
+array alfgnga(4);
+do i=1 to 4;
+   if alfgnga(i)=5 then cnt5+1;
+   else
+      if alfgnga(i)=.K then cnt9+1;
+end;
+if cnt5>0 then alfgn_a=5;
+else
+   if cnt9>0 then alfgn_a=9;
+***********************;
+
+/******************************************/
+/*        GROUP 2   (ALFGN_B)             */
+/******************************************/
+*** not able to stop drinking when wanted to;
+if al10c=1 or al12=5 or al13=5 then alfgngb1=5;
+else
+   if al10c=.K or al12=.K or al13=.K then alfgngb1=9;
+
+*** rules to control drinking;
+if al11=5 then alfgngb2=5;
+else
+   if al11=.K then alfgngb2=9;
+
+**** drinking before breakfast;
+if al18=5 or al18a=5 then alfgngb3=5;
+else
+   if al18=.K or al18a=.K then alfgngb3=9;
+
+**** drinking non-beverage alcohol;
+if al20=5 then alfgngb4=5;
+else
+   if al20=.K then alfgngb4=9;
+
+***********************;
+cnt5=0;cnt9=0;
+array alfgngb(4);
+do i=1 to 4;
+   if alfgngb(i)=5 then cnt5+1;
+   else
+      if alfgngb(i)=.K then cnt9+1;
+end;
+if cnt5>0 then alfgn_b=5;
+else
+   if cnt9>0 then alfgn_b=9;
+***********************;
+
+/******************************************/
+/*        GROUP 3   (ALFGN_C)             */
+/******************************************/
+
+**** arrests ;
+if al28=5 then alfgngc1=5;
+else
+   if al28=.K then alfgngc1=9;
+
+*** traffic difficulties;
+if al24=5 or al23=5 then alfgngc2=5;
+else
+   if al24=.K or al23=.K then alfgngc2=9;
+
+*** trouble at work;
+if al26a3=5 then alfgngc3=5;
+else
+   if al26a3=.K then alfgngc3=9;
+
+*** fighting;
+if al26a6=5 or al26a7=5 or al26a8=5 then alfgngc4=5;
+else
+   if al26a6=.K or al26a7=.K or al26a8=.K then alfgngc4=9;
+
+***********************;
+cnt5=0;cnt9=0;
+array alfgngc(4);
+do i=1 to 4;
+   if alfgngc(i)=5 then cnt5+1;
+   else
+      if alfgngc(i)=.K then cnt9+1;
+end;
+if cnt5>0 then alfgn_c=5;
+else
+   if cnt9>0 then alfgn_c=9;
+***********************;
+
+/******************************************/
+/*        GROUP 4   (ALFGN_D)             */
+/******************************************/
+**** thinks he/she drinks too much;
+if al34=5 then  alfgngd1=5;
+else
+   if al34=.K then  alfgngd1=9;
+
+**** family objects(d2), other people object(d4);
+if al26a1=5 then do; alfgngd2=5;alfgngd4=5;end;
+else
+  if al26a1=.K then do;alfgngd2=9;alfgngd4=9;end;
+
+****loss of friends;
+if al26a2=5 then alfgngd3=5;
+else
+   if al26a2=.K then alfgngd3=9;
+
+**** feels guilty;
+if al35=5 then alfgngd5=5;
+else
+   if al35=.K then alfgngd5=9;
+
+***********************;
+cnt5=0;cnt9=0;
+array alfgngd(5);
+do i=1 to 5;
+   if alfgngd(i)=5 then cnt5+1;
+   else
+      if alfgngd(i)=.K then cnt9+1;
+end;
+if cnt5>0 then alfgn_d=5;
+else
+   if cnt9>0 then alfgn_d=9;
+***********************;
+
+*****************************************;
+*  DEFINITE,PROBABLE DIAGNOSES           ;
+*****************************************;
+cnt5=0;cnt9=0;
+alfgncnt=0;
+do i=1 to 4;
+   if alfgngrp(i)=5 then cnt5+1;
+   else
+      if alfgngrp(i)=9 then cnt9+1;
+end;
+if cnt5>=3 then alfgn=5;
+else
+   if cnt5=2 then alfgn=3;
+   else
+      if sum(cnt5,cnt9)>=3 then alfgn=9;
+alfgncnt=cnt5;
+
+ ********************if section skipped **************;
+array alfgnarray(*) alfgn alfgn_a alfgn_b alfgn_c alfgn_d alfgncnt;
+if (al1 in (.K ,.))*(al1a in (.K ,.)) then do;
+    do i=1 to dim(ALfgnarray);
+        ALfgnarray(i)=.;
+    end;
+end;
+

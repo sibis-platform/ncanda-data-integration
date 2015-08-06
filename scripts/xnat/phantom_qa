@@ -1,0 +1,111 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2012, 2013 SRI International
+##
+##  http://nitrc.org/projects/ncanda-datacore/
+##
+##  This file is part of the N-CANDA Data Component Software Suite, developed
+##  and distributed by the Data Integration Component of the National
+##  Consortium on Alcohol and NeuroDevelopment in Adolescence, supported by
+##  the U.S. National Institute on Alcohol Abuse and Alcoholism (NIAAA) under
+##  Grant No. 1U01 AA021697
+##
+##  The N-CANDA Data Component Software Suite is free software: you can
+##  redistribute it and/or modify it under the terms of the GNU General Public
+##  License as published by the Free Software Foundation, either version 3 of
+##  the License, or (at your option) any later version.
+##
+##  The N-CANDA Data Component Software Suite is distributed in the hope that it
+##  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+##  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License along
+##  with the N-CANDA Data Component Software Suite.  If not, see
+##  <http://www.gnu.org/licenses/>.
+##
+##  $Revision$
+##
+##  $LastChangedDate$
+##
+##  $LastChangedBy$
+##
+
+# Define command line options for this script
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option("-v", "--verbose", action="store_true", dest="verbose", default=False, help="Verbose operation.")
+parser.add_option("-f", "--force-updates", action="store_true", dest="force_updates", default=False, help="Force updates of QA analyses for all phantom scan experiments.")
+parser.add_option("-a", "--check-all", action="store_true", dest="check_all", default=False, help="Check all phantom sessions, regardless of date.")
+parser.add_option("--exclude-adni", action="store_true", dest="exclude_adni", default=False, help="Exclude all (structural) ADNI phantom scans.")
+parser.add_option("--exclude-fbirn", action="store_true", dest="exclude_fbirn", default=False, help="Exclude all (functional) fBIRN phantom scans.")
+(options, args) = parser.parse_args()
+
+# Create interface using stored configuration
+import os
+import pyxnat
+interface = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+interface._memtimeout = 0
+
+# Date format for XNAT dates
+import time
+xnat_date_format = '%Y-%m-%d %H:%M:%S'
+now_str = time.strftime( xnat_date_format )
+
+# Date (and time) when we last checked things
+import json
+date_last_checked = time.localtime(0)
+config_uri = '/data/config/pyxnat/fmri_qa_phantom'
+try:
+    # Retrieve script config from XNAT server
+    content = interface._exec( '%s?format=json' % config_uri )
+    # Extract date this script was last run
+    creation_date = json.loads( content )['ResultSet']['Result'][0]['create_date']
+    date_last_checked = time.strptime( creation_date[0:19], xnat_date_format )
+    if options.verbose:
+        print 'Script was last run %s' % creation_date
+except:
+    # If we cannot get last script run date from server, leave at epoch (Jan 1, 1970)    
+    if options.verbose:
+        print 'Unable to retrieve date of last script run from server.'
+
+# For comparison - convert time of last check to string in XNAT date format
+str_date_last_checked = time.strftime( xnat_date_format, date_last_checked )
+
+if not options.exclude_fbirn:
+    # Now find all fBIRN phantom sessions and see which ones need to have QA done
+    import fmri_qa_functions as qa
+    # Search XNAT database for all Subjects that have the fBIRN phantom ID (%-00000-P-0)
+    phantom_subject_IDs = interface.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID','xnat:subjectData/PROJECT']).where([('xnat:subjectData/SUBJECT_LABEL','LIKE','%-00000-P-0')]).items()
+    for [phantom,project] in phantom_subject_IDs:
+        # For each phantom subject (one per project), get the IDs and last_modified dates of all its imaging sessions
+        phantom_sessions = interface.select( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SESSION_LABEL','xnat:mrSessionData/LAST_MODIFIED'] ).where([('xnat:mrSessionData/SUBJECT_ID','LIKE',phantom)]).items()
+
+        # Iterate over all imaging sessions
+        for [session,label,last_modified] in phantom_sessions:
+            if (last_modified > str_date_last_checked) or options.force_updates or options.check_all:
+                if options.verbose:
+                    print 'Running fBIRN phantom QA for session %s in project %s' % ( session,project )
+                qa.process_phantom_session( interface, project, phantom, session, label, force_updates=options.force_updates )
+
+if not options.exclude_adni:
+    # Now find all ADNI phantom sessions and see which ones need to have QA done
+    import t1_qa_functions as t1qa
+    # Search XNAT database for all Subjects that have the ADNI phantom ID (%-99999-P-9)
+    phantom_subject_IDs = interface.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID','xnat:subjectData/PROJECT']).where([('xnat:subjectData/SUBJECT_LABEL','LIKE','%-99999-P-9')]).items()
+    for [phantom,project] in phantom_subject_IDs:
+        # For each phantom subject (one per project), get the IDs and last_modified dates of all its imaging sessions
+        phantom_sessions = interface.select( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SESSION_LABEL','xnat:mrSessionData/LAST_MODIFIED'] ).where([('xnat:mrSessionData/SUBJECT_ID','LIKE',phantom)]).items()
+
+        # Iterate over all imaging sessions
+        for [session,label,last_modified] in phantom_sessions:
+            if (last_modified > str_date_last_checked) or options.force_updates or options.check_all:
+                if options.verbose:
+                    print 'Running ADNI phantom QA for session %s in project %s' % ( session,project )
+                t1qa.process_phantom_session( interface, project, phantom, session, label, force_updates=options.force_updates )
+
+# Finally, update config stored on the server to have current date/time as the time that this script was last run
+# (but don't update config if we excluded either ADNI of fBIRN phantom scans this time around)
+if not options.exclude_fbirn and not options.exclude_adni:
+    content = interface._exec( uri='%s?inbody=true' % config_uri, method='PUT', body=now_str, headers={'content-type':'text/plain'} )

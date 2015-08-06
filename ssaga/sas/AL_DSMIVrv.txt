@@ -1,0 +1,261 @@
+
+*******************************************************************;
+  ***** DSMIV  DEPENDENCE AND ABUSE **********;
+ *******************************************************************;
+  ***** DSMIV  DEPENDENCE **********;
+
+label   ald4dpsx  ='# DSM4 ALC Criteria Endorsed'
+        ald4dpdx ='DSM4 ALC Dependence'
+        ald4abdx ='DSM4 ALC Abuse'
+        ald4absx   ='DSM4 ALC Abuse # of sx'
+        ald4d1='DSM4 tolerance'
+        ald4d2='DSM4 withdrawal'
+        ald4dpao='Age of onset, DSMIV alcohol dependence';
+        ;
+
+ald4dpdx=1;
+********************************************************;
+***              tolerance       ***;
+ald4d1=1;
+************************************;
+if (al9d=5) | (al9i=5) then ald4d1=5;
+else
+   if (al9d =.K) | (al9i =.K) then ald4d1=9;
+
+********************************************************;
+********************** withdrawal;
+ald4d2=1;
+************************************;
+cntwdrwl5=0;
+cntwdrwl9=0;
+
+array withdr (6) Al37bCluster al37i al38 al38c al39 al39c;
+do i=1 to 6;
+   if withdr(i)=5 then cntwdrwl5+1;
+   else
+      if withdr(i) =.K then cntwdrwl9+1;
+end; 
+
+ 
+
+if cntwdrwl5>0 then ald4d2=5;
+else
+   if cntwdrwl9>0 then ald4d2=9;
+
+********************************************************;
+******substance often taken in larger amounts over longer
+      period of time than intended;
+ald4d3=1;
+************************************;
+cnt5=0;
+cnt9=0;
+if al12c=5 then cnt5+1;
+else
+   if al12c =.K then cnt9+1;
+if al13b=5 then cnt5+1;
+else
+   if al13b =.K then cnt9+1;
+if cnt5>0 then ald4d3=5;
+else
+   if cnt9>0 then ald4d3=9;
+
+********************************************************;
+***** persistent desire or unsuccessful efforts to cut down
+      or control;
+ald4d4=1;
+************************************;
+cnt5=0;
+cnt9=0;
+if al10=5 then cnt5+1;
+else
+   if al10 =.K then cnt9+1;
+if (al10d>=3) | (al10d1=5) then cnt5+1;
+else
+   if al10d1 =.K then cnt9+1;
+if cnt5>0 then ald4d4=5;
+else
+   if cnt9>0 then ald4d4=9;
+
+********************************************************;
+***** a great deal of time spent...(obtaining,using,recovering);
+ald4d5=1;
+************************************;
+if al15a=5 then ald4d5=5;
+else
+   if al15a =.K then ald4d5=9;
+
+********************************************************;
+***** important ... activities given up or reduced ..;
+ald4d6=1;
+if al14b=5 then ald4d6=5;
+else
+   if al14b =.K then ald4d6=9;
+************************************;
+
+********************************************************;
+*****  continued use despite knowledge of ..physical or psychological
+          problem;
+ald4d7=1;
+cnt5=0;
+cnt9=0;
+if al31b=5 then cnt5+1;
+else
+   if al31b =.K then cnt9+1;
+if al32=5 then cnt5+1;
+else
+   if al32 =.K then cnt9+1;
+if al33a=5 then cnt5+1;
+else
+   if al33a =.K then cnt9+1;
+if cnt5>0 then ald4d7=5;
+else
+   if cnt9>0 then ald4d7=9;
+************************************;
+
+******************************************************;
+**** count criteria endorsed;
+cnt5=0;
+cnt9=0;
+array ald4d_(7) ald4d1-ald4d7;
+do i=1 to 7;
+   if ald4d_(i)=5 then cnt5+1;
+   else
+      if ald4d_(i) = 9 then cnt9+1;
+   end;
+ald4dpsx=cnt5;
+  **************************;
+   *** assign value, ald4dpa;
+ald4dpa=1;
+if (cnt5>=3) then ald4dpa=5;
+else
+   if sum(cnt5,cnt9)>=3 then ald4dpa=9;
+ald4dpb=1;
+**************  CLUSTERING ****************************;
+ALYrCluster=((AL9dYrCl=5)|(AL9iYrCl=5))+
+            ((AL10YrCl=5)|(Al10dYrCl=5))+
+            ((AL12cYrCl=5)|(AL13bYrCl=5))+
+            (AL14bYrCl=5)+
+            (AL15aYrCl=5)+
+            ((AL31bYrCl=5)|(AL32YrCl=5)|(AL33aYrCl=5))+
+            ((AL37dYrCl=5)|(AL37iYrCl=5)|(AL38YrCl=5)|(Al38cYrCl=5)|
+             (AL39YrCl=5)|(AL39cYrCl=5));             
+
+
+***** 3 or more criteria + clustering within 12 month period?;
+if (ald4dpa=5)*(ALYrCluster>=3) then ald4dpdx=5;
+else
+   if ald4dpa=9 then ald4dpdx=9; 
+
+if ald4dpdx=5 then do;
+   ald4dpao=al40AgeOns;
+   if ald4dpao =.K then ald4dpao=.;
+end;
+
+
+ ***** DSMIV ABUSE *****;
+ ald4abdx=1;
+
+ ****A1  failure to fulfill major role obligations ...;
+ald4aba1=1;
+
+if (al16d=5) | (al25b=5) then ald4aba1=5;
+else
+   if (al16d=.K) | (al25b=.K) then ald4aba1=9;
+
+**** A2 recurrent use in physically hazardous situations;
+ald4aba2=1;
+cnt5=0;
+cnt9=0;
+array a2_(4) al21c al22c al24c al29c;
+do i=1 to 4;
+   if a2_(i)=5 then cnt5+1;
+   else
+      if a2_(i) =.K then cnt9+1;
+end;
+if cnt5>0 then ald4aba2=5;
+else
+   if cnt9>0 then ald4aba2=9;
+
+***** A3 recurrent substance-related legal problems;
+ald4aba3=1;
+if (al23c=5) |(al28c=5) then ald4aba3=5;
+else
+   if (al23c =.K) |(al28c =.K) then ald4aba3=9;
+
+***** A4  continued use despite...social or interpersonal problems;
+ald4aba4=1;
+if (al26c=5) |(al27b=5) then ald4aba4=5;
+else
+   if (al26c =.K) |(al27b =.K) then ald4aba4=9;
+
+
+***********  ANY CRITERION ENDORSED?;
+ald4aba=1;
+cnt5=0;
+cnt9=0;
+array ald4aba_(4) ald4aba1-ald4aba4;
+do i=1 to 4;
+   if ald4aba_(i)=5 then cnt5+1;
+   else
+      if ald4aba_(i) =9 then cnt9+1;
+end;
+if cnt5>0 then ald4aba=5;
+else
+   if cnt9>0 then ald4aba=9;
+ald4absx=cnt5;
+
+******** met criteria for dependence? ;
+
+ald4abb=ald4dpdx;
+
+ *** can be positive for abuse if unknown for dependence;
+if (ald4dpdx in(1,9)) * (ald4aba=5) then ald4abdx=5;
+else
+   if (ald4dpdx in(1,9)) * (ald4aba in (5,9)) then ald4abdx=9;
+
+
+array all4age(*) al12AgeOns al13AgeOns al10aAgeOns al10eAgeOns
+                 al15AgeOns al16AgeOns al21AgeOns al22AgeOns al23AgOns al24AgeOns al25AgeOns al29AgeOns
+                 al14AgeOns al26AgeOns1 al26AgeOns2 al26AgeOns3
+                 al27AgeOns al28AgeOns al31AgeOns al32AgeOns al33AgeOns
+                 al9bAgeOns al9gAgeOns al37aAgeOns al37eAgeOns al38aAgeOns al39aAgeOns
+                 al37hAgeOns al38cAgeOns al39cAgeOns;
+
+if ald4dpdx=5 then do;
+   do i= 1 to dim(all4age);
+      if all4age(i) in (-9,99,.K ) then all4age(i)= .;
+   end;
+
+   if ald4d1=5 then ald4ag1=min(al9bAgeOns,al9gAgeOns);
+   if ald4d2=5 then ald4ag2=min(al37aAgeOns,al37eAgeOns,al38aAgeOns,al39aAgeOns);
+   if ald4d3=5 then ald4ag3=min(al12AgeOns,al13AgeOns);
+   if ald4d4=5 then ald4ag4=min(al10aAgeOns,al10eAgeOns);
+   if ald4d5=5 then ald4ag5=al15AgeOns;
+   if ald4d6=5 then ald4ag6=al14AgeOns;
+   if ald4d7=5 then ald4ag7=min(al26AgeOns1,al26AgeOns2,al26AgeOns3,
+                                al27AgeOns,al28AgeOns,al31AgeOns,al32AgeOns,al33AgeOns);
+
+end;
+
+
+keep ald4d1-ald4d7 ald4dpsx ald4dpa ald4dpb ald4dpdx ald4ag1-ald4ag7 ald4dpao
+     ald4aba1-ald4aba4 ald4aba ald4abb ald4abdx ald4absx ALYrCluster;
+
+
+array ALd4array (*) ald4d1-ald4d7 ald4dpsx ald4dpa ald4dpb ald4dpdx ald4ag1-ald4ag7 ald4dpao
+     ald4aba1-ald4aba4 ald4aba ald4abb ald4abdx ald4absx;
+
+     
+***** if variables determining section skipout are missing or DK ***;
+if (al1 in (.,.K ))*(al1a in (.,.K )) then do;
+    do i=1 to dim(ALd4array);
+        ALd4array(i)=.;
+    end;
+end;
+
+
+    ******************************************************;
+
+
+
+

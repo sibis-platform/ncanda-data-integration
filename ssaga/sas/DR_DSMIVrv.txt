@@ -1,0 +1,253 @@
+*******************************************************************;
+   ********************************************************;
+   ***** DSM-IV DRUG DEPENDENCE AND ABUSE;
+   ********************************************************;
+*******************************************************************;
+%let drlst=co st sd op  OtherDrug;
+%macro d4dr;
+%do n=1 %to 5;
+    %let dr=%scan(&drlst,&n);
+
+   keep &dr.d4dpsx &dr.d4dpdx &dr.d4d1 &dr.d4d2 &dr.d4dpao;
+   keep &dr.d4abdx &dr.d4absx;
+
+   &dr.d4dpdx=1;
+   ********************************************************;
+   ***   D1           tolerance       ***;
+   &dr.d4d1=1;
+   if dr8_&n=5 then &dr.d4d1=5;
+   else
+      if dr8_&n=.K then &dr.d4d1=9;
+
+    ************************************;
+
+    ********************************************************;
+    ********  D2  withdrawal;
+    ************************************;
+   &dr.d4d2=1;
+   if (dr11b_&n=5) | (dr11e2_&n=5) then &dr.d4d2=5;
+   else
+      if (dr11b_&n=.K) | (dr11e2_&n=.K) then &dr.d4d2=9;
+
+   *******************************************************;
+   ***D3  substance often taken in larger amounts over longer
+         period of time than intended;
+    ************************************;
+    &dr.d4d3=1;
+    if dr10_&n=5 then &dr.d4d3=5;
+    else
+       if dr10_&n=.K then &dr.d4d3=9;
+
+     ********************************************************;
+     *** D4  persistent desire or unsuccessful efforts to cut down
+         or control;
+     ************************************;
+     &dr.d4d4=1;
+     if (dr7_&n=5) | (dr7b_&n=5) then &dr.d4d4=5;
+     else
+        if (dr7_&n=.K) | (dr7b_&n=.K) then &dr.d4d4=9;
+
+    ********************************************************;
+    **** D5  a great deal of time spent...(obtaining,using,recovering);
+    ************************************;
+    &dr.d4d5=1;
+    if dr6_&n=5 then &dr.d4d5=5;
+    else
+       if dr6_&n=.K then &dr.d4d5=9;
+    ************************************;
+
+    ********************************************************;
+    **** D6 important ... activities given up or reduced ..;
+    ************************************;
+    &dr.d4d6=1;
+    if dr9a_&n=5 then &dr.d4d6=5;
+    else
+       if dr9a_&n=.K then &dr.d4d6=9;
+
+    ********************************************************;
+    *** D7 continued use despite knowledge of ..physical or
+        psychological problem;
+    ************************************;
+    &dr.d4d7=1;
+    cnt5=0;
+    cnt9=0;
+    array d4d7&dr._ (4) dr12a2_&n dr12b1_&n dr12c1_&n dr18a_&n;
+    do i=1 to 4;
+       if d4d7&dr._(i)=5 then cnt5+1;
+       else
+          if d4d7&dr._(i)=.K then cnt9+1;
+    end;
+    if cnt5>=1 then &dr.d4d7=5;
+    else
+       if sum(cnt5,cnt9)>=1 then &dr.d4d7=9;
+
+    ************************************;
+    ******************************************************;
+    **** count criteria endorsed;
+    cnt5=0;
+    cnt9=0;
+    array &dr.d4d_(7) &dr.d4d1-&dr.d4d7;
+    do i=1 to 7;
+       if &dr.d4d_(i)=5 then cnt5+1;
+       else
+         if &dr.d4d_(i)=.K then cnt9+1;
+     end;
+     &dr.d4dpsx=cnt5;
+
+    ******************************************************;
+    ************ DEPENDENCE *****************************;
+    ***** 3 or more criteria + clustering within 12 month period?;
+    ******************************************************;
+     ******** CLUSTERING ********************************;
+    DRYrCluster_&n=(DR6YrCl_&n=5)+
+                   ((DR7YrCl_&n=5)|(DR7bYrCl_&n=5))+
+                   (DR8YrCl_&n=5)+
+                   (DR9aYrCl_&n=5)+
+                   (DR10YrCl_&n=5)+
+                   ((DR11bYrCl_&n=5)|(Dr11e2YrCl_&n=5))+
+                   ((DR12a2YrCl_&n=5)|(DR12b1YrCl_&n=5)|(DR12c1YrCl_&n=5)|(DR18aYrCl_&n=5));
+
+
+    if (cnt5>=3)*(DRYrCluster_&n>=3) then &dr.d4dpdx=5;
+    else
+      if (sum(cnt5,cnt9)>=3) then &dr.d4dpdx=9;
+       
+    if &dr.d4dpdx=5 then do;
+       &dr.d4dpao=dr19AgeOns_&n;
+    end;
+
+    ******************************************************;
+    ***** DSMIV ABUSE *****;
+    &dr.d4abdx=1;
+
+    ****A1  failure to fulfill major role obligations ...;
+    &dr.d4aba1=1;
+    if dr16a_&n=5 then &dr.d4aba1=5;
+    else
+       if dr16a_&n=.K then &dr.d4aba1=9;
+
+    **** A2 recurrent use in physically hazardous situations;
+    &dr.d4aba2=1;
+    if (dr15b_&n=5) | (dr17a_&n=5) then  &dr.d4aba2=5;
+    else
+       if (dr15b_&n=.K) | (dr17a_&n=.K) then  &dr.d4aba2=9;
+
+
+    ***** A3 recurrent substance-related legal problems;
+    &dr.d4aba3=1;
+    if dr14a_&n=5 then &dr.d4aba3=5;
+    else
+       if dr14a_&n=.K then &dr.d4aba3=9;
+
+   ***** A4  continued use despite...social or interpersonal
+      problems;
+   &dr.d4aba4=1;
+   if (dr13c_&n=5) then &dr.d4aba4=5;
+   else
+      if (dr13c_&n=.K) then &dr.d4aba4=9;
+
+   ***********  ANY CRITERION ENDORSED?;
+   &dr.d4aba=1;
+   cnt5=0;
+   cnt9=0;
+   array &dr.d4aba_(5) &dr.d4aba1-&dr.d4aba5;
+   do i=1 to 4;
+      if &dr.d4aba_(i)=5 then cnt5+1;
+      else
+         if &dr.d4aba_(i)=.K then cnt9+1;
+   end;
+   if cnt5>0 then &dr.d4aba=5;
+   else
+      if cnt9>0 then &dr.d4aba=9;
+   &dr.d4absx=cnt5;
+
+   ******* met criteria for dependence? ;
+    ***** can meet criteria for abuse if dependence is unknown;
+   if (&dr.d4dpdx in(1,9)) * (&dr.d4aba=5) then &dr.d4abdx=5;
+   else
+      if (&dr.d4dpdx in(1,9)) * (&dr.d4aba in (5,9)) then &dr.d4abdx=9;
+
+       **************************************************************************;
+        ******* was first drug question (Have you ever used...) coded missing or DK?;
+          **** if so, set dx variables to missing;
+              
+   if &n<=4 then do;
+     if dr1_&n in(.K,.)  then do;
+        &dr.d4dpdx=.; &dr.d4dpa=.; &dr.d4dpb=.;  &dr.d4abdx=.; &dr.d4dpsx=.;   
+           &dr.d4dpsx=.; &dr.d4dpdx =.; &dr.d4d1=.;  &dr.d4d2 =.; &dr.d4dpao=.;
+           &dr.d4abdx=.;  &dr.d4absx=.;
+     end;
+  end;
+%end;
+
+%mend d4dr;
+%d4dr
+
+ cntdrothermissing=0;
+      array dr4othervars (5) dr1_5-dr1_9;
+          do other=1 to 5;
+              if dr4othervars(other) in(.K,.) then do;
+                  cntdrothermissing+1;
+              end;
+          end;
+           if cntdrothermissing=5 then do; 
+              OtherDrugd4dpsx=.; OtherDrugd4dpdx =.; OtherDrugd4d1=.;  OtherDrugd4d2 =.;                                         OtherDrugd4dpao=.;
+              OtherDrugd4abdx=.;  OtherDrugd4absx=.;
+           end;  
+
+  ***** DSMIV  DEPENDENCE **********;
+
+label   cod4dpsx  ='# DSM4 cocaine Criteria Endorsed'
+        cod4dpdx ='DSM4 cocaine Dependence'
+        cod4dpao ='Age of onset, DSM4 cocaine dependence'
+        cod4abdx ='DSM4 cocaine abuse'
+        cod4absx   ='DSM4 cocaine abuse # of sx'
+        cod4d1='DSM4 tolerance'
+        cod4d2='DSM4 withdrawal'
+        ;
+
+label   std4dpsx  ='# DSM4 stimulant Criteria Endorsed'
+        std4dpdx ='DSM4 stimulant Dependence'
+        std4dpao ='Age of onset, DSM4 stimulant dependence'
+        std4abdx ='DSM4 stimulant abuse'
+        std4absx   ='DSM4 stimulant abuse # of sx'
+        std4d1='DSM4 tolerance'
+        std4d2='DSM4 withdrawal'
+        ;
+
+label   sdd4dpsx  ='# DSM4 sedative Criteria Endorsed'
+        sdd4dpdx ='DSM4 sedative Dependence'
+        sdd4dpao ='Age of onset,DSM4  sedative dependence'
+        sdd4abdx ='DSM4 sedative abuse'
+        sdd4absx   ='DSM4 sedative abuse # of sx'
+        sdd4d1='DSM4 tolerance'
+        sdd4d2='DSM4 withdrawal'
+        ;
+
+label   opd4dpsx  ='# DSM4 opiate Criteria Endorsed'
+        opd4dpdx ='DSM4 opiate Dependence'
+        opd4dpao ='Age of onset, DSM4 opiate Dep.'
+        opd4abdx ='DSM4 opiate abuse'
+        opd4absx   ='DSM4 opiate abuse # of sx'
+        opd4d1='DSM4 tolerance'
+        opd4d2='DSM4 withdrawal'
+        ;
+
+label   OtherDrugd4dpsx  ='# DSM4 Other Drug Criteria Endorsed'
+        OtherDrugd4dpdx ='DSM4 Other Drug Dependence'
+        OtherDrugd4dpao ='Age of onset, DSM4 Other Drug Dep.'
+        OtherDrugd4abdx ='DSM4 Other Drug abuse'
+        OtherDrugd4absx   ='DSM4 Other Drug abuse # of sx'
+        OtherDrugd4d1='DSM4 tolerance'
+        OtherDrugd4d2='DSM4 withdrawal'
+        ;
+
+
+array DR4array (*)
+      cod4dpdx cod4dpa cod4dpb  cod4abdx cod4dpsx
+      std4dpdx std4dpa std4dpb  std4abdx std4dpsx
+      sdd4dpdx sdd4dpa sdd4dpb  sdd4abdx sdd4dpsx
+      opd4dpdx opd4dpa opd4dpb  opd4abdx opd4dpsx
+      OtherDrugd4dpdx OtherDrugd4dpa OtherDrugd4dpb  OtherDrugd4abdx OtherDrugd4dpsx; 
+
+

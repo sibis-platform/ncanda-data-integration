@@ -1,0 +1,120 @@
+/*PANIC DISORDER */
+keep  PNd4dx Pnd4a1a PNd4a1b PNd4numsx PNd4a1c PNd4a2;
+label pnd4dx='Panic Disorder, DSM-IV';
+label PNd4a1a=’Panic Disorder, pnd4a1a: Recurrent unexpected panic attacks’;
+label PNd4a1b=’Panic Disorder, pnd4a1b: at least 4 sx’;
+label PNd4a1c=’Panic Disorder, pnd4a1c: sx develop abruptly and peak within 10 minutes’;
+
+label PNd4a2=’Panic Disorder, pnd4a2: attacks followed by >=1 month of persistent concern about having additional attacks, worry about implications of attack or its consequences, or change in behavior related to attack’  ;
+label pnd4numsx='Panic Disorder,pnd4numsx:number of sx, during one of worst attacks';
+
+
+/**********************************************************/
+/* PANIC DISORDER CRITERION A, DSM-IV    */
+
+/**********************************************************/
+    ************************************************************;
+    *******************  A1a: Recurrent unexpected panic attacks;
+    *************************************************************;
+
+pnd4a1a=1;
+if (pn5>1)*(pn7d=5) then do;
+   if pn1probe=3 then pnd4a1a=3;
+   else
+      if pn1probe=4 then pnd4a1a=4;
+      else
+       if pn1probe=5 then pnd4a1a=5;
+end;
+else
+   if (pn5=.K) | (pn7d=.K) | (pn1probe=.K) then pnd4a1a=9;
+    *********************************************************;
+    *******************  A1b: at least 4 of sx;
+    *********************************************************;
+pnd4a1b=1;
+cnta5=0;
+cnta9=0;
+array cntpn4_ary (13) pn4_2 pm4_7 pn4_8 pn4_1 pn4_6 pn4_4 pn4_13
+                    pn4_3 pn4_10 pn4_12 pn4_11 pn4_5
+                    pn4_9;
+do i=1 to 13;
+   if cntpn4_ary(i)=5 then cnta5+1;
+   else
+      if cntpn4_ary(i)=.K then cnta9+1;
+end;
+if cnta5>=4 then pnd4a1b=5;
+else
+   if sum(cnta5,cnta9)>=4 then pnd4a1b=9;
+pnd4numsx=cnta5;
+
+
+   *********************************************************;
+   ******************  A1c: sx develop abruptly and peak
+                                within 10 minutes;
+   *********************************************************;
+pnd4a1c=1;
+if pn6=5 then pnd4a1c=5;
+else
+   if pn6=.K then pnd4a1c=9;
+   *********************************************************;
+   ****************** A2:  attacks followed by at least 1 month of
+         persistent concern about having additional attacks.
+         worry about implications of attack or its consequences,
+         change in behavior related to attack  ;
+   *********************************************************;
+pnd4a2=1;
+if pn3=5 | pn3a1=5 | (pn3b1=5 | pn3c1=5) then pnd4a2=5;
+else
+  if pn3=.K | pn3a1=.K | pn3b1=.K | pn3c1=.K then pnd4a2=9;
+/**********************************************************/
+*********** ASSIGN VALUE FOR CRITERION A   ************************;
+pnd4a=1;
+if (pnd4a1b=5)*(pnd4a1c=5)*(pnd4a2=5) then do;
+    pnd4a=pnd4a1a;
+end;
+else
+   if (pnd4a1b in(5,.K))*(pnd4a1c in(5,.K))*(pnd4a2 in(5,.K))
+   then pnd4a=9;
+if pn1x=. then pnd4a=.;
+
+/**********************************************************/
+/* PANIC DISORDER CRITERION B, DSM-IV    */
+/* ..due to the direct  physiological effects
+     of a substance or a general medical condition? */
+/**********************************************************/
+pnd4b=1;
+ if pn1probe=3 then pnd4b=3;
+ else
+   if pn1probe=4 then pnd4b=4;
+   else
+      if pn1probe=.K then pnd4b=9;
+      else
+         pn1probe=1;
+/**********************************************************/
+/* PANIC DISORDER CRITERION C, DSM-IV    */
+/* ..accounted for by another mental disorder..?          */
+/**********************************************************/
+pnd4c=1;
+if pn7a=5 then pnd4c=5;
+else
+   if pn7a=.K then pnd4c=9;
+/*******************************************************/
+/*  ASSIGN DSM-IV PANIC DISORDER PARTIAL DX            */
+/********************************************************/
+pnd4dx=1;
+if (pnd4a=5)*(pnd4b=1)*(pnd4c=1) then pnd4dx=5;
+else
+   if (pnd4a=3)*(pnd4b=3)*(pnd4c=1) then pnd4dx=3;
+   else
+      if (pnd4a=4)*(pnd4b=4)*(pnd4c=1) then pnd4dx=4;
+      else
+         if (pnd4a=9) | (pnd4b=9) | (pnd4c=9) then do;
+            if (pnd4a in(3,4,5,9))*(pnd4b in (3,4,5,9))
+               *(pnd4c in(1,9)) then pnd4dx=9;
+         end;
+array pnvars(6) PNd4dx Pnd4a1a PNd4a1b PNd4numsx PNd4a1c PNd4a2;
+do i=1 to 6;
+    if pn1x in(.,.K) then pnvars(i)=.;
+end;
+
+
+

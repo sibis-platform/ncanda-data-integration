@@ -1,0 +1,139 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2013 SRI International
+##
+##  http://nitrc.org/projects/ncanda-datacore/
+##
+##  This file is part of the N-CANDA Data Component Software Suite, developed
+##  and distributed by the Data Integration Component of the National
+##  Consortium on Alcohol and NeuroDevelopment in Adolescence, supported by
+##  the U.S. National Institute on Alcohol Abuse and Alcoholism (NIAAA) under
+##  Grant No. 1U01 AA021697
+##
+##  The N-CANDA Data Component Software Suite is free software: you can
+##  redistribute it and/or modify it under the terms of the GNU General Public
+##  License as published by the Free Software Foundation, either version 3 of
+##  the License, or (at your option) any later version.
+##
+##  The N-CANDA Data Component Software Suite is distributed in the hope that it
+##  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+##  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License along
+##  with the N-CANDA Data Component Software Suite.  If not, see
+##  <http://www.gnu.org/licenses/>.
+##
+##  $Revision$
+##
+##  $LastChangedDate$
+##
+##  $LastChangedBy$
+##
+
+
+import csv
+import numpy as np
+import urllib2
+import base64
+import re
+import os
+import json
+from prettytable import PrettyTable
+from operator import itemgetter
+from pyxnat import Interface
+## parsing options
+import argparse
+parser = argparse.ArgumentParser( description="Temporal Scanner Performance Stability table based on FBIRN." )
+parser.add_argument( "-c", "--CSV" ,  help="save a csv file of the table", action="store_true")
+parser.add_argument( "-p","--Print" , help="print the table to Shell/Interpreter", action="store_true")
+args = parser.parse_args()
+
+## Create interface from stored configuration
+import os
+conf = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' )
+interface = Interface( config=conf )
+interface._memtimeout = 0
+## Get project, scanner, insert_date, session_id and subject_id for all phantoms 
+phtm = interface.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID']).where([('xnat:subjectData/SUBJECT_LABEL','LIKE','%-00000-P-%')  ]).get('subject_id')
+phs = [interface.select( 'xnat:mrSessionData', ['xnat:mrSessionData/PROJECT','xnat:mrSessionData/SCANNER_CSV','xnat:mrSessionData/INSERT_DATE','xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SUBJECT_ID']).where([('xnat:mrSessionData/SUBJECT_ID','LIKE',hh)  ] ).items() for hh in phtm]
+sessions = [it for sublist in phs for it in sublist] #put them in a decent tuple form 
+## download the QA test file based on the above information and analyze it  
+sscom = []
+for ss in sessions:
+    ptof=interface.select.project(ss[0]).subject(ss[4]).experiment(ss[3]).resource('QA').file('QA-Details.txt') 
+    atr= ptof.attributes()
+    if atr:
+	    fpath=atr['URI'] #get the URI from the website so we can download the files without Pyxnat
+	    webl = 'https://ncanda.sri.com/xnat'+fpath # address to the file based on the info above
+	    request = urllib2.Request(webl) # make a request
+	    uname =str(json.load(open(conf,'rb'))[u'user'])
+	    pword = str(json.load(open(conf,'rb'))[u'password'])
+	    base64string = base64.encodestring('%s:%s' % (uname,pword)).replace('\n', '')
+	    request.add_header("Authorization", "Basic %s" % base64string) #authenticate
+	    result = urllib2.urlopen(request).read()
+	    spro = re.search(''.join(['mean_scaled', '\)']),result ).end() #get the frequency and amplitude data from the QA test file
+	    epro = re.search('#rdc', result).start()#get the frequency and amplitude data from the QA test file
+	    mass1 = re.sub('\\n',' ', result[spro:epro]).split() #get the frequency and amplitude data from the QA test file
+	    ampl = []
+	    freq = []
+	    for ii in range(len(mass1)): #generate arrays and floats from the text file 
+	        if np.mod(ii,2) == 0: #even indicies are frequency, odds are amplitude
+        	    freq.append(float(mass1[ii]))
+	        else:
+	            ampl.append(float(mass1[ii]))
+
+	    sns = max(ampl)/np.mean(ampl) #SNR caculation based on the "ON the Statistical significane of the electrophysiological steady-state responses" suggestion
+	    stsig = [str(1/(1 + float(sns*sns))) if sns >= 4.36 else ''][0] #do the statistical analysis based on the "ON the Statistical significane of the electrophysiological steady-state responses"
+    #finding the metrics from the txt files
+
+	    SNR = float(re.findall(r'\d+\.\d+',re.findall(r'SNR=\d+\.\d+',result)[0])[0])
+	    SFNR = float(re.findall(r'\d+\.\d+',re.findall(r'SFNR=\d+\.\d+',result)[0])[0])
+	    pFluc = float(re.findall(r'\d+\.\d+',re.findall(r'percentFluc=\d+\.\d+',result)[0])[0]) 
+	    drift = float(re.findall(r'\d+\.\d+',re.findall(r'drift=\d+\.\d+',result)[0])[0])
+	    rdc = float(re.findall(r'\d+\.\d+',re.findall(r'rdc=\d+\.\d+',result)[0])[0])
+    
+	    sscom.append(ss[0:3] + (freq[np.where(max(ampl) == np.array(ampl))[0][0]],) + (sns,) + (stsig,) + (SNR,) + (SFNR,) + (pFluc,) + (drift,) +(rdc, )) # put the result in a tuple for analysis
+
+msa = sorted(sscom, key = itemgetter(0,1,2)) # sort based on project, scanner, and date to present in a table
+## Presenting the data in a table
+previo = msa[1][1]
+fields = ["Project Site", "Scanner", "Date Added", "Max Hz","SR","p-value", "SNR", "SFNR", "%Fluct.", "%Drift", "RDC"]
+eprows = ['','','','','','','','','','','']
+## Print Table
+def ptable(msa, fields, eprows, previo):
+    x = PrettyTable(fields)
+    for ms in msa:
+        if ms[1] != previo:
+            x.add_row(eprows) #place space between different scanners
+        datrows = [ms[0],ms[1],ms[2][0:10],round(ms[3],3),round(ms[4],2),  ms[5][0:5],ms[6], ms[7] ,ms[8],ms[9], ms[10] ]    
+        x.add_row(datrows)
+        previo = ms[1]
+    x.align = "l"
+    return x
+## Save Table
+def stable(msa, fields, eprows, previo):
+    ofile = open("Scan_Performance_Table.csv", "wb")
+    wcsv = csv.writer(ofile,delimiter=',',quotechar= ' ', quoting=csv.QUOTE_NONNUMERIC)
+    wcsv.writerow(fields)
+    for ms in msa:
+        if ms[1] != previo:
+            wcsv.writerow(eprows)
+        datrows = [ms[0],ms[1],ms[2][0:10],round(ms[3],3),round(ms[4],2),  ms[5][0:5],ms[6], ms[7] ,ms[8],ms[9], ms[10] ]    
+        wcsv.writerow(datrows)
+        previo = ms[1]
+    ofile.close()
+## Chose which one of the top options to perform depending on argument otherwise do both
+if args.Print:
+    x = ptable(msa, fields, eprows, previo)
+    print x
+elif args.CSV:
+    stable(msa, fields, eprows, previo)
+else:
+    x = ptable(msa, fields, eprows, previo)
+    print x
+    stable(msa, fields, eprows, previo)
+    
+    
+

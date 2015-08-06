@@ -1,0 +1,13 @@
+np_waisiv_coding
+np_wais4_missing
+np_wais4_missing_why
+np_wais4_corr15s
+np_wais4_corr30s
+np_wais4_corr45s
+np_wais4_corr60s
+np_wais4_corr75s
+np_wais4_corr90s
+np_wais4_corr105s
+np_wais4_corr120s
+np_wais4_rawscore
+np_wais4_totalerrors

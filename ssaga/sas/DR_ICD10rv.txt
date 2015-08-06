@@ -1,0 +1,156 @@
+*** only the handling of skipped or DK initial values has been changed;
+**************************************************************;
+   ************************************************;
+   **** ICD-10 Drug Dependence ;
+   ************************************************;
+ **************************************************************;
+  ***** check for missing section--see end of program;
+   ***code repeated in all DR dx programs
+                so that each can stand alone;
+array DrBgnarray (9) dr1_1-DR1_9;
+   DRntmissing=0;
+   do i=1 to 9;
+     if drBgnarray(i)>=1 then DRntmssng=1;
+   end;
+********************************************************************;
+
+%let drlst=co st sd op OtherDrug;
+%let drnmlst=cocaine stimulant sedative opiate OtherDrug;
+
+%macro drcd;
+%do n=1 %to 5;
+    %let dr=%scan(&drlst,&n);
+    %let drnm=%scan(&drnmlst,&n);
+
+   keep &dr.cddpdx &dr.cddpsx &dr.cddpao &dr.cddpa &DR.ICD10Cluster;
+   label &dr.cddpdx ="ICD10 &drnm dependence" ;
+   label &dr.cddpsx="# ICD10 &drnm dependence criteria";
+   label &dr.cddpao ="Age of onset,ICD10 &drnm  dependence" ;
+   label &dr.cddpa="&drnm ICd10 dependence, Criterion A";
+   label &dr.ICD10Cluster="&drnm ICD10 Clustering";
+   
+   **********************************************************;
+   ****** D1 craving;
+   **********************************************************;
+   &dr.cddpd1=1;
+   if dr5_&n=5 then &dr.cddpd1=5;
+   else
+      if dr5_&n=9 then &dr.cddpd1=9;
+
+   **********************************************************;
+   **** D2 loss of control or persistent desire to cut down;
+   **********************************************************;
+   &dr.cddpd2=1;
+   if (dr7_&n=5) | (dr7b_&n=5) then &dr.cddpd2=5;
+   else
+      if (dr7_&n=9) | (dr7b_&n=9) then &dr.cddpd2=9;
+
+
+   **********************************************************;
+   *** D3 withdrawal state or
+       use of substance to relieve or avoid withdrawal;
+   **********************************************************;
+   &dr.cddpd3=1;
+   if (dr11b_&n=5) | (dr11e2_&n=5) then &dr.cddpd3=5;
+   else
+      if (dr11b_&n=9) | (dr11e2_&n=9) then &dr.cddpd3=9;
+
+   *************************************************************;
+   *****D4  tolerance;
+   *************************************************************;
+    &dr.cddpd4=1;
+   if dr8_&n=5 then &dr.cddpd4=5;
+   else
+      if dr8_&n=9 then &dr.cddpd4=9;
+
+
+   *************************************************************;
+   *****D5  neglect of alternative pleasures, behaviors or interests...,
+           great deal of time spent...;
+   *************************************************************;
+   &dr.cddpd5=1;
+   if (dr6_&n=5) | (dr9a_&n=5) then &dr.cddpd5=5;
+   else
+      if (dr6_&n=9) | (dr9a_&n=9) then &dr.cddpd5=9;
+
+
+   ***************************************************************;
+   *** D6 continued use despite harmful consequences;
+   *************************************************************;
+   &dr.cddpd6=1;
+   cnt5=0;
+   cnt9=0;
+   array &dr.cd6_(5) dr12a2_&n dr12b1_&n dr12c1_&n dr15a_&n dr18a_&n;
+   do i=1 to 5;
+      if &dr.cd6_(i)=5 then cnt5+1;
+      else
+         if &dr.cd6_(i)=9 then cnt9+1;
+   end;
+   if cnt5>0 then &dr.cddpd6=5;
+   else
+      if cnt9>0 then &dr.cddpd6=9;
+
+   ***********  how many criteria endorsed?;
+   &dr.cddpdx=1;
+   &dr.cnt5=0;
+   &dr.cnt9=0;
+   array &dr.cddp_(6) &dr.cddpd1-&dr.cddpd6;
+   do i=1 to 6;
+      if &dr.cddp_(i)=5 then &dr.cnt5+1;
+      else
+         if &dr.cddp_(i)=9 then &dr.cnt9+1;
+   end;
+   if &dr.cnt5>=3 then &dr.cddpa=5;
+   else
+      if sum(&dr.cnt5,&dr.cnt9=5)>=3 then &dr.cddpa=9;
+
+   ***** clustering?  ;
+   &DR.ICD10Cluster=(DR5YrCl_&n=5)+
+                  ((DR6YrCl_&n=5)|(DR9aYrCl_&n=5))+
+                  ((DR7YrCl_&n=5)|(Dr7bYrCl_&n=5)|(Dr10YrCl_&n=5))+
+                  (DR8YrCl_&n=5)+
+                  ((DR11bYrCl_&n=5)|(DR11e2YrCl_&n=5))+
+                  ((DR12a2YrCl_&n=5)|(DR12b1YrCl_&n=5)|
+                   (Dr12c1YrCl_&n=5)|(DR15aYrCl_&n=5)|(DR18aYrCl_&n=5));
+
+
+
+    ***** ICD10? (3 or more criteria + clustering);
+   if (&dr.cddpa=5)*(&DR.ICD10Cluster>=3) then &dr.cddpdx=5;
+   else
+      if &dr.cddpa=9 then &dr.cddpdx=9;
+   
+   &dr.cddpsx=&dr.cnt5;
+   if &dr.cddpdx=5 then do;
+      &dr.cddpao=dr19AgeOns_&n;
+   end;
+  **************************************************************************;
+        ******* was first drug question (Have you ever used...) coded missing or DK?;
+          **** if so, set dx variables to missing;
+              
+   if &n<=4 then do;
+     if dr1_&n in(.K,.)  then do;
+&dr.cddpdx=.;  &dr.cddpsx =.; &dr.cddpao=.;  &dr.cddpa=.;  &DR.ICD10Cluster=.;
+
+        
+     end;
+  end;
+
+%end;
+%mend drcd;
+%drcd
+
+cntdrothermissing=0;
+      array drcdothervars (5) dr1_5-dr1_9;
+          do other=1 to 5;
+              if drcdothervars(other) in(.K,.) then do;
+                  cntdrothermissing+1;
+              end;
+          end;
+           if cntdrothermissing=5 then do; 
+               OtherDrugcddpdx=.;  OtherDrugcddpsx =.; OtherDrugcddpao=.;  OtherDrugcddpa=.;  
+                     OtherDrugICD10Cluster=.;
+
+          end;  
+************************************************************************************************;
+

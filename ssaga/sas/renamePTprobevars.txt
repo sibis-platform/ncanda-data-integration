@@ -1,0 +1,12 @@
+%let PToldvarlst= PT23 PT23a1 PT23a3  PT23b PT23j PT23h PT23i PT23j
+              PT23c PT23d PT23f PT23g;
+%let PTnewvarlst=PTp23 PTp23a1 PTp23a3 PTp23b PTp23j PTp23h PTp23i PTp23j
+              PTp23c PTp23d PTp23f PTp23g;
+%macro rename(dset);
+  %do i=1 %to 12;
+     %let old =%scan(&PToldvarlst,&i);
+	 %let new =%scan(&PTnewvarlst,&i);
+	 rename &old=&new;
+  %end;
+%mend rename;
+%rename

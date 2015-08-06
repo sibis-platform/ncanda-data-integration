@@ -1,0 +1,84 @@
+keep FTND1-FTND6 FTNDscore;
+
+label FTND1='FTND1:How soon after waking...?';
+if (0 <= TB5 <= 5)|(TB5a=1) then FTND1=3;
+if (6 <= TB5 <=30)|(TB5a=2) then FTND1=2;
+if (31 <= TB5 <=60)|(Tb5a=3)  then FTND1=1;
+if (TB5>=61)|(Tb5a=4)  then FTND1=0;
+
+label FTND2='FTND2: Difficult to refrain...?';
+if TB7=5 then FTND2=1;
+if TB7=1 then FTND2=0;
+
+label FTND3='FTND3: Which cigarette would you hate most to give up?';
+if TB8=5 then FTND3=1;
+if TB8=1 then FTND3=0;
+
+label FTND4='How many cigarettes smoked/day?';
+if (TB5x>=31) | (TB5xDK=4) then FTND4=3;
+if (21 <=TB5x <=30) | (TB5xDK=3) then FTND4=2;
+if (11 <=TB5x <=20) | (TB5xDK=2)then FTND4=1;
+if (0 <= TB5x <=10) |  (TB5xDK=1) then FTND4=0;
+************;
+*** First version of the SSAGA4 interview did not have TB5X 
+  questions
+   "Think about the period lasting a month or more when you were
+           smoking the most.
+           During this period when you were smoking the most, about how many cigarettes
+           did you usually have per day?";
+*** For these people, use instead TB4b: 
+  "When you were smoking regularly,
+    How many cigarettes did you usually smoke in a day?";
+if (TB5x=.)*(version='V1')*(TB4b ne .) then do;
+   if (TB4b>=31) then FTND4=3;
+   if (21 <=TB4b <=30) | (TB4b1=5) then FTND4=2;
+       ***TB4b1: if TB4b=DK then asked 
+          'Did you usually smoke at least 20 cigarettes in a day?';
+   if (11 <=TB4b <=20) then FTND4=1;
+   if (0 <= TB4b <=10)  then FTND4=0;
+end;
+
+label FTND5='Smoke more frequently after waking?';
+if TB6=5 then FTND5=1;
+if TB6=1 then FTND5=0;
+
+label  FTND6='Smoke if so ill...?';
+if TB9=5 then FTND6=1;
+if TB9=1 then FTND6=0;
+
+FTNDscore=sum(of FTND1-FTND6);
+  
+FTNDMissingCount=0;
+array ftndarray (6) FTND1-FTND6;
+do i=1 to 6;
+  if ftndarray(i)=. then FTNDMissingCount+1;
+end;
+
+  ** if never smoked, all FTND variables will be missing;
+  ** set scores, missing counts to missing;
+  *** missing counts only valid for those who have answered FTND questions; 
+if (TB1c1~=5) then do;
+  do i=1 to 6;
+     ftndarray(i)=.;
+  end;
+  FTNDMissingCount=.;
+  FTNDscore=.;
+end;
+ 
+
+
+   
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+

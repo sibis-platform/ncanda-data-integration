@@ -1,0 +1,208 @@
+#!/bin/sh
+
+##
+##  Copyright 2012-2014 SRI International
+##
+##  http://nitrc.org/projects/ncanda-datacore/
+##
+##  This file is part of the N-CANDA Data Component Software Suite, developed
+##  and distributed by the Data Integration Component of the National
+##  Consortium on Alcohol and NeuroDevelopment in Adolescence, supported by
+##  the U.S. National Institute on Alcohol Abuse and Alcoholism (NIAAA) under
+##  Grant No. 1U01 AA021697
+##
+##  The N-CANDA Data Component Software Suite is free software: you can
+##  redistribute it and/or modify it under the terms of the GNU General Public
+##  License as published by the Free Software Foundation, either version 3 of
+##  the License, or (at your option) any later version.
+##
+##  The N-CANDA Data Component Software Suite is distributed in the hope that it
+##  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+##  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License along
+##  with the N-CANDA Data Component Software Suite.  If not, see
+##  <http://www.gnu.org/licenses/>.
+##
+##  $Revision$
+##
+##  $LastChangedDate$
+##
+##  $LastChangedBy$
+##
+
+# Root directory of the XNAT storage file system
+XNAT_DATA_ROOT=/data/XNAT
+
+# Path of the S3 history database file
+DBFILE=${HOME}/xnat_archive.sqlite
+
+# Current date in seconds since 0:00 a.m., 1-1-1970.
+CURRENT_DATE_EPOCH=`date +%s`
+
+# Convert number of days to seconds
+days_to_seconds() { expr $1 \* 86400; }
+
+# Maturation period - sessions older than this threshold will be transmitted
+ARCHIVE_AFTER=`days_to_seconds 7`
+
+# Time after which files are migrated to Glacier (this happens automatically - we only need this here to tell the script how long we can modify uploaded data in S3)
+#  As a matter of fact, the actual time configured in S3 should be at least 1 day more than the value set here.
+GLACIER_AFTER=`days_to_seconds 28`
+
+# Time after which files migrated to Glacier can be replaced with updated versions (this avoids early deletion fees)
+GLACIER_REPLACE_AFTER=`days_to_seconds 120`
+
+# Session name matching pattern - sessions not matching this will be skipped
+MATCH_SESSION="[A-EX]-[0-9]{5}-[MFPT]-[0-9]-20[1,2][0-9][0,1][0-9][0,1,2,3][0-9](-[0-9]?)?"
+
+# Flag for S3 database update (if set, database is also uploaded to S3 at the end of the script)
+DB_UPDATE_FLAG=0
+
+# Update the S3 database
+add_archive_to_db()
+{
+    local archive=$1
+    local s3uri=$2
+
+    local prj=$3
+    local arc=$4
+    local ses=$5
+    local md5=$6
+
+    local session_date=$7
+
+    if [ ! -e ${DBFILE} ]; then
+	sqlite3 ${DBFILE} "create table archived(archive, s3_uri, xnat_project, xnat_archive, xnat_session, md5, archive_date INTEGER, xnat_session_date INTEGER)"
+    fi
+
+    sqlite3 ${DBFILE} "insert into archived values('${archive}', '${s3uri}', '${prj}', '${arc}', '${ses}', '${md5}', '${CURRENT_DATE_EPOCH}', '${session_date}');"
+    
+    DB_UPDATE_FLAG=1
+}
+
+# Find an archive file in the S3 database, return archive date of the session in seconds since epoch.
+find_archive_in_db()
+{
+    local archive=$1
+
+    if [ -e ${DBFILE} ]; then
+	local archive_date=`sqlite3 ${DBFILE} "select archive_date from archived where archive='${archive}'"`
+	if [ "${archive_date}" != "" ]; then
+	    echo ${archive_date}
+	fi
+    fi
+}
+
+# Remove a session from S3 archive database
+remove_from_db()
+{
+    local archive=$1
+
+    sqlite3 ${DBFILE} "delete from archived where archive='${archive}';"
+}
+
+# Upload the S3 archive database
+upload_db()
+{
+    if [ -e ${DBFILE} ]; then
+	if [ "${DB_UPDATE_FLAG}" -gt 0 ]; then
+	    if ! s3cmd --server-side-encryption put ${DBFILE} s3://ncanda/db/xnat_archive.sqlite; then
+		echo "FAILURE: unable to upload SQLite database to S3"
+	    fi
+	fi
+    fi
+}
+
+# Wrap up, encrypt, and send a scan session
+transmit_session()
+{
+    local prj=$1
+    local arc=$2
+    local ses=$3
+    local session_date=$4
+
+    local archive=${ses}.tar.xz.aes
+    local s3uri=s3://ncanda/xnat/${prj}/${arc}/${archive}
+    
+    # Check if this archive already exists
+    local prev_archive_epoch=`find_archive_in_db ${archive}`
+    if [ "${prev_archive_epoch}" != "" ]; then
+	# Check if any files inside the session have been added or changed since last archive upload
+	local prev_archive_date=`date --date="@${prev_archive_epoch}"`
+	local modified=`find ${XNAT_DATA_ROOT}/archive/${prj}/${arc}/${ses} -newermt "${prev_archive_date}" -print -quit | wc -l`
+
+	if [ ${modified} -gt 0 ]; then
+
+	    local age_in_s3=`expr ${CURRENT_DATE_EPOCH} - ${prev_archive_epoch}`
+	    if [ ${age_in_s3} -gt ${GLACIER_AFTER} ]; then
+		if [ ${age_in_s3} -lt ${GLACIER_REPLACE_AFTER} ]; then
+		    echo "COLLISION: ${archive} from ${prev_archive_date} has already been moved to cold storage, but too recent to be replaced"
+		    return
+		fi
+	    fi
+	
+	    echo "UPDATE: ${archive} from ${prev_archive_date} will be updated in S3"
+	    remove_from_db ${archive}
+	else
+	    # Already there and not updated - nothing to do
+	    return
+	fi
+    fi
+
+	# All go - make archive
+    cd ${XNAT_DATA_ROOT}/archive/${prj}/${arc}
+    gtar -cf - ${ses} | xz -9 -c --threads 8 | aespipe -P ${HOME}/aes/keys -e aes256 > /var/tmp/${archive}
+
+	# Upload
+    cmd="s3cmd --server-side-encryption put /var/tmp/${archive} ${s3uri}"
+    if ${cmd}; then
+	echo "SUCCESS: ${archive} ${s3uri}"
+	add_archive_to_db "${archive}" "${s3uri}" "${prj}" "${arc}" "${ses}" "${md5}" "${session_date}"
+    else
+	echo "FAILURE: ${archive} ${s3uri}"
+	echo $cmd
+    fi
+    rm /var/tmp/${archive}
+}
+
+update_archive()
+{
+    local prj=$1
+    local arc=$2
+
+    local SESSIONS=`cd ${XNAT_DATA_ROOT}/archive/${prj}/${arc}; ls`
+    for session in ${SESSIONS}; do
+
+	if [[ "${session}" =~ ${MATCH_SESSION} ]]; then
+
+	    local session_dir=${XNAT_DATA_ROOT}/archive/${prj}/${arc}/${session}
+
+	    local session_date=`stat --format=%Z ${session_dir}`
+	    local session_age=`expr ${CURRENT_DATE_EPOCH} - ${session_date}`
+
+            # older than maturation period - ready for archiving?
+	    if [ ${session_age} -gt ${ARCHIVE_AFTER} ]; then
+		transmit_session ${prj} ${arc} ${session} ${session_date}
+	    fi
+	else
+	    echo "WARNING: session ${session} does not match pattern and will be ignored"
+	fi
+    done
+}
+
+update_project()
+{
+    local prj=$1
+    local ARCHIVES=`cd ${XNAT_DATA_ROOT}/archive/${prj}; ls`
+    for arc in ${ARCHIVES}; do
+	update_archive ${prj} ${arc}
+    done
+}
+
+XNAT_PROJECTS=`cd ${XNAT_DATA_ROOT}/archive/; ls`
+for prj in ${XNAT_PROJECTS}; do
+    update_project ${prj}
+done
+upload_db

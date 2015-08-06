@@ -1,0 +1,171 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2013 SRI International
+##
+##  http://nitrc.org/projects/ncanda-datacore/
+##
+##  This file is part of the N-CANDA Data Component Software Suite, developed
+##  and distributed by the Data Integration Component of the National
+##  Consortium on Alcohol and NeuroDevelopment in Adolescence, supported by
+##  the U.S. National Institute on Alcohol Abuse and Alcoholism (NIAAA) under
+##  Grant No. 1U01 AA021697
+##
+##  The N-CANDA Data Component Software Suite is free software: you can
+##  redistribute it and/or modify it under the terms of the GNU General Public
+##  License as published by the Free Software Foundation, either version 3 of
+##  the License, or (at your option) any later version.
+##
+##  The N-CANDA Data Component Software Suite is distributed in the hope that it
+##  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+##  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License along
+##  with the N-CANDA Data Component Software Suite.  If not, see
+##  <http://www.gnu.org/licenses/>.
+##
+##  $Revision$
+##
+##  $LastChangedDate$
+##
+##  $LastChangedBy$
+##
+
+# Setup command line parser
+import argparse
+parser = argparse.ArgumentParser( description="Convert SPSS syntax file to REDCap data dictionary", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
+parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument( "--guess-limits", help="Guess limits of numerical fields based on output format in SPSS syntax file. Your mileage may vary.", action="store_true")
+parser.add_argument( "--fieldname-to-notes", help="Add field name to field notes (this allows you to see each field's name in the entry form).", action="store_true")
+parser.add_argument( "--form-name", help="REDCap form name for the new data dictionary", action="store")
+parser.add_argument( "--field-prefix", help="Field prefix to add to all variable names in the REDCap data dictionary", action="store")
+parser.add_argument( "spssfile", help="Input SPSS syntax file.")
+parser.add_argument( "ddictfile", help="Output CSV file with the generated data dictionary.")
+args = parser.parse_args()
+
+import re
+complete_lines = []
+partial_line = None
+
+infile = open( args.spssfile, 'r' )
+for line in infile:
+    if re.match( '^[^"]*"[^"]*$', line ):
+        if partial_line:
+            complete_lines.append( ''.join( [ partial_line, line ] ) )
+            partial_line = None
+        else:
+            partial_line = line
+    else:
+        if partial_line:
+            partial_line = ''.join( [ partial_line, line ] )
+        else:
+            complete_lines.append( line )
+
+if partial_line:
+    complete_lines.append( partial_line )
+
+columns = ['field_name','form','section','type','label','choices','notes','validation','validation_min','validation_max']
+
+import pandas
+datadict = pandas.DataFrame( index=[], columns=columns)
+
+mode = ''
+for line in complete_lines:
+    # Did we see 'GET DATA'? Look for "/VARIABLES"
+    if mode == 'get_data':
+        if '/VARIABLES=' in line:
+            mode = 'variables'
+    # Did we see "/VARIABLES"? Generate list of all variables with their respective types.
+    elif mode == 'variables':        
+        match = re.match( '^\s+(\w+)\s+(A|F|DATETIME|SDATE)([0-9]+|[0-9]+\.[0-9]+)(\.?)$', line )
+        if match:            
+            variable = match.group(1)
+            rowdict = dict()
+            if re.match( '^A', match.group(2) ):
+                rowdict['type'] = ['text']
+            elif re.match( '^F', match.group(2) ):
+                rowdict['type'] = ['text']
+                if '.' in match.group( 3 ):
+                    rowdict['validation'] = ['number']
+                else:
+                    rowdict['validation'] = ['integer']
+            elif re.match( '^SDATE', match.group(2) ):
+                rowdict['type'] = ['text']
+                rowdict['validation'] = ['date_ymd']
+            else:
+                rowdict['type'] = ['text']
+
+            datadict = pandas.concat( [datadict, pandas.DataFrame( rowdict, index=[variable] )] )
+
+            if match.group( 4 ) == '.':
+                mode = ''
+    # Did we see "VALUE LABELS"? Scan and generate list of radio button labels.
+    elif mode == 'get_labels':
+        match = re.match( '\s+\"(\w+)\"\s+\"(.*)\"(.?)$', line )
+        if not match:
+            match = re.match( '\s+([0-9]+)\s+\"(.*)\"(.?)$', line )
+        if match:
+            if str( datadict['choices'][variable] ) == 'nan':
+                datadict['choices'][variable] = '%s, %s' % (match.group(1), match.group(2))
+            else:
+                datadict['choices'][variable] += ' | %s, %s' % (match.group(1), match.group(2))
+            if match.group(3) == '.':
+                mode = ''
+        else:
+            mode = ''
+    # Is this "GET DATA"? Set mode accordingly
+    elif re.match( '^GET DATA\s*$', line ):
+        mode = 'get_data'
+    else:
+        match = re.match( '^VALUE LABELS\s*(\w+)\s*$', line )
+        if match:
+            mode = 'get_labels'
+            variable = match.group( 1 )
+            datadict['type'][variable] = 'radio'
+            datadict['validation'][variable] = ''
+            datadict['validation_min'][variable] = ''
+            datadict['validation_max'][variable] = ''
+        else:
+            match = re.match( '^VARIABLE LABELS\s+(\w+)\s+"(.*)"', line, flags=re.DOTALL )
+            if match:
+                match_name_group = re.match( '^\[([^\|\]]*)(\|[^|\]]*)?(\|[^|\]]*)?\]\s*(.*)$', match.group(2), flags=re.DOTALL )
+                if match_name_group:
+                    datadict['label'][match.group(1)] = '\n'.join( match_name_group.group(1).strip().split( '\\' ) )
+                    datadict['section'][match.group(1)] = match_name_group.group(4).strip()
+
+                    notes_1 = match_name_group.group(2)
+                    notes_2 = match_name_group.group(3)
+                    if notes_1 and notes_2:
+                        datadict['notes'][match.group(1)] = 'Range: "%s" to "%s"' % (notes_1[1:].strip(),notes_2[1:].strip())
+                else:
+                    datadict['label'][match.group(1)] = '\n'.join( match.group(2).strip().split( '\\' ) )
+
+            match = re.match( '^RENAME VARIABLE\s+\(\s+(\w+)\s+=\s+(\w+)', line )
+            if match:
+                datadict['field_name'][match.group(1)] = match.group(2).lower()
+                if args.fieldname_to_notes:
+                    name_for_notes = '[%s]' % match.group(2).lower()
+                    if str( datadict['notes'][match.group(1)] ) == 'nan':
+                        datadict['notes'][match.group(1)] = name_for_notes
+                    else:
+                        datadict['notes'][match.group(1)] = name_for_notes + ' ' + datadict['notes'][match.group(1)]
+                    
+
+# Go through data dictionary back to front and remove all section names except for the first in each group
+last_index = ''
+last_section = ''
+for idx in reversed( datadict.index ):
+    if datadict['section'][idx] == last_section:
+        datadict['section'][last_index] = ''
+
+    last_section = datadict['section'][idx]
+    last_index = idx
+
+# Apply form name and field prefix, if provided on the command line
+datadict['form'] = args.form_name
+if args.field_prefix:
+    datadict['field_name'] = datadict['field_name'].map( lambda xs: '%s%s' % (args.field_prefix,xs) )
+
+# Write data dictionary to CSV file
+datadict.to_csv( args.ddictfile, cols=columns, index=False )

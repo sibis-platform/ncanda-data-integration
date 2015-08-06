@@ -1,0 +1,236 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2012-2014 SRI International
+##
+##  http://nitrc.org/projects/ncanda-datacore/
+##
+##  This file is part of the N-CANDA Data Component Software Suite, developed
+##  and distributed by the Data Integration Component of the National
+##  Consortium on Alcohol and NeuroDevelopment in Adolescence, supported by
+##  the U.S. National Institute on Alcohol Abuse and Alcoholism (NIAAA) under
+##  Grant No. 1U01 AA021697
+##
+##  The N-CANDA Data Component Software Suite is free software: you can
+##  redistribute it and/or modify it under the terms of the GNU General Public
+##  License as published by the Free Software Foundation, either version 3 of
+##  the License, or (at your option) any later version.
+##
+##  The N-CANDA Data Component Software Suite is distributed in the hope that it
+##  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+##  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License along
+##  with the N-CANDA Data Component Software Suite.  If not, see
+##  <http://www.gnu.org/licenses/>.
+"""
+check_siblings
+
+* siblings are also participants
+* siblings must indicate that they have siblings
+* verify that the selected representative really the first enrolled
+
+"""
+__author__ = 'Nolan Nichols <nolan.nichols@gmail.com'
+
+# system packages
+import os
+import sys
+
+import pandas as pd
+
+# pycap api
+from redcap import Project
+
+def validate_siblings(records):
+    """
+    Validate that siblings are also participants, that siblings have siblings, 
+    and that the selected representative really the first enrolled.
+
+    Parameters
+    ----------
+    records : list of dict records
+                    
+
+    Returns
+    -------
+    dict
+        Summary of invalid records
+    """
+    records.reset_index(inplace=True)
+    records.set_index(['study_id'], drop=False, inplace=True)
+    # ids for all participants
+    study_ids = records.index.tolist()
+
+    # records for all participants indicating an enrolled sibling
+    sib_recs = records[(records.siblings_enrolled___true == 1)]
+
+    # records for all participants indicating they are the representative
+    rep_recs = sib_recs[(sib_recs.siblings_id1 == sib_recs.study_id)]
+
+    # ids for all participants indicating they are the representative
+    rep_ids = rep_recs.study_id
+
+    # records for all participants indicating they are not a representative
+    nonrep_recs = sib_recs[(sib_recs.siblings_id1 != sib_recs.study_id)]
+
+    def check_sibling_exists():
+        """
+        Does the listed sibling id exist as a study id?
+        """
+        # Note: '~' is the same as 'not'
+        result = sib_recs[(~sib_recs.siblings_id1.isin(study_ids)) & (pd.notnull(sib_recs.siblings_id1))]
+        columns = ['study_id', 'siblings_id1']
+
+        print "Subject 'study_id' list subject 'sibling_id1' as their sibling, but the latter does not exist as a subject:"
+        print
+        print result.to_string(index=False, columns=columns)
+        print
+
+    def check_sibling_enrolled():
+        """
+        Are all subjects referenced as siblings by others also marked as
+        having siblings themselves?
+        """
+        sib_exists = sib_recs[(sib_recs.siblings_id1.isin(study_ids))]
+        enrolled = records[(records.study_id.isin(sib_exists.siblings_id1)) &
+                           (records.siblings_enrolled___true != 1)]
+        result = sib_exists[sib_exists.siblings_id1.isin(enrolled.study_id)]
+
+        result['referring_study_id'] = result.study_id
+
+        columns = ['siblings_id1','referring_study_id']
+
+        print "Subject 'sibling_id1' is listed as sibling of 'referring_study_id' but does not itself indicate having a sibling enrolled:"
+        print
+        print result.to_string(index=False, columns=columns)
+        print
+
+    def check_sibling_listed():
+        """
+        For subjects indicating enrolled siblings, is a sibling id listed?
+        """
+        result = sib_recs[~pd.notnull(sib_recs.siblings_id1)]
+        columns = ['study_id']
+
+        print "Subject 'study_id' indicates siblings but does not list a sibling ID:"
+        print
+        print result.to_string(index=False, columns=columns)
+        print
+
+    def check_representatives():
+        """Is the selected representative really the first enrolled?"""
+        # Drop records not listing a sibling id.
+        sib_int = sib_recs[pd.notnull(sib_recs['siblings_id1'])]
+
+        # Convert study ids to integers.
+        id2int = lambda rec: int(rec[1][1:])
+        sib_int['study_int'] = sib_int.study_id
+        sib_int['study_int'] = sib_int.study_int.str.split('-').apply(id2int)
+
+        # Convert sibling ids to integers.
+        sib_int['sibling_int'] = sib_int.siblings_id1.str.split('-')
+        sib_int['sibling_int'] = sib_int.sibling_int.apply(id2int)
+
+        # Filter for sibling ids greater than the study id.
+        sib_filter = sib_int[(sib_int.study_int < sib_int.sibling_int)]
+        result = sib_filter.set_index(['siblings_id1', 'study_id'])
+        result.index.names = ['siblings_id1', 'referring_study_id']
+
+        print "Subject 'study_id' is listed as the sibling of 'referring_study_id', but is not the first enrolled:"
+        print
+        print "study_id\treferring_study_id\n"
+        print '\n'.join( [ '%s\t%s' % (s1,s2) for (s1,s2) in result.index ] )
+        print
+
+    def check_representative_sibling():
+        """
+        Does the selected representative have a matching subject_id and
+        sibling_id?
+        """
+        # Select records that list siblings ids that also exist as study ids
+        unique_recs = records[(~pd.isnull(records.siblings_id1)) &
+                              (records.siblings_id1.isin(study_ids))]
+
+        # Identify siblings indicated as representatives that do not have a
+        # matching study id and sibling id.
+        sib_reps = unique_recs[(~unique_recs.siblings_id1.isin(rep_ids))]
+        sib_reps['rep_study_id'] = sib_reps.study_id
+
+        # Records of representative siblings w/o matching study id
+        # and sibling id
+        rep_filter = unique_recs.study_id.isin(sib_reps.siblings_id1)
+        result = unique_recs[rep_filter]
+        result['rep_study_id'] = sib_reps.study_id
+
+        # Sibling ids referenced w/o matching study id
+        columns = ['rep_study_id', 'siblings_id1']
+
+        print "The rep_study_id indicated does not list itself in the " \
+              "sibling_id1 field:"
+        print
+        print result.to_string(index=False, columns=columns)
+        print
+
+    # run all the checks
+    return [check_sibling_exists(), check_sibling_enrolled(),
+            check_sibling_listed(), check_representatives(),
+            check_representative_sibling()]
+
+
+def main(argv=None):
+    # get api config
+    api_url = argv['api_url']
+    api_key = argv['api_key_path'].read().strip()
+    site = argv['site']
+
+    # get a connection to redcap
+    project = Project(api_url, api_key, verify_ssl=False)
+
+    fields_of_interest = ['study_id',
+                          'redcap_data_access_group',
+                          'siblings_enrolled',
+                          'siblings_id1',
+                          'visit_date']
+
+    # Get a pandas DataFrame representation of the redcap project.
+    records = project.export_records(fields=fields_of_interest,
+                                     events=['baseline_visit_arm_1'],
+                                     event_name='unique',
+                                     export_data_access_groups=True, 
+                                     format='df')
+
+    # Filter by site, if so desired
+    if site:
+        records = records[ records[ 'redcap_data_access_group' ] == site ]
+
+    # Run the valivation checks
+    if len( records ):
+        validate_siblings(records)
+    else:
+        print "No records to check (verify 'site' selection?)."
+
+
+if __name__ == "__main__":
+    import argparse
+
+    description = """Validate that siblings are also participants that siblings
+                     have siblings and that the selected representative
+                     really the first enrolled."""
+    key_path = os.path.expanduser('~/.server_config/redcap-dataentry-token')
+
+    # setup the argument parser and help text
+    parser = argparse.ArgumentParser(prog='check_siblings',
+                                     description=description)
+    parser.add_argument('--site', default=None, help='Limit checks to one consortium site (provide site name as argument)')
+    parser.add_argument('api_url', nargs='?',
+                        default='https://ncanda.sri.com/redcap/api/',
+                        help='The URL to a valid REDCap')
+    parser.add_argument('api_key_path', nargs='?',
+                        default=key_path,
+                        type=argparse.FileType('r'),
+                        help='Path to REDCap API key')
+    args = vars(parser.parse_args())
+
+    sys.exit(main(argv=args))

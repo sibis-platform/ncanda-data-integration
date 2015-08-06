@@ -1,0 +1,134 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2012, 2013 SRI International
+##
+##  http://nitrc.org/projects/ncanda-datacore/
+##
+##  This file is part of the N-CANDA Data Component Software Suite, developed
+##  and distributed by the Data Integration Component of the National
+##  Consortium on Alcohol and NeuroDevelopment in Adolescence, supported by
+##  the U.S. National Institute on Alcohol Abuse and Alcoholism (NIAAA) under
+##  Grant No. 1U01 AA021697
+##
+##  The N-CANDA Data Component Software Suite is free software: you can
+##  redistribute it and/or modify it under the terms of the GNU General Public
+##  License as published by the Free Software Foundation, either version 3 of
+##  the License, or (at your option) any later version.
+##
+##  The N-CANDA Data Component Software Suite is distributed in the hope that it
+##  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+##  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License along
+##  with the N-CANDA Data Component Software Suite.  If not, see
+##  <http://www.gnu.org/licenses/>.
+##
+##  $Revision: 80 $
+##
+##  $LastChangedDate: 2013-02-25 13:45:11 -0800 (Mon, 25 Feb 2013) $
+##
+##  $LastChangedBy: torstenrohlfing $
+##
+
+# Setup command line parser
+import argparse
+parser = argparse.ArgumentParser( description="Retrieve CSV spreadsheet from WebCNP database at U Penn" )
+parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true" )
+parser.add_argument( "--from-date", help="Retrieve only records from the specific date onwards. Give date as 'YYYY-MM-DD'.", action="store" )
+parser.add_argument( "--last-month", help="Retrieve only records of the last month.", action="store_true" )
+parser.add_argument( "--last-3-months", help="Retrieve only records of the last 3 months.", action="store_true" )
+parser.add_argument( "--last-year", help="Retrieve only records of the last year.", action="store_true" )
+parser.add_argument( "out_dir", help="Directory for output files" )
+args = parser.parse_args()
+
+# Import everything we need from Selenium
+from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.ui import Select
+
+import time
+import os
+import glob
+import json
+import sys
+
+# Switch to temp directory
+original_wd = os.getcwd()
+if not os.path.exists( args.out_dir ):
+    os.mkdir( args.out_dir )
+os.chdir( args.out_dir )
+
+# Check if config file exists - read user name and password if it does, bail otherwise
+configfile = os.path.join( os.path.expanduser("~"), '.server_config/penncnp.cfg' )
+if os.path.exists( configfile ):
+    fp = open( configfile, 'rb')
+    config = json.load(fp)
+    fp.close()
+else:
+    sys.exit( "ERROR: access config file %s does not exist." % configfile )
+
+username = str(config['username'])
+password = str(config['password'])
+
+# Configure Firefox profile for automated file download
+fp = webdriver.FirefoxProfile()
+fp.set_preference("browser.download.folderList",2)
+fp.set_preference("browser.download.manager.showWhenStarting",False)
+fp.set_preference("browser.download.dir", os.getcwd())
+fp.set_preference("browser.helperApps.neverAsk.saveToDisk", "application/vnd.ms-excel")
+
+# Remove old partfiles to avoid infinite wait later
+for partfile in glob.glob( '*.csv.part' ):
+    os.remove( partfile )
+
+# Open browser
+browser = webdriver.Firefox( firefox_profile=fp )
+browser.get("https://penncnp.med.upenn.edu/results.pl")
+
+# Fill login screen
+browser.find_element_by_name("adminid").send_keys( username )
+browser.find_element_by_name("pwd").send_keys( password )
+browser.find_element_by_name("Login").click()
+
+# Wait for export form and fill appropriately
+wait = WebDriverWait(browser, 20)
+export = wait.until(EC.element_to_be_clickable((By.NAME,'Export Report')))
+browser.find_element_by_name("incomplete").click()
+
+# If "from-date" was given, select date range
+if args.from_date:
+    browser.find_element_by_name("date_of_test").send_keys( ">>" ) # this selects ">="
+    browser.find_element_by_name("date_of_test_date").send_keys( args.from_date )
+else:
+    # If "last-month" was given, select that option
+    if args.last_month:
+        browser.find_element_by_name("date_of_test").send_keys( "ll" ) # this selects "Last Month"
+    elif args.last_3_months:
+        browser.find_element_by_name("date_of_test").send_keys( "lll" ) # this selects "Last 3 Months"
+    elif args.last_year:
+        browser.find_element_by_name("date_of_test").send_keys( "llll" ) # this selects "Last Year"
+
+# Click "export" button now.
+export.click()
+
+# Wait for "Download" link, start download
+download = wait.until(EC.element_to_be_clickable((By.NAME,'download_excel')))
+download.click()
+logout =  wait.until(EC.element_to_be_clickable((By.LINK_TEXT,'Logout')))
+
+# At this point, the file should download and save automatically. We need to wait for that to complete.
+while glob.glob( '*.csv.part' ):
+    pass
+
+# To clean up, log out of CNP system and quit browser
+logout.click()
+browser.quit()
+
+# Change back to original working directory
+os.chdir( original_wd )

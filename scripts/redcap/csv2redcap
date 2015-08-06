@@ -1,0 +1,104 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2013-2014 SRI International
+##
+##  http://nitrc.org/projects/ncanda-datacore/
+##
+##  This file is part of the N-CANDA Data Component Software Suite, developed
+##  and distributed by the Data Integration Component of the National
+##  Consortium on Alcohol and NeuroDevelopment in Adolescence, supported by
+##  the U.S. National Institute on Alcohol Abuse and Alcoholism (NIAAA) under
+##  Grant No. 1U01 AA021697
+##
+##  The N-CANDA Data Component Software Suite is free software: you can
+##  redistribute it and/or modify it under the terms of the GNU General Public
+##  License as published by the Free Software Foundation, either version 3 of
+##  the License, or (at your option) any later version.
+##
+##  The N-CANDA Data Component Software Suite is distributed in the hope that it
+##  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+##  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License along
+##  with the N-CANDA Data Component Software Suite.  If not, see
+##  <http://www.gnu.org/licenses/>.
+##
+
+# Setup command line parser
+import argparse
+import os
+import string
+import re
+
+import pandas
+
+import redcap
+
+parser = argparse.ArgumentParser( description="Import contents of CSV file into longitudinal REDCap project" )
+parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument( "-f", "--force", help="Force overwriting of existing records.", action="store_true")
+parser.add_argument( "--api-key-file", help="File containing API Key for REDCap project", default=os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' ) )
+parser.add_argument( "--data-access-group", help="REDCap project data access group that the imported data should be assigned to.", default=None )
+parser.add_argument( "csvfile", help="Input .csv file.")
+args = parser.parse_args()
+
+# Read input file
+data = pandas.io.parsers.read_csv( args.csvfile )
+
+# Replace periods in column labels with underscores
+data.rename( columns = lambda s: string.lower( s.replace( '.', '_' ) ), inplace=True )
+
+# Bring original "siteid" column back to assign each record to the correct data access group
+if not args.data_access_group == None:
+    data['redcap_data_access_group'] = args.data_access_group
+
+# Open connection to REDCap server
+key_file = open( args.api_key_file, 'r' )
+api_key = key_file.read().strip()
+project = redcap.Project( 'https://ncanda.sri.com/redcap/api/', api_key, verify_ssl=False)
+
+# Get "complete" field of existing records so we can protect "Complete" records from overwriting
+complete_field = ''
+if not args.force:
+    for var in data.columns:
+        if re.match( '.*_complete$', var ):
+            complete_field = var
+
+# Is there a "complete" field? Then get existing records and ditch all records from new data that are "Complete"
+existing_data=pandas.DataFrame
+if complete_field != '':
+    existing_data = project.export_records( fields=[complete_field], format='df', df_kwargs={"index_col":[project.def_field, "redcap_event_name"]} )
+
+# Make list of dicts for REDCap import
+record_list = []
+for [key,row] in data.iterrows():
+    redcap_key = ( row['study_id'], row['redcap_event_name'] )
+    if complete_field != '' and redcap_key in existing_data.index.tolist():
+        if existing_data[complete_field][redcap_key] == 2:
+            continue
+    if not args.force:
+        record = dict( row.dropna() )
+    else:
+        record = dict( row.fillna('') ) 
+    record_list.append( record )
+
+# Upload new data to REDCap
+import_response = project.import_records( record_list, overwrite='overwrite' )
+
+# If there were any errors, try to print them as well as possible
+if 'error' in import_response.keys():
+    print "UPLOAD ERROR:", import_response['error']
+        
+if 'fields' in import_response.keys():
+    for field in import_response['fields']:
+        print "\t", field
+                    
+if 'records' in import_response.keys():
+    for record in import_response['records']:
+        print "\t", record
+
+# Finally, print upload status if so desired                    
+if args.verbose and 'count' in import_response.keys():
+    print "Successfully uploaded %d/%d records to REDCap." % ( import_response['count'], len( data ) )

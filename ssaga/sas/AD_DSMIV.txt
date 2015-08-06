@@ -1,0 +1,241 @@
+
+/********************************************************/
+/*  DSMIV ATTENTION-DEFICIT/HYPERACTIVITY DISORDER      */
+/********************************************************/
+keep   ADd4dx   ADd4a1sx   ADd4a2sx    ADd4a2Hypsx  ADd4a2Impsx
+          ADd4a   ADd4b   ADd4c   ADd4d 
+         ADd4a1a   ADd4a1b   ADd4a1c   ADd4a1d   ADd4a1e   ADd4a1f 
+                     ADd4a1g   ADd4a1h   ADd4a1i 
+         ADd4a2a   ADd4a2b   ADd4a2c   ADd4a2d   ADd4a2e   ADd4a2f 
+                     ADd4a2g   ADd4a2h   ADd4a2i ;
+
+label  ADd4dx='ADHD DSMIV dx';
+label  ADd4a1sx='ADHD DSMIV: Num inattention sx';
+label  ADd4a2Hypsx='ADHD DSMIV : Num hyperactive  sx';
+label  ADd4a2Impsx='ADHD DSMIV : Num impulsivity sx';
+label  ADd4a2sx='ADHD DSMIV : Num hyperactive+impulsive sx';
+
+label  ADd4a1a=' ADd4a1a: often fails to give close attention to details or makes careless mistakes...';
+label  ADd4a1b=' ADd4a1b:often has difficulty sustaining attention in tasks or play activities'
+label  ADd4a1c=' ADd4a1c:often does not seem to listen when spoken to directly';
+label  ADd4a1d=' ADd4a1d:often does not follow through on instructions and fails to finish...';
+label  ADd4a1e=' ADd4a1e:often has difficutly organizing tasks or activities';
+label  ADd4a1f=' ADd4a1f:often avoids, dislikes, or is reluctant to engage in tasks that require sustained mental effort..';
+label  ADd4a1g=' ADd4a1g:often loses things necessary for tasks or activities';
+label  ADd4a1h=' ADd4a1h:is often easily distracted by extraneous stimuli';
+label  ADd4a1i=' ADd4a1i:is often forgetful in daily activities';
+      *** hyperactivity;
+label  ADd4a2sx='ADHD DSMIV: Num hyperactivity/impulsivity sx';
+label  ADd4a2a =' ADd4a2a:often fidgets with feet and hands or squrims';
+label  ADd4a2b =' ADd4a2b:often leaves seat (when not appropriate)';
+label  ADd4a2c =' ADd4a2c: often runs about or climbs excessively...)';
+label  ADd4a2d =' ADd4a2d:often has difficulty playing..quietly';
+label  ADd4a2e =' ADd4a2e:often "on the go..." ';
+label  ADd4a2f =' ADd4a2f:often talks excessively ';
+     *** impulsivity;
+label  ADd4a2g =' ADd4a2g:often blurts out answers... ';
+label  ADd4a2h =' ADd4a2h:often has difficulty awaiting turn';
+label  ADd4a2i =' ADd4a2i:often interrupts...';
+     
+
+
+/*****************************************************************/
+/*   CRITERION A1: INATTENTION                         */
+/*****************************************************************/
+ Add4a1=1;
+ ADd4a1a=ad1_2;
+ ADd4a1b=ad1_5;
+ ADd4a1c=ad1_4;
+ ADd4a1d=ad1_9;
+ ADd4a1e=ad1_8;
+ ADd4a1f=ad1_7;
+ 
+if (ad1_1=5)|(ad1a1=5) then  ADd4a1g=5;
+else 
+   if (ad1_1 in(5,.K))|(ad1a1 in(5,.K)) then  ADd4a1g=9;
+   else 
+      if (ad1_1=1)*(ad1a1=1) then  ADd4a1g=1; 
+      else 
+        if (ad1_1=.)*(ad1a1=.) then  ADd4a1g=.; 
+if (ad1_6=5)|(ad1a6=5) then  ADd4a1h=5;
+else 
+   if (ad1_6 in(5,.K))|(ad1a6 in(5,.K)) then  ADd4a1h=9;
+   else 
+      if (ad1_6=1)*(ad1a6=1) then  ADd4a1h=1; 
+      else 
+        if (ad1_6=.)*(ad1a6=.) then  ADd4a1h=.; 
+ ADd4a1i=ad1_3;
+
+
+array  ADd4a1_ary (9)  ADd4a1a  ADd4a1b  ADd4a1c  ADd4a1d  ADd4a1e  ADd4a1f 
+                    ADd4a1g  ADd4a1h  ADd4a1i ;
+ ADd4a1sx=0; ADd4a1s9=0; ADd4a1MissingSx=0;
+do i=1 to 9;
+   if  ADd4a1_ary(i)=5 then  ADd4a1sx+1;
+   else
+      if  ADd4a1_ary(i)=.K then do;
+           ADd4a1s9+1;
+           ADd4a1_ary(i)=9;
+      end;
+      else
+         if  ADd4a1_ary(i)=. then do;
+            ADd4a1MissingSx+1;
+         end;
+end;
+if  ADd4a1sx>=6 then  ADd4a1=5;
+else
+   if sum( ADd4a1sx, ADd4a1s9)>=6 then  ADd4a1=9;
+   else
+      if  ADd4a1MissingSx=1 then  ADd4a1=.;
+
+
+/*****************************************************************/
+/*   CRITERION A2: HYPERACTIVITY/IMPULSIVITY                     */
+/*****************************************************************/
+Add4a2=1;
+ ADd4a2a=ad6_4;
+ ADd4a2b=ad6_5;
+ ADd4a2c=ad6_1;
+ ADd4a2d=ad6_3;
+ ADd4a2e=ad6_2;
+ if (ad6_6=5) | (ad6a6=5) then ad4a2f=5;
+ else 
+   if (ad6_6 =.K)|(ad6a6 =.K) then  ADd4a2f=9;
+   else 
+      if (ad6_6=1)*(ad6a6=1) then  ADd4a2f=1; 
+
+ ADd4a2f=ad6_6;
+ ADd4a2g=ad6_7;
+ ADd4a2h=ad6_9;
+if (ad6_8=5) | (ad6_10=5) then add4a2i=5;
+else 
+   if (ad6_8 =.K)|(ad6_10 =.K)  then  ADd4a2i=9;
+   else 
+      if (ad6_8=1)*(ad6_10=1) then  ADd4a2i=1; 
+
+
+ ADd4a2sx=0; ADd4a2s9=0; ADd4a2Hypsx=0; ADd4a2Impsx=0;
+ ADd4a2MissingSx=0; ADd4a2Imps9=0; ADd4a2Hyps9=0;
+array  ADd4a2_ary(9)  ADd4a2a  ADd4a2b  ADd4a2c  ADd4a2d  ADd4a2e  ADd4a2f 
+                    ADd4a2g  ADd4a2h  ADd4a2i ;
+
+do i=1 to 6;
+   if  ADd4a2_ary(i)=5 then  ADd4a2Hypsx+1; 
+   else 
+      if  ADd4a2_ary(i)=.K then  ADd4a2Hyps9+1;
+end;
+
+do i=7 to 9;
+   if  ADd4a2_ary(i)=5 then  ADd4a2Impsx+1;
+   else
+      if  ADd4a2_ary(i)=.K then  ADd4a2Imps9+1;
+end;
+
+do i=1 to 9;
+   if  ADd4a2_ary(i)=.K then  do; 
+       ADd4a2s9+1;
+       ADd4a2_ary(i)=9;
+   end;      
+   else
+       if ADd4a2_ary(i)=. then  ADd4a2MissingSx+1;
+end;
+
+ADd4a2sx= ADd4a2Hypsx + ADd4a2Impsx;
+if  ADd4a2sx>=6 then  ADd4a2=5;
+else
+   if sum( ADd4a2sx, ADd4a2s9)>=6 then  ADd4a2=9;
+   else
+      if  ADd4a2MissingSx>0 then  ADd4a2=.;
+
+/*****************************************************************/
+/*   CRITERION A: HYPERACTIVITY sx>=6 or IMPULSIVITY sx >=6     */               
+/****************************************************************/
+ ADd4a=1;
+if  ADd4a1=5 |  ADd4a2=5 then  ADd4a=5;
+else
+   if  ADd4a1=.K |  ADd4a2=.K then  ADd4a=9;
+   else
+      if  ADd4a1=. |  ADd4a2=. then  ADd4a=.;
+
+
+ /*****************************************************************/
+/*   CRITERION B: some sx... present before age 7                  */          
+/*****************************************************************/
+ ADd4b=1;
+if (0 <= ad_ao3 < 7) | (0 <= ad_ao8 < 7) then  ADd4b=5;
+else
+   if (ad_ao3=.K) | (ad_ao8 =.K) then  ADd4b=9;
+
+ /*****************************************************************/
+/* CRITERION  C: Some impairment...present in 2 or more settings  */
+/*****************************************************************/
+ ADd4c=1;
+ad4ccnt=0;
+ad4ccnt9=0;
+array  ADd4c1ry (4) ad2_1-ad2_4;
+array  ADd4c2ry (4) ad7_1-ad7_4;
+do i=1 to 3;
+   if  ADd4c1ry(i)=5 |  ADd4c2ry(i)=5 then ad4ccnt+1;
+   else
+      if  ADd4c1ry(i)=.K |  ADd4c2ry(i)=.K then do;
+         ad4ccnt9+1;
+         ADd4c1ry(i)=9;
+      end;
+end;      
+if ad4ccnt>=2 then  ADd4c=5;
+else
+   if sum(ad4ccnt,ad4ccnt9)>=2 then  ADd4c=9;
+   
+  
+ /*****************************************************************/
+/*   CRITERION  D: ...clinically significant impairmemt          */
+/*****************************************************************/
+ ADd4d=1;
+ ADd4dct5=0;
+ ADd4dct9=0;
+ array  ADd4dary(4) ad4 ad5 ad9 ad10;
+ do i=1 to 4;
+   if  ADd4dary(i)=5 then  ADd4dct5+1;
+   else
+      if  ADd4dary(i)=.K then  ADd4dct9+1;
+ end;
+ if  ADd4dct5>0 then  ADd4d=5;
+ else
+   if  ADd4dct9>0 then  ADd4d=9;
+
+  
+/***********************************************************/
+/*    ASSIGN  ADd4DX                                        */
+/***********************************************************/
+ ADd4dx=1;
+if ( ADd4a=5)*( ADd4b=5)*( ADd4c=5)*( ADd4d=5) then  ADd4dx=5;
+else
+   if ( ADd4a in(5,9))*( ADd4b in(5,9))*
+      ( ADd4c in(5,9))*( ADd4d in(5,9)) then  ADd4dx=9;
+
+array add4vars (21) ad1_1-ad1_10 ad6_1-ad6_11;
+cntmissingadvars=0;
+do i= 1 to 10;
+  if add4vars(i) in(.,.K) then cntmissingadvars+1;
+end;
+if (cntmissingadvars=10) then do;
+   ADd4a1sx=.; ADd4a2sx=.; ADd4dx=.;
+   ADd4a=.; ADd4b=.; ADd4c=.; ADd4d=.;
+   ADd4a2Hypsx=.; ADd4a2Impsx=.;
+   do i=1 to 9;add4a1_ary(i)=.;end;
+end;
+
+cntmissingadhvars=0;
+array adh4vars (11) ad6_1-ad6_11;
+do i= 1 to 11;
+  if adh4vars(i) in(.,.K) then cntmissingadhvars+1;
+end;
+if cntmissingadhvars=11 then do;
+   ADd4a2sx=.; ADd4dx=.;
+   ADd4b=.; ADd4c=.; ADd4d=.;
+   ADd4a2Hypsx=.; ADd4a2Impsx=.;
+   do i=1 to 9;add4a2_ary(i)=.;end;
+end;
+
+
+   

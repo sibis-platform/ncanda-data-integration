@@ -1,0 +1,127 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2012-2014 SRI International
+##
+##  http://nitrc.org/projects/ncanda-datacore/
+##
+##  This file is part of the N-CANDA Data Component Software Suite, developed
+##  and distributed by the Data Integration Component of the National
+##  Consortium on Alcohol and NeuroDevelopment in Adolescence, supported by
+##  the U.S. National Institute on Alcohol Abuse and Alcoholism (NIAAA) under
+##  Grant No. 1U01 AA021697
+##
+##  The N-CANDA Data Component Software Suite is free software: you can
+##  redistribute it and/or modify it under the terms of the GNU General Public
+##  License as published by the Free Software Foundation, either version 3 of
+##  the License, or (at your option) any later version.
+##
+##  The N-CANDA Data Component Software Suite is distributed in the hope that it
+##  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+##  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License along
+##  with the N-CANDA Data Component Software Suite.  If not, see
+##  <http://www.gnu.org/licenses/>.
+##
+##  $Revision: 67 $
+##
+##  $LastChangedDate: 2013-02-07 10:41:38 -0800 (Thu, 07 Feb 2013) $
+##
+##  $LastChangedBy: torstenrohlfing $
+##
+
+import argparse
+import string
+import os
+
+import pandas
+
+import redcap
+
+import cnp
+
+# Setup command line parser
+parser = argparse.ArgumentParser( description="Import WebCNP CSV file into REDCap database" )
+parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument( "-a", "--import-all", help="Import all records from Penn server, overwriting any data already in REDCap", action="store_true")
+parser.add_argument("infile", help="Input file in CSV format.")
+args = parser.parse_args()
+
+# Open connection with REDCap server
+key_file = open( os.path.join( os.path.expanduser("~"), '.server_config/redcap-penncnp-token' ), 'r' )
+api_key = key_file.read().strip()
+redcap = redcap.Project( 'https://ncanda.sri.com/redcap/api/', api_key, verify_ssl=False)
+
+# Read input file
+data = pandas.io.parsers.read_csv( args.infile )
+
+# Replace periods in column labels with underscores
+data.rename( columns = lambda s: string.lower( s.replace( '.', '_' ) ), inplace=True )
+
+# Remove all sessions before ID 22000 - these are junk
+data = data[data['test_sessions_datasetid'] >= 22000]
+
+# Remove all records that are already in REDCap
+if not args.import_all:
+    # See what's already on the server
+    records_in_redcap = redcap.export_records( fields=['record_id', 'test_sessions_datasetid'], format='df') 
+    # Filter out existing records
+    existing = records_in_redcap['test_sessions_datasetid'].tolist()
+    data = data[ data['test_sessions_datasetid'].map( lambda x: x not in existing ) ]
+
+# Anything left?
+if not len( data ) and args.verbose:
+    print "No new records to import."
+    exit( 0 )
+
+# Set "Completeness" as "Unverified"
+data['test_sessions_complete'] = 1
+for sheet in cnp.instruments.keys():
+    if not sheet == 'test_sessions':
+        data['%s_complete' % cnp.instruments[sheet]] = data['%s_valid_code' % sheet].map( lambda s: 1 if str(s) != '' else 0 )
+
+# Bring Subject ID into correct format and select appropriate prefix
+data['test_sessions_subid'] = data['test_sessions_subid'].map( lambda s: "%s????????" % str( s ) )
+data['test_sessions_subid'] = data['test_sessions_subid'].map( lambda s: '%s-%s-%s-%s' % (s[0],s[1:6],s[6],s[7]) )
+
+# Create column with record ID
+data['record_id'] = data['test_sessions_subid']
+for [ index, row ] in data.iterrows():
+    data['record_id'][index] = "%s-%s-%d" % (row['test_sessions_subid'], row['test_sessions_dotest'][0:10], row['test_sessions_datasetid'] )
+
+# Drop the separate subject ID and test date columns so as to not overwrite corrected ones.
+data = data.drop( ['test_sessions_subid', 'test_sessions_dotest'], axis=1 )
+
+# Bring original "siteid" column back to assign each record to the correct data access group
+data['redcap_data_access_group'] = data['test_sessions_siteid'].map( lambda s: string.lower(s) );
+
+# Make list of dicts for REDCap import
+uploaded = 0
+for [key,row] in data.iterrows():
+    record = dict( row.dropna() )
+
+    # Upload new data to REDCap
+    import_response = redcap.import_records( [record], overwrite='overwrite' )
+
+    # If there were any errors, try to print them as well as possible
+    if 'error' in import_response.keys():
+        print "UPLOAD ERROR:", import_response['error']
+        
+    if 'fields' in import_response.keys():
+        for field in import_response['fields']:
+            print "\t", field
+                    
+    if 'records' in import_response.keys():
+        for record in import_response['records']:
+            print "\t", record
+
+    if 'count' in import_response.keys():
+	uploaded += int( import_response['count'] )
+    else:
+	print "WARNING: failed to upload record",record['record_id']
+
+# Finally, print upload status if so desired
+if args.verbose:
+    print "Successfully uploaded %d/%d records to REDCap." % ( uploaded, len( data ) )

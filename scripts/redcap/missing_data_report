@@ -1,0 +1,128 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2013-2014 SRI International
+##
+##  http://nitrc.org/projects/ncanda-datacore/
+##
+##  This file is part of the N-CANDA Data Component Software Suite, developed
+##  and distributed by the Data Integration Component of the National
+##  Consortium on Alcohol and NeuroDevelopment in Adolescence, supported by
+##  the U.S. National Institute on Alcohol Abuse and Alcoholism (NIAAA) under
+##  Grant No. 1U01 AA021697
+##
+##  The N-CANDA Data Component Software Suite is free software: you can
+##  redistribute it and/or modify it under the terms of the GNU General Public
+##  License as published by the Free Software Foundation, either version 3 of
+##  the License, or (at your option) any later version.
+##
+##  The N-CANDA Data Component Software Suite is distributed in the hope that it
+##  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+##  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License along
+##  with the N-CANDA Data Component Software Suite.  If not, see
+##  <http://www.gnu.org/licenses/>.
+##
+##  $Revision: 778 $
+##
+##  $LastChangedDate: 2014-01-06 14:40:13 -0800 (Mon, 06 Jan 2014) $
+##
+##  $LastChangedBy: torstenrohlfing $
+##
+
+import argparse
+import os
+import pandas
+import re
+
+import redcap
+
+# Setup command line parser
+parser = argparse.ArgumentParser( description="Report missing data for all or selected forms.", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
+parser.add_argument( "--forms", help="Select specific forms to update. Separate multiple forms with commas.", action="store", default=None )
+parser.add_argument( "--exclude-forms", help="Select specific forms to exclude. Separate multiple forms with commas.", action="store", default=None )
+parser.add_argument( "--grace-period", help="Grace period in days before today's date for which we do not include missing data.", action="store", type=int, default=30 )
+args = parser.parse_args()
+
+# First REDCap connection for the Summary project (this is where we put data)
+summary_key_file = open( os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' ), 'r' )
+summary_api_key = summary_key_file.read().strip()
+rc_summary = redcap.Project( 'https://ncanda.sri.com/redcap/api/', summary_api_key, verify_ssl=False)
+form_event_mapping = rc_summary.export_fem( format='df' )
+
+def get_form_admin_field_names( form ):
+    complete_field = form + "_complete"
+
+    missing_fields = [ field['field_name'] for field in rc_summary.metadata if re.match( '.*_missing$', field['field_name'] ) and (field['form_name'] == form) and (field['field_type'] == 'yesno') ]
+    if len( missing_fields ) < 1:
+        missing_field = None
+    else:
+        missing_field = missing_fields[0]
+
+    return (complete_field,missing_field)
+
+def get_forms_list():
+    # What forms do we have?
+    forms_list = rc_summary.forms
+
+    # If inclusion list given, use only those forms
+    if args.forms:
+        forms_list = []
+        for form in args.forms.split( ',' ):
+            if form in rc_summary.forms:
+                forms_list.append( form )
+            else:
+                print "WARNING: form '%s' does not exist.\n" % form
+
+    # If exclusion list given, remove them from list
+    if args.exclude_forms:
+        forms_list = [ f for f in forms_list if not f in args.exclude_forms.split( ',' ) ]
+        
+    return forms_list
+
+# Get date of birth and exclusion flag for all subjects
+subject_data = rc_summary.export_records( events=['baseline_visit_arm_1','baseline_visit_arm_4'], fields=[ 'exclude', 'dob' ], format='df' )
+
+# Determine when grace period begins (i..e, earliest date for which we'll complain)
+import datetime
+report_before_date = ( datetime.datetime.today() - datetime.timedelta( args.grace_period ) ).strftime('%Y-%m-%d')
+
+missing_by_dag = dict()
+for form in get_forms_list():
+    (complete_field_name,missing_field_name) = get_form_admin_field_names( form )
+
+    if missing_field_name:
+        # Get list of events for which this form exists
+        events_this_form = form_event_mapping[ form_event_mapping[ 'form_name' ] == form ]['unique_event_name'].tolist()    
+
+        # Get fields for applicable events
+        records = rc_summary.export_records( events=events_this_form, fields=[ complete_field_name, missing_field_name, 'visit_date', 'redcap_data_access_group' ], export_data_access_groups=True, event_name='unique', format='df' )
+
+        # Filter out all excluded subjects
+        records = records[ records.index.map( lambda key: False if subject_data['exclude'][key[0]] == 1 else True ) ]
+
+        # Filter out all existing or known missing records
+        records = records[ pandas.notnull( records['visit_date'] ) & ~(records[complete_field_name]>0) & ~(records[missing_field_name] > 0) ]
+
+        # Any problem records left?
+        if len( records ) > 0:
+            # Filter out stuff within the grace period
+            records = records[ (records['visit_date'] < report_before_date) ]
+
+            for dag in set( records['redcap_data_access_group'].tolist() ):
+                missing = records[ records['redcap_data_access_group'] == dag ][ ['visit_date'] ]
+                missing[form] = missing['visit_date']
+                if len( missing ) > 0:
+                    if dag in missing_by_dag.keys():
+                        missing = missing.drop( ['visit_date'], axis=1 )
+                        missing_by_dag[dag] = pandas.merge( missing_by_dag[dag], missing, how='outer', left_index=True, right_index=True ).fillna('')
+                    else:
+                        missing_by_dag[dag] = missing
+                    # Fill in missing bits in the 'visit_date' column
+                    missing_by_dag[dag]['visit_date'] = missing_by_dag[dag].apply( lambda row: row['visit_date'] if row['visit_date'] != '' else missing[form][row.name], axis=1 )
+
+for dag in missing_by_dag.keys():
+    this_dag = missing_by_dag[dag].reindex_axis(sorted(missing_by_dag[dag].columns), axis=1).sort( 'visit_date' ).drop( 'visit_date', axis=1 )
+    this_dag.to_csv( dag + '.csv' )

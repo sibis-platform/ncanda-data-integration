@@ -1,0 +1,146 @@
+
+
+******************************************************************;
+***** DSMIV  TOBACCO  DEPENDENCE **********;
+*******************************************************************;
+
+label   TBd4dpsx  ='# DSM4 tobacco Criteria Endorsed'
+        TBd4dpdx ='DSM4 TB Dependence'
+        TBd4d1='TBd4d1: TB tolerance'
+        TBd4d2='TBd4d2: TB withdrawal'
+        TBd4d3='TBd4d3...larger amounts over longer period of time than intended'
+        TBd4d4='TBd4d4: persistent desire or unsuccessful efforts to cut down or control'
+        TBd4d5='TBd4d5:  a great deal of time spent...(obtaining,using,recovering)'
+        TBd4d6='TBd4d6: important ... activities given up or reduced'
+        TBd4d7='TBd4d7: continued use despite knowledge of ..physical or psychological problem'
+        TBd4dpao='age of onset, DSM4 tobacco dependence';
+        ;
+
+
+keep TBd4dpsx TBd4dpdx TBd4d1-TBd4d7 TBd4dpao;
+TBd4dpdx=1;
+********************************************************;
+***   D1           tolerance       ***;
+TBd4d1=1;
+if (TB4b>=20)|(TB4b1=5) | (TB20c=5) | (TB20d=5) then TBd4d1=5;
+else
+   if (TB4b1=.K) | (TB20c=.K) | (TB20d=.K) then TBd4d1=9;
+
+************************************;
+
+********************************************************;
+********  D2  withdrawal;
+************************************;
+TBd4d2=1;
+TB16cnt5=0;
+TB16cnt9=0;
+array TBwdrawal (9) TB16_1-TB16_9;
+do i=1 to 9;
+   if TBwdrawal(i)=5 then TB16cnt5=TB16cnt5+1;
+   if TBwdrawal(i)=.K then TB16cnt9=TB16cnt9+1;
+end;
+if TB16cnt5>=4 then TBwdrawal4sx=5;
+else
+    if sum(TB16cnt5,TB16cnt9)>=4 then TBwdrawal4sx=9;
+if (TBwdrawal4sx=5) | (TB16d=5) then TBd4d2=5;
+else
+    if (TBwdrawal4sx=9) | (TB16d=.K) then TBd4d2=9;
+
+********************************************************;
+***D3  substance often taken in larger amounts over longer
+      period of time than intended;
+************************************;
+TBd4d3=1;
+if (TB12=5) |(TB12a=5) then TBd4d3=5;
+else
+   if (TB12=.K) | (TB12a=.K) then TBd4d3=9;
+
+********************************************************;
+*** D4  persistent desire or unsuccessful efforts to cut down
+      or control;
+************************************;
+TBd4d4=1;
+if (TB14=5)|(TB14d=5) then TBd4d4=5;
+else
+    if (TB14=.K)| (TB14d=.K) then TBd4d4=9;
+
+********************************************************;
+**** D5  a great deal of time spent...(obtaining,using,recovering);
+************************************;
+TBd4d5=1;
+if (TB10cNum>=7) | (TB10cUnit>=2) then TBd4d5=5;
+else
+   if (TB10=.K)|(TB10b1=.K)|(TB10cnum=.K)  then TBd4d5=9;
+************************************;
+
+********************************************************;
+**** D6 important ... activities given up or reduced ..;
+************************************;
+TBd4d6=1;
+if TB11=5 then TBd4d6=5;
+else
+   if TB11=.K then TBd4d6=9;
+
+
+********************************************************;
+*** D7 continued use despite knowledge of ..physical or psychological
+          problem;
+************************************;
+TBd4d7=1;
+if (TB17b=5) | (TB18a=5) | (TB19=5) then TBd4d7=5;
+else
+   if (TB17=.K) | (TB17a=.K) | (TB17b=.K) | (TB18a=.K) | (TB19=.K) then TBd4d7=9;
+
+************************************;
+
+******************************************************;
+**** count criteria endorsed;
+cnt5=0;
+cnt9=0;
+array TBd4d_(7) TBd4d1-TBd4d7;
+do i=1 to 7;
+   if TBd4d_(i)=5 then cnt5+1;
+   else
+      if TBd4d_(i)=.K then cnt9+1;
+end;
+TBd4dpsx=cnt5;
+  **** assign value, tbd4dpa;
+if cnt5>=3 then TBd4dpa=5;
+else
+   if sum(cnt5,cnt9)>=3 then TBd4dpa=9;
+
+******************************************************;
+************ DEPENDENCE *****************************;
+***** 3 or more criteria + clustering within 12 month period?;
+******************************************************;
+*************** clustering ***************;
+TBCluster=((TB4bCl=5) | (TB20cCl=5)  | (TB20dCl=5))+
+                   ((TB16aCl=5) | (TB16dCl=5)) +
+                   ((TB12Cl=5) | (TB12aCl=5)) +
+                   ((TB14Cl=5) | (TB14dCl=5)) +
+                   (TB10Cl=5) +
+                   (TB11Cl=5) +
+                   ((TB17bCl=5) | (TB18aCl=5) | (TB19Cl=5)) ;
+
+if (TBd4dpa=5)*(TBCluster>=3) then TBd4dpdx=5;
+else
+   if (TBd4dpa=9) then TBd4dpdx=9;
+    *(Note: TB cluster variables  will be missing if fewer than
+                      3 DSMIV questions were endorsed);
+
+if TBd4dpdx=5 then do;
+   TBd4dpao=TB_ao21;
+end;
+*********************************************************************************;
+**** set dx variables to missing if section skipped or if questions determining skipout are coded DK;
+array tbdxvars (9)TBd4dpsx TBd4dpdx TBd4d1-TBd4d7 ;
+array TBfirstvars(4) TB1c1-TB1c4;
+cntTBMissingFirstVars=0;
+do i=1 to 4;
+   if Tbfirstvars(i) in(.,.K) then cntTBMissingFirstVars+1;
+end;
+if (cntTBMissingFirstVars=4)|(TB1d=.K) then do i=1 to 9;
+    tbdxvars(i)=.;
+end; 
+   *** TB1d is ‘Did you ever smoke a full cigarette?’;** remainder of sectionis  skipped if answered in negative or DK;
+

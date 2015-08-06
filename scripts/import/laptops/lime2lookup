@@ -1,0 +1,59 @@
+#!/usr/bin/python
+
+##
+##  Copyright 2013 SRI International
+##
+##  http://nitrc.org/projects/ncanda-datacore/
+##
+##  This file is part of the N-CANDA Data Component Software Suite, developed
+##  and distributed by the Data Integration Component of the National
+##  Consortium on Alcohol and NeuroDevelopment in Adolescence, supported by
+##  the U.S. National Institute on Alcohol Abuse and Alcoholism (NIAAA) under
+##  Grant No. 1U01 AA021697
+##
+##  The N-CANDA Data Component Software Suite is free software: you can
+##  redistribute it and/or modify it under the terms of the GNU General Public
+##  License as published by the Free Software Foundation, either version 3 of
+##  the License, or (at your option) any later version.
+##
+##  The N-CANDA Data Component Software Suite is distributed in the hope that it
+##  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+##  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License along
+##  with the N-CANDA Data Component Software Suite.  If not, see
+##  <http://www.gnu.org/licenses/>.
+##
+##  $Revision$
+##
+##  $LastChangedDate$
+##
+##  $LastChangedBy$
+##
+
+import argparse
+import re
+import pandas
+
+# Setup command line parser
+parser = argparse.ArgumentParser( description="Read a LimeSurvey CSV file and produce a lookup table of original, REDCap, and R field names" )
+parser.add_argument( "prefix", help="Form prefix for REDCap field names" )
+parser.add_argument( "infile", help="Input .csv LimeSurvey file." )
+args = parser.parse_args()
+
+data = pandas.read_csv( args.infile )
+
+for label in data.columns.tolist():
+    redcap = "%s_%s" % (args.prefix, re.sub( '_$', '', re.sub( '[_\W]+', '_', re.sub( 'subjid', 'subject_id', label.lower() ) ) ) )
+
+    match_brackets = re.match( '.*\[(.*)\].*', label.lower() )
+    if match_brackets:
+        ucsd = match_brackets.group( 1 )
+    else:
+        ucsd = label.lower()
+
+    ucsd_redcap = "%s_%s" % (args.prefix, re.sub( '_$', '', re.sub( '[_\W]+', '_', re.sub( 'subjid', 'subject_id', ucsd ) ) ) )
+
+        
+    print '"%s",%s,%s,%s' % (label,redcap,ucsd_redcap,ucsd)

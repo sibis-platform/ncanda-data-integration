@@ -1,0 +1,151 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2012-2014 SRI International
+##
+##  http://nitrc.org/projects/ncanda-datacore/
+##
+##  This file is part of the N-CANDA Data Component Software Suite, developed
+##  and distributed by the Data Integration Component of the National
+##  Consortium on Alcohol and NeuroDevelopment in Adolescence, supported by
+##  the U.S. National Institute on Alcohol Abuse and Alcoholism (NIAAA) under
+##  Grant No. 1U01 AA021697
+##
+##  The N-CANDA Data Component Software Suite is free software: you can
+##  redistribute it and/or modify it under the terms of the GNU General Public
+##  License as published by the Free Software Foundation, either version 3 of
+##  the License, or (at your option) any later version.
+##
+##  The N-CANDA Data Component Software Suite is distributed in the hope that it
+##  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+##  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License along
+##  with the N-CANDA Data Component Software Suite.  If not, see
+##  <http://www.gnu.org/licenses/>.
+##
+##  $Revision$
+##
+##  $LastChangedDate$
+##
+##  $LastChangedBy$
+##
+
+# Setup command line parser
+import argparse
+parser = argparse.ArgumentParser( description="Harvest incoming data files from SVN repository, call correct converter programs, and upload generated CSV files to REDCap" )
+parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument( "--include-testing", help="Include 'testing' data (as marked by a 'T' instead of a gender code in the subject ID). Currently for single-session files only.", action="store_true")
+parser.add_argument( "--overwrite", help="Overwrite existing CSV files.", action="store_true")
+parser.add_argument( "--force-upload", help="Force upload of records to REDCap even if a record of the same name already exists.", action="store_true")
+parser.add_argument( "--file-to-upload", help="Absolute file path for path to CSV file.")
+parser.add_argument( "svndir", help="Input directory. This is the Subversion-controlled working directory checked out from the laptop data submission repository.")
+parser.add_argument( "outdir", help="Output directory. All CSV files are created in subdirectories of this directory.")
+args = parser.parse_args()
+
+# Figure out where this script is, so we can get path to other scripts.
+import re
+import os.path
+bindir = os.path.dirname( os.path.realpath(__file__) )
+
+#
+# Function: run a converter tool.
+#
+import subprocess
+def run_converter( site, command ):
+    if args.verbose:
+        print "Running",' '.join( command )
+    try:
+        added_files = subprocess.check_output( command )
+        if len( added_files ):
+            for file in added_files.strip().split( '\n' ):
+                if re.match( '.*\.csv$', file ):
+                    try:
+                        if args.verbose:
+                            print "Importing",file,"into REDCap"
+                        if args.force_upload:
+                            subprocess.call( [ os.path.join( bindir, 'csv2redcap' ), '--force-update', '--data-access-group', site, file ] )
+                        else:
+                            subprocess.call( [ os.path.join( bindir, 'csv2redcap' ), '--data-access-group', site, file ] )
+                    except:
+                        print "FAILED: importing",file,"into REDCap"
+                else:
+                    print 'NOT A CSV FILE:',file
+    except:
+        pass
+#
+# Function: hand file to correct converter
+#
+def handle_file( path, site, filename ):
+    # Prepare option for overwriting
+    if args.overwrite:
+        overwrite=["--overwrite"]
+    else:
+        overwrite=[]
+
+    # Is this a LimeSurvey file?
+    if re.match( '^survey.*\.csv$', filename ):
+        run_converter( site, [ os.path.join( bindir, "lime2csv" ) ] + overwrite + [ path, os.path.join( args.outdir, site, "limesurvey" ) ] )
+    # Is this a Stroop file?
+    elif re.match( '^NCANDAStroopMtS_3cycles_7m53stask_100SD[^/]*\.txt$', filename ):
+        run_converter( site, [ os.path.join( bindir, "stroop2csv" ) ] + overwrite + [ path, os.path.join( args.outdir, site, "stroop" ) ] )
+        try:
+	    subprocess.check_output( [ os.path.join( bindir, "eprime2redcap" ), path, 'stroop_log_file' ] )
+	except:
+	    print "ERROR: could not upload Stroop file",path
+    # Is this a Delayed Discounting file?
+    elif re.match( '.*V12\.txt$', filename ):
+        run_converter( site, [ os.path.join( bindir, "dd2csv" ) ] + overwrite + [ path, os.path.join( args.outdir, site, "deldisc" ) ] )
+    # Is this a PASAT (Access) database?
+    elif re.match( '^PASAT_Stnd.*\.mdb$', filename ):
+        run_converter( site, [ os.path.join( bindir, "pasat2csv" ) ] + overwrite + [ path, os.path.join( args.outdir, site, "pasat" ) ] )
+    # Is this a SSAGA (Blaise) database?
+    elif re.match( '^NSSAGA_v3\.bdb$', filename ) or re.match( '.*\.[Aa][Ss][Cc]$', filename ):
+        if 'Youth_SAAGAv3' in path:
+            run_converter( site, [ os.path.join( bindir, "blaise2csv" ) ] + overwrite + [ path, 'youth', os.path.join( args.outdir, site, "ssaga" ) ] )
+        elif 'Parent_SAAGAv3' in path:
+            run_converter( site, [ os.path.join( bindir, "blaise2csv" ) ] + overwrite + [ path, 'parent', os.path.join( args.outdir, site, "ssaga" ) ] )
+        else:
+            print "ERROR: could not determine whether",path,"contains Youth or Parent SSAGA"
+
+#
+# Function: handle updated file by dispatching to the correct subhandler
+#
+def handle_file_update( path ):
+    # First, let's get the site ID from the path
+    match_site = re.search( 'ncanda/([A-Za-z]*)[^/]*/(.*)', path )
+
+    if match_site:
+        # Get the site ID
+        site = match_site.group( 1 )
+        # We do not accept data from the "admin" machines - testing only, not a collection site
+        if site == 'admin':
+            return
+
+        filename = re.search( '(.*)/([^/].*)', path ).group( 2 );
+        handle_file( path, site, filename )
+                            
+#
+# Callback: catch files added and updated since last svn update
+#
+updated_files = []
+import pysvn
+def notify( event_dict ):
+    global updated_files
+    if event_dict['kind'] == pysvn.node_kind.file:
+        if event_dict['action'] == pysvn.wc_notify_action.update_add or event_dict['action'] == pysvn.wc_notify_action.update_update or event_dict['action'] == pysvn.wc_notify_action.restore:
+            updated_files.append( event_dict['path'] )
+
+# Main function: perform svn update and catch all resulting events
+client = pysvn.Client()
+client.callback_notify = notify
+client.update( args.svndir )
+
+# Append single file to upload
+if args.file_to_upload:
+    updated_files.append(args.file_to_upload)
+
+# Process all updated or added files
+for file in updated_files:
+    handle_file_update( file )
