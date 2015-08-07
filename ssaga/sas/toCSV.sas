@@ -3,7 +3,7 @@
 /*  License: https://ncanda.sri.com/software-license.txt                */
 /*                                                                      */
 /*  $Revision$                                                   */
-/*  $LastChangedBy$                                            */
+/*  $LastChangedBy$                                          */
 /*  $LastChangedDate$    */
 /*                                                                      */
 LIBNAME stat 'Z:\tmp\ssaga';

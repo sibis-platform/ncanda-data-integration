@@ -3,7 +3,7 @@
 /*  License: https://ncanda.sri.com/software-license.txt                */
 /*                                                                      */
 /*  $Revision$                                                   */
-/*  $LastChangedBy$                                            */
+/*  $LastChangedBy$                                          */
 /*  $LastChangedDate$    */
 /*                                                                      */
   keep ptd4dx ptd4a ptd4b ptd4c ptd4e ptd4f  ptd4dx ptd4_del ptd4_chronic ptd4_acute

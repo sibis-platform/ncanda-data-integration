@@ -3,7 +3,7 @@
 /*  License: https://ncanda.sri.com/software-license.txt                */
 /*                                                                      */
 /*  $Revision$                                                   */
-/*  $LastChangedBy$                                            */
+/*  $LastChangedBy$                                          */
 /*  $LastChangedDate$    */
 /*                                                                      */
 %let PToldvarlst= PT23 PT23a1 PT23a3  PT23b PT23j PT23h PT23i PT23j
