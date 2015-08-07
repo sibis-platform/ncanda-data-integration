@@ -1,4 +1,13 @@
 #!/usr/bin/env python
+
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision$
+##  $LastChangedBy$
+##  $LastChangedDate$
+##
 """
 Generate a plot of the SNR across NCANDA sites.
 """
@@ -35,7 +44,7 @@ def get_phantom_ts(xml_list, metric):
     :param metric: cnr or snr
     :return:
     """
-    # Get a list of all the dates to use as indicies
+    # Get a list of all the dates to use as indices
     timepoints = [dateutil.parser.parse(fi.split('/')[6].split('-')[-1]) for fi in xml_list]
 
     # Get a list of all the metric values
