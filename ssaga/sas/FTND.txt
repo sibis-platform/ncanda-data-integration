@@ -1,3 +1,11 @@
+/*                                                                      */
+/*  Copyright 2015 SRI International                                    */
+/*  License: https://ncanda.sri.com/software-license.txt                */
+/*                                                                      */
+/*  $Revision$                                                   */
+/*  $LastChangedBy$                                            */
+/*  $LastChangedDate$    */
+/*                                                                      */
 keep FTND1-FTND6 FTNDscore;
 
 label FTND1='FTND1:How soon after waking...?';

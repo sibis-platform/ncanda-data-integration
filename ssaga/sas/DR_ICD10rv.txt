@@ -1,3 +1,11 @@
+/*                                                                      */
+/*  Copyright 2015 SRI International                                    */
+/*  License: https://ncanda.sri.com/software-license.txt                */
+/*                                                                      */
+/*  $Revision$                                                   */
+/*  $LastChangedBy$                                            */
+/*  $LastChangedDate$    */
+/*                                                                      */
 *** only the handling of skipped or DK initial values has been changed;
 **************************************************************;
    ************************************************;

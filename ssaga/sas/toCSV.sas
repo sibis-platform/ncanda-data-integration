@@ -1,3 +1,11 @@
+/*                                                                      */
+/*  Copyright 2015 SRI International                                    */
+/*  License: https://ncanda.sri.com/software-license.txt                */
+/*                                                                      */
+/*  $Revision$                                                   */
+/*  $LastChangedBy$                                            */
+/*  $LastChangedDate$    */
+/*                                                                      */
 LIBNAME stat 'Z:\tmp\ssaga';
  DATA stat.new_dx_nssaga; 
 	SET stat.dx_nssaga; 

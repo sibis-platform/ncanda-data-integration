@@ -1,4 +1,11 @@
-
+/*                                                                      */
+/*  Copyright 2015 SRI International                                    */
+/*  License: https://ncanda.sri.com/software-license.txt                */
+/*                                                                      */
+/*  $Revision$                                                   */
+/*  $LastChangedBy$                                            */
+/*  $LastChangedDate$    */
+/*                                                                      */
 **** to set section variables to missing where refusal to continue occurred after 
         the entry of one or more  variables;
 

@@ -1,4 +1,11 @@
-
+/*                                                                      */
+/*  Copyright 2015 SRI International                                    */
+/*  License: https://ncanda.sri.com/software-license.txt                */
+/*                                                                      */
+/*  $Revision$                                                   */
+/*  $LastChangedBy$                                            */
+/*  $LastChangedDate$    */
+/*                                                                      */
 
 ******************************************************************;
 ***** DSMIV  TOBACCO  DEPENDENCE **********;
@@ -142,5 +149,5 @@ end;
 if (cntTBMissingFirstVars=4)|(TB1d=.K) then do i=1 to 9;
     tbdxvars(i)=.;
 end; 
-   *** TB1d is ‘Did you ever smoke a full cigarette?’;** remainder of sectionis  skipped if answered in negative or DK;
+   *** TB1d is ï¿½Did you ever smoke a full cigarette?ï¿½;** remainder of sectionis  skipped if answered in negative or DK;
 

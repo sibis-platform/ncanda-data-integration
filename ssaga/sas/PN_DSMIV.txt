@@ -1,11 +1,19 @@
+/*                                                                      */
+/*  Copyright 2015 SRI International                                    */
+/*  License: https://ncanda.sri.com/software-license.txt                */
+/*                                                                      */
+/*  $Revision$                                                   */
+/*  $LastChangedBy$                                            */
+/*  $LastChangedDate$    */
+/*                                                                      */
 /*PANIC DISORDER */
 keep  PNd4dx Pnd4a1a PNd4a1b PNd4numsx PNd4a1c PNd4a2;
 label pnd4dx='Panic Disorder, DSM-IV';
-label PNd4a1a=’Panic Disorder, pnd4a1a: Recurrent unexpected panic attacks’;
-label PNd4a1b=’Panic Disorder, pnd4a1b: at least 4 sx’;
-label PNd4a1c=’Panic Disorder, pnd4a1c: sx develop abruptly and peak within 10 minutes’;
+label PNd4a1a=ï¿½Panic Disorder, pnd4a1a: Recurrent unexpected panic attacksï¿½;
+label PNd4a1b=ï¿½Panic Disorder, pnd4a1b: at least 4 sxï¿½;
+label PNd4a1c=ï¿½Panic Disorder, pnd4a1c: sx develop abruptly and peak within 10 minutesï¿½;
 
-label PNd4a2=’Panic Disorder, pnd4a2: attacks followed by >=1 month of persistent concern about having additional attacks, worry about implications of attack or its consequences, or change in behavior related to attack’  ;
+label PNd4a2=ï¿½Panic Disorder, pnd4a2: attacks followed by >=1 month of persistent concern about having additional attacks, worry about implications of attack or its consequences, or change in behavior related to attackï¿½  ;
 label pnd4numsx='Panic Disorder,pnd4numsx:number of sx, during one of worst attacks';
 
 
