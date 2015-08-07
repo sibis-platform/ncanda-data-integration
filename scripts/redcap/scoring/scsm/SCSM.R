@@ -1,3 +1,11 @@
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision$
+##  $LastChangedBy$
+##  $LastChangedDate$
+##
 #####################################
 # Smith Composite Scale of Morningness
 # Related Documents: Smith Sleep Q-scoring,refs.docx

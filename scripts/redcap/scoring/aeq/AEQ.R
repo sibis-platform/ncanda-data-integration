@@ -1,4 +1,12 @@
-#####################################################
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision$
+##  $LastChangedBy$
+##  $LastChangedDate$
+##
+####################################################
 # Alcohol Expectancy Questionnaire-Adolescent version
 # Related Documents: AEQ scoring.docx
 #                    Alcohol Expectancy Questionnaire-Adolescent Form (AEQ).pdf

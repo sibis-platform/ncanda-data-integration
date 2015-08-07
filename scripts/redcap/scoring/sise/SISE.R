@@ -1,3 +1,11 @@
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision$
+##  $LastChangedBy$
+##  $LastChangedDate$
+##
 ##################################
 # Single-Item Self-Esteem Scale 
 # Related Documents: Single Item Self Esteem.pdf
