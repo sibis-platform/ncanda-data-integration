@@ -66,6 +66,19 @@ def findings_date_empty(reading):
     return no_findings_date
 
 
+def findings_empty(reading):
+    """
+    Find all experiments that have a finding date recorded but no finding entered.
+
+    :param reading: list of dicts
+    :return: pd.DataFrame
+    """
+    df = xe.reading_to_dataframe(reading)
+    has_findings_date = df[~df.findingsdate.isnull()]
+    no_findings_date = has_findings_date[has_findings_date.findings.isnull()]
+    return no_findings_date
+
+
 def inner_join_dataframes(df1, df2):
     """
     Join two dataframes using an inner join
