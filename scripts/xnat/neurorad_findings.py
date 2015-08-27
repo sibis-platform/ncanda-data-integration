@@ -6,10 +6,35 @@ Script to sync and generate reports on findings from radiology readings
 """
 __author__ = 'Nolan Nichols <https://orcid.org/0000-0003-1099-3328>'
 __modified__ = "2015-08-26"
+import os
 
 import xnat_extractor as xe
 
 verbose = None
+
+
+def set_experiment_attrs(config, project, subject, experiment, key, value):
+    """
+    Set the field for an MRSession
+
+    For example, datetodvd, findingsdate, findings
+    :param config:
+    :param project:
+    :param subject:
+    :param experiment:
+    :param key:
+    :param value:
+    :return:
+    """
+    config = xe.get_config(config)
+    session = xe.get_xnat_session(config)
+    api = config['api']
+    path = '{}/projects/{}/subjects/{}/experiments/{}'.format(api, project, subject, experiment)
+    xsi = 'xnat:mrSessionData'
+    field = 'xnat:mrSessionData/fields/field[name={}]/field'.format(key)
+    payload = {'xsiType': xsi, field: value}
+    session.put(path, params=payload)
+
 
 
 def main(args=None):
@@ -25,15 +50,18 @@ def main(args=None):
     reading = xe.get_experiments_dir_reading_info(args.experimentsdir)
     df = xe.merge_experiments_scans_reading(experiment, scan, reading)
 
-    print df
+    print reading
 
 
 if __name__ == "__main__":
     import sys
     import argparse
 
-    parser = argparse.ArgumentParser(prog='neurorad_findings.py',
-                                     description=__doc__)
+    formatter = argparse.RawDescriptionHelpFormatter
+    default = 'default: %(default)s'
+    parser = argparse.ArgumentParser(prog="neurorad_findings.py",
+                                     description=__doc__,
+                                     formatter_class=formatter)
     parser.add_argument('-c', '--config',
                         type=str,
                         default=os.path.join(os.path.expanduser('~'),
@@ -56,12 +84,8 @@ if __name__ == "__main__":
                         action='store_true',
                         help='Print verbose output.')
 
-    formatter = argparse.RawDescriptionHelpFormatter
-    default = 'default: %(default)s'
-    parser = argparse.ArgumentParser(prog="file_name.py",
-                                     description=__doc__,
-                                     formatter_class=formatter)
     argv = parser.parse_args()
+
     verbose = argv.verbose
     xe.verbose = argv.verbose
     sys.exit(main(args=argv))
