@@ -53,30 +53,53 @@ def update_findings_date(config, merged_findings):
     return
 
 
-def findings_date_empty(reading):
+def findings_date_empty(df):
     """
     Find all experiments that have a finding recorded but no date entered.
 
-    :param reading: list of dicts
+    :param df: pd.DataFrame
     :return: pd.DataFrame
     """
-    df = xe.reading_to_dataframe(reading)
     has_finding = df[~df.findings.isnull()]
     no_findings_date = has_finding[has_finding.findingsdate.isnull()]
     return no_findings_date
 
 
-def findings_empty(reading):
+def findings_empty(df):
     """
     Find all experiments that have a finding date recorded but no finding entered.
 
-    :param reading: list of dicts
+    :param df: pd.DataFrame
     :return: pd.DataFrame
     """
-    df = xe.reading_to_dataframe(reading)
     has_findings_date = df[~df.findingsdate.isnull()]
     no_findings_date = has_findings_date[has_findings_date.findings.isnull()]
     return no_findings_date
+
+
+def findings_and_date_empty(df):
+    """
+    Find all experiments that have empty findings date and findings.
+
+    :param df: pd.DataFrame
+    :return: pd.DataFrame
+    """
+    no_findings_or_date = df[(df.findings.isnull()) & (df.findingsdate.isnull())]
+    return no_findings_or_date
+
+
+def check_dvdtodate_before_date(df, before_date=None):
+    """
+    Find all experiments that have a datetodvd before a given date.
+    Also convert date from string to datetime (YYYY-MM-DD)
+
+    :param df: pd.DataFrame
+    :return: pd.DataFrame
+    """
+    has_datetodvd = df[~df.datetodvd.isnull()]
+    has_datetodvd.loc[:, 'datetodvd'] = has_datetodvd.datetodvd.astype('datetime64')
+    date = pd.Timestamp(before_date)
+    return has_datetodvd[has_datetodvd.datetodvd < date]
 
 
 def inner_join_dataframes(df1, df2):
@@ -99,13 +122,22 @@ def main(args=None):
 
     # extract info from the experiment XML files
     experiment = xe.get_experiments_dir_info(args.experimentsdir)
-    reading = xe.get_experiments_dir_reading_info(args.experimentsdir)
     experiment_df = xe.experiments_to_dataframe(experiment)
-    no_findings_date = findings_date_empty(reading)
-    merged_findings = inner_join_dataframes(experiment_df, no_findings_date)
-    if args.findings:
-        update_findings_date(args.config, merged_findings)
+    reading = xe.get_experiments_dir_reading_info(args.experimentsdir)
+    reading_df = xe.reading_to_dataframe(reading)
+    experiment_reading = inner_join_dataframes(experiment_df, reading_df)
 
+    # exclude phantoms, but include the traveling human phantoms
+    site_id_pattern = '[A-EX]-[0-9]{5}-[MFT]-[0-9]'
+    df = experiment_reading[experiment_reading.site_id.str.contains(site_id_pattern)]
+
+    no_findings_date = findings_date_empty(df)
+    no_findings = findings_empty(df)
+    no_findings_or_date = findings_and_date_empty(df)
+    no_findings_recorded = check_dvdtodate_before_date(df, before_date=args.before_date)
+
+    if args.findings:
+        update_findings_date(args.config, no_findings_date)
 
 if __name__ == "__main__":
     import sys
