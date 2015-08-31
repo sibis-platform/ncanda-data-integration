@@ -11,7 +11,17 @@
 """
 Check Valid Sessions
 
-Check for valid scanning sessions and time windows
+Check for valid scanning sessions and time windows by first caching all the
+XNAT session XML files and then parsing these files for necessary info. Note
+that to create the XML file cache you need to run with --update
+
+Example
+=======
+- Update the cache and generate the baseline report
+  ./check_valid_sessions --update --baseline
+
+- Use the existing cache to extract 10 in the followup window
+ ./check_valid_sessions --num_extract 10 --min 180 --max 540
 """
 __author__ = "Nolan Nichols <http://orcid.org/0000-0003-1099-3328>"
 __modified__ = "2015-08-26"
