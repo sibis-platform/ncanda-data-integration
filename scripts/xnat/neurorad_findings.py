@@ -12,9 +12,15 @@
 Neuroradiology Findings
 
 Script to sync and generate reports on findings from radiology readings
+
+Examples
+========
+- Findings and Findings Date is empty before a given date
+./neurorad_findings --update --report-type no_findings_before_date --before-date 2015-06-08
 """
 __author__ = 'Nolan Nichols <https://orcid.org/0000-0003-1099-3328>'
-__modified__ = "2015-08-26"
+__modified__ = "2015-08-31"
+
 import os
 
 import pandas as pd
@@ -29,13 +35,13 @@ def set_experiment_attrs(config, project, subject, experiment, key, value):
     Set the field for an MRSession
 
     For example, datetodvd, findingsdate, findings
-    :param config:
-    :param project:
-    :param subject:
-    :param experiment:
-    :param key:
-    :param value:
-    :return:
+    :param config: str
+    :param project: str
+    :param subject: str
+    :param experiment: str
+    :param key: str
+    :param value: str
+    :return: str
     """
     config = xe.get_config(config)
     session = xe.get_xnat_session(config)
@@ -58,7 +64,7 @@ def update_findings_date(config, merged_findings):
     for idx, row in merged_findings.iterrows():
         result = set_experiment_attrs(config, row.project, row.subject_id, row.experiment_id, 'findingsdate', row.datetodvd)
         if verbose:
-            print("Updated experiment: {}").format(result)
+            print("Updated experiment: {}".format(result))
     return
 
 
@@ -115,15 +121,16 @@ def inner_join_dataframes(df1, df2):
     """
     Join two dataframes using an inner join
 
-    :param df1:
-    :param df2:
-    :return:
+    :param df1: pd.DataFrame
+    :param df2: pd.DataFrame
+    :return: pd.DataFrame
     """
     return pd.merge(df1, df2, how='inner')
 
 
 def main(args=None):
     if args.update:
+        # Update the cache of XNAT Experiment XML files
         config = xe.get_config(args.config)
         session = xe.get_xnat_session(config)
         xe.extract_experiment_xml(config, session,
@@ -140,13 +147,34 @@ def main(args=None):
     site_id_pattern = '[A-EX]-[0-9]{5}-[MFT]-[0-9]'
     df = experiment_reading[experiment_reading.site_id.str.contains(site_id_pattern)]
 
-    no_findings_date = findings_date_empty(df)
-    no_findings = findings_empty(df)
-    no_findings_or_date = findings_and_date_empty(df)
-    no_findings_recorded = check_dvdtodate_before_date(df, before_date=args.before_date)
+    result = None
+    if args.report_type == 'no_findings_date':
+        # Findings are listed without a findings date
+        result = findings_date_empty(df)
+        if args.set_findings_date:
+            # Update the findings date to equal the date to dvd
+            update_findings_date(args.config, result)
 
-    if args.findings:
-        update_findings_date(args.config, no_findings_date)
+    if args.report_type == 'no_findings':
+        # Findings is empty but a date is listed
+        result = findings_empty(df)
+
+    if args.report_type == 'no_findings_or_date':
+        # Both the findings and findings date are empty
+        result = findings_and_date_empty(df)
+
+    if args.report_type == 'no_findings_before_date':
+        # Findings and Findings Date is empty before a given date
+        if not args.before_date:
+            raise(Exception("Please set --before-date YYYY-MM-DD when running the no_findings_before_date report."))
+        has_dvd_before_date = check_dvdtodate_before_date(df, before_date=args.before_date)
+        result = findings_and_date_empty(has_dvd_before_date)
+        result.to_csv(args.outfile, index=False)
+
+    result.to_csv(args.outfile,
+                  columns=['project', 'subject_id', 'experiment_id',
+                           'site_experiment_id', 'datetodvd', 'findingsdate'],
+                  index=False)
 
 if __name__ == "__main__":
     import sys
@@ -157,6 +185,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="neurorad_findings.py",
                                      description=__doc__,
                                      formatter_class=formatter)
+    parser.add_argument('-b', '--before-date',
+                        type=str,
+                        help='To be used with --report_type no_findings_before_date. YYYY-MM-DD')
     parser.add_argument('-c', '--config',
                         type=str,
                         default=os.path.join(os.path.expanduser('~'),
@@ -165,17 +196,20 @@ if __name__ == "__main__":
                         type=str,
                         default='/tmp/experiments',
                         help='Name of experiments xml directory')
-    parser.add_argument('-f', '--findings',
-                        type=str,
-                        action='store_true',
-                        help='If findings are reported and the findings date is None then set it to the date of dvd.')
     parser.add_argument('-o', '--outfile',
                         type=str,
                         default='/tmp/neurorad_findings.csv',
                         help='Name of csv file to write.')
-    parser.add_argument('-n', '--num_extract',
+    parser.add_argument('-n', '--num-extract',
                         type=int,
                         help='Number of sessions to extract')
+    parser.add_argument('-r', '--report-type',
+                        type=str,
+                        choices=['no_findings_date', 'no_findings', 'no_findings_or_date', 'no_findings_before_date'],
+                        help='Select a report type. Note that no_findings_before_date requires --before_date.')
+    parser.add_argument('-s', '--set-findings-date',
+                        action='store_true',
+                        help='If findings are reported and the findings date is None then set it to the date of dvd.')
     parser.add_argument('-u', '--update',
                         action='store_true',
                         help='Update the cache of xml files')
