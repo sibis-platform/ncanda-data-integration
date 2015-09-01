@@ -21,7 +21,9 @@ youthreport2_aswhs_set3_aswhs19
 youthreport2_aswhs_set3_aswhs20
 youthreport2_aswhs_set3_aswhs21
 youthreport2_psqi1
+youthreport2_psqi2
 youthreport2_psqi3
+youthreport2_psqi4
 youthreport2_psqi_set1_psqi5a
 youthreport2_psqi_set1_psqi5b
 youthreport2_psqi_set1_psqi5c
