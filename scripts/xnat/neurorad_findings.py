@@ -17,6 +17,14 @@ Examples
 ========
 - Findings and Findings Date is empty before a given date
 ./neurorad_findings --update --report-type no_findings_before_date --before-date 2015-06-08
+
+Report Types
+===========
+no_findings_date - no findings date is listed but there is a finding
+no_findings - no finding but a finding date is listed
+no_findings_or_date - no findings or findings date listed
+no_findings_before_date - filters no_findings_or_date by date
+
 """
 __author__ = 'Nolan Nichols <https://orcid.org/0000-0003-1099-3328>'
 __modified__ = "2015-08-31"
@@ -175,6 +183,12 @@ def main(args=None):
                   columns=['project', 'subject_id', 'experiment_id',
                            'site_experiment_id', 'datetodvd', 'findingsdate'],
                   index=False)
+    if verbose:
+        pd.set_option('display.max_rows', len(result))
+        print("Total records found: {}".format(len(result)))
+        print(result[['experiment_id', 'site_experiment_id']])
+        pd.reset_option('display.max_rows')
+        print("Finished!")
 
 if __name__ == "__main__":
     import sys
@@ -205,6 +219,7 @@ if __name__ == "__main__":
                         help='Number of sessions to extract')
     parser.add_argument('-r', '--report-type',
                         type=str,
+                        required=True,
                         choices=['no_findings_date', 'no_findings', 'no_findings_or_date', 'no_findings_before_date'],
                         help='Select a report type. Note that no_findings_before_date requires --before_date.')
     parser.add_argument('-s', '--set-findings-date',
@@ -220,5 +235,5 @@ if __name__ == "__main__":
     argv = parser.parse_args()
 
     verbose = argv.verbose
-    xe.verbose = argv.verbose
+    #xe.verbose = argv.verbose
     sys.exit(main(args=argv))
