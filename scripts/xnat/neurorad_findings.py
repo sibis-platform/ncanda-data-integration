@@ -137,10 +137,10 @@ def inner_join_dataframes(df1, df2):
 
 
 def main(args=None):
+    config = xe.get_config(args.config)
+    session = xe.get_xnat_session(config)
     if args.update:
         # Update the cache of XNAT Experiment XML files
-        config = xe.get_config(args.config)
-        session = xe.get_xnat_session(config)
         xe.extract_experiment_xml(config, session,
                                   args.experimentsdir, args.num_extract)
 
@@ -163,21 +163,29 @@ def main(args=None):
             # Update the findings date to equal the date to dvd
             update_findings_date(args.config, result)
 
-    if args.report_type == 'no_findings':
+    elif args.report_type == 'no_findings':
         # Findings is empty but a date is listed
         result = findings_empty(df)
 
-    if args.report_type == 'no_findings_or_date':
+    elif args.report_type == 'no_findings_or_date':
         # Both the findings and findings date are empty
         result = findings_and_date_empty(df)
+        if args.reset_datetodvd:
+            record = result[result.experiment_id == experiment]
+            project = record.project.values[0]
+            subject = record.subject_id.values[0]
+            experiment = args.reset_datetodvd
+            set_experiment_attrs(args.config, project, subject, experiment, 'datetodvd', 'none')
 
-    if args.report_type == 'no_findings_before_date':
+    elif args.report_type == 'no_findings_before_date':
         # Findings and Findings Date is empty before a given date
         if not args.before_date:
             raise(Exception("Please set --before-date YYYY-MM-DD when running the no_findings_before_date report."))
         has_dvd_before_date = check_dvdtodate_before_date(df, before_date=args.before_date)
         result = findings_and_date_empty(has_dvd_before_date)
         result.to_csv(args.outfile, index=False)
+    else:
+        raise(NotImplementedError("The report you entered is not in the list."))
 
     result.to_csv(args.outfile,
                   columns=['project', 'subject_id', 'experiment_id',
@@ -206,6 +214,8 @@ if __name__ == "__main__":
                         type=str,
                         default=os.path.join(os.path.expanduser('~'),
                                              '.server_config', 'ncanda.cfg'))
+    parser.add_argument('-d', '--reset_datetodvd',
+                        help='Reset the datetodvd to None for a given XNAT experiment id (e.g., NCANDA_E12345)')
     parser.add_argument('-e', '--experimentsdir',
                         type=str,
                         default='/tmp/experiments',
