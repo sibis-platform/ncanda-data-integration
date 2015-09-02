@@ -1,0 +1,30 @@
+#!/bin/bash
+
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2114 $
+##  $LastChangedBy: dj0330 $
+##  $LastChangedDate: 2015-08-07 09:42:11 -0700 (Fri, 07 Aug 2015) $
+##
+
+# When generating a release do not update pipeline
+# exit 0
+[ -r $HOME/.bashrc ] && . $HOME/.bashrc
+
+# Import some useful functions
+. $(dirname $0)/crontools.sh
+
+# Import data from XNAT into REDCap and feed image analysis pipeline
+catch_output_email kilian.pohl@sri.com,nolan.nichols@gmail.com "NCANDA Pipeline Feeder Messages (import_mr_sessions)" ${HOME}/scripts/redcap/import_mr_sessions --max-days-after-visit 120 --pipeline-root-dir /fs/ncanda-share/pipeline/cases --run-pipeline-script /fs/ncanda-share/pipeline/scripts/bin/ncanda_all_pipelines
+
+# Export NP/clinical/dempgraphics data into image analysis pipeline directories
+#   This needs to come AFTER "import_mr_sessions", because otherwise we cannot get ages-at-MRI from REDCap for the export.
+catch_output_email weiwei.chu@sri.com,nolan.nichols@gmail.com "NCANDA Pipeline REDCap Exporter Messages (export_measures)" ${HOME}/scripts/redcap/export_measures --datadict-dir /fs/ncanda-share/pipeline/datadict --locked_form_report /fs/ncanda-share/pipeline/cases 
+
+# Update CSV summary files for the working pipeline
+catch_output_email weiwei.chu@sri.com,nolan.nichols@gmail.com "NCANDA Pipeline Summaries (update_csv_summaries)" /fs/ncanda-share/pipeline/scripts/utils/update_csv_summaries /fs/ncanda-share/pipeline/cases/ /fs/ncanda-share/pipeline/summaries/
+
+# Remove pyxnat cache directory to conserve space
+catch_output_email kilian.pohl@sri.com,nolan.nichols@gmail.com "NCANDA Drop pyXNAT Cache Directory" rm -rf /tmp/RestAPI@localhost_8080.xnat /tmp/cache

@@ -1,0 +1,601 @@
+/*                                                                      */
+/*  Copyright 2015 SRI International                                    */
+/*  License: https://ncanda.sri.com/software-license.txt                */
+/*                                                                      */
+/*  $Revision: 2120 $                                                   */
+/*  $LastChangedBy: nicholsn $                                          */
+/*  $LastChangedDate: 2015-08-07 14:23:35 -0700 (Fri, 07 Aug 2015) $    */
+/*                                                                      */
+ /**************************************************/
+ /*    ANTISOCIAL PERSONALITY DISORDER, DSM-IV     */
+ /**************************************************/
+
+ label asd4dx='ASP,DSMIV';
+ label asd4a='DSMIV, adult ASP';
+ label asd4c='DSMIV, conduct disorder';
+label  asd4asx_Clean='Num ASP Adult Sx, clean';
+label  asd4asx_CleanOrDirty='Num ASP Adult Sx, clean or dirty';
+label  asd4csx_Clean='Num ASP Conduct Disorder Sx, clean';
+label  asd4csx_CleanOrDirty='Num ASP Conduct Disorder  Sx, clean or dirty';
+keep asd4dx  asd4a asd4c asd4asx_Clean asd4asx_CleanOrDirty
+                                           asd4csx_Clean asd4csx_CleanOrDirty;
+
+
+ 
+
+ *** adult ASP;
+ %macro chk5_6(var,on1var,recvar,num,on2var);
+    if &var in(5,6) & (3<=&on1var.DK<=4 | &on1var>=15 | &recvar>=15)
+        then cnt&num._5+1;
+    else
+       if &var in(3,6) & (3 <=&on2var.DK<=4 | &on2var>=15 |
+            &recvar>=15) then cnt&num._3+1;
+       else
+          if &var=1 | &recvar<15
+             then cnt&num._1+1;
+          else
+             if &var=.K | &on1var.DK=.K | &on2var.DK=.K | &recvar=.K
+                then cnt&num._9+1;
+%mend chk5_6;
+
+
+
+       *** x3ormore: this is the best we can do;
+       *** a positive for '3 or more' will inherit the
+           classification of the stem question;
+       *** where the stem question is coded 6,
+           the '3 or more' question will be counted as clean,
+           even though we can''t know whether or not the
+           instances since age 15 were dirty or clean;
+%macro x3ormore(var1,var2,num);
+   if &var1 in(5,6) & &var2=5 then cnt&num._5+1;
+   else
+      if &var1=3 & &var2=5 then cnt&num._3+1;
+      else
+         if &var1=1  |  &var2=1 then cnt&num._1+1;
+         else
+            if &var1=.K | &var2=.K then cnt&num._9+1;
+%mend x3ormore;
+
+%macro noage5_6(var1,num);
+   if &var1 in(5,6) then cnt&num._5+1;
+   else
+      if &var1=3 then cnt&num._3+1;
+      else
+         if &var1=1 then cnt&num._1+1;
+         else
+            if &var1=.K then cnt&num._9+1;
+ %mend noage5_6;
+
+%macro noage5(var1,num);
+   if &var1 =5 then cnt&num._5+1;
+   else
+      if &var1=1 then cnt&num._1+1;
+      else
+         if &var1=.K then cnt&num._9+1;
+%mend noage5;
+
+********************************************************************;
+********* A1: ..repeatedly performing acts that are
+                grounds for arrest;
+
+ *** in 2 pieces;
+   *** first group (A1A): need 3 or more positives to meet criterion;
+   cnta1a_5=0;cnta1a_1=0;cnta1a_3=0;cnta1a_9=0;
+
+   %chk5_6(as14,asa1_ao14,asa_ar14,a1a,asa2_ao14)
+   %chk5_6(as14b,asc1_ao14,asc_ar14,a1a,asc2_ao14)
+   %chk5_6(as14d,ase1_ao14,ase_ar14,a1a,ase2_ao14)
+                                          
+   %chk5_6(as15,as1_ao15,as_ar15,a1a,as2_ao15)
+   %chk5_6(as16,as1_ao16,as_ar16,a1a,as2_ao16)
+  %chk5_6(as18,as1_ao18,as_ar18,a1a,as2_ao18)
+if (as17 in(5,6)) *(as17a=5) *(3 <=as1_ao17DK <=4 |  as1_ao17 >=15 | as_ar17 >=15 )  then cnta1a_5+1;
+ else
+        if (as17 in(3,6)) *(as17a=5)  *(3 <=as1_ao17DK <=4 |  as1_ao17 >=15 | as_ar17 >=15)  then cnta1a_3+1;
+       else
+           if (as17=1)|(as17a=1) | (as_ar17<15)  then cnta1a_1+1;
+          else
+             if as17=.K | as17a=.K | as_ar17=.K
+                then cnta1a_9+1;
+
+       ***AS18: AS18c (included on handscore) is
+           'Since your 15th birthday, have you damaged someone else's property
+                 on purpose?' Not asked because redundant, age threshold addressed above;
+   %chk5_6(as21,as1_ao21,as_ar21,a1a,as2_ao21)
+
+        *** questions read: 'Since your 15th birthday';
+   %noage5_6(as23_1,a1a)
+   %noage5_6(as23_2,a1a)
+   %noage5_6(as23_3,a1a)
+   %noage5_6(as23_4,a1a)
+    %noage5_6(as23a,a1a)
+        ****;
+  %chk5_6(as29,as1_ao29,as_ar29,a1a,as2_ao29)
+
+ *** second group (A1B): any positive is sufficient;
+   *** (we count anyway, to facilitate checking);
+   cnta1b_5=0;cnta1b_1=0;cnta1b_3=0;cnta1b_9=0;
+   if (as14 in(5,6) | as14b in(5,6) | as14d in(5,6))
+      & (as14f=5) then cnta1b_5+1;
+     else
+         if (as14=3 | as14b=3 | as14d=3 )
+            * (as14f=5) then cnta1b_3+1;
+         else
+            if as14f=1 then cnta1b_1+1;
+            else
+               if as14f=.K then cnta1b_9+1;
+   %x3ormore(as15,as15b,a1b)
+   %x3ormore(as17,as17c,a1b)
+
+
+
+   %x3ormore(as16,as16b,a1b)
+   %x3ormore(as18,as18d,a1b)
+   %x3ormore(as23a,as23b,a1b)
+   if (as29 in(5,6))* 
+       (3<=as1_ao29DK<=4 | as1_ao29>=15 | as_ar29>=15)
+        *(as29b>=3)  then cnta1b_5+1;
+      else
+         if (as29=3) * (3<=as2_ao29DK<=4 | as2_ao29>=15 | as_ar29>=15)*
+             (as29b>=3) then cnta1b_3+1;
+      else
+         if (as29=1) | (as29b<3 & as29b ne .K) *(1 <=as_ar29<15) then cnta1b_1+1;
+         else
+               if as29=.K | as_ar29=.K | as29b=.K then cnta1b_9+1;
+
+         *** Has criterion 1 been met? ;		 
+   if cnta1a_5>=3 | cnta1b_5>0 then asd4a1=5;
+    else
+      if sum(cnta1a_5,cnta1a_3)>=3 | cnta1b_3>0 then asd4a1=3;
+      else
+      if sum(cnta1a_3,cnta1a_5,cnta1a_9)>=3 | cnta1b_9>0
+         then asd4a1=9;
+         else
+            if sum(cnta1a_3,cnta1a_5,cnta1a_9)<3 & cnta1b_9=0
+               then asd4a1=1;
+   if as14=. & as15=.  then asd4a1=.;
+       **** the intention is merely to identify cases where
+            the section was skipped;
+
+********************************************************************;
+**** A2: Deceitfulness...;
+   cnta2_5=0;cnta2_1=0;cnta2_3=0;cnta2_9=0;
+   %chk5_6(as11a,as1_ao11,as_ar11,a2,as2_ao11)
+    if (as11b in(5,6) )*
+       (3<=as1_ao11DK <=4| as1_ao11 >=15 | as_ar11 >=15) *
+        (as11b1=5) then cnta2_5+1;
+    else
+       if (as11b in(3,6)) *
+          (3 <=as2_ao11DK<=4 | as2_ao11>=15 | as_ar11 >=15) *
+            (as11b1=5) then cnta2_3+1;
+       else
+          if as11=1 | as_ar11 <15 | as11b1=1
+             then cnta2_1+1;
+          else
+             if as11=.K | as1_ao11DK =.K | as2_ao11DK=.K |
+                as_ar11=.K | as11b1=.K
+                then cnta2_9+1;
+
+    if (as13=5 ) * (3 <=as1_ao13DK <=4 |  as1_ao13 >=15 | as_ar13 >=15) |
+       (as13a in (5,6) ) then cnta2_5+1;
+    else
+        if  as13a in(3,6)  then cnta2_3+1;
+       else
+           if (as13=1 & as13a=1) |( as_ar13 <15)  then cnta2_1+1;
+          else
+              if as13=.K | as1_ao13DK =.K | as2_ao13DK=.K | as_ar13=.K | as13a=.K
+                 then cnta2_9+1;
+   %x3ormore(as39,as39b,a2)
+
+ *** Has criterion 2 been met? ;
+	*** Any of the above is sufficient;
+  if cnta2_5>0 then asd4a2=5;
+    else
+       if cnta2_3>0 then asd4a2=3;
+       else
+          if cnta2_9>0 then asd4a2=9;
+          else asd4a2=1;
+  if as11=. and as13=. then asd4a2=.;
+
+********************************************************************;
+***A3: Impulsivity...;
+ cnta3_5=0;cnta3_1=0;cnta3_3=0;cnta3_9=0;
+ %chk5_6(as25e,as1_ao25,as_ar25,a3,as2_ao25);
+ %noage5_6(as30,a3);
+ %noage5_6(as30a,a3);
+       **assign clean if alc/drugs unknown, as33b will be  missing if never used substance;
+ if as33=5 then do;
+    if as33b in(1,.,.K) then cnta3_5+1;
+    else
+         if as33b=5 then cnta3_3+1;
+ end;
+ else
+    if as33=1 then cnta3_1+1;
+    else
+         if as33=.K then cnta3_9+1;
+
+   *** Has criterion 3 been met? :
+      *** Any of the above is sufficient;
+  if cnta3_5>0 then asd4a3=5;
+    else
+       if cnta3_3>0 then asd4a3=3;
+       else
+          if cnta3_9>0 then asd4a3=9;
+          else asd4a3=1;
+  if as33=. then asd4a3=.;
+
+********************************************************************;
+  ***A4: Is irritable and aggressive as indicated by repeated
+         physical fights or assaults...;
+     
+   cnta4_5=0;cnta4_1=0;cnta4_3=0;cnta4_9=0;
+
+         ***** evaluation of these 2 change so that any positive is sufficient 
+                                  (per VH, April 2008);         
+   %chk5_6(as19,as1_ao19,as_ar19,a4,as2_ao19)
+   %chk5_6(as20,as1_ao20,as_ar20,a4,as2_ao20)
+   *****;
+    
+  %chk5_6(as6,asa1_ao6,asa_ar6,a4,asa2_ao6)
+  %chk5_6(as6b,asc1_ao6,asc_ar6,a4,asc2_ao6)
+  %chk5_6(as6d,ase1_ao6,ase_ar6,a4,ase2_ao6)
+  %chk5_6(as21,as1_ao21,as_ar21,a4,as2_ao21)
+  %chk5_6(as27,as1_ao27,as_ar27,a4,as2_ao27)
+  
+   ********* Has  criterion 4 been met?  ;
+      if  cnta4_5>0 then asd4a4=5;
+      else
+         if  cnta4_3>0 then asd4a4=3;
+         else
+            if  cnta4_9>0 then asd4a4=9;
+              else asd4a4=1;
+   if as6=. and as19=. & as20=. then asd4a4=.;
+
+   ********************************************************************;
+  ****A5: Reckless disregard for safety of self or others...;
+      
+   cnta5_5=0;cnta5_1=0;cnta5_3=0;cnta5_9=0;
+   %chk5_6(as25b,as1_ao25,as_ar25,a5,as2_ao25)
+   %noage5(as37,a5)
+   %chk5_6(as38,as1_ao38,as_ar38,a5,as2_ao38)
+   %chk5_6(as38a,as1_ao38,as_ar38,a5,as2_ao38)
+        *** AS28 note: handscore requires 3 or more tickets;
+        *   AS28A1 asks 'at least 4';
+    if (as28 in (5,6))  *
+       (3<=as1_ao28DK <=4| as1_ao28 >=15 | as_ar28 >=15)
+         * ((as28a>=3) | (as28a=.K & as28a1=5))
+       then cnta5_5+1;
+    else
+       if (as28 in(3,6)) *
+          (3 <=as2_ao28DK<=4 | as2_ao28>=15 | as_ar28 >=15)
+          * ((as28a>=3) | (as28a=.K & as28a1=5))
+           then cnta5_3+1;
+       else
+          if (as28=1) | (0<=as28a1<3)|(as28a=.K & as28a1=1)
+            | ( 1<=as_ar28 <15)
+             then cnta5_1+1;
+          else
+             if as28=.K | as1_ao28 =.K | as2_ao28=.K |
+                as_ar28=.K | as28a1=.K
+                then cnta5_9+1;
+		 *** Has criterion 5 been met? ;
+		 *** Any of the above is sufficient;
+   if cnta5_5>0 then asd4a5=5;
+      else
+         if cnta5_3>0 then asd4a5=3;
+         else
+            if cnta5_9>0 then asd4a5=9;
+            else asd4a5=1;
+   if as28=. and as37=. & as38=. then asd4a5=.;
+
+  ********************************************************************;
+  ****A6: Consistent irresponsibility. as indicated by repeated
+          failure to sustain consistent work behavior or honor
+          financial obligations;
+   cnta6_5=0;cnta6_1=0;cnta6_3=0;cnta6_9=0;
+
+   %chk5_6(as24,as1_ao24,as_ar24,a6,as2_ao24)
+   %chk5_6(as25a,as1_ao25,as_ar25,a6,as2_ao25)
+   %chk5_6(as25c,as1_ao25,as_ar25,a6,as2_ao25)
+   %chk5_6(as25d,as1_ao25,as_ar25,a6,as2_ao25)
+   if (as32=5)*(as32a =1)*(as32b in(.,1))  then cnta6_5+1;
+   else
+      if (as32=5)*(as32a =1)*(as32b =5 )  then cnta6_3+1;
+	     else 
+           if as32=1 |  as32a=5 then cnta6_1+1;
+           else
+              if as32=.K | as32a=.K | as32b= .K  then cnta6_9+1;
+   *** Has criterion 6 been met? ;
+	*** Any of the above is sufficient;
+   if cnta6_5>0 then asd4a6=5;
+      else
+         if cnta6_3>0 then asd4a6=3;
+         else
+            if cnta6_9>0 then asd4a6=9;
+            else asd4a6=1;
+   if as24=. & as31=. & as32=. & as38=. then asd4a6=.;
+
+********************************************************************;
+**A7: lack of remorse...;
+   cnta7_5=0;cnta7_1=0;cnta7_3=0;cnta7_9=0;
+   %noage5_6(as40,a7)
+   if as43a=1 then cnta7_5+1;
+   else
+      if as43a=.K then cnta7_9+1;
+      else
+        if as43a=5 then cnta7_1+1;
+    if as43b=5 then cnta7_5+1;
+    else
+       if as43b=.K then cnta7_9+1;
+       else
+          if as43b=1 then cnta7_1+1;
+
+      *** Has criterion 7 been met? ;
+   if cnta7_5>0 then asd4a7=5;
+      else
+         if cnta7_3>0 then asd4a7=3;
+         else
+            if cnta7_9>0 then asd4a7=9;
+            else asd4a7=1;
+   if as40=. then asd4a7=.;
+
+  ****** ASSIGN VALUE FOR CRITERION A (Adult ASPD);
+ asd4a5sx=0;
+ asd4a3sx=0;
+ asd4a9sx=0;
+ asd4amsx=0;
+ asd4asx=0;
+ array asd4aary asd4a1-asd4a7;
+ do i=1 to 7;
+    if asd4aary(i)=5 then asd4a5sx+1;
+    if asd4aary(i) =3 then asd4a3sx+1;
+    if asd4aary(i)=9 then asd4a9sx+1;
+    if asd4aary(i)=. then asd4amsx+1;
+ end;
+
+ asd4a5_3=sum(asd4a5sx,asd4a3sx);
+ asd4a539=sum(asd4a5sx,asd4a3sx,asd4a9sx);
+ if asd4a5sx>=3 then asd4a=5;
+ else
+    if asd4a5_3>=3 then asd4a=3;
+    else
+       if asd4a539>=3 then asd4a=9;
+       else
+          asd4a=1;
+ if asd4amsx=7 then asd4a=.;
+ asd4asx_clean=asd4a5sx;
+ asd4asx_CleanOrDirty=sum(asd4a5sx,asd4a3sx);
+
+  /*****************************************************/
+ /*    CRITERION C: Evidence of Conduct Disorder      */
+ /*        with onset before  age 15                   */
+ /*****************************************************/
+ /* NB: clustering not considered for conduct disorder in context of adult ASPD*/
+  /*****************************************************/
+
+  **** Conduct Disorder, clean, one positive is sufficient to meet criterion;
+%macro cd5j1(var,onvar,crterion);
+    if &var=5 & (1<= &onvar.DK<=2  |&onvar<15) then &crterion=5;
+    else
+       if &var=1 | &onvar>=15 | 3<=&onvar.DK <=4 then &crterion=1;
+       else
+          if &var=.K | &onvar.DK=.K  then &crterion=9;
+   if &var=. then &crterion=.;
+%mend cd5j1;
+
+**** Conduct Disorder, clean or dirty,  one positive is sufficient to meet criterion;
+%macro cd5_6j1(var,onvar1,crterion,onvar2);
+   if &var in(5,6) &  (1<= &onvar1.DK<=2  | &onvar1<15) then &crterion=5;
+   else
+      if &var in(3,6) &  (1<= &onvar2.DK<=2  | &onvar2<15) then &crterion=3;
+      else
+         if &var=.K | &onvar1.DK=.K | &onvar2.DK =.K then &crterion=9;
+         else
+            &crterion=1;
+   if &var=. then &crterion=.;
+%mend cd5_6j1;
+
+
+**C1: Often bullied, threatened or intimidated others;
+   %cd5j1(as9,as_ao9,asd4c1);
+
+***C2: Often initiated physical fights;
+if ( (as6 in(5,6) ) * (1 <=asa1_ao6DK <=2  | asa1_ao6 <15) ) |
+    ( (as6b in(5,6))  * ( 1<=asc1_ao6DK<=2| asc1_ao6<15)) then asd4c2=5;
+     else
+     if ( (as6 in(3,6)) * (1 <=asa2_ao6DK | asa2_ao6<15) ) |
+        ( (as6b in(3,6)) * (1 <=asc2_ao6DK<=2 | asc2_ao6<15) ) then asd4c2=3;
+     else
+        if (as6=1 & as6b=1) |
+           ~(1 <=asa1_ao6DK <=2 | asa1_ao6 < 15 | asa1_ao6DK=.K |
+              1 <=asa2_ao6DK <=2 | asa2_ao6 < 15 | asa2_ao6DK=.K |
+              1 <=asc1_ao6DK <=2 | asc1_ao6 < 15 | asc1_ao6DK=.K |
+              1 <=asc2_ao6DK <=2 | asc2_ao6 < 15 | asc2_ao6DK=.K )
+         then asd4c2=1;
+        else
+           if as6=.K | as6b=.K | asa1_ao6DK = .K | asa2_ao6DK =.K | asc1_ao6DK= .K
+            | asc2_ao6DK=.K then  asd4c2=9;
+   if (as6=.)*(as6b=.) then asd4c2=.;
+
+****C3: Has used a weapon...;
+%cd5_6j1(as20,as1_ao20,asd4c3,as2_ao20)
+ if as20=. then asd4c3=.;
+
+  **C4: Was physically cruel to people;
+%cd5_6j1(as19,as1_ao19,asd4c4,as2_ao19)
+ if as19=. then asd4c4=.;
+
+  **C5: Was physically cruel to animals;  ***check--do we need 3 or more times?;
+ %cd5j1(as10,as_ao10,asd4c5)
+ if as10=. then asd4c5=.;
+
+*** C6: Stole with confrontation...;
+%cd5_6j1(as16,as1_ao16,asd4c6,as2_ao16)
+ if as16=. then asd4c6=.;
+
+***C7: Forced someone into sexual activity...;
+%cd5_6j1(as21,as1_ao21,asd4c7,as2_ao21)
+ if as21=. then asd4c7=.;
+
+  **C8: ..fire-setting with the intention of creating serious damage;
+ if (as17 in(5,6) & as17a=5) * ((1<=as1_ao17 <15) | (1<=as1_ao17DK <=2)) 
+            then asd4c8=5;
+   else
+      if (as17 in(3,6) & as17a=5) * ((1<=as2_ao17 <15 ) | (1<=as2_ao17DK <=2 ))            
+             then asd4c8=3;
+      else
+         if as17=1 | as17a=1 | 
+       ~(1 <=as1_ao17 < 15 | 1 <=as1_ao17DK <=2 | as1_ao17DK=.K |
+          1 <=as2_ao17 < 15 | 1 <=as2_ao17DK <=2 | as2_ao17DK=.K) 
+               then asd4c8=1;
+         else
+            if as17=.K | as17a=.K | as1_ao17DK=.K | as2_ao17DK=.K then asd4c8=9;
+   if as17=. then asd4c8=.;
+
+*** C9: Deliberately destroyed other''s property (other than by firesetting);
+%cd5_6j1(as18,as1_ao18,asd4c9,as2_ao18)
+if as18=. then asd4c9=.;
+
+  **C10: Broke into someone''s house, building or car..;
+ %cd5_6j1(as15,as1_ao15,asd4c10,as2_ao15)
+  if as15=. then asd4c10=.;
+
+  **C11: Often lied to obtain goods or favors or to avoid obligations..;
+   if  ( ( (as11a in(5,6)) | (as11b in(5,6) & as11b1=5) ) *
+                 (1 <=as1_ao11 <15 | 1 <=as1_ao11DK <=2) ) 
+       | (  (as13=5) * (1 <=as1_ao13 <15  | 1 <=as1_ao13DK <=2 ) ) 
+           then asd4c11=5;
+   else
+   if  ( ( (as11a in(3,6)) | (as11b in(3,6) &  as11b1=5) )*
+              (1<=as2_ao11 <15 | 1<=as2_ao11DK <=2) ) 
+       | ( (as13=5) *(1 <=as2_ao13 <15 |  1 <=as2_ao13DK <=2) )
+           then asd4c11=3;
+      else
+         if ( (as11a=1) *(as11b=1  |  as11b1=1) ) |
+           ~ ( 1<=as1_ao11 < 15 | 1<=as1_ao11DK<=2| 
+              1<=as2_ao11 < 15 | 1<=as2_ao11DK<=2 ) 
+         * ( (as13=1) | ~(1<=as1_ao13<15 | 1<=as2_ao13DK<=2) )  then asd4c11=1;
+         else
+            if as11a=.K | as11b=.K | as11b1=.K |
+                 as1_ao11DK=.K | as2_ao11DK=.K |
+                 as13=.K | as1_ao13DK =.K | as2_ao13DK=.K
+                 then asd4c11=9;
+   if as11a=. & as11b=. & as13=. then asd4c11=.;
+
+
+*** C12: Stole without confrontation..;
+   if  ( (as14 in(5,6) )  * ( 1<=asa1_ao14 <15  | 1<=asa1_ao14DK <=2) ) |
+       ( (as14b in(5,6) )* ( 1<=asc1_ao14 <15  | 1<=asc1_ao14DK <=2) )|
+       ( (as14d in(5,6) )* ( 1<=ase1_ao14 <15  | 1<=ase1_ao14DK <=2) )
+             then asd4c12=5;
+   else
+      if ( ( as14 in(3,6) )  * (1<=asa1_ao14 <15  | 1<=asa1_ao14DK <=2) )  |
+         ( (as14b in(3,6) ) * (1<=asc1_ao14 <15  | 1<=asc1_ao14DK <=2) ) |
+         ( (as14d in(3,6) ) * (1<=ase1_ao14 <15  | 1<=ase1_ao14DK <=2) )
+             then asd4c12=3;
+      else
+         if (as14=1 & as14b=1 & as14d=1) |
+           ~ ( 1<=asa1_ao14<15 | 1<= asa1_ao14DK<=2 |
+                1<=asa2_ao14<15 | 1<= asa2_ao14DK<=2 |
+                1<=asc1_ao14<15 | 1<= asc1_ao14DK<=2 |
+                1<=asc2_ao14<15 | 1<= asc2_ao14DK<=2 |
+                1<=ase1_ao14<15 | 1<= ase1_ao14DK<=2 |
+                1<=ase2_ao14<15 | 1<= ase2_ao14DK<=2) 
+                then asd4c12=1;
+         else
+             if as14=.K | as14b=.K | as14d=.K |
+                 asa1_ao14=.K | asa2_ao14=.K |
+                 asc1_ao14=.K | asc2_ao14=.K |
+                 ase1_ao14=.K | ase2_ao14=.K then asd4c12=.K;
+    if as14=. & as14b=. & as14d=. then asd4c12=.;
+
+***C13: Often stayed out at night despite parental prohibitions,
+        beginning before age 13 years;
+    if ( (as4a=5) * (1 < as_ao4 <13 | as_ao4DK=1) ) |
+       ( (as5a=5) * (1 < as_ao5 <13 | as_ao5DK=1) ) then asd4c13=5;
+    else
+       if ( (as4a=1) | ~(1 < as_ao4 <13 | as_ao4DK=1 ) ) *
+          ( (as5a=1) | ~( 1 < as_ao5 <13 | as_ao5DK=1) ) then asd4c13=1;
+       else
+          if as4a=.K | as_ao4DK=.K | as5a=.K | as_ao5DK=.K then asd4c13=9;
+if as4=. & as5=. then asd4c13=.;
+
+
+*** C14: ran away from home overnight at least twice ...
+         (or once without returning for a lengthy period);
+
+if ( (as3=5 & as3a=4) *
+    ( (as3b=5) * (1<= asb_ao3 <15 | 1<= asb_ao3DK <=2) ))
+      | ( (as3c=1 | as3c1>=7) * (1<=asc_ao3<15 | 1<=asc_ao3DK<2) )
+   then asd4c14=5;
+else 
+    if (as3=1) | (2 le as3a le 3) |
+      ( (as3b in(5,.K) )*~(1<=asb_ao3 <16 | 1<=asb_ao3DK<=2) ) |
+       ( (as3b=1) * (as3c=5 & 0 < as3c1 <7) ) |
+       ( (as3c=1 | as3c1>=7) * ~(asc_ao3<15 | 1<=asc_ao3DK<=2) )
+            then asd4c14=1;
+    else
+         if (as3=.K) | (as3b=.K) | (as3c=.K)  | (asb_ao3DK=.K) |
+            (asc_ao3DK=.K) then asd4c14=9;
+ if as14=. then asd4c14=.;
+
+*** C15: Was often truant...beginning before age 13;
+if (as1a=5)*(1<= as_ao1<13| as_ao1DK=1) then asd4c15=5;
+else
+   if (as1=1)|(as1a=1)|(as_ao1>=13)|(as_ao1DK in(2,3,4)) then asd4c15=1;
+   else
+      if (as1=.K) | (as1a=.K) | (as_ao1DK=.K) then asd4c15=9;
+ if as1=.  then asd4c15=.;
+   
+
+    **ASSIGN VALUE FOR CRITERION C (CONDUCT DISORDER);
+ asd4c5sx=0;
+ asd4c3sx=0;
+ asd4c9sx=0;
+ asd4c1sx=0;
+ asd4cmsx=0;
+ array asd4cary asd4c1-asd4c15;
+ do i=1 to 15;
+    if asd4cary (i)=5 then asd4c5sx+1;
+    if asd4cary (i)=3 then asd4c3sx+1;
+    if asd4cary (i)=9 then asd4c9sx+1;
+    if asd4cary (i)=1 then asd4c1sx+1;
+    if asd4cary (i)=. then asd4cmsx+1;
+ end;
+ asd4c5_3=sum(asd4c5sx,asd4c3sx);
+ asd4c539=sum(asd4c5sx,asd4c3sx,asd4c9sx);
+ if asd4c5sx>=3 then asd4c=5;
+ else
+    if asd4c5_3>=3 then asd4c=3;
+    else
+       if asd4c539>=3 then asd4c=9;
+       else
+          asd4c=1;
+ if asd4cmsx=15 then asd4c=.;
+ asd4csx_Clean= asd4c5sx;
+ asd4csx_CleanOrDirty= asd4c5_3;
+
+**** ASSIGN DX, ASPD;
+ if asd4a=5 & asd4c=5 then asd4dx=5;
+ else
+    if asd4a in(3,5) & asd4c in(3,5) then asd4dx=3;
+    else
+       if asd4a in(3,5,9) & asd4c in(3,5,9) then asd4dx=9;
+       else
+         asd4dx=1;
+
+cntasmissing=0;
+array as4vars (21) as1 as2a as3-as21;
+do i=1 to 21;
+   if as4vars(i) in(.,.K) then cntasmissing+1;
+end;
+if cntasmissing=21 then do;
+   asd4dx=.;
+   asd4a=.;
+   asd4c=.; 
+   asd4asx_Clean=.; 
+   asd4asx_CleanOrDirty=.;
+   asd4csx_Clean=.; 
+    asd4csx_CleanOrDirty=.;
+end;

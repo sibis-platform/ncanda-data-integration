@@ -1,0 +1,53 @@
+#!/usr/bin/env python
+ 
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2109 $
+##  $LastChangedBy: nicholsn $
+##  $LastChangedDate: 2015-08-07 09:07:04 -0700 (Fri, 07 Aug 2015) $
+##
+
+import re
+import tempfile
+import subprocess
+import shutil
+import os.path
+import pandas
+
+# Label translation function - LimeSurvey to SRI/old REDCap style
+def label_to_sri( prefix, ls_label ):
+    return "%s_%s" % (prefix, re.sub( '_$', '', re.sub( '[_\W]+', '_', re.sub( 'subjid', 'subject_id', ls_label.lower() ) ) ) )
+
+# Map labels in a list according to a dictionary
+def map_labels( labels, ldict ):
+    new_labels = list()
+    for label in labels:
+        if label in ldict.keys():
+            new_labels.append( ldict[label] )
+        else:
+            new_labels.append( label )
+    return new_labels
+
+# Score one record by running R script
+def runscript( row, Rscript=None ):
+    tmpdir = tempfile.mkdtemp()
+
+    data_csv = os.path.join( tmpdir, 'data.csv' )
+    scores_csv = os.path.join( tmpdir, 'scores.csv' )
+
+    pandas.DataFrame( row ).T.to_csv( data_csv )
+
+    module_dir = os.path.dirname(os.path.abspath(__file__))
+    try:
+        Routput = subprocess.check_output( [ '/usr/bin/Rscript', os.path.join( module_dir, Rscript ), data_csv, scores_csv ],stderr=subprocess.STDOUT )
+    except subprocess.CalledProcessError as e:
+        print "R failed with error",e
+        print Routput
+        return
+
+    scores = pandas.read_csv( scores_csv, index_col=None )
+    shutil.rmtree( tmpdir )
+
+    return scores.ix[0]

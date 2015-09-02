@@ -1,0 +1,253 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2114 $
+##  $LastChangedBy: dj0330 $
+##  $LastChangedDate: 2015-08-07 09:42:11 -0700 (Fri, 07 Aug 2015) $
+##
+
+import argparse
+import os
+import sys
+import re
+import csv
+
+import pandas
+
+import recover_yn_variables as recyn
+
+# Setup command line parser
+parser = argparse.ArgumentParser( description="Convert LimeSurvey CSV to CSV for REDCap import (only new files will be created, existing ones will be skipped)" )
+parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument( "--overwrite", help="Overwrite existing CSV files.", action="store_true")
+parser.add_argument( "infile", help="Input .csv LimeSurvey file.")
+parser.add_argument( "outdir", help="Output directory. All CSV files are created in this directory")
+args = parser.parse_args()
+
+# Label translation function - LimeSurvey to SRI/REDCap style
+def label_to_sri( prefix, ls_label ):
+    return "%s_%s" % (prefix, re.sub( '_$', '', re.sub( '[_\W]+', '_', re.sub( 'subjid', 'subject_id', ls_label.lower() ) ) ) )
+
+# Dictionary of survey types
+surveys = { 
+# Baseline surveys:
+            '11584' : ( 'youthreport1', 'youth_report_1', 
+                        { 'yfhi3c' : 'yfhi3com', 'yfhi3a_yfhi3c' : 'yfhi3c', # Name collision in LimeSurvey using UCSD's naming convention; these only appear at baseline
+                          'yfhi4c' : 'yfhi4com', 'yfhi4a_yfhi4c' : 'yfhi4c' } ),
+            '12471' : ( 'youthreport2', 'youth_report_2', {} ),
+            '31627' : ( 'parentreport', 'parent_report',
+                        { 'pfhi3c' : 'pfhi3com', 'pfhi3a_pfhi3c' : 'pfhi3c', # Name collision in LimeSurvey using UCSD's naming convention; these only appear at baseline
+                          'pfhi4c' : 'pfhi4com', 'pfhi4a_pfhi4c' : 'pfhi4c' } ),
+            '32869' : ( 'mrireport', 'mri_report', {} ), # Original MRI Report
+            '29516' : ( 'mrireport', 'mri_report', {} ), # Improved MRI Report with Y/N skip-outs
+            '75894' : ( 'plus', 'participant_last_use_summary', {} ),
+# Six-month survey:
+            '54587' : ( 'myy', 'midyear_youth_interview', {} ),
+# One year follow-up surveys:
+            '13947' : ( 'youthreport1', 'youth_report_1', {} ),
+            '72223' : ( 'youthreport1', 'youth_report_1b', {} ),
+            '92874' : ( 'youthreport2', 'youth_report_2', {} ),
+            '21598' : ( 'parentreport', 'parent_report', {} ),
+# One year follow-up SSAGA (each part has an old and a new version; new version has some modules hidden from interviewer, but should otherwise be the same as the old):
+            '14134' : ( 'lssaga1', 'limesurvey_ssaga_part_1', {} ),
+            '82982' : ( 'lssaga1', 'limesurvey_ssaga_part_1', {} ),
+            '81475' : ( 'lssaga2', 'limesurvey_ssaga_part_2', 
+                       { 'BOX_DP27b' : 'box_dp27b', 'BOX_DP27B' : 'box_dp27bb' } # Mess-up in LimeSurvey
+                   ),
+            '37237' : ( 'lssaga2', 'limesurvey_ssaga_part_2', 
+                       { 'BOX_DP27b' : 'box_dp27b', 'BOX_DP27B' : 'box_dp27bb' } # Mess-up in LimeSurvey
+                   ),
+            '91768' : ( 'lssaga3', 'limesurvey_ssaga_part_3', {} ),
+            '29231' : ( 'lssaga3', 'limesurvey_ssaga_part_3', {} ),
+            '12396' : ( 'lssaga4', 'limesurvey_ssaga_part_4', {} ),
+            '56922' : ( 'lssaga4', 'limesurvey_ssaga_part_4', {} ),
+# Sleep surveys:
+            '29361' : ( 'sleepeve', 'sleep_study_evening_questionnaire', {} ),
+            '82312' : ( 'sleepeve', 'sleep_study_evening_questionnaire', {} ),
+            '96417' : ( 'sleepmor', 'sleep_study_morning_questionnaire', {} ),
+            '88371' : ( 'sleeppre', 'sleep_study_presleep_questionnaire', {} ),
+            '34495' : ( 'sleeppre', 'sleep_study_presleep_questionnaire', {} ),
+# Recovery Forms
+            '67375' : ( 'recq', 'recovery_questionnaire', {} ),
+# Longitudinal follow-up surveys: (should not need to be changed!)
+            '17895' : ( 'youthreport1', 'youth_report_1', {} ), # Improved Youth Report
+            '11772' : ( 'youthreport1', 'youth_report_1b', {} ), # Improved Youth Report1b
+            '25126' : ( 'youthreport2', 'youth_report_2', {} ),# Improved Youth Report2
+            '27974' : ( 'parentreport', 'parent_report', {} ), # Improved Parent Report
+            '41833' : ( 'mrireport', 'mri_report', {} ), # Improved MRI Report
+            '97714' : ( 'plus', 'participant_last_use_summary', {} ),#improved plus 
+ 
+
+# Longitudinal six-month survey: (should not need to be changed!)
+            '79454' : ( 'myy', 'midyear_youth_interview', {} )}
+
+
+# List of survey administrative fields (need to be duplicated for single-part YR1 to fake two-part survey)
+survey_admin_fields = [ "survey_id", "id", "completed", "last_page_seen", "start_language", "token", "date_last_action", "date_started", "ip_address", "interviewername", 
+                        "date_interview",  "int1", "age", "site2", "versnum", "changes", "porr", "version", "notes1", "regyrvisit", "year",
+                        "bdchecklist_bdurine", "bdchecklist_bdbreath", "bdchecklist_bdpt", "bdchecklist_bdss" ]
+
+# List of date fields. These are inspected (in this order) to determine the survey date. They are also used to go over all date fields and correct "MM/DD/YYYY" format to "YYYY-MM-DD".
+survey_date_fields = [ 'completed', 'date_started', 'date_last_action', 'date_interview' ]
+
+
+
+# Compute survey date for a table row with safety fallback if "SURVEY_completed" field is empty
+def compute_survey_date( row, this_survey ):
+    for field in survey_date_fields:
+        try:
+            date = str( row['%s_%s' % (this_survey,field)] )
+            if len( date ) >= 10:
+                return date[0:10]
+        except:
+            pass
+
+    # If we cannot sort this out, set date to empty (will lead to this record being ignored)
+    return ""
+
+# Fix date format from "MM/DD/YYYY" to "YYYY-MM-DD", if necessary.
+def fix_dates( date, this_survey ):
+    new_date = date
+    match_mdy = re.match( '([0-9]{1,2})/([0-9]{1,2})/([0-9]{4})\s*(.*)', date )
+    if match_mdy:
+        new_date = match_mdy.group(3) + '-' + ('0' + match_mdy.group(1))[-2:] + '-' + ('0' + match_mdy.group(2))[-2:]
+        match_hm = re.match( '([0-9]{1,2}:[0-9]{2})\s*$', match_mdy.group(4) )
+        if match_hm:
+            new_date += (' 0' + match_hm.group(1))[-6:] + ':00'
+    return new_date
+
+# Make Record ID from subject ID and date fields.
+def make_record_id( row, this_survey ):
+    return '%s-%s' % ( row['%s_subject_id' % this_survey], row['date'] )
+        
+# Handle a survey - can be called several times per input file if multiple instruments have been mangled into one survey
+def handle_survey( survey_id, data ):
+    (this_survey,this_survey_long,label_exceptions) = surveys[survey_id]
+
+    # If this is LimeSurvey SSAGA, figure out if it is Youth or Parent survey
+    if 'lssaga' in this_survey:
+	typeinter =''
+	try:
+            typeinter = str( data['typeinter'].ix[0] )
+        except:
+            print "ERROR: LimeSurvey SSAGA %s does not have 'typeinter' field" % args.infile
+
+        if typeinter == '0':
+            this_survey+="_parent"
+            this_survey_long+="_parent"
+        elif typeinter == '1':
+            this_survey+="_youth"
+            this_survey_long+="_youth"
+        else:
+            sys.exit( "ERROR: LimeSurvey SSAGA %s is neither 'Youth' nor 'Parent' survey, based on 'typeinter' value, '%s'" % (args.infile,typeinter) )
+
+    # Bring all all column names into suitable format and prefix them with survey name
+    columns = list()
+    columns_to_drop = list()
+    for label in data.columns:
+        if label in label_exceptions.keys():
+            newLabel = '%s_%s' % (this_survey,label_exceptions[label])
+        else:
+            newLabel = label_to_sri( this_survey, label )
+
+        # Fix up some data from older versions of some surveys
+        if survey_id == '11584':
+            newLabel = re.sub( 'yfhi_4b', 'yfhi4b', newLabel )
+        elif survey_id == '82312':
+            # Some "evening" surveys also accidentally contained the "presleep" questions. Drop these fields here - they should come from separate presleep survey
+            if 'presleep' in newLabel:
+                columns_to_drop.append( newLabel )
+        columns.append( newLabel )
+
+        # "unnamed" fields are unused and only there for administrative purposes.
+        if ('unnamed' in label) or (label == 'date' ):
+            columns_to_drop.append( newLabel )
+
+    data.columns = columns
+    data = data.drop( columns_to_drop, axis=1 )
+
+    # Insert a column for unique record ID (to be filled later)
+    data.insert(0, 'record_id', '' )
+
+    # Put survey ID into a column so we have it available inside "apply" function
+    data['%s_survey_id' % this_survey] = survey_id
+    for field in survey_date_fields:
+        try:
+            data['%s_%s' % (this_survey,field)] = data['%s_%s' % (this_survey,field)].apply( fix_dates, this_survey=this_survey )
+        except:
+            pass
+    data['date'] = data.apply( compute_survey_date, axis=1, this_survey=this_survey )
+    data = data[ data['date'] != "" ]
+
+    # Check if we managed to get the survey date
+    if len( data ) < 1:
+        sys.exit( "ERROR: could not extract valid dated record from file %s" % args.infile )
+
+    # Compute and set unique record ID    
+    data['record_id'] = data.apply( make_record_id, axis=1, this_survey=this_survey )
+
+    # Drop the separate subject_id and date columns
+    data = data.drop( ['%s_subject_id' % this_survey, 'date' ], axis=1 )
+
+    # Recover missing Y/N fields
+    data = data.apply( recyn.recover, axis=1, form_prefix=this_survey )
+
+    # Set "completeness" to "unverified" (also for "visit information")
+    data['visit_information_complete'] = 1
+    #variable name change from 17895
+    data['%s_complete' % this_survey_long] = 1
+
+     
+
+    # Initialize unique (for file system) survey name
+    this_survey_unique = this_survey
+
+    ## For the original baseline YR1, pretend these are two separate parts and duplicate all administrative fields to be consistent with follow-up protocol
+    if survey_id == '11584': 
+        data['youth_report_1b_complete'] = 1
+        for label in data.columns:
+            label_postfix = re.sub( '%s_' % this_survey, '', label )
+            if label_postfix in survey_admin_fields:
+                data['youthreport1b_' + label_postfix] = data[label]
+
+    ## For the follow-up YR1 Part B, rename the administrative fields    
+    if survey_id in ['72223', '11772']:
+        this_survey_unique = 'youthreport1b'
+        columns = []
+        for label in data.columns:
+            label_postfix = re.sub( '%s_' % this_survey, '', label )
+            if label_postfix in survey_admin_fields:
+                columns.append( this_survey_unique + '_' + label_postfix )
+            else:
+                columns.append( label )
+        data.columns = columns
+
+    # Determine output directory name - create if it doesn't exist
+    survey_dir = os.path.join( args.outdir, this_survey_unique )
+    if not os.path.exists( survey_dir ):
+        os.makedirs( survey_dir )
+
+    # Fix up and export every row (i.e., every subject)
+    for row_index, row in data.iterrows():
+        # Determine file name, only proceed if file does not exist already
+        filename = os.path.join( survey_dir, '%s.csv' % row['record_id'] )
+        if not os.path.exists( filename ) or args.overwrite:
+            pandas.DataFrame( row ).transpose().to_csv( filename, index=False, quoting=csv.QUOTE_ALL )
+            # Print filename so we can get a list of updated files by capturing stdout
+            print filename
+
+# Figure out which survey type this is - bail if unknown
+match = re.match( '.*survey_([0-9]{5})_subjid_([^_]*)_([0-9]{8})_([0-9]{10})\.csv', args.infile )
+if not match:
+    sys.exit( "ERROR: file name %s cannot be parsed." % args.infile )
+if not match.group(1) in surveys.keys():
+    sys.exit( "ERROR: survey '%s' is unknown or not supported (file %s)." % (match.group(1), args.infile) )
+survey_id = match.group(1)
+
+# Read the input CSV file from LimeSurvey
+data = pandas.read_csv( args.infile, dtype=object )
+
+handle_survey( survey_id, data )

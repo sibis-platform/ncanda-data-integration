@@ -1,0 +1,176 @@
+/*                                                                      */
+/*  Copyright 2015 SRI International                                    */
+/*  License: https://ncanda.sri.com/software-license.txt                */
+/*                                                                      */
+/*  $Revision: 2120 $                                                   */
+/*  $LastChangedBy: nicholsn $                                          */
+/*  $LastChangedDate: 2015-08-07 14:23:35 -0700 (Fri, 07 Aug 2015) $    */
+/*                                                                      */
+  keep ptd4dx ptd4a ptd4b ptd4c ptd4e ptd4f  ptd4dx ptd4_del ptd4_chronic ptd4_acute
+             PTd4CritBsx   PTd4CritCsx  PTd4CritDsx;
+
+  label ptd4a='PTSD,DSM-IV,Criterion A';
+  label ptd4b='PTSD,DSM-IV,Criterion B:trauma is persistently reexperinced';
+  label ptd4c='PTSD,DSM-IV,Criterion C: persistent avoidance of stimuli associated w/event and numbing of                      general responsiveness';
+  label ptd4d='PTSD,DSM-IV,Criterion D:persistent  sx of increased arousal';
+  label ptd4e='PTSD,DSM-IV,Criterion E: Duration>1 month';
+  label ptd4f='PTSD,DSM-IV,Criterion F: clinically significant distress or impairment...';
+  label ptd4_del='PTSD,DSM-IV,delayed';
+  label ptd4_chronic='PTSD,DSM-IV,chronic';
+  label ptd4_acute='PTSD,DSM-IV,acute';
+  label ptd4dx='PTSD,DSM-IV';
+  label PTd4CritBsx='PT, num sx Criterion B';
+  label PTd4CritCsx='PT, num sx Criterion C';
+label PTd4CritDsx='PT, num sx Criterion D';
+
+
+ /*******************************************************/
+ /*  POST-TRAUMATIC STRESS DISORDER,DSM-IV              */
+ /*******************************************************/
+
+ /*******************************************************/
+ /* CRTIERION A: qualifying event  & response involved   */
+ /*             fear, helplessness or horror             */
+ /*******************************************************/
+array ptevents (20) PT1a1-PT1a20;
+EventCnt5=0;EventCnt9=0;
+do i=1 to 20;
+   if ptevents(i)=5 then EventCnt5+1;
+   else
+      if ptevents(i)=.K then EventCnt9+1;
+end;
+
+
+ if (EventCnt5>0)*(pt1b=5) then ptd4a=5;
+ else
+   if (EventCnt5>0|EventCnt9>0)*(pt1b in(5,.K)) then ptd4a=9;
+   else
+      ptd4a=1;
+
+/**************************************************************/
+ /* CRITERION B: traumatic event persistently re-experienced */
+ /************************************************************/
+
+array  ptbd4ary(5) pt3-pt7;
+ cntptb5=0;cntptb9=0;
+ do i=1 to 5;
+    if ptbd4ary(i)=5 then cntptb5+1;
+    else
+       if ptbd4ary(i)=.K then cntptb9+1;
+ end;
+ if (cntptb5>0) then ptd4b=5;
+ else
+    if (sum(cntptb5,cntptb9)>0)  then ptd4b=9;
+    else
+       ptd4b=1;
+      
+/*************************************************************/
+ /* CRITERION C: persistent avoidance of associated stimuli  */
+ /*      and numbing of general responsiveness ...             */
+ /*************************************************************/
+array  ptcd4ary(7) pt9 pt10 pt11a pt12-pt15;
+ cntptc5=0;cntptc9=0;
+ do i=1 to 7;
+    if ptcd4ary(i)=5 then cntptc5+1;
+    else
+       if ptcd4ary(i)=.K then cntptc9+1;
+ end;
+ if pt11=.K then cntpc9+1;
+  
+ if (cntptc5>=3)  then ptd4c=5;
+ else
+    if (sum(cntptc5,cntptc9)>=3)  then ptd4c=9;
+    else
+       ptd4c=1;
+
+/*******************************************************/
+ /* CRITERION D: persistent symptoms of increased arousal...;
+ /*******************************************************/
+array  ptdd4ary(5) pt17-pt21;
+ cntptd5=0;cntptd9=0;
+ do i=1 to 5;
+    if ptdd4ary(i)=5 then cntptd5+1;
+    else
+       if ptdd4ary(i)=.K then cntptd9+1;
+ end;
+ if cntptd5>=2 then ptd4d=5;
+ else
+    if sum(cntptd5,cntptd9)>=2 then ptd4d=9;
+    else
+       ptd4d=1;
+
+ /*************************************************************/
+ /* CRITERION E: duration of disturbance for at least 1 month */
+ /*************************************************************/
+**Note:each of these variables is  persistence, 1 month or longer;
+     *** SSAGAII skips out after A,B,C if not 1 month or longer;
+ if (pt8a=5)*(pt16a =5)*(pt22a=5) then ptd4e=5;
+ else
+    if  (pt8a in(5,.K)) *(pt16a in(5,.K)) *(pt22a in(5,.K)) then ptd4e=9;
+     else
+         ptd4e=1;
+
+ /*************************************************************/
+ /* CRITERION F: clinically significant stress or impairment  */
+ /*************************************************************/
+ if pt24b in(5,6) then ptd4f=5;
+ else
+    if pt24b=.K then ptd4f=9;
+    else
+       ptd4f=1;
+/************************************************************/
+ /*  ASSIGN DX                                               */
+ /************************************************************/
+ if (ptd4a=5)*(ptd4b=5)*(ptd4c=5)*(ptd4d=5)*(ptd4e=5)*(ptd4f=5)
+    then ptd4dx=5;
+ else
+    if (ptd4a in(5,9))*(ptd4b in(5,9))*(ptd4c in(5,9))*
+          (ptd4d in(5,9))*(ptd4e in(3,5,9))*(ptd4f in(5,9))
+          then ptd4dx=9;
+       else ptd4dx=1;
+*****************************************************************************************;
+*****NB: delayed, acute and chronic subtypes are specified only where PTd4dx is positive, otherwise missing;
+****************************************************************************************;
+****with delayed onset;
+***PT25:'How soon after (EVENT) did you first have one of the problems we talked about?';
+ if ptd4dx =5 then do;
+    if ((pt25_unit=1)*(pt25_num>=180))|
+       ((pt25_unit=2)*(pt25_num>=26))|
+       ((pt25_unit=3)*(pt25_num>=6))|
+       (pt25_unit=4) then ptd4_del=5;
+    else
+    if pt25_unit=.K then ptd4_del=9;
+    else
+       ptd4_del=1;
+ end;
+***** acute or chronic************;
+ if ptd4dx =5 then do;
+    if ((pt26_unit=1)*(pt26_num>=90))|
+       ((pt26_unit=2)*(pt26_num>=12))|
+       ((pt26_unit=3)*(pt26_num>=6))|
+       (pt26_unit=3) | (pt26_unit=4)
+       then ptd4_chronic=5;
+       else
+          if pt26_unit=.K then ptd4_chronic=9;
+          else
+             ptd4_chronic=1;
+ end;
+if (ptd4dx=5)*(ptd4_chronic=1) then ptd4_acute=5;
+else if pt26_unit=.K then ptd4_acute=9;
+else ptd4_acute=1;
+***** save counts;
+PT_EventCount=EventCnt5;
+PTd4CritBsx=cntptb5;
+PTd4CritCsx=cntptc5;
+PTd4CritDsx=cntptd5;
+
+array ptvars(16) pt1 pt1a5-pt1a19;
+array ptdxvars(13) ptd4dx ptd4a ptd4b ptd4c ptd4e ptd4f  ptd4dx ptd4_del ptd4_chronic ptd4_acute 
+                          PTd4CritBsx PTd4CritCsx PTd4CritDsx;
+ptDKcnt=0;
+do i=1 to 16;
+   if ptvars(i)=.K then pdDKcnt+1;
+end;
+ if pt1 =. or pdDKcnt=16 then do i=1 to 13;
+    ptdxvars(i)=.;
+ end;

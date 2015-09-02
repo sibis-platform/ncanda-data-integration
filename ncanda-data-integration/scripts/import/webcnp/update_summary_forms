@@ -1,0 +1,205 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2114 $
+##  $LastChangedBy: dj0330 $
+##  $LastChangedDate: 2015-08-07 09:42:11 -0700 (Fri, 07 Aug 2015) $
+##
+import os
+import argparse
+import cnp
+import datetime
+import numpy as np
+import pandas
+
+import redcap
+
+# Convert to string, or empty if nan.
+def nan_to_empty( x ):
+    s = str(x)
+    if s != 'nan':
+        return s
+    else:
+        return ''
+
+# Setup command line parser
+parser = argparse.ArgumentParser( description="Update WebCNP summary forms from imported data", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
+parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument( "--max-days-after-visit", help="Maximum number of days the scan session can be after the entered 'visit date' in REDCap to be assigned to a given event.", action="store", default=120, type=int)
+parser.add_argument( "-a", "--update-all", help="Update all summary records, regardless of current completion status (otherwise, only update records where incoming data completion status exceeds existing summary data status)",
+                     action="store_true")
+parser.add_argument( "--records-per-upload", help="Maximum number of records to upload to REDCap using a single HTTP request. This limits the request size and prevents upload problems.", action="store", default=30, type=int)
+parser.add_argument( "-n", "--no-upload", help="Do not upload any data to REDCap server; instead write to CSV file with given path.", action="store")
+args = parser.parse_args()
+
+# Open connection with REDCap server - first for the Penn import project (data source)
+import_key_file = open( os.path.join( os.path.expanduser("~"), '.server_config/redcap-penncnp-token' ), 'r' )
+import_api_key = import_key_file.read().strip()
+rc_import = redcap.Project( 'https://ncanda.sri.com/redcap/api/', import_api_key, verify_ssl=False)
+
+# Second connection for the Summary project (this is where we put data)
+summary_key_file = open( os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' ), 'r' )
+summary_api_key = summary_key_file.read().strip()
+rc_summary = redcap.Project( 'https://ncanda.sri.com/redcap/api/', summary_api_key, verify_ssl=False)
+
+# Get list of variables common to import and summary projects (minus 'cnp_' prefix in the latter)
+cnp_copy_variables = cnp.get_copy_variables( rc_import, rc_summary )
+
+# For now, get the "complete" fields for each instrument as well as record ID, subject ID, and date of test
+fields_imported = ['record_id', 'test_sessions_subid'] + cnp_copy_variables
+for i in cnp.instruments.values():
+    fields_imported.append( '%s_complete' % i )
+imported_records = rc_import.export_records( fields=fields_imported, format='df')
+for cnpvar in cnp_copy_variables:
+    imported_records[cnpvar] = imported_records[cnpvar].map( nan_to_empty )
+
+# From the index, extract the original subject ID and date from each imported record IO and use these wherever not overridden by manually-entered values
+imported_records['test_sessions_subid'] = imported_records['test_sessions_subid'].map( nan_to_empty )
+imported_records['test_sessions_subid'] = imported_records.apply( lambda row: row['test_sessions_subid'] if row['test_sessions_subid']!='' else row.name[0:-17], axis=1 )
+
+imported_records['test_sessions_dotest'] = imported_records['test_sessions_dotest'].map( nan_to_empty )
+imported_records['test_sessions_dotest'] = imported_records.apply( lambda row: row['test_sessions_dotest'] if row['test_sessions_dotest']!='' else row.name[-16:-6], axis=1 )
+
+# Get the event-form mapping so we can select the events that should have CNP data
+form_event_mapping = rc_summary.export_fem( format='df' )
+cnp_events_list = form_event_mapping[form_event_mapping['form_name'] == 'cnp_summary' ]['unique_event_name'].tolist()
+
+# Retrieve subject IDs, events, exclusions, visit dates, and current CNP summary data
+fields_summary = ['study_id', 'redcap_event_name', 'dob', 'exclude', 'visit_date', 'cnp_summary_complete', 'cnp_missing', 'cnp_datasetid', 'cnp_age', 'cnp_instruments']
+fields_summary+= [ 'cnp_%s' % v for v in cnp_copy_variables ]
+fields_summary+= [ 'cnp_%s_zscore' % v for v in cnp.mean_sdev_by_field_dict.keys() ]
+summary_records = rc_summary.export_records( fields=fields_summary, event_name='unique', format='df')
+
+# Drop all records that don't have "visit_date", i.e., all events from arms other than Arm 1 (Standard Protocol)
+summary_records = summary_records[ summary_records['visit_date'].map( lambda x: str(x) != 'nan' ) ]
+
+# Now drop all records from events that don't have CNP data collected
+summary_records = summary_records[ summary_records.index.map( lambda x: x[1] in cnp_events_list ) ]
+
+# Save dates of birth for later (these only exist for the 'baseline_visit_arm_1' and  'baseline_visit_arm_4' events, but we need them for other arms as well
+baseline_events = ['baseline_visit_arm_1','baseline_visit_arm_4'] # these are the "baseline" events of the study arms that have them
+subject_dates_of_birth = pandas.concat( [ summary_records.xs( event, level=1 ) for event in baseline_events ] )['dob']
+
+# Convert all copied columns to strings to avoid issues with missing values being unable to convert to floats
+summary_records['cnp_datasetid'] = summary_records['cnp_datasetid'].map( nan_to_empty )
+summary_records['cnp_summary_complete'] = summary_records['cnp_summary_complete'].map( nan_to_empty )
+for cnpvar in cnp_copy_variables:
+    summary_records['cnp_%s' % cnpvar] = summary_records['cnp_%s' % cnpvar].map( str )
+
+# If we update all records, make sure to reset everything, so stuff can be made disappear in the summary, if it was removed from the imported project
+if args.update_all:
+    summary_records['cnp_summary_complete'] = ''
+    summary_records['cnp_datasetid'] = ''
+
+    for cnpvar in cnp_copy_variables:
+        summary_records['cnp_%s' % cnpvar] = ''
+
+    for cnpvar in cnp.mean_sdev_by_field_dict.keys():
+        summary_records['cnp_%s_zscore' % cnpvar] = ''
+
+    for [k,v] in cnp.instruments.iteritems():
+        summary_records['cnp_instruments___%s' % k.replace('_','') ] = '0'
+else:
+    summary_records = summary_records[ summary_records['cnp_datasetid'] == '' ]
+    
+# Go over all summary records (i.e., the visit log) and find corresponding imported records
+for key, row in summary_records.iterrows():
+    # Select imported records for this subject
+    records_this_subject = imported_records[ imported_records['test_sessions_subid'] == key[0] ]
+
+    # Get the visit date for this record
+    visit_date = row['visit_date']
+    if not str(visit_date) == 'nan':
+        # Select all records within given maximum number of days after visit date
+        records_this_visit = records_this_subject[ records_this_subject['test_sessions_dotest'] >= visit_date ]
+        visit_date_plusNd = (datetime.datetime.strptime( visit_date, '%Y-%m-%d') + datetime.timedelta(args.max_days_after_visit)).strftime('%Y-%m-%d')
+        records_this_visit = records_this_visit[ records_this_visit['test_sessions_dotest'] <= visit_date_plusNd ]
+
+        if len( records_this_visit ) > 0:
+            # Make sure there is only one, unique record
+            if len( records_this_visit ) > 1:
+                # Not unique - warning
+                print 'WARNING: More than one CNP record found for subject %s, event %s, visit date %s - selecting the latest record' % (key[0],key[1],visit_date)
+                print '\n\t'.join( records_this_visit.index.tolist() )
+
+            # Unique record - copy data from imported project to summary form
+            cnp_data = records_this_visit.ix[ len( records_this_visit ) - 1 ]
+            summary_records['cnp_datasetid'][key] = cnp_data.name
+
+            date_of_birth = subject_dates_of_birth[key[0]]
+            date_format_ymd = '%Y-%m-%d'
+            age_in_years = (datetime.datetime.strptime( cnp_data['test_sessions_dotest'], date_format_ymd ) - datetime.datetime.strptime( date_of_birth, date_format_ymd )).days / 365.242
+            summary_records[ 'cnp_age' ][key] = str( age_in_years )
+
+            # Copy all variables that we want in the summary
+            for cnpvar in cnp_copy_variables:
+                summary_records['cnp_%s' % cnpvar][key] = cnp_data[cnpvar]
+
+            # Compute all z scores (only between 8 and 21 years)
+            if age_in_years >= 8 and age_in_years < 22:
+                age_group = int( age_in_years / 2 ) * 2
+                for cnpvar in cnp.mean_sdev_by_field_dict.keys():
+                    if cnp_data[cnpvar] != '':
+                        mean_sdev_col_label = cnp.mean_sdev_by_field_dict[cnpvar]
+                        age_mean = cnp.mean_sdev_byage_table['%s_mean' % mean_sdev_col_label][age_group]
+                        age_sdev = cnp.mean_sdev_byage_table['%s_sd' % mean_sdev_col_label][age_group]
+                        summary_records['cnp_%s_zscore' % cnpvar][key] = ( float( cnp_data[cnpvar] ) - age_mean ) / age_sdev
+
+            # Check completion status of the CNP instruments
+            for [k,v] in cnp.instruments.iteritems():
+                summary_complete = 1
+                if cnp_data['%s_complete' % v] > 0:
+                    summary_records['cnp_instruments___%s' % k.replace('_','') ][key] = '1'
+                else:
+                    summary_records['cnp_instruments___%s' % k.replace('_','') ][key] = '0'
+                    summary_complete = 0
+
+            summary_records['cnp_summary_complete'][key] = summary_complete
+        elif summary_records['cnp_summary_complete'][key] != '' and float( summary_records['cnp_summary_complete'][key] ) > 0 and ( summary_records['cnp_missing'][key] != 1 ):
+            print "WARNING: Previously assigned WebCNP data for subject",key[0],"event",key[1],"appears to have disappeared."
+
+# Drop all summary records for which there is no CNP data
+summary_records = summary_records[ summary_records['cnp_datasetid'] != '' ]
+
+# Drop all (logically) read-only columns from the summary data - these are the ones that are neither index-related (subject, event), nor part of the data imported from WebCNP
+summary_records = summary_records.drop( [ 'dob', 'exclude', 'visit_date' ], axis=1 )
+
+if args.no_upload:
+    if args.verbose:
+        print "Writing",len( summary_records ),"records to",args.no_upload
+    summary_records.to_csv( args.no_upload )
+else:
+    if args.verbose:
+        print "Uploading",len(summary_records),"records."
+
+    uploaded_count = 0
+    for from_index in range(0,len(summary_records),args.records_per_upload):
+        # Upload next block of records of new data to REDCap
+        to_index = min( from_index + args.records_per_upload, len(summary_records) )
+        if args.verbose:
+            print "Uploading records",from_index,"to",to_index-1
+
+        import_response = rc_summary.import_records( summary_records[from_index:to_index], overwrite='overwrite' )
+
+        # Count uploaded records
+        if 'count' in import_response.keys():
+            uploaded_count += import_response['count']
+
+        # If there were any errors, try to print them as well as possible
+        if 'error' in import_response.keys():
+            print "UPLOAD ERROR:", import_response['error']
+            
+        if 'fields' in import_response.keys():
+            for field in import_response['fields']:
+                print "\t", field
+                    
+        if 'records' in import_response.keys():
+            for record in import_response['records']:
+                print "\t", record
+
+    # Finally, print upload status if so desired                    
+    if args.verbose:
+        print "Successfully uploaded %d/%d records to REDCap." % ( uploaded_count, len( summary_records ) )

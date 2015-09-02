@@ -1,0 +1,133 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2110 $
+##  $LastChangedBy: nicholsn $
+##  $LastChangedDate: 2015-08-07 09:10:29 -0700 (Fri, 07 Aug 2015) $
+##
+"""
+Validate that the last digit of a Subject ID is the same as the last digit of the dob checksum
+"""
+__author__ = 'Nolan Nichols <nolan.nichols@gmail.com'
+
+# system packages
+import os
+
+# pycap api
+from redcap import Project
+
+# Events that have the "demographics" form (could get that from form-event-mapping directly, but don't feel like it) :)
+demographics_events = ['baseline_visit_arm_1','baseline_visit_arm_4']
+
+def validate_subject_id(project_interface):
+    """
+    Validate that the last digit of the subject_id is the same as the last digit of the dob checksum and also that the sex code in the ID matches the gender entered into REDCap.
+
+    Parameters
+    ----------
+    :param project_interface: object instance
+                              Instance of an authenticated PyCap Project object
+
+    Returns
+    -------
+    :returns: two lists of strings
+              Each string is a Record ID
+    """
+
+    # get a list of dictionaries representing Demographics forms
+    demographics = project_interface.export_records(forms=["demographics"], events=demographics_events, export_data_access_groups=True, event_name='unique')
+
+    # collect lists of invalid subject_id/dob/sex
+    records_bad_dob = list()
+    records_bad_sex = list()
+    records_no_dag = list()
+
+    # check each record
+    for record in demographics:
+        # grab the last digit of the dob checksum
+        dob = record['dob'].replace('-', '')
+        dob_checksum = str(sum(int(i) for i in dob))[-1]
+        
+        # grab the last digit of the study id
+        study_id_checksum = record['study_id'][-1]
+            
+        # validate that last digits match
+        if dob_checksum != study_id_checksum:
+            records_bad_dob.append(record['study_id'])
+
+        # Validate sex code
+        sex = record['study_id'][8]
+        if ( sex == 'M' and record['sex'] != '1' ) or ( sex == 'F' and record['sex'] != '0' ):
+            records_bad_sex.append(record['study_id'])
+
+        if record['redcap_data_access_group'] == '':
+            records_no_dag.append(record['study_id'])
+
+    return (records_bad_dob,records_bad_sex,records_no_dag)
+
+# Validate that all subjects on study arms (Recovery, Sleep) are also found in the Standard arm, and that NO subject in the Maltreated arm is in Standard.
+def check_subjects_study_arms( project_interface ):
+    standard_subjects = [ record['study_id'] for record in project_interface.export_records( fields=["exclude"], events=["baseline_visit_arm_1"], event_name='unique') ]
+    not_found_in_standard = []
+    for ( arm, event, field ) in [ ( "Recovery", "recovery_baseline_arm_2", "visit_date" ), ( "Sleep", "baseline_night_1_arm_3", "sleep_date" ) ]:
+        arm_subjects = [ record['study_id'] for record in project_interface.export_records( fields=[field], events=[event], event_name='unique') ]
+        not_found_in_standard += [ (s,arm) for s in arm_subjects if s not in standard_subjects ]
+
+    maltreated_subjects = [ record['study_id'] for record in project_interface.export_records( fields=["exclude"], events=["baseline_visit_arm_4"], event_name='unique') ]
+    standard_and_maltreated = [ s for s in maltreated_subjects if s in standard_subjects ]
+
+    return (not_found_in_standard,standard_and_maltreated)
+
+
+if __name__ == "__main__":
+    import argparse
+
+    # setup the argument parser and help text
+    parser = argparse.ArgumentParser(prog='check_subject_ids',
+                                     description='Validate that the last digit of a Subject ID is the same as'
+                                                 'the last digit of the date-of-birth checksum')
+    parser.add_argument('api_key_path', nargs='?',
+                        default=os.path.join(os.path.expanduser('~'), '.server_config/redcap-dataentry-token'),
+                        type=argparse.FileType('r'),
+                        help='Path to REDCap API key specific to a study site')
+    parser.add_argument('api_url', nargs='?',
+                        default='https://ncanda.sri.com/redcap/api/',
+                        help='The URL to a valid REDCap')
+    args = parser.parse_args()
+
+    # get api_key
+    api_key = args.api_key_path.read().strip()
+
+    # get a connection to redcap
+    project_interface = Project(args.api_url, api_key, verify_ssl=False)
+
+    (records_bad_dob,records_bad_sex,records_no_dag) = validate_subject_id(project_interface)
+
+    if len( records_bad_dob ):
+        print "Checksum does not match birth date for the following subjects:"
+        for i in records_bad_dob:
+            print i
+
+    if len( records_bad_sex ):
+        print "Sex code in subject ID does not match entered gender for the following subjects:"
+        for i in records_bad_sex:
+            print i
+
+    if len( records_no_dag ):
+        print "No Data Access Group assigned for the following subjects:"
+        for i in records_no_dag:
+            print i
+
+    (not_found_in_standard,standard_and_maltreated) = check_subjects_study_arms( project_interface )
+
+    if len( not_found_in_standard ):
+        print "Subjects entered in a study arm, but not found in the main arm:"
+        for (s,arm) in not_found_in_standard:
+            print "%s (%s)" % (s,arm)
+
+    if len( standard_and_maltreated ):
+        print "Subjects entered in BOTH the Standard and Maltreated study arms:"
+        print '\n'.join( not_found_in_standard )

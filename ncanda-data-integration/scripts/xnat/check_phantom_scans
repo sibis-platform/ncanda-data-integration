@@ -1,0 +1,165 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2113 $
+##  $LastChangedBy: nicholsn $
+##  $LastChangedDate: 2015-08-07 09:17:50 -0700 (Fri, 07 Aug 2015) $
+##
+
+import pyxnat
+import os.path
+import re
+import time
+import datetime
+
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("-m", "--send-mail", action="store_true", dest="sendmail", default=False, help="Send emails with problem reports to users and site admin.")
+parser.add_argument("-a", "--check-all", action="store_true", dest="check_all", default=False, help="Check all sessions, regardless of modification date.")
+parser.add_argument("-w", "--warn-same-day-phantom", action="store_true", dest="warn_same_day_phantom", default=False, help="Warn if no same-day ADNI phantom scan was found (default: warn only if no phantom scan within 24h).")
+parser.add_argument("-e", "--experiment-id", dest="eid", default=False, help="Check only session indicated, regardless of modification date.")
+parser.add_argument("-v", "--verbose", dest="verbose", action='store_true', help="Turn on verbose reporting.")
+args = parser.parse_args()
+
+# RegExp pattern for subject IDs
+subject_id_pattern = '^[A-FX]-[0-9]{5}-[MFPT]-[0-9]$'
+subject_id_pattern_nophantom = '^([A-F])-[0-9]{5}-[MF]-[0-9]$'
+
+# Date format for XNAT dates
+xnat_date_format = '%Y-%m-%d %H:%M:%S'
+now_str = time.strftime( '%Y-%m-%d %H:%M:%S' )
+
+# Create interface using stored configuration
+if args.verbose:
+    print "Connecting to XNAT..."
+ifc = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+ifc._memtimeout = 0
+
+# Set up email object to contact users and admin
+from xnat_email import XnatEmail
+email = XnatEmail( ifc )
+
+# Date (and time) when we last checked things
+import json
+date_last_checked = time.localtime(0)
+config_uri = '/data/config/pyxnat/check_phantom_scans'
+try:
+    content = ifc._exec( '%s?format=json' % config_uri )
+    creation_date = json.loads( content )['ResultSet']['Result'][0]['create_date']
+    date_last_checked = time.strptime( creation_date[0:19], xnat_date_format )
+    if args.verbose:
+        print "Last checked on: {0}".format(time.strftime("%Y-%m-%d %H:%M:%S",
+                                                          date_last_checked))
+except:
+    pass
+
+
+# Get a custom variable from XML representation of experiment
+def get_custom_variable( experiment, field_name ):
+    field_regex = '.*<xnat:field name="%s">(.*?)</xnat:field>' % field_name
+    match = re.match(field_regex, experiment.get(), flags=re.DOTALL)
+    if match:
+        return re.sub('\s*<!--.*?-->\s*', '', match.group(1), flags=re.DOTALL)
+    else:
+        return None
+
+# Find a phantom scan within 24h of the given experiment
+def find_phantom_scan_24h( prj, experiment_label, experiment_last_modified, phantom_id, edate, etime, scanner ):
+    # Compute the date before and after the experiment date
+    this_date = datetime.datetime.strptime( edate, '%Y-%m-%d')
+    edate_tomorrow = (this_date + datetime.timedelta(1)).strftime('%Y-%m-%d')
+    edate_yesterday = (this_date - datetime.timedelta(1)).strftime('%Y-%m-%d')
+
+    # Search for all sessions on previous day after given time, or next day before given time (we already know there isn't a scan on the same date)
+    constraints = [('xnat:mrSessionData/SUBJECT_ID','LIKE',phantom_id), 'AND',
+                   [ [ ('xnat:mrSessionData/DATE', '=', edate_yesterday), ('xnat:mrSessionData/TIME', '>=', etime), 'AND' ],
+                     [ ('xnat:mrSessionData/DATE', '=', edate_tomorrow),  ('xnat:mrSessionData/TIME', '<=', etime), 'AND' ], 'OR'] ]
+    phantom_scans = ifc.select( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/DATE','xnat:mrSessionData/TIME'] ).where( constraints ).items()
+
+    # Still haven't found anything - then there is no phantom scan
+    if len(phantom_scans) == 0:
+        if args.sendmail:
+            email.add_admin_message( "%s %s - no phantom scan for %s, last modified %s (scanner: %s)" % (prj, edate, experiment_label, experiment_last_modified, scanner) )
+        else:
+            print "ERROR: %s - no phantom scan for session %s;acquired: %s, last modified %s;scanner: %s" % (prj, experiment_label, edate, experiment_last_modified, scanner)
+    else:
+        if args.warn_same_day_phantom:
+            if args.sendmail:
+                email.add_admin_message( "%s %s - no same-day phantom scan for %s, last modified %s (scanner: %s), but found one within 24h" % (prj, edate, experiment_label, experiment_last_modified, scanner) )
+            else:
+                print "ERROR: %s - no same-day phantom scan for session %s;acquired: %s, last modified %s;scanner: %s;But found one within 24h" % (prj, experiment_label, edate, experiment_last_modified, scanner)
+
+
+# Check one experiment for matching phantom scans
+def check_experiment(experiment):
+    try:
+        experiment_last_modified = experiment.attrs.get( 'last_modified' )
+        if experiment_last_modified == '':
+            experiment_last_modified = experiment.attrs.get( 'insert_date' )
+        date_last_modified = time.strptime(experiment_last_modified[0:19], xnat_date_format ) # truncate ".###" fractional seconds by using only 0..19th characters
+    except:
+        # default to right now
+        date_last_modified = time.localtime()
+
+    prj = ''
+    sid = ''
+    seid = '' # experiment id for subject
+    experiment_label = ''
+    experiment_last_modified = ''
+    etime = ''
+    scanner = ''
+    edate = ''
+    if (date_last_modified > date_last_checked) or args.check_all:
+        try:
+            prj, sid, seid, experiment_label, edate, etime, scanner = experiment.attrs.mget(['project', 'subject_ID', 'ID', 'label', 'date', 'time', 'scanner'])
+        except:
+            print "ERROR: failed to get data for experiment", experiment
+            return
+
+    subject_label_match = re.match(subject_id_pattern_nophantom, ifc.select.project(prj).subject(sid).label())
+    if subject_label_match:
+        # This is a dictionary that maps subjects who changed sites to the correct phantom
+        changed_sites_map = {'D-00094-M-5-20141111': 'B-99999-P-9'}
+        changed_sites_phantom = changed_sites_map.get(experiment_label)
+        try:
+            phantom_label = "%s-99999-P-9" % subject_label_match.group(1)
+            if changed_sites_phantom:
+                # If the subject changed sites, then use the correct site phantom ID.
+                phantom_label = changed_sites_phantom
+            phantom_id = ifc.select.project(prj).subject( phantom_label ).attrs.get('ID')
+            #phantom_scans = ifc.array.experiments(experiment_type='xnat:mrSessionData', constraints={ 'xnat:mrSessionData/subject_id':phantom_id, 'xnat:mrSessionData/SCANNER': scanner, 'date': edate})
+            phantom_scans = ifc.array.experiments(experiment_type='xnat:mrSessionData', constraints={ 'xnat:mrSessionData/subject_id':phantom_id, 'date': edate})
+            # handle check for phantoms on the same day but wrong scanner
+            eids = phantom_scans.get('ID', always_list=True)
+            phantom_scanners = [ifc.select.experiment(eid).attrs.get('scanner') for eid in eids]
+            if args.verbose:
+                print "Phantom scans: {0}".format(phantom_scans)
+            if scanner not in phantom_scanners and len(phantom_scans) != 0:
+                err = "Error: {0} - scanner mismatch for session {1} and phantom {2};".format(prj, experiment_label, eids)
+                err += "Session scanner: {0};".format(scanner)
+                err += "Phantom scanner(s): {0}".format(phantom_scanners)
+                print err
+            elif len(phantom_scans) == 0:
+                find_phantom_scan_24h(prj, experiment_label, experiment_last_modified, phantom_id, edate, etime, scanner)
+        except IndexError, e:
+            print "ERROR: Subject:{0} in Project:{1} with EID:{2} and Label:{3} likely switched sites: {4}".format(sid, prj, seid, experiment_label, e)
+
+experiment_ids = list()
+if args.eid:
+    experiment_ids.append(args.eid)
+else:
+    # Get a list of all MR imaging sessions
+    experiment_ids = ifc.select.experiments().get()
+for eid in experiment_ids:
+    # For each experiment, see if the override variable is set. Otherwise check it
+    experiment = ifc.select.experiment(eid)
+    if get_custom_variable( experiment, 'phantommissingoverride' ) != 'true':
+        check_experiment( experiment )
+
+if args.sendmail:
+    email.send_all( ifc )
+
+content = ifc._exec( uri='%s?inbody=true' % config_uri, method='PUT', body=now_str, headers={'content-type':'text/plain'} )

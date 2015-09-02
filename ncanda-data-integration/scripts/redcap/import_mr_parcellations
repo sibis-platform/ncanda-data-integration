@@ -1,0 +1,79 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2110 $
+##  $LastChangedBy: nicholsn $
+##  $LastChangedDate: 2015-08-07 09:10:29 -0700 (Fri, 07 Aug 2015) $
+##
+
+import argparse
+import sys
+import os
+import re
+import subprocess
+
+import pandas
+
+import redcap
+
+# Setup command line parser
+parser = argparse.ArgumentParser( description="Import MRI parcellation results from image analysis pipeline into REDCap", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
+parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument( "--pipeline-root-dir", help="Root directory of the image analysis pipeline. Parcellation files will be collected from this directory tree.", action="store")
+parser.add_argument( "-f", "--force-update", help="Update all records in REDCap, overwriting existing data", action="store_true")
+parser.add_argument( "-e", "--with-excluded", help="Include records marked 'excluded' in REDCap", action="store_true")
+parser.add_argument( "--parcellations", help="Parcellation types to import.", default='icv,suptent,parc116')
+args = parser.parse_args()
+
+# Available parcellations
+parcellations = args.parcellations.split( ',' )
+
+# Columns in parcellations file
+parcellation_colums = [ 'vol', 'csf', 'gm', 'wm' ]
+
+# Open connection with REDCap server
+redcap_token_path = os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' )
+redcap_token_file = open( redcap_token_path, 'r' )
+redcap_token = redcap_token_file.read().strip()
+
+redcap_project = redcap.Project( 'https://ncanda.sri.com/redcap/api/', redcap_token, verify_ssl=False)
+form_event_mapping = redcap_project.export_fem( format='df' )
+
+#
+# Main program loop
+#
+visit_log_redcap = redcap_project.export_records(fields=[ 'exclude', 'sri24_icv_timestamp', 'sri24_suptent_timestamp', 'sri24_parc116_timestamp' ], event_name='unique', format='df' )
+subject_data = visit_log_redcap.xs( 'baseline_visit_arm_1', level=1 )[['exclude']]
+
+# Select only events that have the "MRI Session Report" form
+parcellation_events_list = form_event_mapping[form_event_mapping['form_name'] == 'mri_parcellation_sri24' ]['unique_event_name'].tolist()
+parcellation_sessions_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda x: x[1] in parcellation_events_list ) ]
+
+# Filter out all excluded subjects unless user instructed otherwise
+if not args.with_excluded:
+    parcellation_sessions_redcap = parcellation_sessions_redcap[ parcellation_sessions_redcap.index.map( lambda key: False if subject_data['exclude'][key[0]] == 1 else True ) ]
+
+if args.verbose:
+    print "Checking %d REDCap records." % len( parcellation_sessions_redcap )
+
+# Import files for one type of parcellation
+def import_parcellation( parc_label, records ):
+    # Filter out all records marked as "Complete", unless user instructed otherwise
+    if not args.force_update:
+        parc_sessions_redcap = parcellation_sessions_redcap[ ~pandas.notnull( parcellation_sessions_redcap['sri24_%s_timestamp' % parc_label] ) ]
+
+    for (subject,visit) in parc_sessions_redcap.index:
+        subject_code = re.sub( '-', '', subject[0:10] ) # remove checksum digit for privacy
+    
+        visit_code = re.sub( '_.*', '', visit )
+        if visit_code != "baseline":
+            visit_code = "followup_%s" % visit_code
+
+        print subject_code,visit_code
+
+# Loop over all selected parcellations
+for parc_label in parcellations:
+    import_parcellation( parc_label, parcellation_sessions_redcap )

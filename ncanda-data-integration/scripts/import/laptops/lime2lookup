@@ -1,0 +1,36 @@
+#!/usr/bin/python
+
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2114 $
+##  $LastChangedBy: dj0330 $
+##  $LastChangedDate: 2015-08-07 09:42:11 -0700 (Fri, 07 Aug 2015) $
+##
+
+import argparse
+import re
+import pandas
+
+# Setup command line parser
+parser = argparse.ArgumentParser( description="Read a LimeSurvey CSV file and produce a lookup table of original, REDCap, and R field names" )
+parser.add_argument( "prefix", help="Form prefix for REDCap field names" )
+parser.add_argument( "infile", help="Input .csv LimeSurvey file." )
+args = parser.parse_args()
+
+data = pandas.read_csv( args.infile )
+
+for label in data.columns.tolist():
+    redcap = "%s_%s" % (args.prefix, re.sub( '_$', '', re.sub( '[_\W]+', '_', re.sub( 'subjid', 'subject_id', label.lower() ) ) ) )
+
+    match_brackets = re.match( '.*\[(.*)\].*', label.lower() )
+    if match_brackets:
+        ucsd = match_brackets.group( 1 )
+    else:
+        ucsd = label.lower()
+
+    ucsd_redcap = "%s_%s" % (args.prefix, re.sub( '_$', '', re.sub( '[_\W]+', '_', re.sub( 'subjid', 'subject_id', ucsd ) ) ) )
+
+        
+    print '"%s",%s,%s,%s' % (label,redcap,ucsd_redcap,ucsd)

@@ -1,0 +1,94 @@
+#!/usr/bin/python
+
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2114 $
+##  $LastChangedBy: dj0330 $
+##  $LastChangedDate: 2015-08-07 09:42:11 -0700 (Fri, 07 Aug 2015) $
+##
+
+# Setup command line parser
+import argparse
+parser = argparse.ArgumentParser( description="Convert PASAT results database to CSV files (one output file per subject; only new files will be created)" )
+parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument( "--overwrite", help="Overwrite existing CSV files.", action="store_true")
+parser.add_argument( "mdbfile", help="Input .mdb database file.")
+parser.add_argument( "outdir", help="Output directory. All CSV files are created in this directory")
+args = parser.parse_args()
+
+# Make a temporary directory
+import tempfile
+temp_dir_path = tempfile.mkdtemp()
+
+# Create a temporary CSV file by dumping MDB contents using "mdb-export" (via MDB Tools)
+import subprocess
+temp_csv = "%s/pasat.csv" % (temp_dir_path)
+subprocess.call( "mdb-export %s MainStressor_bb > %s" % (args.mdbfile, temp_csv), shell=True )
+
+# Read the temporary CSV file
+import pandas
+pasat_csv = pandas.read_csv( temp_csv ).sort( columns=['ID'], ascending=False )
+
+# Drop the columns we know we don't want
+pasat = pasat_csv.drop( [ 'ID', 'SessNUm', 'Group', 'Gender', 'ExpName' ], axis=1 )
+
+# Prefix all column names with 'pasat_'
+columns = list()
+for label in pasat.columns:
+    if label == 'SubjNum':
+        columns.append( 'pasat_subject_id' )
+    else:
+        columns.append("pasat_" + label.lower())
+pasat.columns = columns
+
+# Make all IDs uppercase, just in case
+pasat['pasat_subject_id'] = pasat['pasat_subject_id'].map( lambda s:  str( s ).upper() if str( s ) != 'nan' else 'NOID' )
+
+# Insert a column for unique record ID (to be filled later)
+pasat.insert(0, 'record_id', '' )
+
+# Set "completeness" to "unverified" (also for "visit information")
+pasat['paced_auditory_serial_addition_test_pasat_complete'] = 1
+pasat['visit_information_complete'] = 1
+
+# Determine output directory name - create if it doesn't exist
+import os
+if not os.path.exists( args.outdir ):
+    os.makedirs( args.outdir )
+
+# Fix up and export every row (i.e., every subject)
+import re
+for row_index, row in pasat.iterrows():
+    # First, catch subject IDs with missing hyphens and fix.
+    match_id = re.search( '^([A-F])([0-9]{5})([MF])([0-9])$', row['pasat_subject_id'] )
+    if match_id:
+        row['pasat_subject_id'] = "%s-%s-%s-%s" % ( match_id.group(1), match_id.group(2), match_id.group(3), match_id.group(4) )
+
+    # Second, extract date and bring into YYYYMMDD format
+    match_date = re.search( '^([0-9]{2})/([0-9]{2})/([0-9]{2}) .*$', row['pasat_date'] )
+    if match_date:
+        row['pasat_date'] = '20%s-%s-%s' % (match_date.group(3),match_date.group(1),match_date.group(2))
+
+    # Third, extract time
+    match_time = re.search( '.* ([0-9]{2}):([0-9]{2}):([0-9]{2})$', row['pasat_time'] )
+    if match_time:
+        row['pasat_time'] = '%s:%s' % (match_time.group(1),match_time.group(2))
+
+    # Compute and set unique record ID
+    row['record_id'] = '%s-%s' % (row['pasat_subject_id'],row['pasat_date'])
+
+    # Drop the separate subject_id and date columns
+    row = row.drop( ['pasat_subject_id', 'pasat_date' ] )
+
+    # Determine file name, only proceed if file does not exist already
+    filename = os.path.join( args.outdir, '%s.csv' % row['record_id'])
+    if not os.path.exists( filename ) or args.overwrite:
+        pandas.DataFrame( row ).transpose().to_csv( filename, index=False )
+        # Print filename so we can get a list of updated files by capturing stdout
+        print filename
+
+# Clean up - remove temp directory
+import shutil
+shutil.rmtree( temp_dir_path )

@@ -1,0 +1,107 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2111 $
+##  $LastChangedBy: nicholsn $
+##  $LastChangedDate: 2015-08-07 09:14:13 -0700 (Fri, 07 Aug 2015) $
+##
+
+import csv
+import numpy as np
+import urllib2
+import base64
+import re
+from prettytable import PrettyTable
+from operator import itemgetter
+from pyxnat import Interface
+import json
+## parsing options testing
+import argparse
+parser = argparse.ArgumentParser( description="Summarize Adni Phantom Scans." )
+parser.add_argument( "-c", "--CSV" ,  help="save a csv file of the table", action="store_true")
+parser.add_argument( "-p","--Print" , help="print the table to Shell/Interpreter", action="store_true")
+args = parser.parse_args()
+## Create interface from stored configuration
+import os
+conf = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' )
+interface = Interface( config=conf )
+interface._memtimeout = 0
+## Get project, scanner, insert_date, session_id and subject_id for all phantoms 
+phtm = interface.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID']).where([('xnat:subjectData/SUBJECT_LABEL','LIKE','%-99999-P-%')  ]).get('subject_id')
+phs = [interface.select( 'xnat:mrSessionData', ['xnat:mrSessionData/PROJECT','xnat:mrSessionData/SCANNER_CSV','xnat:mrSessionData/INSERT_DATE','xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SUBJECT_ID']).where([('xnat:mrSessionData/SUBJECT_ID','LIKE',hh)  ] ).items() for hh in phtm]
+ 
+sessions = [it for sublist in phs for it in sublist] #put them in a decent tuple form 
+## download the QA test file based on the above information and analyze it  
+sscom = []
+fss = []
+ 
+for ss in sessions:
+    try :
+        ptof=interface.select.project(ss[0]).subject(ss[4]).experiment(ss[3]).resource('QA').file('phantom.xml') 
+        atr= ptof.attributes()
+        fpath=atr['URI'] #get the URI from the website so we can download the files without Pyxnat
+        webl = 'https://ncanda.sri.com/xnat'+fpath # address to the file based on the info above
+        request = urllib2.Request(webl) # make a request
+        uname =str(json.load(open(conf,'rb'))[u'user'])
+        pword = str(json.load(open(conf,'rb'))[u'password'])
+        base64string = base64.encodestring('%s:%s' % (uname,pword)).replace('\n', '')
+        request.add_header("Authorization", "Basic %s" % base64string) #authenticate
+        result = urllib2.urlopen(request).read()
+
+
+        SNR = float(re.findall(r'\d+\.\d+',re.findall(r'<snr>\d+\.\d+',result)[0])[0])
+        sCNR = re.findall(r'\d+\.\d+ \d+\.\d+ \d+\.\d+ \d+\.\d+',re.findall(r'<cnr>\d+\.\d+ \d+\.\d+ \d+\.\d+ \d+\.\d+',result)[0])[0]
+        CNR = [float(m2) for m2 in sCNR.split()] # get CNR in float form
+        sscale = re.findall(r'\d+\.\d+ \d+\.\d+ \d+\.\d+',re.findall(r'<scale>\d+\.\d+ \d+\.\d+ \d+\.\d+',result)[0])[0]
+        scale = [float(m3) for m3 in sscale.split()] # get scale in float form
+        sNL = re.findall(r'\d+\.\d+ \d+\.\d+ \d+\.\d+',re.findall(r'<nonlinear>\d+\.\d+ \d+\.\d+ \d+\.\d+',result)[0])[0]
+        NL = [float(m4) for m4 in sNL.split()] # get scale in float form
+
+        Count=float(re.findall(r'\d+' ,re.findall(r'count=\"\d+\"',result)[0])[0]) #find count then select the number only
+        sscom.append(ss[0:3] +(SNR,) + (CNR,) + (scale,) + (NL,) + (Count,)) # put the result in a tuple for analysis
+    except:
+        fss.append(ss) # sessions w/o the proper xml files
+ 
+msa = sorted(sscom, key = itemgetter(0,1,2)) # sort based on project, scanner, and date to present in a table
+
+## Presenting the data in a table
+previo = msa[1][1]
+fields = ["Project Site", "Scanner", "Date Added", "SNR","CNR","Scale", "NL", "Count"]
+eprows = ['','','','','','','','']
+## Print Table
+def ptable(msa, fields, eprows, previo):
+    x = PrettyTable(fields)
+    for ms in msa:
+        if ms[1] != previo:
+            x.add_row(eprows) #place space between different scanners
+        datrows = [ms[0],ms[1],ms[2][0:10],round(ms[3],3),' '.join([str(round(cn,2)) for cn in ms[4]]), ' '.join( [str(round(sc,3)) for sc in ms[5]  ]),' '.join([str(round(nl,3)) for nl in ms[6]]) ,ms[7] ]
+        x.add_row(datrows)
+        previo = ms[1]
+    x.align = "l"
+    return x
+## Save Table
+def stable(msa, fields, eprows, previo):
+    ofile = open("Scan_Performance_Table_adni.csv", "wb")
+    wcsv = csv.writer(ofile,delimiter=',',quotechar= ' ', quoting=csv.QUOTE_NONNUMERIC)
+    wcsv.writerow(fields)
+    for ms in msa:
+        if ms[1] != previo:
+            wcsv.writerow(eprows)
+        datrows = [ms[0],ms[1],ms[2][0:10],round(ms[3],3),' '.join([str(round(cn,2)) for cn in ms[4]]), ' '.join( [str(round(sc,3)) for sc in ms[5]  ]),' '.join([str(round(nl,3)) for nl in ms[6]]) ,ms[7] ]        
+        wcsv.writerow(datrows)
+        previo = ms[1]
+    ofile.close()
+## Chose which one of the top options to perform depending on argument otherwise do both
+if args.Print:
+    x = ptable(msa, fields, eprows, previo)
+    print x
+elif args.CSV:
+    stable(msa, fields, eprows, previo)
+else:
+    x = ptable(msa, fields, eprows, previo)
+    print x
+    stable(msa, fields, eprows, previo)
+ 

@@ -1,0 +1,96 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2110 $
+##  $LastChangedBy: nicholsn $
+##  $LastChangedDate: 2015-08-07 09:10:29 -0700 (Fri, 07 Aug 2015) $
+##
+
+import argparse
+import os
+import pandas
+import re
+
+import redcap
+
+# Setup command line parser
+parser = argparse.ArgumentParser( description="Update completion status of forms that contain more than one instrument", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
+parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument( "--forms", help="Select specific forms to update. Separate multiple forms with commas.", action="store", default=None )
+parser.add_argument( "-a", "--update-all", help="Update all summary records, regardless of current completion status (otherwise, only 'Complete' forms will be skipped)", action="store_true")
+parser.add_argument( "-n", "--no-upload", help="Do not upload any scores to REDCap server; instead write to CSV file with given path.", action="store")
+args = parser.parse_args()
+
+# First REDCap connection for the Summary project (this is where we put data)
+summary_key_file = open( os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' ), 'r' )
+summary_api_key = summary_key_file.read().strip()
+rc_summary = redcap.Project( 'https://ncanda.sri.com/redcap/api/', summary_api_key, verify_ssl=False)
+form_event_mapping = rc_summary.export_fem( format='df' )
+
+# Compute the bulk "Complete" status of a record based on component status values
+def compute_bulk_status( row, field_names, form_complete_field ):
+    status = None
+    for field in field_names:
+        if row[field] < status or not status:
+            status = row[field]
+    return status
+
+# Process a bulk form with a number of components, each with their own "complete" status
+def process_form( form, complete_field_names ):
+    # Label of the "Complete" status field for this form
+    form_complete_field = '%s_complete' % form
+    
+    # Get list of events for which this form exists
+    events_this_form = form_event_mapping[ form_event_mapping[ 'form_name' ] == form ]['unique_event_name'].tolist()    
+
+    if args.verbose:
+        print "Processing events",events_this_form
+
+    # Get fields for applicable events
+    records = rc_summary.export_records( events=events_this_form, fields=[ form_complete_field ] + complete_field_names, event_name='unique', format='df', df_kwargs = { 'index_col': [rc_summary.def_field,'redcap_event_name'], 'dtype' : 'object' } )
+
+    # Unless we force complete update, drop already-Complete records for speed
+    if not args.update_all:
+        records = records[ records[form_complete_field].map( str ) != '2' ]
+   
+    previous = records[ [form_complete_field] ]
+    records[form_complete_field] = records.apply( compute_bulk_status, axis=1, args = (complete_field_names, form_complete_field) ).map( lambda x: str( x ) if not str( x ) == 'nan' else '' )
+
+    # Dump all records where bulk status is unchanged - no need to upload these
+    records = records[ records[form_complete_field] != previous[form_complete_field] ]
+    return records[form_complete_field]
+
+# If list of forms given, only update those
+forms_list = rc_summary.forms
+if args.forms:
+    forms_list = []
+    for form in args.forms.split( ',' ):
+        if form in rc_summary.forms:
+            forms_list.append( form )
+        else:
+            print "WARNING: form '%s' does not exist.\n" % form
+
+for form in forms_list:
+    # Does this form have any "_complete" fields, and if you, which ones?
+    complete_field_names = [ field['field_name'] for field in rc_summary.metadata if re.match( '.*_complete$', field['field_name'] ) and (field['form_name'] == form) and (field['field_type'] == 'dropdown') ]
+
+    if len( complete_field_names ) > 0:
+        if args.verbose:
+            print "Processing bulk form",form
+
+        form_status = pandas.DataFrame( process_form( form, complete_field_names ) )
+
+        if args.no_upload:
+            form_status.to_csv( args.no_upload )
+        else:
+            import_response = rc_summary.import_records( form_status, overwrite='overwrite' )
+
+            if 'count' in import_response.keys():
+                if args.verbose:
+                    print "Uploaded",import_response['count'],"records to REDCap."
+            else:
+                print "Upload problem:"
+                print import_response

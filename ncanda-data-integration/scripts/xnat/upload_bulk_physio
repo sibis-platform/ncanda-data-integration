@@ -1,0 +1,46 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2113 $
+##  $LastChangedBy: nicholsn $
+##  $LastChangedDate: 2015-08-07 09:17:50 -0700 (Fri, 07 Aug 2015) $
+##
+
+# Setup command line parser
+import argparse
+parser = argparse.ArgumentParser( description="Upload bulk set of ZIP archive files with physio (or, optionally, other data to XNAT." )
+parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument( "-r", "--resource-name", help="Name of the resource to upload to.", default='physio' )
+parser.add_argument( "-n", "--no-extract", help="Prevent extraction of the archive on the server.", action="store_true", default=False )
+parser.add_argument( "zip_files", help="List of ZIP archive file names. Each archive must contain the physio files for one MR session, and the archive name must be the same as the session label in XNAT", nargs="+", action="store")
+
+args = parser.parse_args()
+
+# Create interface using stored configuration
+import os.path
+import pyxnat
+ifc = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+
+import re
+for zfile in args.zip_files:
+    experiment_label_pattern = '[A-FX]-[0-9]{5}-[MFPT]-[0-9]-20[0-9]{2}[01][0-9][0-3][0-9](-[0-9]){0,1}'
+    match = re.match( '.*(' + experiment_label_pattern + ').*$', zfile )
+
+    if not match:
+        print "ERROR: file name",zfile,"does not match valid experiment label"
+        continue
+
+    try:
+        experiment = ifc.select( 'xnat:mrSessionData', ['xnat:mrSessionData/PROJECT','xnat:mrSessionData/SUBJECT_ID','xnat:mrSessionData/SESSION_ID'] ).where( [ ('xnat:mrSessionData/LABEL','LIKE',match.group(1)) ] ).items()[0]
+    except:
+        print "ERROR: session",match.group(1),"not found in XNAT"
+        continue
+            
+    try:
+        ifc.select.project( experiment[0] ).subject( experiment[1] ).experiment( experiment[2] ).resource( args.resource_name ).put_zip( zfile, overwrite=True, extract=(not args.no_extract) )
+        print "SUCCESS: uploaded file",zfile,"to experiment",match.group(1)
+    except:
+        print "ERROR: unable to upload ZIP file",zfile,"to experiment",match.group(1)

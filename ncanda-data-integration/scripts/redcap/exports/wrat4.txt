@@ -1,0 +1,11 @@
+np_wrat4_word_reading_and_math_computation
+np_wrat4_missing
+np_wrat4_missing_why
+np_wrat4_wr_raw
+np_wrat4_wr_std
+np_wrat4_wr_perc
+np_wrat4_wr_grequiv
+np_wrat4_mc_raw
+np_wrat4_mc_std
+np_wrat4_mc_perc
+np_wrat4_mc_grequiv

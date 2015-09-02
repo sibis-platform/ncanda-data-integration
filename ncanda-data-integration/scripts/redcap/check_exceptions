@@ -1,0 +1,143 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2110 $
+##  $LastChangedBy: nicholsn $
+##  $LastChangedDate: 2015-08-07 09:10:29 -0700 (Fri, 07 Aug 2015) $
+##
+
+# system packages
+import os
+
+# pycap api
+from redcap import Project
+
+# Enrollnemt criteria: Maximum number of days drinking by age.
+max_days_drinking_by_age = { 12 : 5, 13 : 5, 14 : 7, 15 : 16, 16 : 31, 17 : 53, 18 : 81, 19 : 123, 20 : 171, 21 : 238 }
+
+# Check enrollment exceptions against collected data
+def validate_exceptions(project_interface,strict=False):
+    # get a list of dictionaries representing Demographics forms
+    records = project_interface.export_records(fields=["exclude","sex","age","enroll_exception","mri_xnat_sid",
+                                                       "mrireport_mri_set2_binge_mrilu3_mrilud","mrireport_mri_set1_mrilu2_mrilud",
+                                                       "youthreport1_cddr27","youthreport1_cddr19","youthreport1_cddr26"], events=['baseline_visit_arm_1'], event_name='unique')
+
+    false_neg = []
+    false_pos = []
+    true_pos = []
+
+    # check each record
+    count_subjects = 0
+    for record in records:
+        if record['exclude'] == '1':
+            continue
+
+        count_subjects += 1
+
+        try:
+            age = int( float( record['age'] ) )
+        except:
+            print "Could not get age for subject",record['study_id']
+            continue
+
+        exception = False
+        criteria = [ 'age=%s'%age ]
+        if record['youthreport1_cddr19'] != '' and int( record['youthreport1_cddr19'] ) > max_days_drinking_by_age[ min( 21, max( 12, age ) ) ]:
+            exception = True
+            criteria.append( 'cddr19='+record['youthreport1_cddr19'] )
+
+        if record['youthreport1_cddr27'] != '' and record['youthreport1_cddr27'] == '1':
+            exception = True
+            criteria.append( 'cddr27='+record['youthreport1_cddr27'] )
+
+        if record['mrireport_mri_set2_binge_mrilu3_mrilud'] not in [ '.', '', '0' ]:
+            if strict or record['mrireport_mri_set1_mrilu2_mrilud'] not in [ '.', '', '0' ]:
+                exception = True
+                criteria.append( 'mrilu3='+record['mrireport_mri_set2_binge_mrilu3_mrilud']+'&mrilu2='+record['mrireport_mri_set1_mrilu2_mrilud'] )
+
+        if age < 14:
+            if record['sex'] == '0':
+                if record['youthreport1_cddr26'] != '' and float( record['youthreport1_cddr26'] ) > 2:
+                    exception = True
+                    criteria.append( 'cddr26='+record['youthreport1_cddr26'] )
+            else:
+                if record['youthreport1_cddr26'] != '' and float( record['youthreport1_cddr26'] ) > 3:
+                    exception = True
+                    criteria.append( 'cddr26='+record['youthreport1_cddr26'] )
+
+        if exception and record['enroll_exception___drinking'] == '0':
+            false_neg.append( ( record['study_id'], record['mri_xnat_sid'], criteria ) )
+
+        if not exception and record['enroll_exception___drinking'] == '1':
+            false_pos.append( ( record['study_id'], record['mri_xnat_sid'] ) )
+
+        if exception and record['enroll_exception___drinking'] == '1':
+            true_pos.append( ( record['study_id'], record['mri_xnat_sid'], criteria ) )
+
+    return (count_subjects,false_neg,false_pos,true_pos)
+
+
+# For a list of subject ID, set the "exception" flag
+def update_false_negatives( project_interface, subjects ):
+    upload = [ { 'study_id' : subject, 'redcap_event_name' : 'baseline_visit_arm_1', 'enroll_exception___drinking' : '1' } for subject in subjects ]
+
+    import_response = project_interface.import_records( upload, overwrite='overwrite' )
+
+    if 'count' in import_response.keys():
+        if str( import_response['count'] ) == str( len ( upload ) ):
+            print "INFO: updated drinking exception status for the following false-negative subjects:"
+            print "\n".join( subjects )
+        else:
+            print "ERROR: uploading updated drinking exception status for",len( upload ),"false-negative subjects returned count",import_response['count']
+    else:
+        print "ERROR: uploading updated drinking exception status for",len( upload ),"false-negative subjects failed:"
+        print import_response
+
+
+if __name__ == "__main__":
+    import argparse
+
+    # setup the argument parser and help text
+    parser = argparse.ArgumentParser(prog='check_exceptions',
+                                     description='Check enrollment exceptions (e.g., exceeded baseline drinking levels) marked in the Basic Demographics form against collected data.')
+    parser.add_argument('--strict', action="store_true", default=False,
+                        help='Apply strict checking without any second-guessing of REDCap data.')
+    parser.add_argument('--update-fn', action="store_true", default=False,
+                        help='Update False Negative cases, i.e., mark subjects as exceptions when they exceed baseline drinking levels. This will disable the default output of subjects by drinking group.')
+    parser.add_argument('api_key_path', nargs='?',
+                        default=os.path.join(os.path.expanduser('~'), '.server_config/redcap-dataentry-token'),
+                        type=argparse.FileType('r'),
+                        help='Path to REDCap API key specific to a study site')
+    parser.add_argument('api_url', nargs='?',
+                        default='https://ncanda.sri.com/redcap/api/',
+                        help='The URL to a valid REDCap')
+    args = parser.parse_args()
+
+    # get api_key
+    api_key = args.api_key_path.read().strip()
+
+    # get a connection to redcap
+    project_interface = Project(args.api_url, api_key, verify_ssl=False)
+    (count_subjects,false_neg,false_pos,true_pos) = validate_exceptions(project_interface,strict=args.strict)
+
+    if args.update_fn:
+        if len( false_neg ):
+            update_false_negatives( project_interface, [ subject for (subject,sid,criteria) in false_neg ] )
+    else:
+        if len( false_neg ):
+            print "\nExceed criteria but NOT marked as exceptions (FALSE NEG; %d/%d cases):" % ( len( false_neg ), count_subjects )
+            for (subject,sid,criteria) in false_neg:
+                print subject,'/',sid,'[',', '.join(criteria),']'
+                
+        if len( false_pos ):
+            print "\nMarked as exceptions but do NOT exceed criteria (FALSE POS; %d/%d cases):" % ( len( false_pos ), count_subjects )
+            for (subject,sid) in false_pos:
+                print subject,'/',sid
+
+        if len( true_pos ):
+            print "\nMarked as exceptions and DO exceed criteria (TRUE POS; %d/%d cases):" % ( len( true_pos ), count_subjects )
+            for (subject,sid,criteria) in true_pos:
+                print subject,'/',sid,'[',', '.join(criteria),']'

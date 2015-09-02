@@ -1,0 +1,35 @@
+/*                                                                      */
+/*  Copyright 2015 SRI International                                    */
+/*  License: https://ncanda.sri.com/software-license.txt                */
+/*                                                                      */
+/*  $Revision: 2120 $                                                   */
+/*  $LastChangedBy: nicholsn $                                          */
+/*  $LastChangedDate: 2015-08-07 14:23:35 -0700 (Fri, 07 Aug 2015) $    */
+/*                                                                      */
+**** to set section variables to missing where refusal to continue occurred after 
+        the entry of one or more  variables;
+
+data mf.dx_ssaga4_f1;set mf.dx_ssaga4_f1;
+    if ind_id=29262004 then do;
+
+        array mjd3rarray (*) mjdrdpdx mjdrdpa mjdrdpb
+        mjdrabdx mjdrdpsx;
+        do i=1 to dim(mjd3rarray);
+           mjd3rarray(i)=.;
+       end;
+
+      array mjd4array (*) mjd4dpsx mjd4dpdx mjd4d1 mjd4d2 mjd4dpao
+                    mjd4abdx mjd4absx;
+        do i=1 to dim(mjd4array);
+            mjd4array(i)=.;
+         end;
+   
+      array mjICD10array (*) mjcddpdx mjcddpsx mjcddpao mjcddpa  mjicd10cluster;
+         do i= 1 to 5;
+            mjicd10array(i)=.;
+         end;
+
+   end;
+     *** answer is positive for MJ5;
+    **** skipped out immediately afterwards;
+   

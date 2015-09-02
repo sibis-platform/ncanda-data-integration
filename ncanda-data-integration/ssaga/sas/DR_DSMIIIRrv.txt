@@ -1,0 +1,271 @@
+/*                                                                      */
+/*  Copyright 2015 SRI International                                    */
+/*  License: https://ncanda.sri.com/software-license.txt                */
+/*                                                                      */
+/*  $Revision: 2120 $                                                   */
+/*  $LastChangedBy: nicholsn $                                          */
+/*  $LastChangedDate: 2015-08-07 14:23:35 -0700 (Fri, 07 Aug 2015) $    */
+/*                                                                      */
+
+********************************************************************;
+/*******************************************/
+/* DRUG DEPENDENCE &  ABUSE,  DSM3R    */
+/*******************************************/
+********************************************************************;
+
+*keep  codrdpdx codrdpa codrdpb  codrabdx codrdpsx
+      stdrdpdx stdrdpa stdrdpb  stdrabdx stdrdpsx
+      sddrdpdx sddrdpa sddrdpb  sddrabdx sddrdpsx
+      opdrdpdx opdrdpa opdrdpb  opdrabdx opdrdpsx;
+     
+
+/************************************/
+/* DRUG DEPENDENCE, CRITERION A */
+/************************************/
+%let drlst=co st sd op OtherDrug;
+%macro d3dr;
+%do n=1 %to 5;
+    %let dr=%scan(&drlst,&n);
+
+     &dr.drdpdx=1;
+     &dr.drdpa=1;
+
+     array &dr.drdpa_(9) &dr.drdpa1-&dr.drdpa9;
+     do i=1 to 9;
+        &dr.drdpa_(i)=1;
+     end;
+    %********************************************;
+    %*** A1.Substance taken in larger amounts
+      or over a longer period ***;
+     if dr10_&n=5 then &dr.drdpa1=5;
+     else
+        if dr10_&n in(.K ) then &dr.drdpa1=9;
+
+    %********************************************;
+    %**  A2. Persistent desire or unsuccessful efforts
+       to cut down or control **;
+    %********************************************;
+    if (dr7_&n=5) | (dr7a_&n=5) then &dr.drdpa2=5;
+    else
+       if (dr7_&n in(.K )) | (dr7a_&n in(.K )) then &dr.drdpa2=9;
+
+    %********************************************;
+    %*** A3. A great deal of time spent ....;
+    %********************************************;
+     if dr6_&n=5 then &dr.drdpa3=5;
+     else
+        if dr6_&n in(.K ) then &dr.drdpa3=9;
+
+
+    %********************************************;
+    %*** A4. Frequent intoxication or withdrawal dx when
+       expected to fulfill   major obligations ...;
+    %********************************************;
+    if (dr15a_&n=5) | (dr16_&n=5) | (dr17_&n=5)
+        then &dr.drdpa4=5;
+    else
+       if (dr15a_&n in(.K )) | (dr16_&n in(.K )) | (dr17_&n in(.K ))
+           then &dr.drdpa4=9;
+
+    %********************************************;
+    %** A5. Important social, occupational, or recreational
+       activities  given up or reduced...;
+    %********************************************;
+     if dr9a_&n=5 then &dr.drdpa5=5;
+     else
+        if dr9a_&n in(.K ) then &dr.drdpa5=9;
+
+    %********************************************;
+    %*** A6. Continued substance use despite ..
+          social, psychological or physical problem ...;
+    %********************************************;
+     &dr.drdpa6=1;
+             **** counters will be used in checking abuse, criterion b;
+     cnt5&dr.a6=0;
+     cnt9&dr.a6=0;
+     array &dr.dpa6_ (6) dr12a2_&n dr12b1_&n dr12c1_&n dr13d_&n
+                         dr14b_&n dr18a_&n;
+
+     do i=1 to 6;
+        if &dr.dpa6_(i)=5 then cnt5&dr.a6+1;
+        else
+           if &dr.dpa6_(i)=9 then cnt5&dr.a6+1;
+     end;
+     if cnt5&dr.a6>0 then &dr.drdpa6=5;
+     else
+        if cnt9&dr.a6>0 then &dr.drdpa6=9;
+
+
+    %********************************************;
+    %*** A7.  Marked tolerance ......;
+    %********************************************;
+     if dr8_&n=5 then &dr.drdpa7=5;
+     else
+        if dr8_&n in(.K ) then &dr.drdpa7=9;
+
+
+    %********************************************;
+    %*** A8. Characteristic withdrawal sx;
+    %********************************************;
+     if dr11b_&n=5 then &dr.drdpa8=5;
+     else
+        if dr11b_&n in(.K ) then &dr.drdpa8=9;
+
+    %********************************************;
+    %*** A9. Substance often taken to relieve or avoid
+        withdrawal sx;
+    %********************************************;
+     if dr11e2_&n=5 then &dr.drdpa9=5;
+     else
+        if dr11e2_&n in(.K ) then &dr.drdpa9=9;
+
+    %****** count ******;
+   cnta5=0;
+   cnta9=0;
+   do i=1 to 9;
+     if &dr.drdpa_(i)=5 then cnta5+1;
+     if &dr.drdpa_(i)=9 then cnta9+1;
+   end;
+   if cnta5>=3 then &dr.drdpa=5;
+   else
+      if sum(cnta5,cnta9)>=3 then &dr.drdpa=9;
+
+   &dr.drdpsx=cnta5;
+
+
+   %****** DSMIIIR DEPENDENCE CRITERION B *******************;
+   %**** persistence (at least 1 month) or recurrence;
+   &dr.drdpb=1;
+   array &dr.drdpb_ (7) &dr.drdpa1 &dr.drdpa3-&dr.drdpa7 &dr.drdpa9;
+
+
+
+   DRMnthCluster_&n=(DR6MnthCl_&n=5)+
+                    (DR8MnthCL_&n=5)+
+                    ((DR7MnthCL_&n=5)|(DR7aMnthCL_&n=5))+
+                    (DR8MnthCL_&n=5)+
+                    (DR9aMnthCL_&n=5)+
+                    (DR10MnthCL_&n=5)+
+                    (DR11bMnthCL_&n=5)+
+                    (DR11e2MnthCl_&n=5)+
+                    ((DR12a2MnthCL_&n=5)|(DR12b1MnthCL_&n=5)|(DR12c1MnthCL_&n=5)|
+                    (DR13dMnthCL_&n=5)|(DR14bMnthCL_&n=5)|(DR18aMnthCL_&n=5))+
+                    ((DR15aMnthCL_&n=5)|(DR16MnthCL_&n=5)|(DR17MnthCL_&n=5));
+  
+
+
+
+
+   if DRMnthCluster_&n>=3 then &dr.drdpb=5;
+   else do;
+      cnt5=0;
+      cnt9=0;
+      do i=1 to 7;
+         if &dr.drdpb_(i)=5 then cnt5+1;
+         else
+            if &dr.drdpb_(i)=9 then cnt9+1;
+      end;
+      if (dr7_&n=5) | (dr7b_&n=5) then cnt5+1;
+      else
+         if (dr7_&n in(.K )) | (dr7b_&n in(.K )) then cnt9+1;
+      if (dr11c_&n=5) then cnt5+1;
+      else
+         if (dr11c_&n in(.K )) then cnt9+1;
+      if cnt5>=3 then &dr.drdpb=5;
+      else
+         if (sum(cnt5,cnt9)>=3)  then &dr.drdpb=9;
+   end;
+
+  %********** dependence: both criteria? ****************;
+ if (&dr.drdpa=5)*(&dr.drdpb=5) then &dr.drdpdx=5;
+ else
+    if (&dr.drdpa in(5,9))*(&dr.drdpb in(5,9)) then &dr.drdpdx=9;
+  %******************************************;
+
+
+   %***********DSMIII-R DRUG ABUSE *****************;
+   &dr.drabdx=1;
+
+   %**** A1 continued use despite knowledge of ...problems...;
+   &dr.draba1=&dr.drdpa6;
+
+   %****A2 recurrent use in physically hazardous situations;
+   &dr.draba2=1;
+   cnt5&dr.b2=(dr15a_&n=5) + (dr17_&n=5);
+   cnt9&dr.b2=(dr15a_&n in(.K )) + (dr17_&n in(.K ));
+   if cnt5&dr.b2>0 then &dr.draba2=5;
+   else
+      if cnt9&dr.b2>0 then &dr.draba2=9;
+
+    ********** DSMIIIR ABUSE, CRITERION B *******************;
+    **** persistence (at least 1 month) or recurrence;
+    if sum(cnt5&dr.a6,cnt5&dr.b2)>=2 then &dr.drabb=5;
+    else
+       if sum(cnt5&dr.a6,cnt5&dr.b2,cnt9&dr.a6,cnt9&dr.b2)>=2
+          then &dr.drabb=9;
+
+   ***** CRITERION C: has subject met criteria for dependence?;
+   if (&dr.drdpdx=1) * ((&dr.draba1=5)|(&dr.draba2=5))*(&dr.drabb=5)
+      then &dr.drabdx=5;
+   else
+      if (&dr.drdpdx in(1,9)) *((&dr.draba1 in(5,9))|(&dr.draba2 in(5,9)))
+          *(&dr.drabb in(5,9)) then &dr.drabdx=9;
+**************************************************************************;
+******* was first drug question (Have you ever used...) coded missing or DK?;
+**** if so, set dx variables to missing;
+              
+   if &n<=4 then do;
+    if dr1_&n in(.K,.)  then do;
+        &dr.drdpdx=.; &dr.drdpa=.; &dr.drdpb=.;  &dr.drabdx=.; &dr.drdpsx=.;   
+    end;
+  end;
+%end;
+
+%mend d3dr;
+%d3dr
+
+      cntdrothermissing=0;
+      array drothervars (5) dr1_5-dr1_9;
+          do other=1 to 5;
+              if drothervars(other) in(.K,.) then do;
+                  cntdrothermissing+1;
+              end;
+          end;
+           if cntdrothermissing=5 then do; 
+              OtherDrugdrdpdx=.; OtherDrugdrdpdxdrdpa=.; OtherDrugdrdpdxdrdpb=.;                           OtherDrugdrdpdxdrabdx=.; OtherDrugdrdpdxdrdpsx=.; 
+           end;   
+   
+label codrdpdx='cocaine dependence, dsm3r'
+      codrdpa='cocaine dependence, dsm3r criterion a'
+      codrdpb='cocaine dependence, dsm3r criterion b'
+      codrabdx='cocaine abuse, dsm3r'
+      codrdpsx='# sx,dsm3r cocaine dependence';
+
+label stdrdpdx='stimulant dependence, dsm3r'
+      stdrdpa='stimulant dependence, dsm3r criterion a'
+      stdrdpb='stimulant dependence, dsm3r criterion b'
+      stdrabdx='stimulant abuse, dsm3r'
+      stdrdpsx='# sx,dsm3r stimulant dependence';
+
+
+label sddrdpdx='sedative dependence, dsm3r'
+      sddrdpa='sedative dependence, dsm3r criterion a'
+      sddrdpb='sedative dependence, dsm3r criterion b'
+      sddrabdx='sedative abuse, dsm3r'
+      sddrdpsx='# sx,dsm3r sedative dependence';
+
+label opdrdpdx='opiate dependence, dsm3r'
+      opdrdpa='opiate dependence, dsm3r criterion a'
+      opdrdpb='opiate dependence, dsm3r criterion b'
+      opdrabdx='opiate abuse, dsm3r'
+      opdrdpsx='# sx,dsm3r opiate dependence';
+
+label OtherDrugdrdpdx='Other Drug dependence, dsm3r'
+      OtherDrugdrdpa='Other Drug dependence, dsm3r criterion a'
+      OtherDrugdrdpb='Other Drug dependence, dsm3r criterion b'
+      OtherDrugdrabdx='Other Drug abuse, dsm3r'
+      OtherDrugdrdpsx='# sx,dsm3r Other Drug dependence';
+
+
+
+   

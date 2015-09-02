@@ -1,0 +1,334 @@
+/*                                                                      */
+/*  Copyright 2015 SRI International                                    */
+/*  License: https://ncanda.sri.com/software-license.txt                */
+/*                                                                      */
+/*  $Revision: 2120 $                                                   */
+/*  $LastChangedBy: nicholsn $                                          */
+/*  $LastChangedDate: 2015-08-07 14:23:35 -0700 (Fri, 07 Aug 2015) $    */
+/*                                                                      */
+/**************************************************************/
+/*     DSM-IV DEPRESSION Algorithm BLAISE SSAGA4 (Adults)     */
+/*                                                            */
+/*     Rachael Brandon & George Danko -  San Diego COGA       */
+/**************************************************************/
+
+/******************************************************/
+/*            MAJOR DEPRESSIVE EPISODE                */
+/******************************************************/
+
+/*********/
+  keep dpd4dx  dpd4sx;
+ label dpd4dx = 'Major Depressive Episode,DSMIV lifetime';
+ label dpd4sx = 'num depressive sx, DSMIV criterion a';
+/*********/
+
+    *Skip out of Depression Section, use 'dpd' as flag;
+     if (dp1= 1)*(dp2= 1)*(dp2a= 1) then dpd=1;   * skip out, assign dpd4dx=1 later;
+else if (dp1= 5)|(dp2= 5)|(dp2a= 5) then dpd=5;   * Continue through section;
+else                                     dpd=.;   * set to missing;
+/****************
+
+/****************************************************/
+/*            CHECKING 'WORST EPISODE'              */
+/*   Symptom Count - 9 criteria for worst episode   */
+/****************************************************/
+if dpd=5  then do;      
+array dpd4a_ry(9) dpd4a1-dpd4a9;
+/***********************************************************************
+       A1   Felt depressed for 2+ weeks; Felt irritable for 2+ weeks  
+***********************************************************************/
+dpd4a1=1;
+     if (dp4a= 5) | (dp4b= 5)        then dpd4a1=5;
+else if (dp4a=.K) | (dp4b=.K)        then dpd4a1=9;	
+/***************************************************** 
+      A2  Lost interest in most things for 2+ weeks;
+          Less able to enjoy sex/other activities 
+*****************************************************/ 
+dpd4a2=1;
+     if(dp4c= 5) | (dp5= 5)          then dpd4a2=5;
+else if(dp4c=.K) | (dp5=.K)		     then dpd4a2=9;
+/********************************************************* 
+      A3  Had a change in appetite; Gained or lost weight     
+**********************************************************/  
+                                           
+format pct_month pct change weeks month 4.2  ;
+                     * check weight, if 'yes' on dp6b and not missing 
+                         starting and ending weight;
+        if dp6b=5 and ((dp6c ne .)*(dp6d ne .))  then do; 
+
+		             * calculate gain or loss;
+         wt = abs(dp6c - dp6d);
+         pct= (wt/dp6c)*100;
+           
+                     * Compute # weeks spanning weight gain/loss ;
+       if dp6unit=1 then weeks = dp6num/7; 
+  else if dp6unit=2 then weeks = dp6num; 
+  else if dp6unit=3 then weeks = dp6num*4;	 
+  else if dp6unit=4 then weeks = dp6num*52; 
+ end;
+          month=weeks/4;	   
+          change=wt/month;
+                     * average wt gain/loss per 4 weeks (month);
+   pct_month=(change/dp6c)*100; 
+
+    * create 'weight' ('stand-in' variable for dp6b);
+if month <1 then pct_month=pct;
+
+     if (dp6c= .K)|(dp6d= .K)|(dp6unit= .K)|(dp6num= .K)  then weight=.K;    
+else if pct_month >= 5.0  then weight=5;
+else if pct_month <  5.0  then weight=1;
+
+gain_loss= wt; * use to look up gain/loss in pounds;
+
+dpd4a3=1;
+     if (dp6a= 5) | (weight= 5)   then dpd4a3=5;
+else if (dp6a=.K) | (weight=.K)   then dpd4a3=9;   
+
+/*******************************************************
+      A4  trouble falling asleep; sleeping all night;   
+          woke up early; slept more than usual
+/******************************************************/
+dpd4a4=1;
+     if (dp7b= 5) | (dp7c= 5) | (dp7e= 5) | (dp7f= 5) then dpd4a4=5;
+else if (dp7b=.K) | (dp7c=.K) | (dp7e=.K) | (dp7f=.K) then dpd4a4=9;
+/*****************************************************
+     A5  was fidgety/restless; moved/talked slower  
+******************************************************/
+dpd4a5=1;
+     if (dp8a= 5) | (dp9a= 5) then  dpd4a5=5;
+else if (dp8a=.K) | (dp9a=.K) then  dpd4a5=9;
+/*****************************************************
+     A6  Felt loss of energy/more tired than usual    
+*****************************************************/
+dpd4a6=1;
+     if dp10= 5                then  dpd4a6=5;
+else if dp10=.K                then  dpd4a6=9;
+/****************************************************** 
+    A7  felt guilty/bad about self; failure/worthless 
+*******************************************************/
+dpd4a7=1;
+     if (dp11= 5) | (dp12= 5)  then   dpd4a7=5;
+else if (dp11=.K) | (dp12=.K)  then   dpd4a7=9;
+/**************************************************************
+    A8  difficulty thinking/concentrating; making decisions 
+**************************************************************/ 
+ dpd4a8=1;
+     if (dp13= 5) | (dp14= 5)  then   dpd4a8=5;
+else if (dp13=.K) | (dp14=.K)  then   dpd4a8=9;
+/***************************************************************
+    A9  thoughts of death,suicide; made plan; attempted suicide
+***************************************************************/
+dpd4a9=1;
+     if (dp15a= 5) | (dp15b= 5) | (dp15c= 5) | (dp15d= 5)  then dpd4a9=5;
+else if (dp15a=.K) | (dp15b=.K) | (dp15c=.K) | (dp15d=.K)  then dpd4a9=9;
+/**************************************************************/
+/*      Checking for duration of symptoms         
+          (e.g., near daily for 2+ weeks)                   ***/
+durationa=dp16a;
+ end;
+
+/***     Count 9 criteria for entered values of 1,5, or 9   ***/
+cnt1=0;  cnt5=0;  cnt9=0;
+if dpd=5   then do;
+array syms(9) dpd4a1-dpd4a9;
+  do i=1 to 9;  drop i;
+        if syms(i)=1      then  cnt1+1;
+        if syms(i)=5      then  cnt5+1;
+        if syms(i)=9      then  cnt9+1;
+end;
+ end;
+/*******        Evaluate for Criterion C ('Impairment')                ******/
+/**        use 1st four items only, from both sections  pg 70 & 76         **/
+
+/* count 4 impairment items for 'part A', 'part B', and sum the two as 'any_impair'   */            
+   cntimpaira=0;
+array impaira(4) dp19_1-dp19_4;
+  do i=1 to 4; drop i;
+    if impaira(i)= 5 then cntimpaira+1;
+		end;
+
+cntimpairb=0;
+array impairb(4) dp30_1-dp30_4;
+  do i=1 to 4; drop i;
+    if impairb(i)= 5 then cntimpairb+1;
+		end;
+any_impair=sum(of cntimpaira cntimpairb);
+
+/***    5+ symptoms (including #1 and/or #2)and duration=5                 
+        Criterion C ('any_impair' must be '1'(yes) as well
+	   keep this 'most severe clean episode'  as 'depressiona' for now      ***/
+if dpd=.                        then depressiona=.;
+else  if dpd=1                  then depressiona=1;
+else  if any_impair >= 1 and ((dpd4a1=5)|(dpd4a2=5))and (durationa=5)and(cnt5>=5) 
+                                then depressiona=5;  * clean episode;
+								
+else  if (any_impair=0 or durationa=1 or cnt5 <5 or dpd=1) and cnt9 = 0  
+                                then depressiona=1;  * no dx; 
+else  if  sum(cnt5, cnt9)>=5    then depressiona=9;  * cannot determine;
+else if durationa=.             then depressiona=9;  * same,when dp16a = .;
+
+ dpd4sxa=cnt5;   * num depressive sx, DSMIV criterion a;                                       
+
+/***************************************************************/
+/*     Check 'WORST EPISODE'  for induced conditions           */
+/*     Start at dp20 and evaluate 'dirty' criteria             */
+/***************************************************************/
+
+ if depressiona=5  then do;      
+
+/********       quit or cut down on smoking              *******/
+if dp20=5         then smoking=1;       
+/***************************************************************/ 
+
+/*      Calculate if drank enough to be "dirty"                */
+                                                               
+if dm1=1 then do;   * for males;
+      if dp21c=5 then drinks=1;
+else if (dp21 >=2)*(dp21a >=5)                        then drinks=1;
+else if (dp21 =.K)*(dp21_1 =5)*(dp21a >=5)            then drinks=1;
+else if (dp21 =.K)*(dp21_1 =5)*(dp21a =.K)*(dp21a1=5) then drinks=1;
+else if (dp21 >=2)*(dp21a =.K)*(dp21a1=5)             then drinks=1;
+ end;
+
+if dm1=2 then do;  * for females;
+     if dp21c=5 then drinks=1;
+else if (dp21 >=2)*(dp21a >=5)              then drinks=1;
+else if (dp21 >=4)*(dp21a >=3)              then drinks=1;
+
+else if (dp21 =.K)*(dp21_2=5)*(dp21a=.K)*(dp21a1=5)   then drinks=1;
+else if (dp21 =.K)*(dp21_2=5)*(dp21a >=3)             then drinks=1;
+else if (dp21 =.K)*(dp21_1=5)*(dp21a >=5)             then drinks=1;
+
+else if (dp21 >=4)*(dp21a=.K)*(dp21a1=5)              then drinks=1;
+  end;
+  
+/***  Calculate if used enough drugs to be "dirty"               ***/
+if (dp22b1 ge 4 | dp22b2 ge 4 | dp22b3 ge 4)  then drugs=1;
+
+/********        start or change meds dose                       ***/
+if dp23=5  then medication=1;    
+
+/********        bereavement                                     ***/
+if dp24=5  then bereavement=1;    
+
+/********        organic causes, illness                         ***/
+if dp25=5  then organic=1;    
+
+/*********       miscarriage, abortion, 'post-partum'            ***/
+if dp26a=5 then postpartum=1;    
+ end;
+
+dirty=sum(of smoking, drinks, drugs,medication,postpartum);  
+if dirty = . then dirty= 0;
+     if (bereavement=1 or organic=1) * (dirty =0)
+                   then depress=4 ; * stands alone, if no other induced condition;  
+else if (dirty >0) then depress=3;  * if 'dirty', overides bereavment;
+                   else depress=depressiona;                      
+
+/************************************************************************/
+/*     If INDUCED dx (code 3 or 4) CHECK for another 'CLEAN EPISODE'    */
+/*     Start at dp27 and evaluate 9 criteria again                      */
+/************************************************************************/
+
+if depress in(3,4)and dp27=5 then do;
+array dpd4b_ry(9) dpd4b1-dpd4b9 ;  
+do i=1 to 9; dpd4b_ry(i)=1; drop i;  * Initialize 9 items to '1';
+
+/*** B1   felt depressed for 2+ weeks; felt irritable for 2+ weeks   ***/
+     if (dp27b1= 5) | (dp27b2= 5)   then dpd4b1=5;
+else if (dp27b1=.K) | (dp27b2=.K)   then dpd4b1=9;
+							      
+/*** B2   lost interest in things                                    ***/ 
+     if     dp27b3= 5               then dpd4b2=5;
+else if     dp27b3= .K              then dpd4b2=9;		
+
+/*** B3   change in appetite/gained or lost weight                   ***/  
+
+format pct_monthb pctb changeb weeksb monthb 4.2  ;
+                     * check weight, if 'yes' on dp27b5 and not missing 
+                         starting and ending weight;
+        if dp27b5=5 and ((dp27b5d ne .)*(dp27b5e ne .))  then do; 
+		             * calculate gain or loss;
+         wtb =  abs(dp27b5d - dp27b5e);
+         pctb= (wtb/dp27b5d)*100;
+           
+                     * Compute # weeks spanning weight gain/loss ;
+       if dp27b5unit=1 then weeksb = dp27b5num/7; 
+  else if dp27b5unit=2 then weeksb = dp27b5num; 
+  else if dp27b5unit=3 then weeksb = dp27b5num*4;	 
+  else if dp27b5unit=4 then weeksb = dp27b5num*52; 
+ end;
+          monthb=weeksb/4;	   
+          changeb=wtb/monthb;
+                     * average wt gain/loss per (month);
+                       pct_monthb=(changeb/dp27b5d)*100; 
+     if monthb <1 then pct_monthb=pctb;
+
+* create 'weightb' ('stand-in' variable for dp27b5);
+     if (dp27b5d= .K)|(dp27b5e= .K)|(dp27b5num= .K)|(dp27b5unit= .K) 
+                          then weightb=.K;    
+else if pct_monthb >= 5.0  then weightb=5;
+else if pct_monthb <  5.0  then weightb=1;
+
+gain_lossb= wtb; * use to look up gain/loss in pounds;
+
+     if (dp27b4= 5) | (weightb= 5)    then dpd4b3=5;
+else if (dp27b4=.K) | (weightb=.K)    then dpd4b3=9;
+
+/*** B4   trouble sleeping all night/ sleep too  much                ***/
+     if (dp27b6= 5) | (dp27b7= 5)       then dpd4b4=5;
+else if (dp27b6=.K) | (dp27b7=.K)       then dpd4b4=9;                                  
+
+/*** B5  lot more restless/ lot more slowed down                     ***/
+     if (dp27b8= 5) | (dp27b9= 5)       then dpd4b5=5;
+else if (dp27b8=.K) | (dp27b9=.K)       then dpd4b5=9;
+                                    
+/*** B6  felt tired all the time, or little energy                   ***/
+     if dp27b10= 5                      then dpd4b6=5;
+else if dp27b10=.K                      then dpd4b6=9;
+                                    
+/*** B7  felt guilty about things or bad about self                  ***/
+     if  dp27b11= 5                     then dpd4b7=5;
+else if  dp27b11=.K                     then dpd4b7=9;
+                                
+/*** B8  had difficulty thinking or concentrating                    ***/
+     if  dp27b12= 5                     then dpd4b8=5;
+else if  dp27b12=.K                     then dpd4b8=9;
+                            
+/*** B9  had thoughts of death or suicide, made a plan or attempted  ***/
+     if dp27b13= 5 | dp27b14= 5        then dpd4b9=5;
+else if dp27b13=.K | dp27b14=.K        then dpd4b9=9;
+ end;
+  end;
+
+/**  Count 9 criteria for entered values of 1,5, or 9                ***/
+cntb1 = 0;  cntb5 = 0;  cntb9 = 0;
+
+if depress in(3,4) then do;
+array symsb(9) dpd4b1-dpd4b9;
+  do i=1 to 9;  drop i;
+        if symsb(i)=1      then  cntb1+1;
+   else if symsb(i)=5      then  cntb5+1;
+   else if symsb(i)=9      then  cntb9+1;
+end;
+ end;
+
+/***    Evaluate Criterion C ('Impairment')in 'additional episode' section    ***/
+/*          use 'any_impair' computed in earlier section                        */
+
+/***  5+ symptoms (including #1 or #2)and "clustering" = yes                  ***/
+     if  (dp27c=1)|(cntb5 <5)|(depress=1)    then depressionb=1;  * no other clean episode;
+else if  (cntb5>=5) * ((dpd4b1=5) |(dpd4b2=5))* (dp27c=5) * (any_impair ge 1) * (cntb9=0)
+                                              then depressionb=5;  * another  clean episode; 
+else if  sum(cntb5, cntb9)>=5                 then depressionb=9;  * cannot determine;
+
+dpd4sxb=cntb5;   * num depressive sx, DSMIV criteria a  for additional clean episode;                                                              
+
+if   depressionb=5 then dpd4dx=5;          * assign as clean episode as 'final' dx;  
+else                    dpd4dx= depress;   * keep induced codes (3,4)as 'final' dx; 
+
+           * keep symptom count from additional clean episode, if present;
+if  depress in(3,4) and depressionb=5 then dpd4sx=dpd4sxb;  
+           *keep symptom count from 'original' episode, if no additional clean found;
+                                      else dpd4sx=dpd4sxa;  
+

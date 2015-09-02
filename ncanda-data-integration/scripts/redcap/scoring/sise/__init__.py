@@ -1,0 +1,38 @@
+#!/usr/bin/env python
+ 
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2109 $
+##  $LastChangedBy: nicholsn $
+##  $LastChangedDate: 2015-08-07 09:07:04 -0700 (Fri, 07 Aug 2015) $
+##
+
+#
+# Variables from surveys needed for SISE
+#
+
+input_fields = { 'youthreport2' : [ 'youth_report_2_complete', 'youthreport2_missing', 'youthreport2_sise' ] }
+ 
+#
+# This determines the name of the form in REDCap where the results are posted.
+#
+output_form = 'clinical'
+ 
+#
+# Scoring function - SISE really just copies a survey response
+#
+def compute_scores( data, demographics ):
+    # Get rid of all records that don't have YR2
+    data.dropna( axis=1, subset=['youth_report_2_complete'] )
+    data = data[ data['youth_report_2_complete'] > 0 ]
+    data = data[ ~(data['youthreport2_missing'] > 0) ]
+
+    data['sise_score'] = data['youthreport2_sise']
+    data['sise_complete'] = data['youth_report_2_complete'].map( int )
+
+    # Return the computed scores - this is what will be imported back into REDCap
+    outfield_list = [ 'sise_complete', 'sise_score' ]
+    return data[ outfield_list ]
+

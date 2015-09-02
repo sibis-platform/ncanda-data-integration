@@ -1,0 +1,167 @@
+/*                                                                      */
+/*  Copyright 2015 SRI International                                    */
+/*  License: https://ncanda.sri.com/software-license.txt                */
+/*                                                                      */
+/*  $Revision: 2120 $                                                   */
+/*  $LastChangedBy: nicholsn $                                          */
+/*  $LastChangedDate: 2015-08-07 14:23:35 -0700 (Fri, 07 Aug 2015) $    */
+/*                                                                      */
+
+   
+********************************************************************;
+************************************************;
+**** ICD-10 Alcohol Dependence ;
+************************************************;
+keep alcddpdx alcddpsx alcddpao alcddpa;
+label alcddpdx ='ICD10 ALC Dependence'
+      alcddpsx='# ICD10 ALC Criteria Endorsed'
+      alcddpao='Age of onset, ICD10 alcohol dependence';
+    ;
+
+**********************************************************;
+****** craving;
+alcddpd1=1;
+if (al19=5) then alcddpd1=5;
+else
+   if (al19 in(.K ,.)) then alcddpd1=9;
+
+**********************************************************;
+**** loss of control or persistent desire to cut down;
+alcddpd2=1;
+cnt5=0;
+cnt9=0;
+if (al10d>=3) then cnt5+1;
+array alcdd2_(4) al10 al10d1 al12c al13b;
+do i=1 to 4;
+   if alcdd2_(i)=5 then cnt5+1;
+   else
+      if alcdd2_(i) in(.K ,.) then cnt9+1;
+end;
+if cnt5>0 then alcddpd2=5;
+else
+   if cnt9>0 then alcddpd2=9;
+
+**********************************************************;
+*** withdrawal state or
+    use of substance to relieve or avoid withdrawal;
+alcddpd3=1;
+
+cnt5=0;
+cnt9=0;
+
+ *****E37,col IV;
+cnt37c5=0;
+cnt37c9=0;
+array al37c_(8) al37_c1 al37_c2 al37_c5 al37_c6 al37_c7 al37_c8
+                    al37_c9 al37_c10;
+do i=1 to 8;
+   if al37c_(i)=5 then cnt37c5+1;
+   else
+     if al37c_(i) in(.K ,.) then cnt37c9+1;
+end;
+******;
+if cnt37c5>=3 then cnt5+1;
+else
+  if (sum(cnt37c5,cnt37c9)>=3) then cnt9+1;
+  ** other withdrawal;
+array alcdd3_(5) al37i al38 al38c al39 al39c;
+do i=1 to 5;
+   if alcdd3_(i)=5 then cnt5+1;
+   else
+      if alcdd3_(i) in(.K ,.) then cnt9+1;
+end;
+if cnt5>0 then alcddpd3=5;
+else
+   if cnt9>0 then alcddpd3=9;
+
+
+*************************************************************;
+****** tolerance;
+ alcddpd4=1;
+ if (al9d=5) | (al9i=5) then alcddpd4=5;
+ else
+    if (al9d in(.K ,.)) | (al9i in(.K ,.)) then alcddpd4=9;
+
+
+*************************************************************;
+****** neglect of alternative pleasures, behaviors or interests...,
+        great deal of time spent...;
+alcddpd5=1;
+cnt5=0;
+cnt9=0;
+if (al16b>=3) then cnt5+1;
+array alcdd5_(3) al14b al15a al16b1;
+do i=1 to 3;
+   if alcdd5_(i)=5 then cnt5+1;
+   else
+      if alcdd5_(i) in(.K ,.) then cnt9+1;
+end;
+if cnt5>0 then alcddpd5=5;
+else
+   if cnt9>0 then alcddpd5=9;
+
+
+***************************************************************;
+*** continued use despite harmful consequences;
+alcddpd6=1;
+cnt5=0;
+cnt9=0;
+if (al29b>=3) then cnt5+1;
+array alcdd6_(5) al21d al29b1 al31b al32 al33a;
+do i=1 to 5;
+   if alcdd6_(i)=5 then cnt5+1;
+   else
+      if alcdd6_(i) in(.K ,.) then cnt9+1;
+end;
+if cnt5>0 then alcddpd6=5;
+else
+   if cnt9>0 then alcddpd6=9;
+
+
+
+
+***********  how many criteria endorsed?;
+alcddpdx=1;
+cnt5=0;
+cnt9=0;
+array alcddp_(6) alcddpd1-alcddpd6;
+do i=1 to 6;
+   if alcddp_(i)=5 then cnt5+1;
+   else
+      if alcddp_(i) in(.K ,.) then cnt9+1;
+end;
+
+***** clustering?  ;
+ALIcd10cluster=((al9dYrCl=5)|(al9iYrCl=5))+
+               ((al10YrCl=5)|(al10dYrCl=5)|(al12cYrCl=5)|(al13bYrCl=5))+
+               ((al14bYrCl=5)|(al15aYrCl=5)|(al16bYrCl=5))+
+               (al19YrCl=5)+
+               ((al21dYrCl=5)|(al29bYrCl=5)|(al31bYrCl=5)|(al32YrCl=5)|(al33aYrCl=5))+
+               ((al37dYrCl=5)|(al37iYrCl=5)|(al38YrCl=5)|(al38cYrCl)|(al39YrCl)|(al39cYrCl));
+
+alcddpa=1;
+if cnt5>=3 then alcddpa=5;
+else
+   if sum(cnt5,cnt9)>=3 then alcddpa=9;
+
+ ***** ICD10? (3 or more criteria + clustering);
+if (alcddpa=5)*(ALicd10cluster>=3) then alcddpdx=5;
+else
+   if alcddpa in(.K ,.) then alcddpdx=9;
+
+alcddpsx=cnt5;
+if alcddpdx=5 then do;
+   alcddpao=al40AgeOns;
+end;
+
+ ********************if section skipped **************;;
+array alcdarray (*) alcddpdx alcddpsx alcddpao alcddpa;
+if (al1 in(.,.K ))*(al1a in(.,.K )) then do;
+    do i=1 to 4;
+        alcdarray(i)=.;
+    end;
+end;
+*************************************************************************************;
+
+ 
+

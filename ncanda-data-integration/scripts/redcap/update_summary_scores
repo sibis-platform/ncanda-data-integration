@@ -1,0 +1,127 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2110 $
+##  $LastChangedBy: nicholsn $
+##  $LastChangedDate: 2015-08-07 09:10:29 -0700 (Fri, 07 Aug 2015) $
+##
+
+import argparse
+import os
+import pandas
+import numpy
+import re
+
+import redcap
+
+import scoring
+
+# Setup command line parser
+parser = argparse.ArgumentParser( description="Update longitudinal project forms from data imported from the data capture laptops", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
+parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument( "--instruments", help="Select specific instruments to update. Separate multiple forms with commas.", action="store", default=None )
+parser.add_argument( "-a", "--update-all", help="Update all summary records, regardless of current completion status (otherwise, only update records where incoming data completion status exceeds existing summary data status)",
+                     action="store_true")
+parser.add_argument( "-n", "--no-upload", help="Do not upload any scores to REDCap server; instead write to CSV file with given path.", action="store")
+args = parser.parse_args()
+
+# First REDCap connection for the Summary project (this is where we put data)
+summary_key_file = open( os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' ), 'r' )
+summary_api_key = summary_key_file.read().strip()
+rc_summary = redcap.Project( 'https://ncanda.sri.com/redcap/api/', summary_api_key, verify_ssl=False)
+form_event_mapping = rc_summary.export_fem( format='df' )
+
+# Get record IDs and exclusions
+demographics_fields = [ 'study_id', 'dob', 'sex']
+demographics = rc_summary.export_records( fields=demographics_fields, event_name='unique', format='df' ).dropna()
+demographics = pandas.concat( [ demographics.xs( event, level=1 ) for event in ['baseline_visit_arm_1','baseline_visit_arm_4'] ] )
+
+# If list of forms given, only update those
+instrument_list = scoring.instrument_list
+if args.instruments:
+    instrument_list = []
+    for inst in args.instruments.split( ',' ):
+        if inst in scoring.instrument_list:
+            instrument_list.append( inst )
+        else:
+            print "WARNING: no instrument with name '%s' defined.\n" % inst
+
+# Find all matching fields from a list of field names that match a list of given regular expression patterns
+def get_matching_fields( field_list, pattern_list ):
+    matches = set()
+    for field_pattern in pattern_list:
+        pattern_matches = [ field for field in field_list if re.match( field_pattern, field ) ]
+        if len( pattern_matches ) > 0:
+            matches.update( pattern_matches )
+        else:
+            # If no matches, assume this is a "complete" field and simply add the pattern itself
+            matches.update( [ field_pattern ] )
+    return matches
+
+def mark_missing( row, instrument ):
+    if row['%s_missing' % instrument] > 0:
+        return 0
+    else:
+        return row['%s_complete' % instrument]
+
+# Import scoring module - this has a list of all scoring instruments with input fields, scoring functions, etc.
+for instrument in instrument_list:
+    if args.verbose:
+        print 'Scoring instrument',instrument
+
+    # Get fields in the summary project for this instrument
+    fields_list = ['%s_complete' % instrument]
+    record_ids = rc_summary.export_records( fields=fields_list, event_name='unique', format='df' )
+
+    # Get events for which this instrument is present, and drop all records from other events
+    instrument_events_list = form_event_mapping[form_event_mapping['form_name'] == scoring.output_form[instrument] ]['unique_event_name'].tolist()
+    record_ids = record_ids[ record_ids.index.map( lambda x: x[1] in instrument_events_list ) ]
+
+    # Unless instruced otherwise, drop all records that already exist
+    if not args.update_all:
+        record_ids = record_ids[ record_ids['%s_complete' % instrument].map( lambda x: True if str(x) == 'nan' else x<1 ) ]
+
+    if len( record_ids ):
+        if args.verbose:
+            print len( record_ids ),'records to score'
+
+        # Now get the imported records referenced by each record in the summary table
+        import_fields = []
+        for import_instrument in scoring.fields_list[instrument].keys():
+            import_fields += get_matching_fields( rc_summary.field_names, scoring.fields_list[instrument][import_instrument] )
+
+        # Retrieve data from record in chunks of 50 records - we cannot always get everything in one request (too large), but don't want each record by itself either, for speed.
+        # Have to do this separately for each event, because of the way REDCap separates study ID and event name in the request
+        imported = []
+        for event_name in set( record_ids.index.map( lambda key: key[1] ).tolist() ):
+            records_this_event = record_ids.xs( event_name, level=1 ).index.tolist()
+            for idx in xrange( 0, len( records_this_event ),  50 ):
+                imported.append( rc_summary.export_records( fields=import_fields, records=records_this_event[idx:idx+50], events=[event_name], event_name='unique', format='df' ) )
+
+        try:
+            scored_records = scoring.functions[instrument]( pandas.concat( imported ), demographics )
+        except:
+            import sys
+            print "ERROR: scoring failed for instrument",instrument
+            sys.excepthook( sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2] )
+            continue
+
+        if args.verbose:
+            print len( scored_records ),'scored records to upload'
+
+        if args.no_upload:
+            scored_records.to_csv( args.no_upload )
+        else:
+            uploaded = rc_summary.import_records( scored_records, overwrite='overwrite' )
+
+            if args.verbose:
+                if 'count' in uploaded.keys() and uploaded['count'] > 0:
+                    print 'Updated',uploaded['count'],'records of "%s"' % instrument    
+                else:
+                    print 'No updates for instrument "%s"' % instrument, uploaded
+    else:
+        if args.verbose:
+            print 'No unscored records instrument "%s"' % instrument

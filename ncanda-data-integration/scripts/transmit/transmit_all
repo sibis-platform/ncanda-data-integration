@@ -1,0 +1,16 @@
+#!/bin/sh
+
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2112 $
+##  $LastChangedBy: nicholsn $
+##  $LastChangedDate: 2015-08-07 09:15:10 -0700 (Fri, 07 Aug 2015) $
+##
+
+bindir=`dirname $0`
+
+$bindir/transmit_xnat
+$bindir/transmit_dbs
+$bindir/transmit_svn

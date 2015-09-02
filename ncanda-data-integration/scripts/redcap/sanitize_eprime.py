@@ -1,0 +1,48 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2110 $
+##  $LastChangedBy: nicholsn $
+##  $LastChangedDate: 2015-08-07 09:10:29 -0700 (Fri, 07 Aug 2015) $
+##
+import codecs
+import re
+
+# Copy an ePrime (Stroop) file while sanitizing it, i.e., removing personally-identifiable information
+def copy_sanitize( eprime_in, eprime_out ):
+    # List of "banned" ePrime log file keys - these are removed from the file while copying
+    banned_keys = [ 'name', 'age', 'sessiondate', 'sessiontimeutc', 'subject', 'session', 'clock.information' ]
+
+    try:
+        infile = codecs.open( eprime_in, 'Ur', 'utf-16' )
+        try:
+            outfile = open( eprime_out, 'w' )
+
+            for line in infile.readlines():
+                match = re.match( '^\s*([^:]+):.*$', line )
+                if not (match and (match.group(1).lower() in banned_keys)):
+                    outfile.write( line )
+            
+            outfile.close()
+        except:
+            print "ERROR: failed to open output file",eprime_out
+
+        infile.close()
+
+    except:
+        print "ERROR: failed to open input file",eprime_in
+
+
+# Command line interface, if run directly
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser( description="Copy an ePrime log file and sanitize (remove) potentially confidential information", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
+    parser.add_argument( "infile", help="Input file path")
+    parser.add_argument( "outfile", help="Output file path")
+    args = parser.parse_args()
+
+    copy_sanitize( args.infile, args.outfile )

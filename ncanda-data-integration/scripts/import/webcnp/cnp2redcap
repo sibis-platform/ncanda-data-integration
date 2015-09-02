@@ -1,0 +1,43 @@
+#!/bin/bash
+
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2114 $
+##  $LastChangedBy: dj0330 $
+##  $LastChangedDate: 2015-08-07 09:42:11 -0700 (Fri, 07 Aug 2015) $
+##
+
+bindir=`dirname $0`
+tmpdir=`mktemp -d`
+
+#
+# First, start virtual X server and retrieve XLS file from Penn via Selenium
+#
+Xvfb +extension RANDR :666 >& /dev/null &
+xpid=$!
+export DISPLAY=:666
+${bindir}/get_results_selenium $* ${tmpdir}
+unset DISPLAY
+#kill $xpid
+
+#
+# Second, upload CSV file to REDCap
+#
+for csv in `cd ${tmpdir}; ls | fgrep .csv`; do
+    if ! ${bindir}/csv2redcap --import-all ${tmpdir}/${csv}; then
+	echo $tmpdir
+	exit 1
+    fi
+done
+
+#
+# Third, update summary records
+#
+${bindir}/update_summary_forms --max-days-after-visit 120
+
+#
+# Finally, clean up
+#
+rm -rf ${tmpdir}

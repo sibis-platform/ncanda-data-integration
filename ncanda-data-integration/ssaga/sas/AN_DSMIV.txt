@@ -1,0 +1,71 @@
+/*                                                                      */
+/*  Copyright 2015 SRI International                                    */
+/*  License: https://ncanda.sri.com/software-license.txt                */
+/*                                                                      */
+/*  $Revision: 2120 $                                                   */
+/*  $LastChangedBy: nicholsn $                                          */
+/*  $LastChangedDate: 2015-08-07 14:23:35 -0700 (Fri, 07 Aug 2015) $    */
+/*                                                                      */
+ /********************************************************/
+ /*      ANOREXIA DSM-IV                              */
+/********************************************************/
+
+keep and4dx and4a and4b and4c and4d and4sx;
+label and4dx='ANOREXIA NERVOSA, DSMIV';
+label and4a='and4a:refusal to maintain body weight over a minimal normal weight for age and height'; 
+label and4b='and4b:intense fear of gaining weight or becoming fat, even though underweight';                
+label and4c='and4c:disturbance in the way in which one''s body weight,size,or shape is experienced, undue influence of body weight or shape on self-evaluation or denial of the seriousness of the current low body weight';
+label and4d='and4d:In females, ..primary or secondary amenorrhea';    
+label and4sx='and4sx: num dsm4 anorexia sx';                                                                
+/**********************************************************/
+/* ANOREXIA CRITERION A: refusal to maintain body         */
+/* weight over a minimal normal weight for age and height */
+/**********************************************************/
+and4a=1;
+if ed1=5 & ed5boxb=5 then and4a=5;
+else
+  if ed1=.K |  ed5boxb=.K then and4a=9;
+
+/***********************************************************/
+/* ANOREXIA CRITERION B: intense fear of gaining weight or */
+/*   becoming fat, even though underweight                */
+/***********************************************************/
+and4b=1;
+if ed6=5 then and4b=5;
+else
+   if ed6=.K then and4b=9;
+
+/*****************************************************************/
+/* ANOREXIA CRITERION C: disturbance in the way in which one''s */
+/*   body weight,size,or shape is experienced, undue influence  */
+/* of body weight or shape on self-evaluation or denial of the  */
+/*  seriousness of the current low body weight                  */
+/****************************************************************/
+and4c=1;
+if ed2=5 | ed2a=5 | ed9=5  | ed6a=1 then and4c=5;
+else
+   if ed2=.K | ed2a=.K | ed9=.K | ed6a=.K then and4c=9;
+
+/*****************************************************************/
+/* ANOREXIA CRITERION D: In females, ..primary or secondary      */
+/*   amenorrhea                                                  */
+/****************************************************************/
+and4d=1;
+if (dm1=2)*(ed7=5) then and4d=5;
+else
+   if (dm1=2)*(ed7=.K) then and4d=9;
+
+/********************************************************/
+/************  assign and4dx *****************************/
+/********************************************************/
+and4dx=1;
+if (and4a=5)*(and4b=5)*(and4c=5) then do;
+   if ((dm1=2)*(and4d=5)) | (dm1=1) then and4dx=5;
+end;
+else
+   if (and4a in(5,9))*(and4b in(5,9))*(and4c in(5,9)) then do;
+     if ((dm1=2)*(and4d in(5,9)) | (dm1=1)) then and4dx=9;
+  end;
+
+and4sx=(and4a=5)+(and4b=5)+(and4c=5)+(and4d=5);
+if ed1 in(.,.K) then do; and4dx=.; and4a=.;and4b=.;and4c=.;and4d=.;and4sx=.;end;

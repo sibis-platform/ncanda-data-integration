@@ -1,0 +1,37 @@
+#!/bin/sh
+
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+##  $Revision: 2112 $
+##  $LastChangedBy: nicholsn $
+##  $LastChangedDate: 2015-08-07 09:15:10 -0700 (Fri, 07 Aug 2015) $
+##
+
+# Upload file to S3
+upload_to_s3()
+{
+    local fname=`basename $1`
+
+    # Get last digit of day-of-year to rotate file names around and keep 10 copies
+    local day=`date +%j | sed 's/^..//g'`
+
+    if ! s3cmd --server-side-encryption put ${1} s3://ncanda/db/${day}/${fname}; then
+	echo "FAILURE: unable to upload database archive ${1} to S3"
+    else
+	rm ${1}
+    fi
+}
+
+# MySQL first - this can be run as root
+mysqldump --all-databases --events | xz |  aespipe -P ${HOME}/aes/keys -e aes256 > /var/tmp/mysql.sql.xz.aes
+upload_to_s3 /var/tmp/mysql.sql.xz.aes
+
+# PostgreSQL need to be run as user "postgres", at least the DB dump part of it
+/bin/su -l postgres -c pg_dumpall | xz |  aespipe -P ${HOME}/aes/keys -e aes256 > /var/tmp/pgsql.sql.xz.aes
+upload_to_s3 /var/tmp/pgsql.sql.xz.aes
+
+# Files uploaded to REDCap
+gtar -cf - /data/redcap | xz | aespipe -P ${HOME}/aes/keys -e aes256 > /var/tmp/redcap-files.tar.xz.aes
+upload_to_s3 /var/tmp/redcap-files.tar.xz.aes
