@@ -17,7 +17,7 @@ on GitHub that uses a tag corresponding to the script any error was detected wit
 
 Example Usage:
 
-python post_github_issues.py -o ncanda -r ncanda-datacore \
+python post_github_issues.py -o sibis-platform -r ncanda-issues \
                              -t "NCANDA: Laptop Data Import Stage 2 (update_visit_date)" \
                              -b /tmp/test.txt -v
 """
@@ -121,7 +121,10 @@ def create_issues(repo, title, body, verbose=None):
         subject_base = title[0:title.index(' (')]
         issues = fi.readlines()
         fi.close()
-
+    # Handle empty body
+    if not issues:
+        raise RuntimeWarning("The body text is empty and no issue will be created for "
+                             "file: {}.".format(body))
     # Handle multiline error messages.
     if 'Traceback' in ''.join(issues):
         if verbose:
