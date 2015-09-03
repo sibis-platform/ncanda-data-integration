@@ -34,12 +34,34 @@ import xnat_extractor as xe
 
 verbose = None
 
-# Define global scan types for modalities
-t1_scan_types = ['ncanda-t1spgr-v1', 'ncanda-mprage-v1']
-t2_scan_types = ['ncanda-t2fse-v1']
+
+def get_scan_type_pairs(modality):
+    """
+    Get a dictionary of series description based on modality
+    :param modality: str (anatomy, diffusion, functional)
+    :return: dict
+    """
+    scan_type_pairs = dict(scan1=None, scan2=None)
+    if modality == 'anatomy':
+        t1_scan_types = ['ncanda-t1spgr-v1', 'ncanda-mprage-v1']
+        t2_scan_types = ['ncanda-t2fse-v1']
+        scan_type_pairs.update(scan1=t1_scan_types,
+                               scan2=t2_scan_types)
+    elif modality == 'diffusion':
+        pepolar = ['ncanda-dti6b500pepolar-v1']
+        dwi = ['ncanda-dti60b1000-v1']
+        scan_type_pairs.update(scan1=pepolar,
+                               scan2=dwi)
+    elif modality == 'functional':
+        fmri = ['ncanda-rsfmri-v1']
+        fieldmap = ['ncanda-grefieldmap-v1']
+        scan_type_pairs.update(scan1=fmri,
+                               scan2=fieldmap)
+    return scan_type_pairs
 
 
 def main(args=None):
+    # TODO: Handle when T1 and T2 are in separate session (i.e., rescan)
     if args.update:
         config = xe.get_config(args.config)
         session = xe.get_xnat_session(config)
@@ -79,30 +101,34 @@ def main(args=None):
             followup_df = baseline_df
 
         # filter for specific scan types
-        t1_df = followup_df[followup_df.scan_type.isin(t1_scan_types)]
-        t2_df = followup_df[followup_df.scan_type.isin(t2_scan_types)]
+        scan_type_pairs = get_scan_type_pairs(args.modality)
+        scan1 = scan_type_pairs.get('scan1')
+        scan2 = scan_type_pairs.get('scan2')
+        scan1_df = followup_df[followup_df.scan_type.isin(scan1)]
+        scan2_df = followup_df[followup_df.scan_type.isin(scan2)]
 
-        # add quality column
-        t1_usable = t1_df[t1_df.quality == 'usable']
-        t2_usable = t2_df[t2_df.quality == 'usable']
+        # Filter quality column
+        scan1_usable = scan1_df[scan1_df.quality == 'usable']
+        scan2_usable = scan2_df[scan2_df.quality == 'usable']
 
         # report columns
-        columns = ['site_id', 'subject_id', 'experiment_id',
+        columns = ['site_id', 'subject_id', 'experiment_id', 'scan_type',
                    'experiment_date', 'quality', 'excludefromanalysis', 'note']
-        t1_recs = t1_usable.loc[:, columns].to_records(index=False)
-        t2_recs = t2_usable.loc[:, columns].to_records(index=False)
+        scan1_recs = scan1_usable.loc[:, columns].to_records(index=False)
+        scan2_recs = scan2_usable.loc[:, columns].to_records(index=False)
 
-        t1_report = pd.DataFrame(t1_recs, index=t1_usable.experiment_id)
-        t2_report = pd.DataFrame(t2_recs, index=t2_usable.experiment_id)
+        scan1_report = pd.DataFrame(scan1_recs, index=scan1_usable.experiment_id)
+        scan2_report = pd.DataFrame(scan2_recs, index=scan2_usable.experiment_id)
 
-        t1_t2_report = t1_report.join(t2_report.quality,
-                                      lsuffix='_t1',
-                                      rsuffix='_t2',
-                                      how='inner')
-        if t1_t2_report.shape[0]:
-            result = result.append(t1_t2_report)
-
-    result.to_csv(args.outfile)
+        scan1_scan2_report = scan1_report.join(scan2_report[['scan_type', 'quality']],
+                                               lsuffix='_scan1',
+                                               rsuffix='_scan2',
+                                               how='inner')
+        if scan1_scan2_report.shape[0]:
+            result = result.append(scan1_scan2_report)
+    # Remove any duplicate rows due to extra usable scan types (i.e., fieldmaps)
+    result = result.drop_duplicates()
+    result.to_csv(args.outfile, index=False)
 
 if __name__ == "__main__":
     import sys
@@ -121,6 +147,11 @@ if __name__ == "__main__":
                         type=str,
                         default='/tmp/experiments',
                         help='Name of experiments xml directory')
+    parser.add_argument('-m', '--modality',
+                        type=str,
+                        default='anatomy',
+                        choices=['anatomy', 'diffusion', 'functional'],
+                        help='Name of experiments xml directory')
     parser.add_argument('--min',
                         type=int,
                         default=180,
@@ -131,7 +162,7 @@ if __name__ == "__main__":
                         help='Maximum days from baseline')
     parser.add_argument('-o', '--outfile',
                         type=str,
-                        default='/tmp/usable_t1_t2_baseline.csv',
+                        default='/tmp/usability_report.csv',
                         help='Name of csv file to write.')
     parser.add_argument('-n', '--num_extract',
                         type=int,
