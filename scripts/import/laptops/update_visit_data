@@ -9,18 +9,16 @@
 ##  $LastChangedDate$
 ##
 
-import argparse
 import os
 import re
-import requests
-
-
 import datetime
-date_format_ymd = '%Y-%m-%d'
+import argparse
 
 import pandas
-
 import redcap
+import requests
+
+date_format_ymd = '%Y-%m-%d'
 
 # Setup command line parser
 parser = argparse.ArgumentParser(description="Update longitudinal project forms from data "
@@ -298,14 +296,15 @@ for form_prefix, form_name in forms.iteritems():
     recordid_label = form_prefix + '_record_id'
 
     if args.verbose:
-	print "Processing form",form_prefix,"/",form_name
+        print "Processing form",form_prefix,"/",form_name
 
     total_records = 0
     total_uploaded = 0
 
     # ==> Export data from laptops for this form from REDCap.
     #
-    # First, get "complete" and "exclude" fields for this form for all records to find which ones actually have data and are not excluded.
+    # First, get "complete" and "exclude" fields for this form for all records to
+    # find which ones actually have data and are not excluded.
     complete_records = rc_import.export_records( fields = [ complete_label, exclude_label ], format='df' )
     # Drop all empty form records
     complete_records = complete_records[ complete_records[complete_label] > 0 ]
@@ -313,25 +312,29 @@ for form_prefix, form_name in forms.iteritems():
     complete_records = complete_records[ complete_records[exclude_label] != 1 ]
 
     if len( complete_records ) == 0:
-	if args.verbose:
-		print "No imported records for form",form_name
-	continue
+        if args.verbose:
+            print "No imported records for form",form_name
+        continue
 
-    # Next, export actual records, making sure we get everything as string, and replace all "nan"s with empty strings, "".
+    # Next, export actual records, making sure we get everything as string,
+    # and replace all "nan"s with empty strings, "".
     imported_records = rc_import.export_records( records=complete_records.index.tolist(), forms=[ form_name ], format='df', df_kwargs = { 'index_col': rc_import.def_field, 'dtype' : 'object' } ).applymap( nan_to_empty )
 
-    # From the index, extract the original subject ID and date from each imported record IO and use these wherever not overridden by manually-entered values
+    # From the index, extract the original subject ID and date from each imported
+    # record IO and use these wherever not overridden by manually-entered values
     subject_label = '%s_subject_id' % form_prefix
     date_label = '%s_date' % form_prefix
     if len( imported_records ) > 0:
         imported_records[subject_label] = imported_records.apply( lambda row: row[subject_label].upper() if row[subject_label]!='' else row.name[0:-11].upper(), axis=1 )
         imported_records[date_label] = imported_records.apply( lambda row: row[date_label] if row[date_label]!='' else row.name[-10:], axis=1 )
 
-    # Select the events that actually have this form (first, to handle summary forms, figure out what actual form the "FORM_complete" field is in)
+    # Select the events that actually have this form (first, to handle summary forms,
+    # figure out what actual form the "FORM_complete" field is in)
     try:
         summary_form_name = [ field['form_name'] for field in rc_summary.metadata if field['field_name'] == complete_label ][0]
     except:
-        # If the above failed (due to empty list, presumably), then this is not a hierarchical form and we should just use the given form name
+        # If the above failed (due to empty list, presumably), then this is not a
+        # hierarchical form and we should just use the given form name
         summary_form_name = form_name
     instrument_events_list = form_event_mapping[form_event_mapping['form_name'] == summary_form_name ]['unique_event_name'].tolist()
     existing_form_data = existing_data[ existing_data.index.map( lambda x: x[1] in instrument_events_list ) ]
@@ -340,7 +343,8 @@ for form_prefix, form_name in forms.iteritems():
     missing_label = '%s_missing' % form_prefix
     existing_form_data = existing_form_data[existing_form_data[missing_label] != 1]
 
-    # Drop all existing records when doing "missing only", or else unless "update all", drop records where this form is already marked "Completed"
+    # Drop all existing records when doing "missing only", or else unless "update all",
+    # drop records where this form is already marked "Completed"
     if args.missing_only:
         existing_form_data = existing_form_data[ ~(existing_form_data[complete_label] > 0)]
     elif not args.update_all:
@@ -357,14 +361,16 @@ for form_prefix, form_name in forms.iteritems():
         if (visit_date != 'nan') and (subject_age != ''):
             total_records += 1
 
-            # For Recovery Baseline, extend search window back in time to capture and duplicate data from most recent standard visit
+            # For Recovery Baseline, extend search window back in time to capture and
+            # duplicate data from most recent standard visit
             if key[1] == recovery_baseline_event:
                 date_on_or_after = (datetime.datetime.strptime( visit_date, date_format_ymd) - datetime.timedelta(args.max_days_after_visit)).strftime(date_format_ymd)
             else:
                 date_on_or_after = visit_date
 
             date_before = (datetime.datetime.strptime( visit_date, date_format_ymd) + datetime.timedelta(args.max_days_after_visit)).strftime(date_format_ymd)
-            # If we have a next visit date that also has this form, and it's before N days, use that instead as the upper bound for the search window           
+            # If we have a next visit date that also has this form, and it's before N days,
+            # use that instead as the upper bound for the search window
             next_visit_date = get_subject_next_visit_date( key[0], visit_date, form_name )
             if next_visit_date and next_visit_date < date_before:
                 date_before = next_visit_date
@@ -395,7 +401,8 @@ for form_prefix, form_name in forms.iteritems():
                 if args.verbose:
                     print "Marking over-18",form_name,"as missing for",key[0],"/",key[1]
                 total_uploaded += add_over18_to_upload( form_prefix, form_name, key[0], key[1] )
-            # We absolutely have no records to assign - check now if one had been assigned previously and somehow disappeared
+            # We absolutely have no records to assign - check now if one had been assigned
+            # previously and somehow disappeared
             elif (existing_form_data[complete_label][key] > 0) and (existing_form_data[missing_label][key] != 1):
                 print "WARNING: Previously assigned record",existing_form_data[recordid_label][key],"for form",form_name,"subject",key[0],"event",key[1],"visit date",visit_date,"appears to have disappeared."
                 if args.reset_disappeared:
