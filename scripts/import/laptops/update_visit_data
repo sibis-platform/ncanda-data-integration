@@ -23,19 +23,47 @@ import pandas
 import redcap
 
 # Setup command line parser
-parser = argparse.ArgumentParser( description="Update longitudinal project forms from data imported from the data capture laptops", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
-parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
-parser.add_argument( "-n", "--no-upload", help="Do not upload any data back to the REDCap server", action="store_true")
-parser.add_argument( "--max-days-after-visit", help="Maximum number of days the scan session can be after the entered 'visit date' in REDCap to be assigned to a given event. This applies ONLY to Arm 1: Standard Protocol. Other arms (e.g., Arm 3: Sleep) require EXACT date matches.", action="store", default=120, type=int)
-parser.add_argument( "--forms", help="Select specific forms to update. Separate multiple forms with commas.", action="store", default=None )
-parser.add_argument( "-m", "--missing-only", help="Only look for missing data, but do not update existing records. This significantly speeds up processing, but edits made to imported data will not propagate.",
-                     action="store_true")
-parser.add_argument( "-a", "--update-all", help="Update all summary records, regardless of current completion status (otherwise, only update records where incoming data completion status exceeds existing summary data status)",
-                     action="store_true")
-parser.add_argument( "-x", "--no-excluded", help="Do not process any subjects marked as 'excluded' in REDCap.", action="store_true")
-parser.add_argument( "--reset-disappeared", help="Reset form status of records that have 'disappeared', i.e., an imported record was previously assigned but can no longer be found.", action="store_true")
+parser = argparse.ArgumentParser(description="Update longitudinal project forms from data "
+                                             "imported from the data capture laptops",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument("-v", "--verbose",
+                    help="Verbose operation",
+                    action="store_true")
+parser.add_argument("-n", "--no-upload",
+                    help="Do not upload any data back to the REDCap server",
+                    action="store_true")
+parser.add_argument("--max-days-after-visit",
+                    help="Maximum number of days the scan session can be after the entered "
+                         "'visit date' in REDCap to be assigned to a given event. This applies"
+                         " ONLY to Arm 1: Standard Protocol. Other arms (e.g., Arm 3: Sleep) "
+                         "require EXACT date matches.",
+                    action="store",
+                    default=120,
+                    type=int)
+parser.add_argument("--forms",
+                    help="Select specific forms to update. Separate multiple forms with commas.",
+                    action="store",
+                    default=None )
+parser.add_argument("-m", "--missing-only",
+                    help="Only look for missing data, but do not update existing records. This"
+                         " significantly speeds up processing, but edits made to imported data "
+                         "will not propagate.",
+                    action="store_true")
+parser.add_argument("-a", "--update-all",
+                    help="Update all summary records, regardless of current completion status "
+                         "(otherwise, only update records where incoming data completion status "
+                         "exceeds existing summary data status)",
+                    action="store_true")
+parser.add_argument("-x", "--no-excluded",
+                    help="Do not process any subjects marked as 'excluded' in REDCap.",
+                    action="store_true")
+parser.add_argument("--reset-disappeared",
+                    help="Reset form status of records that have 'disappeared', i.e., an imported"
+                         " record was previously assigned but can no longer be found.",
+                    action="store_true")
 
 args = parser.parse_args()
+
 
 # Convert to string, or empty if nan.
 def nan_to_empty( x ):
@@ -46,51 +74,54 @@ def nan_to_empty( x ):
         return ''
 
 # List of forms imported from the laptops
-all_forms = { 
-# Forms for Arm 1: Standard Protocol
-    'dd100' : 'delayed_discounting_100', 
-    'dd1000' : 'delayed_discounting_1000', 
-    'pasat' : 'paced_auditory_serial_addition_test_pasat',
-    'stroop' : 'stroop',
-    'ssaga_youth' : 'ssaga_youth',
-    'ssaga_parent' : 'ssaga_parent',
-    'youthreport1' : 'youth_report_1',
-    'youthreport1b' : 'youth_report_1b',
-    'youthreport2' : 'youth_report_2',
-    'parentreport' : 'parent_report',
-    'mrireport'    : 'mri_report',
-    'plus'         : 'participant_last_use_summary',
+all_forms = {
+             # Forms for Arm 1: Standard Protocol
+             'dd100': 'delayed_discounting_100',
+             'dd1000': 'delayed_discounting_1000',
 
-    'myy'          : 'midyear_youth_interview',
+             'pasat': 'paced_auditory_serial_addition_test_pasat',
+             'stroop': 'stroop',
+             'ssaga_youth': 'ssaga_youth',
+             'ssaga_parent': 'ssaga_parent',
+             'youthreport1': 'youth_report_1',
+             'youthreport1b': 'youth_report_1b',
+             'youthreport2': 'youth_report_2',
+             'parentreport': 'parent_report',
+             'mrireport': 'mri_report',
+             'plus': 'participant_last_use_summary',
 
-    'lssaga1_youth' : 'limesurvey_ssaga_part_1_youth',
-    'lssaga2_youth' : 'limesurvey_ssaga_part_2_youth',
-    'lssaga3_youth' : 'limesurvey_ssaga_part_3_youth',
-    'lssaga4_youth' : 'limesurvey_ssaga_part_4_youth',
-    
-    'lssaga1_parent' : 'limesurvey_ssaga_part_1_parent',
-    'lssaga2_parent' : 'limesurvey_ssaga_part_2_parent',
-    'lssaga3_parent' : 'limesurvey_ssaga_part_3_parent',
-    'lssaga4_parent' : 'limesurvey_ssaga_part_4_parent',
-    
-    # Forms for Arm 3: Sleep Studies
-    'sleepeve'     : 'sleep_study_evening_questionnaire',
-    'sleeppre'     : 'sleep_study_presleep_questionnaire',
-    'sleepmor'     : 'sleep_study_morning_questionnaire',
-    # Forms for Recovery project
-    'recq'         : 'recovery_questionnaire'
-    }
+             'myy': 'midyear_youth_interview',
 
-# Define the name of the Recovery baseline event - this receives special treatment to catch records from BEFORE its visit date (supposedly from the corresponding Standard visit)
+             'lssaga1_youth': 'limesurvey_ssaga_part_1_youth',
+             'lssaga2_youth': 'limesurvey_ssaga_part_2_youth',
+             'lssaga3_youth': 'limesurvey_ssaga_part_3_youth',
+             'lssaga4_youth': 'limesurvey_ssaga_part_4_youth',
+
+             'lssaga1_parent': 'limesurvey_ssaga_part_1_parent',
+             'lssaga2_parent': 'limesurvey_ssaga_part_2_parent',
+             'lssaga3_parent': 'limesurvey_ssaga_part_3_parent',
+             'lssaga4_parent': 'limesurvey_ssaga_part_4_parent',
+
+             # Forms for Arm 3: Sleep Studies
+             'sleepeve': 'sleep_study_evening_questionnaire',
+             'sleeppre': 'sleep_study_presleep_questionnaire',
+             'sleepmor': 'sleep_study_morning_questionnaire',
+
+             # Forms for Recovery project
+             'recq': 'recovery_questionnaire'}
+
+# Define the name of the Recovery baseline event - this receives special
+# treatment to catch records from BEFORE its visit date (supposedly from the
+# corresponding Standard visit)
 recovery_baseline_event = 'recovery_baseline_arm_2'
 
 if args.forms:
     forms = dict()
-    for f in args.forms.split( ',' ):
+    for f in args.forms.split(','):
         if f in all_forms.keys():
             forms[f] = all_forms[f]
         elif f in all_forms.values():
-            lookup = [ k for (k,v) in all_forms.iteritems() if v == f ]
+            lookup = [k for (k, v) in all_forms.iteritems() if v == f]
             forms[lookup[0]] = f
         else:
             print "WARNING: no form with name or prefix '%s' defined.\n" % f            
@@ -98,51 +129,53 @@ else:
     forms = all_forms
 
 if args.verbose:
-    print "Processing the following forms:\n\t",'\n\t'.join( sorted( forms.values() ) )
+    print "Processing the following forms:\n\t", '\n\t'.join( sorted(forms.values()))
 
 form_prefixes = forms.keys()
 form_names = forms.values()
 
 forms_date_increments = {
     # PLUS, Evening and Presleep forms same date as entered, Morning form next day
-    'plus'         : 0,
-    'sleepeve'     : 0,
-    'sleeppre'     : 0,
-    'sleepmor'     : 1
+    'plus': 0,
+    'sleepeve': 0,
+    'sleeppre': 0,
+    'sleepmor': 1
 }
 
 # First REDCap connection for the Summary project (this is where we put data)
-summary_key_file = open( os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' ), 'r' )
+summary_key_file = open(os.path.join(os.path.expanduser("~"), '.server_config/redcap-dataentry-token'), 'r')
 summary_api_key = summary_key_file.read().strip()
-rc_summary = redcap.Project( 'https://ncanda.sri.com/redcap/api/', summary_api_key, verify_ssl=False)
+rc_summary = redcap.Project('https://ncanda.sri.com/redcap/api/', summary_api_key, verify_ssl=False)
 
 # Get list of all field names in the summary project - this is to figure out which fields to copy
-summary_field_names = [ field['field_name'] for field in rc_summary.metadata ]
+summary_field_names = [field['field_name'] for field in rc_summary.metadata]
 
 # Get list of all 0/1 encoded Yes/No fields (either radio or dropdown) - these need to be recoded when copied
-summary_fields_yn = [ field['field_name'] for field in rc_summary.metadata if field['field_type'] in ['radio','dropdown'] and re.match( '[^0-9]*1, Yes[^0-9]*0, No.*', field['select_choices_or_calculations'] ) ]
+summary_fields_yn = [field['field_name'] for field in rc_summary.metadata if field['field_type'] in ['radio', 'dropdown'] and re.match('[^0-9]*1, Yes[^0-9]*0, No.*', field['select_choices_or_calculations'])]
 
 # What forms are at what event?
-form_event_mapping = rc_summary.export_fem( format='df' )
+form_event_mapping = rc_summary.export_fem(format='df')
 
 # Get record IDs, visit labels, visit dates, and completion status for all laptop forms
-existing_data_fields = [ ('%s_complete' % form) for form in form_names ] + [ ('%s_missing' % form) for form in form_prefixes ] + [ ('%s_record_id' % form) for form in form_prefixes ] 
+existing_data_fields = [('%s_complete' % form) for form in form_names] + [('%s_missing' % form) for form in form_prefixes] + [('%s_record_id' % form) for form in form_prefixes]
 existing_data_fields += ['study_id', 'dob', 'redcap_event_name', 'visit_date', 'exclude', 'sleep_date']
 
 # Get list of existing records
-existing_data = rc_summary.export_records( fields=existing_data_fields, event_name='unique', format='df' )
+existing_data = rc_summary.export_records(fields=existing_data_fields, event_name='unique', format='df')
 
-# Save dates of birth for later (these only exist for the 'baseline_visit_arm_1' event, but we need them for other arms as well
-subject_dates_of_birth = pandas.concat( [ existing_data.xs( event, level=1 )['dob'].dropna() for event in [ 'baseline_visit_arm_1', 'baseline_visit_arm_4' ] ] )
+# Save dates of birth for later (these only exist for the 'baseline_visit_arm_1' event,
+# but we need them for other arms as well
+subject_dates_of_birth = pandas.concat([existing_data.xs(event, level=1)['dob'].dropna() for event in ['baseline_visit_arm_1', 'baseline_visit_arm_4']])
 
 # Remove "excluded" cases - need to do that after getting birth dates, just in case.
 if args.no_excluded:
-    existing_data = existing_data[ existing_data['exclude'] != 1 ]
+    existing_data = existing_data[existing_data['exclude'] != 1]
 
 # Open connection with REDCap server - first for the laptop import project (data source)
-import_key_file = open( os.path.join( os.path.expanduser("~"), '.server_config/redcap-laptopimport-token' ), 'r' )
+import_key_file = open(os.path.join( os.path.expanduser("~"), '.server_config/redcap-laptopimport-token'), 'r')
 import_api_key = import_key_file.read().strip()
-rc_import = redcap.Project( 'https://ncanda.sri.com/redcap/api/', import_api_key, verify_ssl=False)
+rc_import = redcap.Project('https://ncanda.sri.com/redcap/api/', import_api_key, verify_ssl=False)
+
 
 # Upload new data to REDCap
 def to_redcap( upload_records ):
@@ -151,97 +184,105 @@ def to_redcap( upload_records ):
 
     import_respoce = dict()
     try:
-        import_response = rc_summary.import_records( upload_records, overwrite='overwrite' )
+        import_response = rc_summary.import_records(upload_records, overwrite='overwrite')
 
         # If there were any errors, try to print them as well as possible
-	if 'error' in import_response.keys():
-	    print "UPLOAD ERROR:", import_response['error']
-		
-	if 'fields' in import_response.keys():
-	    for field in import_response['fields']:
-	        print "\t", field
-			    
-	if 'records' in import_response.keys():
-	    for record in import_response['records']:
-	        print "\t", record
+        if 'error' in import_response.keys():
+            print "UPLOAD ERROR:", import_response['error']
+        if 'fields' in import_response.keys():
+            for field in import_response['fields']:
+                print "\t", field
+        if 'records' in import_response.keys():
+            for record in import_response['records']:
+                print "\t", record
+        # Finally, print upload status if so desired
+        if 'count' in import_response.keys():
+            return import_response['count']
+        else:
+            print import_response
 
-	# Finally, print upload status if so desired                    
-	if 'count' in import_response.keys():
-	    return import_response['count']
-	else:
-	    print import_response
-    
     except requests.exceptions.RequestException as e:
         print "WARNING: Record may be locked... {0}".format(e) 
     return 0
 
+
 # Map 'Y' and '1' to '1', map 'N', '2', and '0' to '0', and everything else to 'undefined'
-def map_yn_to_binary( yn ):
+def map_yn_to_binary(yn):
     if (yn == 'Y') or (yn == '1'):
         return '1'
     elif (yn == 'N') or (yn == '2') or (yn == '0'):
         return '0'
     else:
-	return ''
+        return ''
+
 
 # Number of days between two dates (signed value is returned - negative if second date is before first)
-def days_between_dates( date_from_str, date_to_str, date_format=date_format_ymd ):
-    return (datetime.datetime.strptime( date_to_str, date_format_ymd ) - datetime.datetime.strptime( date_from_str, date_format_ymd ) ).days
+def days_between_dates(date_from_str, date_to_str, date_format=date_format_ymd):
+    result = (datetime.datetime.strptime(date_to_str, date_format) -
+              datetime.datetime.strptime(date_from_str, date_format)).days
+    return result
+
 
 # Get subject age at a given date
 def get_subject_age( subject_id, at_date ):
     # Get subject Date of Birth
     try:
         date_of_birth = subject_dates_of_birth[subject_id]
-    except:
-        print "ERROR: no birth date for subject",subject_id
+    except KeyError, e:
+        print "ERROR: no birth date for subject", subject_id, e
         return ''
-
     # Set actual age - do this after everything else, because some surveys have "age" fields; we want to overwrite those
     try:
-        return str( days_between_dates( date_of_birth, at_date ) / 365.242 )
+        return str(days_between_dates(date_of_birth, at_date) / 365.242)
     except:
         if at_date != 'nan':
-            print "ERROR: could not parse visit date",at_date,"for subject",subject_id
+            print "ERROR: could not parse visit date", at_date, "for subject", subject_id
         return ''
 
-# Function to get a subject's next visit - this is so we can exclude MRI collected after the next visit date, but still within N days
-def get_subject_next_visit_date( subject, after_visit_date, form ):
-    subject_visit_dates = existing_data.xs( subject, level=0 )['visit_date'].dropna()
-    subject_visit_dates = subject_visit_dates[ subject_visit_dates.index.map( lambda key: key[1] != recovery_baseline_event ) ] # Exclude "Recovery" baseline from list - this will usually be the MR day of a normal visit
+
+# Function to get a subject's next visit - this is so we can exclude MRI
+# collected after the next visit date, but still within N days
+def get_subject_next_visit_date(subject, after_visit_date, form):
+    subject_visit_dates = existing_data.xs(subject, level=0)['visit_date'].dropna()
+    # Exclude "Recovery" baseline from list - this will usually be the MR day of a normal visit
+    subject_visit_dates = subject_visit_dates[subject_visit_dates.index.map(lambda key: key[1] != recovery_baseline_event)]
 
     events_this_form = form_event_mapping[form_event_mapping['form_name'] == form ]['unique_event_name'].tolist()
-    subject_visit_dates = subject_visit_dates[ subject_visit_dates.index.map( lambda key: key[1] in events_this_form ) ] # Filter by events that have this form
+    # Filter by events that have this form
+    subject_visit_dates = subject_visit_dates[subject_visit_dates.index.map(lambda key: key[1] in events_this_form)]
 
-    later_visits_this_subject = sorted( [ date for date in subject_visit_dates.tolist() if date > after_visit_date ] )
-    if len( later_visits_this_subject ) > 0:
+    later_visits_this_subject = sorted([date for date in subject_visit_dates.tolist() if date > after_visit_date])
+    if len(later_visits_this_subject) > 0:
         return later_visits_this_subject[0]
     else:
         return None
 
-# Add one record to upload
-def add_to_upload( form_prefix, form_name, subject_id, event_name, data, subject_age ):
-    record = { 'study_id' : subject_id, 'redcap_event_name' : event_name, '%s_record_id' % form_prefix : data.name, '%s_missing' % form_prefix : '0', '%s_missing_why' % form_prefix : '' }
 
-    for key, value in dict( data ).iteritems():
+# Add one record to upload
+def add_to_upload(form_prefix, form_name, subject_id, event_name, data, subject_age):
+    record = {'study_id': subject_id, 'redcap_event_name': event_name, '%s_record_id' % form_prefix: data.name, '%s_missing' % form_prefix: '0', '%s_missing_why' % form_prefix: ''}
+
+    for key, value in dict(data).iteritems():
         if (key in summary_field_names) or (key == '%s_complete' % form_name):
-            strval = str( value )
+            strval = str(value)
             if strval == 'nan':
                 record[key] = ''
             else:
                 if key in summary_fields_yn:
-                    strval = map_yn_to_binary( strval )
-                record[key] = re.sub( '&quot;', '"', re.sub( '\.0$', '', strval ) )
+                    strval = map_yn_to_binary(strval)
+                record[key] = re.sub('&quot;', '"', re.sub('\.0$', '', strval))
 
     # Set actual age - do this after everything else, because some surveys have "age" fields; we want to overwrite those
-    record[ '%s_age' % form_prefix ] = subject_age
+    record['%s_age' % form_prefix] = subject_age
 
-    return to_redcap( [record] )
+    return to_redcap([record])
+
 
 # Add an empty record to upload - this is done to reset "disappeared" records
-def add_empty_to_upload( form_prefix, form_name, subject_id, event_name ):
-    return to_redcap( [{ 'study_id' : subject_id, 'redcap_event_name' : event_name, '%s_record_id' % form_prefix : '', '%s_complete' % form_name : '' }] )
-    
+def add_empty_to_upload(form_prefix, form_name, subject_id, event_name):
+    return to_redcap([{'study_id': subject_id, 'redcap_event_name': event_name, '%s_record_id' % form_prefix: '', '%s_complete' % form_name: ''}])
+
+
 # Add a record to upload that labels it "missing permanently" for parent surveys of an over-18 participant
 def add_over18_to_upload( form_prefix, form_name, subject_id, event_name ):
     return to_redcap( [{ 'study_id' : subject_id, 'redcap_event_name' : event_name, '%s_missing' % form_prefix : '1', '%s_missing_why' % form_prefix : 'OVER_18', '%s_complete' % form_name : '1' }] )
