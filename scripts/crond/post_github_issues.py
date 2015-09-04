@@ -85,17 +85,22 @@ def get_label(repo, title, verbose=None):
 
 def is_open_issue(repo, subject, verbose=None):
     """
-    Verify if issue already exists
+    Verify if issue already exists, if the issue is closed, reopen it.
     :param repo: github.Repository
     :param subject: str
     :return: bool
     """
     if verbose:
         print "Checking for open issue: {0}".format(subject)
-    for issue in repo.get_issues():
+    for issue in repo.get_issues(state='all'):
         if issue.title == subject and issue.state == 'open':
             if verbose:
-                print "Issue already exists... See: {0}".format(issue.url)
+                print "Open issue already exists... See: {0}".format(issue.url)
+            return True
+        if issue.title == subject and issue.state == 'closed':
+            if verbose:
+                print "Closed issue already exists, reopening... See: {0}".format(issue.url)
+            issue.edit(state='open')
             return True
     if verbose:
         print "Issue does not already exist... Creating.".format(subject)
