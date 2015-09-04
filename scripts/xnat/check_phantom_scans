@@ -17,11 +17,30 @@ import datetime
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("-m", "--send-mail", action="store_true", dest="sendmail", default=False, help="Send emails with problem reports to users and site admin.")
-parser.add_argument("-a", "--check-all", action="store_true", dest="check_all", default=False, help="Check all sessions, regardless of modification date.")
-parser.add_argument("-w", "--warn-same-day-phantom", action="store_true", dest="warn_same_day_phantom", default=False, help="Warn if no same-day ADNI phantom scan was found (default: warn only if no phantom scan within 24h).")
-parser.add_argument("-e", "--experiment-id", dest="eid", default=False, help="Check only session indicated, regardless of modification date.")
-parser.add_argument("-v", "--verbose", dest="verbose", action='store_true', help="Turn on verbose reporting.")
+parser.add_argument("-m", "--send-mail",
+                    action="store_true",
+                    dest="sendmail",
+                    default=False,
+                    help="Send emails with problem reports to users and site admin.")
+parser.add_argument("-a", "--check-all",
+                    action="store_true",
+                    dest="check_all",
+                    default=False,
+                    help="Check all sessions, regardless of modification date.")
+parser.add_argument("-w", "--warn-same-day-phantom",
+                    action="store_true",
+                    dest="warn_same_day_phantom",
+                    default=False,
+                    help="Warn if no same-day ADNI phantom scan was found "
+                         "(default: warn only if no phantom scan within 24h).")
+parser.add_argument("-e", "--experiment-id",
+                    dest="eid",
+                    default=False,
+                    help="Check only session indicated, regardless of modification date.")
+parser.add_argument("-v", "--verbose",
+                    dest="verbose",
+                    action='store_true',
+                    help="Turn on verbose reporting.")
 args = parser.parse_args()
 
 # RegExp pattern for subject IDs
