@@ -9,13 +9,15 @@
 ##  $LastChangedDate$
 ##
 
-import pyxnat
-import os.path
+import os
 import re
+import json
 import time
+import argparse
 import datetime
 
-import argparse
+import pyxnat
+
 parser = argparse.ArgumentParser()
 parser.add_argument("-m", "--send-mail",
                     action="store_true",
@@ -123,20 +125,13 @@ def check_experiment(experiment):
         # default to right now
         date_last_modified = time.localtime()
 
-    prj = ''
-    sid = ''
-    seid = '' # experiment id for subject
-    experiment_label = ''
     experiment_last_modified = ''
-    etime = ''
-    scanner = ''
-    edate = ''
-    if (date_last_modified > date_last_checked) or args.check_all:
-        try:
-            prj, sid, seid, experiment_label, edate, etime, scanner = experiment.attrs.mget(['project', 'subject_ID', 'ID', 'label', 'date', 'time', 'scanner'])
-        except:
-            print "ERROR: failed to get data for experiment", experiment
-            return
+
+    try:
+        prj, sid, seid, experiment_label, edate, etime, scanner = experiment.attrs.mget(['project', 'subject_ID', 'ID', 'label', 'date', 'time', 'scanner'])
+    except:
+        print "ERROR: failed to get data for experiment", experiment
+        return
 
     subject_label_match = re.match(subject_id_pattern_nophantom, ifc.select.project(prj).subject(sid).label())
     if subject_label_match:
@@ -149,7 +144,6 @@ def check_experiment(experiment):
                 # If the subject changed sites, then use the correct site phantom ID.
                 phantom_label = changed_sites_phantom
             phantom_id = ifc.select.project(prj).subject( phantom_label ).attrs.get('ID')
-            #phantom_scans = ifc.array.experiments(experiment_type='xnat:mrSessionData', constraints={ 'xnat:mrSessionData/subject_id':phantom_id, 'xnat:mrSessionData/SCANNER': scanner, 'date': edate})
             phantom_scans = ifc.array.experiments(experiment_type='xnat:mrSessionData', constraints={ 'xnat:mrSessionData/subject_id':phantom_id, 'date': edate})
             # handle check for phantoms on the same day but wrong scanner
             eids = phantom_scans.get('ID', always_list=True)
@@ -157,6 +151,7 @@ def check_experiment(experiment):
             if args.verbose:
                 print "Phantom scans: {0}".format(phantom_scans)
             if scanner not in phantom_scanners and len(phantom_scans) != 0:
+
                 err = "Error: {0} - scanner mismatch for session {1} and phantom {2};".format(prj, experiment_label, eids)
                 err += "Session scanner: {0};".format(scanner)
                 err += "Phantom scanner(s): {0}".format(phantom_scanners)
@@ -173,6 +168,7 @@ else:
     # Get a list of all MR imaging sessions
     experiment_ids = ifc.select.experiments().get()
 for eid in experiment_ids:
+    print eid
     # For each experiment, see if the override variable is set. Otherwise check it
     experiment = ifc.select.experiment(eid)
     if get_custom_variable( experiment, 'phantommissingoverride' ) != 'true':
