@@ -96,6 +96,12 @@ def main(args=None):
         followup_df = subject_df[(subject_df.experiment_date > followup_min[0]) &
                                  (subject_df.experiment_date < followup_max[0])]
 
+        # Included followup sessions slightly outside window
+        included = ['NCANDA_E02615', 'NCANDA_E02860']
+        included_df = subject_df[subject_df.experiment_id.isin(included)]
+        if included_df.shape[0]:
+            followup_df = included_df
+
         # Create report for baseline visit
         if args.baseline:
             followup_df = baseline_df
