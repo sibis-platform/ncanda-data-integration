@@ -18,6 +18,8 @@ import datetime
 
 import pyxnat
 
+from xnat_email import XnatEmail
+
 parser = argparse.ArgumentParser()
 parser.add_argument("-m", "--send-mail",
                     action="store_true",
@@ -51,26 +53,24 @@ subject_id_pattern_nophantom = '^([A-F])-[0-9]{5}-[MF]-[0-9]$'
 
 # Date format for XNAT dates
 xnat_date_format = '%Y-%m-%d %H:%M:%S'
-now_str = time.strftime( '%Y-%m-%d %H:%M:%S' )
+now_str = time.strftime('%Y-%m-%d %H:%M:%S')
 
 # Create interface using stored configuration
 if args.verbose:
     print "Connecting to XNAT..."
-ifc = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+ifc = pyxnat.Interface(config=os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg'))
 ifc._memtimeout = 0
 
 # Set up email object to contact users and admin
-from xnat_email import XnatEmail
-email = XnatEmail( ifc )
+email = XnatEmail(ifc)
 
 # Date (and time) when we last checked things
-import json
 date_last_checked = time.localtime(0)
 config_uri = '/data/config/pyxnat/check_phantom_scans'
 try:
-    content = ifc._exec( '%s?format=json' % config_uri )
-    creation_date = json.loads( content )['ResultSet']['Result'][0]['create_date']
-    date_last_checked = time.strptime( creation_date[0:19], xnat_date_format )
+    content = ifc._exec('%s?format=json' % config_uri)
+    creation_date = json.loads(content)['ResultSet']['Result'][0]['create_date']
+    date_last_checked = time.strptime(creation_date[0:19], xnat_date_format)
     if args.verbose:
         print "Last checked on: {0}".format(time.strftime("%Y-%m-%d %H:%M:%S",
                                                           date_last_checked))
@@ -124,9 +124,9 @@ def find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified,
 # Check one experiment for matching phantom scans
 def check_experiment(experiment):
     try:
-        experiment_last_modified = experiment.attrs.get( 'last_modified' )
+        experiment_last_modified = experiment.attrs.get('last_modified')
         if experiment_last_modified == '':
-            experiment_last_modified = experiment.attrs.get( 'insert_date' )
+            experiment_last_modified = experiment.attrs.get('insert_date')
         date_last_modified = time.strptime(experiment_last_modified[0:19], xnat_date_format ) # truncate ".###" fractional seconds by using only 0..19th characters
     except:
         # default to right now
@@ -177,10 +177,10 @@ else:
 for eid in experiment_ids:
     # For each experiment, see if the override variable is set. Otherwise check it
     experiment = ifc.select.experiment(eid)
-    if get_custom_variable( experiment, 'phantommissingoverride' ) != 'true':
-        check_experiment( experiment )
+    if get_custom_variable( experiment, 'phantommissingoverride') != 'true':
+        check_experiment(experiment)
 
 if args.sendmail:
-    email.send_all( ifc )
+    email.send_all(ifc)
 
-content = ifc._exec( uri='%s?inbody=true' % config_uri, method='PUT', body=now_str, headers={'content-type':'text/plain'} )
+content = ifc._exec(uri='%s?inbody=true' % config_uri, method='PUT', body=now_str, headers={'content-type': 'text/plain'})
