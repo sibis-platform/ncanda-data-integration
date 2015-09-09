@@ -87,8 +87,9 @@ def get_custom_variable( experiment, field_name ):
     else:
         return None
 
+
 # Find a phantom scan within 24h of the given experiment
-def find_phantom_scan_24h( prj, experiment_label, experiment_last_modified, phantom_id, edate, etime, scanner ):
+def find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified, phantom_id, edate, etime, scanner):
     # Compute the date before and after the experiment date
     this_date = datetime.datetime.strptime( edate, '%Y-%m-%d')
     edate_tomorrow = (this_date + datetime.timedelta(1)).strftime('%Y-%m-%d')
@@ -96,20 +97,26 @@ def find_phantom_scan_24h( prj, experiment_label, experiment_last_modified, phan
 
     # Search for all sessions on previous day after given time, or next day before given time (we already know there isn't a scan on the same date)
     constraints = [('xnat:mrSessionData/SUBJECT_ID','LIKE',phantom_id), 'AND',
-                   [ [ ('xnat:mrSessionData/DATE', '=', edate_yesterday), ('xnat:mrSessionData/TIME', '>=', etime), 'AND' ],
-                     [ ('xnat:mrSessionData/DATE', '=', edate_tomorrow),  ('xnat:mrSessionData/TIME', '<=', etime), 'AND' ], 'OR'] ]
-    phantom_scans = ifc.select( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/DATE','xnat:mrSessionData/TIME'] ).where( constraints ).items()
-
+                   [[('xnat:mrSessionData/DATE', '=', edate_yesterday), ('xnat:mrSessionData/TIME', '>=', etime), 'AND'],
+                    [('xnat:mrSessionData/DATE', '=', edate_tomorrow), ('xnat:mrSessionData/TIME', '<=', etime), 'AND'], 'OR']]
+    phantom_scans = ifc.select('xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID', 'xnat:mrSessionData/DATE', 'xnat:mrSessionData/TIME']).where(constraints).items()
     # Still haven't found anything - then there is no phantom scan
     if len(phantom_scans) == 0:
         if args.sendmail:
-            email.add_admin_message( "%s %s - no phantom scan for %s, last modified %s (scanner: %s)" % (prj, edate, experiment_label, experiment_last_modified, scanner) )
+            email.add_admin_message("%s %s - no phantom scan for %s, last modified %s (scanner: %s)" % (prj, edate, experiment_label, experiment_last_modified, scanner))
         else:
-            print "ERROR: %s - no phantom scan for session %s;acquired: %s, last modified %s;scanner: %s" % (prj, experiment_label, edate, experiment_last_modified, scanner)
+            error = dict(project_id=prj,
+                         experiment_id=seid,
+                         experiment_site_id=experiment_label,
+                         experiment_date=edate,
+                         error='No phantom scan.')
+            print json.dumps(error, sort_keys=True)
+            # Old error reporting being temporarily commented out before removal
+            #print "ERROR: %s - no phantom scan for session %s;acquired: %s, last modified %s;scanner: %s" % (prj, experiment_label, edate, experiment_last_modified, scanner)
     else:
         if args.warn_same_day_phantom:
             if args.sendmail:
-                email.add_admin_message( "%s %s - no same-day phantom scan for %s, last modified %s (scanner: %s), but found one within 24h" % (prj, edate, experiment_label, experiment_last_modified, scanner) )
+                email.add_admin_message("%s %s - no same-day phantom scan for %s, last modified %s (scanner: %s), but found one within 24h" % (prj, edate, experiment_label, experiment_last_modified, scanner))
             else:
                 print "ERROR: %s - no same-day phantom scan for session %s;acquired: %s, last modified %s;scanner: %s;But found one within 24h" % (prj, experiment_label, edate, experiment_last_modified, scanner)
 
@@ -157,7 +164,7 @@ def check_experiment(experiment):
                 err += "Phantom scanner(s): {0}".format(phantom_scanners)
                 print err
             elif len(phantom_scans) == 0:
-                find_phantom_scan_24h(prj, experiment_label, experiment_last_modified, phantom_id, edate, etime, scanner)
+                find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified, phantom_id, edate, etime, scanner)
         except IndexError, e:
             print "ERROR: Subject:{0} in Project:{1} with EID:{2} and Label:{3} likely switched sites: {4}".format(sid, prj, seid, experiment_label, e)
 
