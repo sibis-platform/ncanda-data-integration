@@ -25,6 +25,7 @@ __author__ = 'Nolan Nichols <https://orcid.org/0000-0003-1099-3328>'
 
 import os
 import sys
+import json
 import hashlib
 import ConfigParser
 
@@ -123,7 +124,6 @@ def create_issues(repo, title, body, verbose=None):
                                   "{0}".format(title))
     # get stdout written to file
     with open(body) as fi:
-        subject_base = title[0:title.index(' (')]
         issues = fi.readlines()
         fi.close()
     # Handle empty body
@@ -136,9 +136,20 @@ def create_issues(repo, title, body, verbose=None):
             print "Issue is a Traceback..."
         issues = [''.join(issues)]
     for issue in issues:
-        # Create a unique title.
+        # Create a unique id.
         sha1 = hashlib.sha1(issue).hexdigest()[0:6]
+        # Old error handling approach.
+        subject_base = title[0:title.index(' (')]
         subject = subject_base + ": {0}".format(sha1)
+        # Check for new format
+        try:
+            issue_dict = json.loads(issue)
+            error_msg = issue_dict.get('error')
+            experiment_site_id = issue_dict.get('experiment_site_id')
+            subject = "{}, See: {}, ID: {}".format(error_msg, experiment_site_id, sha1)
+            print issue_dict
+        except:
+            print "didn't work..."
         if is_open_issue(repo, subject, verbose=verbose):
             continue
         else:
