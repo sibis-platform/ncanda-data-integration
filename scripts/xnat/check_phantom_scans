@@ -175,7 +175,6 @@ else:
     # Get a list of all MR imaging sessions
     experiment_ids = ifc.select.experiments().get()
 for eid in experiment_ids:
-    print eid
     # For each experiment, see if the override variable is set. Otherwise check it
     experiment = ifc.select.experiment(eid)
     if get_custom_variable( experiment, 'phantommissingoverride' ) != 'true':
