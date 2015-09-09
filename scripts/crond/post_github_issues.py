@@ -147,9 +147,10 @@ def create_issues(repo, title, body, verbose=None):
             error_msg = issue_dict.get('error')
             experiment_site_id = issue_dict.get('experiment_site_id')
             subject = "{}, See: {}, ID: {}".format(error_msg, experiment_site_id, sha1)
-            print issue_dict
         except:
-            print "didn't work..."
+            if verbose:
+                print("Falling back to old issue formatting.")
+            continue
         if is_open_issue(repo, subject, verbose=verbose):
             continue
         else:
