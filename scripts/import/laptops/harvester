@@ -8,28 +8,48 @@
 ##  $LastChangedBy$
 ##  $LastChangedDate$
 ##
+import re
+import os
+import argparse
+import subprocess
 
 # Setup command line parser
-import argparse
-parser = argparse.ArgumentParser( description="Harvest incoming data files from SVN repository, call correct converter programs, and upload generated CSV files to REDCap" )
-parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
-parser.add_argument( "--include-testing", help="Include 'testing' data (as marked by a 'T' instead of a gender code in the subject ID). Currently for single-session files only.", action="store_true")
-parser.add_argument( "--overwrite", help="Overwrite existing CSV files.", action="store_true")
-parser.add_argument( "--force-upload", help="Force upload of records to REDCap even if a record of the same name already exists.", action="store_true")
-parser.add_argument( "--file-to-upload", help="Absolute file path for path to CSV file.")
-parser.add_argument( "svndir", help="Input directory. This is the Subversion-controlled working directory checked out from the laptop data submission repository.")
-parser.add_argument( "outdir", help="Output directory. All CSV files are created in subdirectories of this directory.")
+parser = argparse.ArgumentParser(description="Harvest incoming data files from "
+                                             "SVN repository, call correct converter "
+                                             "programs, and upload generated CSV files "
+                                             "to REDCap")
+parser.add_argument("-v", "--verbose",
+                    help="Verbose operation",
+                    action="store_true")
+parser.add_argument("--include-testing",
+                    help="Include 'testing' data (as marked by a 'T' instead of a gender"
+                         " code in the subject ID). Currently for single-session files "
+                         "only.",
+                    action="store_true")
+parser.add_argument("--overwrite",
+                    help="Overwrite existing CSV files.",
+                    action="store_true")
+parser.add_argument("--force-upload",
+                    help="Force upload of records to REDCap even if a record of the "
+                         "same name already exists.",
+                    action="store_true")
+parser.add_argument("--file-to-upload",
+                    help="Absolute file path for path to CSV file.")
+parser.add_argument("svndir",
+                    help="Input directory. This is the Subversion-controlled working"
+                         " directory checked out from the laptop data submission repository.")
+parser.add_argument("outdir",
+                    help="Output directory. All CSV files are created in subdirectories"
+                         " of this directory.")
 args = parser.parse_args()
 
 # Figure out where this script is, so we can get path to other scripts.
-import re
-import os.path
+
 bindir = os.path.dirname( os.path.realpath(__file__) )
 
 #
 # Function: run a converter tool.
 #
-import subprocess
 def run_converter( site, command ):
     if args.verbose:
         print "Running",' '.join( command )
