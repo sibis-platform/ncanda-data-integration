@@ -8,9 +8,16 @@
 ##  $LastChangedBy$
 ##  $LastChangedDate$
 ##
+import os
+import re
+import csv
+import sys
+import math
+import argparse
+
+import numpy as np
 
 # Setup command line parser
-import argparse
 parser = argparse.ArgumentParser( description="Convert e-Prime Stroop log file to CSV score file" )
 parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
 parser.add_argument( "--mr-session", help="The input file is from an fMRI Stroop session, which uses numerical rather than letter key responses.", action="store_true")
@@ -28,8 +35,6 @@ response=[]
 procedure=[]
 running=[]
 
-import re
-import math
 subject = None
 session = None
 
@@ -59,7 +64,6 @@ for s in file:
     if "Running:" in s and "ListRun" not in s:
         running.append(s[s.find(":")+2:])
 
-import sys
 if not subject or not session:
     sys.exit( "ERROR: no subject or session ID in Stroop file %s" % args.infile )
 
@@ -73,7 +77,6 @@ if args.record:
 else:
     record_id = '%s-%s' % ( subject_id, date_of_test )
 
-import os
 output_filename = os.path.join(args.outdir, '%s.csv' % record_id)
 if os.path.exists(output_filename):
     if args.overwrite:
@@ -120,7 +123,6 @@ def samplestd (data):
 
 
         
-import numpy
 for j in range(1,9):
     index1 = get_item(test_ref[2*j-2],running)
     index2 = get_item(test_ref[2*j-1],procedure)
@@ -147,7 +149,7 @@ for j in range(1,9):
     error[j-1]=len(response_subset)-len(index_correct)
     # get all the correct response time and change them to array          
     time_correct=[RT_subset[i] for i in index_correct]
-    time_correct=numpy.asarray(time_correct)
+    time_correct=np.asarray(time_correct)
     for i in index_correct:
         response_error_subset[i]=u''
 
@@ -159,39 +161,39 @@ for j in range(1,9):
         else:
             std1 = 0
     else:
-        mean1 = numpy.nan
-        std1 = numpy.nan
+        mean1 = np.nan
+        std1 = np.nan
 
     # get rid of prolonged response, that is 3*std above the mean
     #noprolong_index=[i for i in range(len(time_correct)) if time_correct[i]<= (mean1+3*std1)]
     # final correct/no_prolonged response time
     #final_time_list=[time_correct[i] for i in noprolong_index]
-    #final_time=numpy.asarray(final_time_list)
+    #final_time=np.asarray(final_time_list)
     #prolong[j-1]=len(time_correct)-len(noprolong_index)
 
     # calculate mean, std, z scores
     if len( time_correct ):
         mean[j-1]=time_correct.mean()
         std[j-1]= samplestd(time_correct)
-        median[j-1]= numpy.median(time_correct)
+        median[j-1]= np.median(time_correct)
     else:
-        mean[j-1] = numpy.nan
-        std[j-1] = numpy.nan
-        median[j-1] = numpy.nan
+        mean[j-1] = np.nan
+        std[j-1] = np.nan
+        median[j-1] = np.nan
 
     # collect all the correct response time
     total_correct_time.extend(time_correct)
     response_error.extend(response_error_subset)
         
-total_correct_time=numpy.asarray(total_correct_time)
+total_correct_time=np.asarray(total_correct_time)
 if len( total_correct_time ):
     mean[8]=total_correct_time.mean()
     std[8]=samplestd(total_correct_time)
-    median[8]=numpy.median(total_correct_time)
+    median[8]=np.median(total_correct_time)
 else:
-    mean[8] = numpy.nan
-    std[8] = numpy.nan
-    median[8] = numpy.nan
+    mean[8] = np.nan
+    std[8] = np.nan
+    median[8] = np.nan
 # mean-3*std
 z[8]=mean[8]-3*std[8]
 # mean+3*std
@@ -202,7 +204,7 @@ for j in range(1,9):
     if std[j-1] > 0:
         z[j-1]=(mean[j-1]-mean[8])/std[j-1]
     else:
-        z[j-1] = numpy.nan
+        z[j-1] = np.nan
 
 Diff[0]=mean[4]-mean[0]
 Diff[1]=mean[6]-mean[2]
@@ -225,7 +227,6 @@ if not os.path.exists(args.outdir):
     os.makedirs(args.outdir)
 output_file = open( output_filename, 'wb' )
 
-import csv
 wr = csv.writer( output_file, quoting=csv.QUOTE_ALL)
 
 if args.mr_session:
