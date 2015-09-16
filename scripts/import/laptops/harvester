@@ -45,36 +45,41 @@ args = parser.parse_args()
 
 # Figure out where this script is, so we can get path to other scripts.
 
-bindir = os.path.dirname( os.path.realpath(__file__) )
+bindir = os.path.dirname(os.path.realpath(__file__))
 
-#
-# Function: run a converter tool.
-#
-def run_converter( site, command ):
+
+def run_converter(site, command):
+    """
+    Conversion tool.
+
+    :param site: str
+    :param command: str
+    :return:
+    """
     if args.verbose:
-        print "Running",' '.join( command )
+        print "Running", ' '.join(command)
     try:
-        added_files = subprocess.check_output( command )
-        if len( added_files ):
-            for file in added_files.strip().split( '\n' ):
-                if re.match( '.*\.csv$', file ):
+        added_files = subprocess.check_output(command)
+        if len(added_files):
+            for fi in added_files.strip().split('\n'):
+                if re.match('.*\.csv$', fi):
                     try:
                         if args.verbose:
-                            print "Importing",file,"into REDCap"
+                            print "Importing", fi, "into REDCap"
                         if args.force_upload:
-                            subprocess.call( [ os.path.join( bindir, 'csv2redcap' ), '--force-update', '--data-access-group', site, file ] )
+                            subprocess.call([os.path.join(bindir, 'csv2redcap'), '--force-update', '--data-access-group', site, fi])
                         else:
-                            subprocess.call( [ os.path.join( bindir, 'csv2redcap' ), '--data-access-group', site, file ] )
+                            subprocess.call([os.path.join(bindir, 'csv2redcap'), '--data-access-group', site, fi])
                     except:
-                        print "FAILED: importing",file,"into REDCap"
+                        print "FAILED: importing", fi, "into REDCap"
                 else:
-                    print 'NOT A CSV FILE:',file
+                    print 'NOT A CSV FILE:', fi
     except:
         pass
 #
 # Function: hand file to correct converter
 #
-def handle_file( path, site, filename ):
+def handle_file( path, site, filename):
     # Prepare option for overwriting
     if args.overwrite:
         overwrite=["--overwrite"]
