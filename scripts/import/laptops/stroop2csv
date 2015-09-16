@@ -76,7 +76,10 @@ else:
 import os
 output_filename = os.path.join(args.outdir, '%s.csv' % record_id)
 if os.path.exists(output_filename):
-    sys.exit( "ERROR: output file %s already exists." % output_filename )
+    if args.overwrite:
+        pass
+    else:
+        sys.exit("ERROR: output file {} already exists.".format(output_filename))
 
 # convert response time to integer        
 RT=[float(x) for x in RT]
