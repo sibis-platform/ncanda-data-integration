@@ -108,6 +108,19 @@ def is_open_issue(repo, subject, verbose=None):
     return False
 
 
+def generate_body(issue):
+    """
+    Generate Markdown for body of issue.
+
+    :param issue:
+    :return: str
+    """
+    markdown = "### {}\n".format(issue.pop('title'))
+    for k, v in issue.iteritems():
+        markdown += "- {}: {}\n".format(k, v)
+    return markdown
+
+
 def create_issues(repo, title, body, verbose=None):
     """
     Create a GitHub issue for the provided repository with a label
@@ -136,25 +149,27 @@ def create_issues(repo, title, body, verbose=None):
             print "Issue is a Traceback..."
         issues = [''.join(issues)]
     for issue in issues:
-        # Create a unique id.
-        sha1 = hashlib.sha1(issue).hexdigest()[0:6]
-        # Old error handling approach.
-        subject_base = title[0:title.index(' (')]
-        subject = subject_base + ": {0}".format(sha1)
         # Check for new format
         try:
             issue_dict = json.loads(issue)
+            issue_dict.update({'title': title})
             error_msg = issue_dict.get('error')
             experiment_site_id = issue_dict.get('experiment_site_id')
-            subject = "{}, See: {}, ID: {}".format(error_msg, experiment_site_id, sha1)
+            subject = "{}, {}".format(experiment_site_id, error_msg)
+            body = generate_body(issue_dict)
         except:
             if verbose:
                 print("Falling back to old issue formatting.")
-            continue
+            # Old error handling approach.
+            # Create a unique id.
+            sha1 = hashlib.sha1(issue).hexdigest()[0:6]
+            subject_base = title[0:title.index(' (')]
+            subject = subject_base + ": {0}".format(sha1)
+            body = issue
         if is_open_issue(repo, subject, verbose=verbose):
-            continue
+            pass
         else:
-            github_issue = repo.create_issue(subject, body=issue, labels=label)
+            github_issue = repo.create_issue(subject, body=body, labels=label)
             if verbose:
                 print "Created issue... See: {0}".format(github_issue.url)
     return None
