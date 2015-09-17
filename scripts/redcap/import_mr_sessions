@@ -9,24 +9,23 @@
 ##  $LastChangedDate$
 ##
 
-import argparse
-import sys
 import os
 import re
-import subprocess
-
+import sys
 import time
 import datetime
-date_format_ymd = '%Y-%m-%d'
+import argparse
 
 import pandas
-
-import redcap
 import pyxnat
+import redcap
 
 import import_mr_sessions_stroop as stroop
 import export_mr_sessions_pipeline as mrpipeline
 import export_redcap_to_pipeline as rcpipeline
+
+# Set global date format
+date_format_ymd = '%Y-%m-%d'
 
 # Setup command line parser
 parser = argparse.ArgumentParser( description="For all subjects and visits in the REDCap database, find MR sessions in XNAT", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
@@ -97,21 +96,19 @@ def get_sessions_in_range( xnat, subject_label, project_id, subject_id, date_ran
 def get_spiral_uris( xnat_eid_list ):
     for xnat_eid in xnat_eid_list:
         resource_dict_list = xnat._get_json( '/data/experiments/%s/resources/?format=json' %xnat_eid )
- 	  
         spiral_uri = ''
-	spiralrest_uri = ''	         
+        spiralrest_uri = ''
         for res in resource_dict_list:
             if 'spiral' in res['label'].lower():
                 resource_id = res['xnat_abstractresource_id']
                 eid = res['cat_id']
                 obj = xnat._get_json('/data/experiments/%s/resources/%s/files?format=json' %(eid, resource_id))
-		if len( obj ) > 0:    
+                if len( obj ) > 0:
                     file_path = obj[0]['Name']
                     if 'rest' in res['label'].lower():
                         spiralrest_uri = "/".join([eid, resource_id, file_path])
                     else:
                         spiral_uri = "/".join([eid, resource_id, file_path])
- 	  	                     
     return (spiral_uri, spiralrest_uri)
 
 #
@@ -250,7 +247,7 @@ def get_xnat_data( redcap_key, xnat, visit_date, date_of_birth, next_visit_date,
     # Get all experiments for this subject within the given range of the visit date
     xnat_session_data = get_sessions_in_range( xnat, subject, xnat_pid, xnat_sid, visit_date, visit_date_plusNd )
     if not len( xnat_session_data ):
-	if today > visit_date_plusNd:
+        if today > visit_date_plusNd:
             print "Missing MRI for subject",subject,"/",event,"- visit date",visit_date
         return result    
 
