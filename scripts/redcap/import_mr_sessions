@@ -438,11 +438,18 @@ if args.verbose:
 
 # Iterate over all remaining rows
 records_uploaded = 0
-for [key,row] in mr_sessions_redcap.iterrows():
+for [key, row] in mr_sessions_redcap.iterrows():
     visit_date = str(visit_log_redcap['visit_date'][key])
     if visit_date == 'nan': 
         if float(row['visit_ignore___yes']) != 1:
-            print "Missing '%s' visit date for subject %s" % ( key[1], key[0] )
+            error = dict(experiment_site_id=key[0],
+                         visit_id=key[1],
+                         visit_date=visit_date,
+                         error='Missing visit date for subject with visit data.')
+            print json.dumps(error, sort_keys=True)
+
+            # Old error reporting can be removed once it works
+            # print "Missing '%s' visit date for subject %s" % ( key[1], key[0] )
     else:
         this_subject_data = subject_data.ix[key[0]]
         if str( this_subject_data['dob'] ) == 'nan':
