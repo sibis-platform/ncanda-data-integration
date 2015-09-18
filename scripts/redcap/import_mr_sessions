@@ -12,6 +12,7 @@
 import os
 import re
 import sys
+import json
 import time
 import datetime
 import argparse
@@ -82,15 +83,27 @@ xnat_sessions_dict = dict()
 for ( session_id, session_subject_id, projects, date, scanner ) in xnat_sessions_list:
     xnat_sessions_dict[session_id] = ( date, scanner, projects )
 
-def get_sessions_in_range( xnat, subject_label, project_id, subject_id, date_range_from, date_range_to ):
-    sessions_in_range = [ ( session_id, projects, date ) 
-                          for ( session_id, session_subject_id, projects, date, scanner ) in xnat_sessions_list 
-                          if (subject_id == session_subject_id) and (date >= date_range_from) and (date <= date_range_to)]
-    if not len( sessions_in_range ):
-        if today >= date_range_to:
-            print 'No MR session for Subject %s between %s and %s' % (subject_label, date_range_from, date_range_to)
 
+def get_sessions_in_range(xnat, subject_label, project_id, subject_id, date_range_from, date_range_to):
+    sessions_in_range = [( session_id, projects, date )
+                         for (session_id, session_subject_id, projects, date, scanner) in xnat_sessions_list
+                         if (subject_id == session_subject_id) and (date >= date_range_from) and (date <= date_range_to)]
+    if not len(sessions_in_range):
+        if today >= date_range_to:
+            error = dict(project_id=project_id,
+                         subject_id=subject_id,
+                         experiment_site_id=subject_label,
+                         date_range_from=date_range_from,
+                         date_range_to=date_range_to,
+                         error='No MR session for Subject {} between {} and {}'.format(subject_label,
+                                                                                       date_range_from,
+                                                                                       date_range_to))
+            print json.dumps(error, sort_keys=True)
+
+            # Old error reporting, remove when new approach works
+            # print 'No MR session for Subject %s between %s and %s' % (subject_label, date_range_from, date_range_to)
     return sessions_in_range
+
 
 # Get URIs for spiral data (Stroop and resting state, where they exist)
 def get_spiral_uris( xnat_eid_list ):
