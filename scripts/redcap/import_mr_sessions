@@ -210,24 +210,25 @@ def encode_session_and_scan( session_and_scan, type_list ):
 #
 today = time.strftime(date_format_ymd)
 
-def get_xnat_data( redcap_key, xnat, visit_date, date_of_birth, next_visit_date, mri_inspection_completed ):
+
+def get_xnat_data(redcap_key, xnat, visit_date, date_of_birth, next_visit_date, mri_inspection_completed):
     subject = redcap_key[0]
     event = redcap_key[1]
 
     result = dict()
 
     # Initialize result as "nothing there"
-    result['mr_session_report_complete'] = '';
+    result['mr_session_report_complete'] = ''
     result['mri_xnat_sid'] = ''
     result['mri_xnat_eids'] = ''
-    result['mri_qa_completed'] = '';
+    result['mri_qa_completed'] = ''
     result['mri_t1_date'] = ''
     result['mri_t1_age'] = ''
     result['mri_dti_date'] = ''
     result['mri_dti_age'] = ''
     result['mri_rsfmri_date'] = ''
     result['mri_rsfmri_age'] = ''
-    result['mri_notes'] = '';
+    result['mri_notes'] = ''
     result['mri_adni_phantom'] = ''
     result['mri_adni_phantom_eid'] = ''
 
@@ -246,55 +247,65 @@ def get_xnat_data( redcap_key, xnat, visit_date, date_of_birth, next_visit_date,
         visit_date_plusNd = next_visit_date
 
     if args.verbose:
-        print "Checking",subject,'/',event,"- visit date",visit_date,"to",visit_date_plusNd
+        print("Checking {} for {} with visit date {} to {}".format(subject, event, visit_date, visit_date_plusNd))
 
     # Get project and subject IDs for this subject by name
-    if not subject in subject_project_dict.keys():
+    if subject not in subject_project_dict.keys():
         if args.verbose:
-            print "Subject",subject,"cannot be found in XNAT."
+            print("Subject {} cannot be found in XNAT.".format(subject))
         return result
 
-    (xnat_sid, xnat_pid) = subject_project_dict[subject]
+    xnat_sid, xnat_pid = subject_project_dict[subject]
     result['mri_xnat_sid'] = xnat_sid
 
     # Get all experiments for this subject within the given range of the visit date
-    xnat_session_data = get_sessions_in_range( xnat, subject, xnat_pid, xnat_sid, visit_date, visit_date_plusNd )
-    if not len( xnat_session_data ):
+    xnat_session_data = get_sessions_in_range(xnat, subject, xnat_pid, xnat_sid, visit_date, visit_date_plusNd)
+    if not len(xnat_session_data):
         if today > visit_date_plusNd:
-            print "Missing MRI for subject",subject,"/",event,"- visit date",visit_date
+            error = dict(project_id=xnat_pid,
+                         subject_id=xnat_sid,
+                         experiment_site_id=subject_label,
+                         visit_id=event,
+                         visit_date=visit_date,
+                         error='Missing MRI for Subject with visit date.')
+            print json.dumps(error, sort_keys=True)
+
+            # Old error reporting, can be removed once new format works
+            # print "Missing MRI for subject",subject,"/",event,"- visit date",visit_date
         return result    
 
     # Get the experiment IDs for all sessions in the given range
-    xnat_eid_list = [ session for (session,project,date) in xnat_session_data ]
-    if not len( xnat_eid_list ):
+    xnat_eid_list = [session for (session, project, date) in xnat_session_data]
+    if not len(xnat_eid_list):
         return result
 
     # For all experiments we have found, get list of all "usable" scans
-    usable_scans_list = get_usable_scans_list( xnat, xnat_eid_list )
+    usable_scans_list = get_usable_scans_list(xnat, xnat_eid_list)
 
-    # Now each of the standard NCANDA scans from the usable list - select closes to "visit_date" if there is more than one for a given type
-    scans_by_type = get_scans_by_type( usable_scans_list, visit_date )
+    # Now each of the standard NCANDA scans from the usable list - select
+    # closes to "visit_date" if there is more than one for a given type
+    scans_by_type = get_scans_by_type(usable_scans_list, visit_date)
 
-    result['mri_series_t1'] = encode_session_and_scan( scans_by_type, ['t1spgr','mprage'] )
-    result['mri_series_t2'] = encode_session_and_scan( scans_by_type, ['t2fse'] )
-    result['mri_series_dti6b500pepolar'] = encode_session_and_scan( scans_by_type, ['dti6b500pepolar'] )
+    result['mri_series_t1'] = encode_session_and_scan(scans_by_type, ['t1spgr', 'mprage'])
+    result['mri_series_t2'] = encode_session_and_scan(scans_by_type, ['t2fse'])
+    result['mri_series_dti6b500pepolar'] = encode_session_and_scan(scans_by_type, ['dti6b500pepolar'])
 
     # Get fieldmap series for the DTI and the rs-fMRI scans
     if 'dti60b1000' in scans_by_type.keys():
-        result['mri_series_dti60b1000'] = encode_session_and_scan( scans_by_type, ['dti60b1000'] )
-        fieldmaps_dti60 = get_fieldmap_scans( usable_scans_list, scans_by_type['dti60b1000'] )
-        result['mri_series_dti_fieldmap'] = ' '.join( [ '%s/%s' % (eid,scan) for (eid,scan) in fieldmaps_dti60 ] )
+        result['mri_series_dti60b1000'] = encode_session_and_scan( scans_by_type, ['dti60b1000'])
+        fieldmaps_dti60 = get_fieldmap_scans(usable_scans_list, scans_by_type['dti60b1000'])
+        result['mri_series_dti_fieldmap'] = ' '.join(['%s/%s' % (eid,scan) for (eid, scan) in fieldmaps_dti60])
 
     if 'rsfmri' in scans_by_type.keys():
-        result['mri_series_rsfmri'] = encode_session_and_scan( scans_by_type, ['rsfmri'] )
-        fieldmaps_rsfmri = get_fieldmap_scans( usable_scans_list, scans_by_type['rsfmri'] )
-        result['mri_series_rsfmri_fieldmap'] = ' '.join( [ '%s/%s' % (eid,scan) for (eid,scan) in fieldmaps_rsfmri ] )
+        result['mri_series_rsfmri'] = encode_session_and_scan( scans_by_type, ['rsfmri'])
+        fieldmaps_rsfmri = get_fieldmap_scans( usable_scans_list, scans_by_type['rsfmri'])
+        result['mri_series_rsfmri_fieldmap'] = ' '.join(['%s/%s' % (eid,scan) for (eid, scan) in fieldmaps_rsfmri])
 
     for xnat_eid in xnat_eid_list:
         result['mri_xnat_eids'] += xnat_eid + ' '
-        experiment_note = xnat.select.project( xnat_pid ).subject( xnat_sid ).experiment( xnat_eid ).attrs.get( 'note' ).strip()
-        if len( experiment_note ) > 0:
-            result['mri_notes'] += '[%s] %s ' % (xnat_eid,re.sub( '&quot;', '"', experiment_note ) )
+        experiment_note = xnat.select.project(xnat_pid).subject(xnat_sid).experiment(xnat_eid).attrs.get('note').strip()
+        if len(experiment_note) > 0:
+            result['mri_notes'] += '[%s] %s ' % (xnat_eid, re.sub('&quot;', '"', experiment_note))
 
     # Take off extra spaces
     result['mri_xnat_eids'] = result['mri_xnat_eids'].strip()
@@ -303,12 +314,12 @@ def get_xnat_data( redcap_key, xnat, visit_date, date_of_birth, next_visit_date,
     # Get date and age for DTI scan (use DTI60 because DTI6 may be bad or missing, and fieldmap used instead)
     if 'dti60b1000' in scans_by_type.keys():
         result['mri_dti_date'] = xnat_sessions_dict[scans_by_type['dti60b1000'][0]][0]
-        result['mri_dti_age'] = str( days_between_dates( date_of_birth, result['mri_dti_date'] ) / 365.242 )
+        result['mri_dti_age'] = str(days_between_dates( date_of_birth, result['mri_dti_date']) / 365.242)
 
     # Get date and age for resting-state fMRI scan
     if 'rsfmri' in scans_by_type.keys():
         result['mri_rsfmri_date'] = xnat_sessions_dict[scans_by_type['rsfmri'][0]][0]
-        result['mri_rsfmri_age'] = str( days_between_dates( date_of_birth, result['mri_rsfmri_date'] ) / 365.242 )
+        result['mri_rsfmri_age'] = str(days_between_dates(date_of_birth, result['mri_rsfmri_date']) / 365.242)
 
     # Get the uri's for the spiral task and spiral resting state
     (result['mri_eid_spiral_stroop'], result['mri_eid_spiral_rest']) = get_spiral_uris(xnat_eid_list)
@@ -324,34 +335,34 @@ def get_xnat_data( redcap_key, xnat, visit_date, date_of_birth, next_visit_date,
     if t1w_experiment_data:
         # Compute age at T1w scan
         result['mri_t1_date'] = t1w_experiment_data[0]
-        result['mri_t1_age'] = str( days_between_dates( date_of_birth, t1w_experiment_data[0] ) / 365.242 )
+        result['mri_t1_age'] = str(days_between_dates( date_of_birth, t1w_experiment_data[0]) / 365.242)
 
         # Find ADNI phantom scan in appropriate date range (either same day or within 24h)
         # Found same-day phantom scan?
-        phantom_scans = get_phantom_scans_for_date( t1w_experiment_data[0], t1w_experiment_data[1] )
+        phantom_scans = get_phantom_scans_for_date(t1w_experiment_data[0], t1w_experiment_data[1])
         if len(phantom_scans):
             result['mri_adni_phantom'] = '1' # Found same day
             result['mri_adni_phantom_eid'] = phantom_scans[0]
         else:
             # No - look one day before and after
-            this_date = datetime.datetime.strptime( t1w_experiment_data[0], date_format_ymd )
+            this_date = datetime.datetime.strptime( t1w_experiment_data[0], date_format_ymd)
             tomorrow = (this_date + datetime.timedelta(1)).strftime(date_format_ymd)
             yesterday = (this_date - datetime.timedelta(1)).strftime(date_format_ymd)
                         
             # Search for all sessions on previous day after given time, or next day before given time (we already know there isn't a scan on the same date)
-            phantom_scans = get_phantom_scans_for_date_24h( yesterday, tomorrow, t1w_experiment_data[1] )
+            phantom_scans = get_phantom_scans_for_date_24h(yesterday, tomorrow, t1w_experiment_data[1])
             
             # Found it now or not?
             if len(phantom_scans):
-                result['mri_adni_phantom'] = '2' # Found 24h
+                result['mri_adni_phantom'] = '2'  # Found 24h
                 result['mri_adni_phantom_eid'] = phantom_scans[0]
             else:
-                result['mri_adni_phantom'] = '3' # Missing
+                result['mri_adni_phantom'] = '3'  # Missing
    
     # Get custom variables of the "Reading" group
-    t1w_experiment = xnat.select.project( xnat_pid ).subject( xnat_sid ).experiment( re.sub( '/.*', '', result['mri_series_t1'] ) )    
+    t1w_experiment = xnat.select.project( xnat_pid ).subject( xnat_sid ).experiment( re.sub('/.*', '', result['mri_series_t1']))
     [ result['mri_datetodvd'], result['mri_findingsdate'], result['mri_findings'], 
-      result['mri_excludefromanalysis'], result['mri_referredtopi'] ] = get_custom_variables( t1w_experiment, [ 'DateToDVD', 'FindingsDate', 'Findings', 'ExcludeFromAnalysis', 'ReferredToPI' ], '' )
+      result['mri_excludefromanalysis'], result['mri_referredtopi']] = get_custom_variables( t1w_experiment, [ 'DateToDVD', 'FindingsDate', 'Findings', 'ExcludeFromAnalysis', 'ReferredToPI'], '')
     
     # Check if images have received reading and have either been labeled 'normal' or marked as checked
     if (result['mri_findings'].lower() == 'normal') or mri_inspection_completed:
