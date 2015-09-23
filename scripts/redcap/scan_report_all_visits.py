@@ -1,4 +1,9 @@
 #!/usr/bin/env python
+"""
+Scan Report All Visits
+======================
+Generate a report where each line summarizes all the scans for a given subject across visits
+"""
 
 import os
 import datetime
