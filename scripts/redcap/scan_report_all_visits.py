@@ -67,7 +67,7 @@ all_visit = pandas.merge(baseline, year1, how='left', on=['study_id'])
 all_visit = pandas.merge(all_visit, year2, how='left', on=['study_id'])
 
 today = datetime.date.today()
-myfile_name = 'visit_date_{}.csv'.format(today)
+myfile_name = 'scan_report_all_visits_{}.csv'.format(today)
 
 all_visit.to_csv(myfile_name, index=False)
 
