@@ -31,8 +31,14 @@ fields_to_copy = [ "AL1AgeOns", "AL1a",
                    'MH8a8','MH9','MH9a','MH9b','MH10','MH10a','AL5','AL5a','AL5b','AL6','AL6a','AL8','AL8a','AL8AgeOns',
                    'AL8d','AL10','AL11','AL12','AL12a','AL12c','AL13','AL13b','AL14','AL14b','AL15','AL15a','AL17',
                    'AL17b','AL19','AL21','AL21d','AL22','AL22b','AL23','AL23b','AL24','AL24b','AL25','AL25b','AL28',
-                   'AL28b','MJ1a','MJ2AgeOns','MJ2C','MJ4','MJ5','MJ7','MJ7A','MJ7B','MJ8','MJ9','MJ12','MJ13',
-                   'MJ14','MJ16','MJ17']
+                   'AL28b','MJ1a','MJ2AgeOns','MJ2C','MJ4','MJ5','MJ7','MJ7A','MJ7B','MJ8','MJ9','MJ12','MJ13','MJ14','MJ16','MJ17',
+                   'PT1','PT1a1','PT1a1Age','PT1a2','PT1a2Age','PT1a3','PT1a3Age','PT1a4','PT1a4Age','PT1a5','PT1a5Age','PT1a6','PT1a6Age','PT1a7','PT1a7Age',
+                   'PT1a8','PT1a8Age','PT1a9','PT1a9Age','PT1a10','PT1a10Age','PT1a11','PT1a11Age','PT1a12','PT1a12Age','PT1a13','PT1a13Age','PT1a14','PT1a14Age',
+                   'PT1a15','PT1a15Age','PT1a16','PT1a16Age','PT1a17','PT1a17Age','PT1a18','PT1a18Age','PT1a19','PT1a19Age','PT1a19_Specify','PT1a20','PT1a20Age',
+                   'PT1a20_Specify','PT1b','PT1bEVENT','PT3','PT4','PT5','PT6','PT7','PT8a','PT8b','PT9','PT10','PT11','PT11a','PT12','PT13','PT14','PT15',
+                   'PT16a','PT16b','PT17','PT18','PT19','PT20','PT21','PT22a','PT22b','PT23','PT23a1','PT23a3','PT23b','PT23c','PT23d','PT23f','PT23g','PT23h',
+                   'PT23i','PT23j','PT23Probe','PT24','PT24a','PT24b','PT25_NUM','PT25_UNIT','PT26_NUM','PT26_UNIT','PT27AgeRec','PT27Rec','PT27a','PT27FromAge1',
+                   'PT27ToAge1','PT27FromAge2','PT27ToAge2','PT27b','PT28','PT28a']
 
 #
 # Table of field offsets as (fromIndex,toIndex) for ASC SSAGA data (Manipula's output)
