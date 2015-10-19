@@ -16,6 +16,10 @@ import re
 import subprocess
 import tempfile
 import shutil
+import zipfile
+import glob
+
+
 
 import pandas
 
@@ -42,13 +46,21 @@ def check_for_stroop( xnat, xnat_eid, redcap_token, redcap_key, verbose=False, n
 
     # Get list of resource files that match the Stroop file name pattern
     experiment_files = []
+
+
     for resource in  experiment.resources().get():
         resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files?format=json' % ( xnat_eid, resource ) );
+
+        experiment_files += [ (resource, re.sub( '.*\/files\/', '', file['URI']) ) for file in resource_files if re.match( '^troop*.zip$', file['Name'] ) ]
+
         experiment_files += [ (resource, re.sub( '.*\/files\/', '', file['URI']) ) for file in resource_files if re.match( '^NCANDAStroopMtS_3cycles_7m53stask_.*.txt$', file['Name'] ) ]
-        
+
+   
     # No matching files - nothing to do
     if len( experiment_files ) == 0:
         return
+
+
 
     # Get first file from list, warn if more files
     (stroop_resource, stroop_file) = experiment_files[0]
@@ -62,8 +74,25 @@ def check_for_stroop( xnat, xnat_eid, redcap_token, redcap_key, verbose=False, n
     tempdir = tempfile.mkdtemp()
     stroop_file_path = experiment.resource( stroop_resource ).file( stroop_file ).get_copy( os.path.join( tempdir, stroop_file ) )
 
+
+    
+    if stroop_file_path.find ("zip") != -1:
+       zip_handler=zipfile.ZipFile(stroop_file_path,'r')
+       zip_handler.extractall(tempdir)
+       stroop_file_path_zip=glob.glob(os.path.join(tempdir,"*.txt" ))
+       stroop_file_path_zip+=glob.glob(os.path.join(tempdir,"*","*.txt" ))
+       stroop_file_path=stroop_file_path_zip
+      
+
+
     # Convert downloaded Stroop file to CSV scores file
     added_files = subprocess.check_output( [ os.path.join( import_bindir, "stroop2csv" ), '--mr-session', '--record', redcap_key[0], '--event', redcap_key[1], stroop_file_path, tempdir ] )
+
+   
+   # added_files = subprocess.check_output( [ os.path.join( import_bindir, "stroop2csv" ), '--mr-session', '--record', redcap_key[0], '--event', redcap_key[1],stroop_file_path_zip[0], tempdir ] )
+
+
+
     if len( added_files ):
         if not no_upload:
             # Upload CSV file(s) (should only be one anyway)
