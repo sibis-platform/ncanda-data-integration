@@ -284,7 +284,19 @@ def add_empty_to_upload(form_prefix, form_name, subject_id, event_name):
 # Add a record to upload that labels it "missing permanently" for parent surveys of an over-18 participant
 def add_over18_to_upload( form_prefix, form_name, subject_id, event_name ):
     return to_redcap( [{ 'study_id' : subject_id, 'redcap_event_name' : event_name, '%s_missing' % form_prefix : '1', '%s_missing_why' % form_prefix : 'OVER_18', '%s_complete' % form_name : '1' }] )
-    
+
+
+def batch(iterable, n=1):
+        """
+        For batch processing of records
+
+        :param iterable:
+        :param n: batch size
+        :return: generator
+        """
+        l = len(iterable)
+        for ndx in range(0, l, n):
+            yield iterable[ndx:min(ndx + n, l)]
 #
 # MAIN LOOP
 #
@@ -317,8 +329,20 @@ for form_prefix, form_name in forms.iteritems():
         continue
 
     # Next, export actual records, making sure we get everything as string,
-    # and replace all "nan"s with empty strings, "".
-    imported_records = rc_import.export_records( records=complete_records.index.tolist(), forms=[ form_name ], format='df', df_kwargs = { 'index_col': rc_import.def_field, 'dtype' : 'object' } ).applymap( nan_to_empty )
+    # and replace all "nan"s with empty strings, "" using batches of 100 records.
+
+    records = complete_records.index.tolist()
+    forms = [form_name]
+    return_format = 'df'
+    df_kwargs = {'index_col': rc_import.def_field, 'dtype': 'object'}
+    returned_records = []
+    for record_batch in batch(records, n=100):
+        returned_records.append(rc_import.export_records(records=record_batch,
+                                                         forms=forms,
+                                                         format=return_format,
+                                                         df_kwargs=df_kwargs).applymap(nan_to_empty))
+
+    imported_records = pandas.concat(returned_records)
 
     # From the index, extract the original subject ID and date from each imported
     # record IO and use these wherever not overridden by manually-entered values
