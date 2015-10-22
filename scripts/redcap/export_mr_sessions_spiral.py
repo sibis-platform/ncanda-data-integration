@@ -10,6 +10,7 @@
 ##
 
 import os
+import json
 import shutil
 import fnmatch
 import tempfile
@@ -77,8 +78,12 @@ def do_export_spiral_files(xnat, resource_location, to_directory, spiral_nifti_o
         # Now try to make the NIfTI
         errcode, stdout, stderr = make_nifti_from_spiral(spiral_E_files[0], spiral_nifti_out)
         if not os.path.exists(spiral_nifti_out):
-            print "ERROR: unable to make NIfTI from resource file {0}. " \
-                  "Please try running makenifti manually.".format(resource_location)
+            #print "ERROR: unable to make NIfTI from resource file {0}. " \
+            #      "Please try running makenifti manually.".format(resource_location)
+            error = dict(experiment_site_id=xnat_eid,
+                         spiral_file=spiral_E_files[0],
+                         error="Unable to make NIfTI from resource file, please try running makenifti manually")
+            print json.dumps(error, sort_keys=True)
             if verbose:
                 print "StdErr:\n{}".format(stderr)
                 print "StdOut:\n{}".format(stdout)
