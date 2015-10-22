@@ -343,6 +343,8 @@ for form_prefix, form_name in forms.iteritems():
                                                          df_kwargs=df_kwargs).applymap(nan_to_empty))
 
     imported_records = pandas.concat(returned_records)
+    if args.verbose:
+        print "Form {} has {} records.".format(forms, len(imported_records))
 
     # From the index, extract the original subject ID and date from each imported
     # record IO and use these wherever not overridden by manually-entered values
