@@ -11,6 +11,7 @@
 
 import os
 import re
+import json
 import datetime
 import argparse
 
@@ -447,7 +448,14 @@ for form_prefix, form_name in forms.iteritems():
                 # Make sure there is only one, unique record
                 if len(records_this_visit) > 1:
                     # Not unique - bail
-                    print 'More than one record "%s" found for subject %s, event %s, visit date %s:' % (form_name, key[0], key[1], form_target_date)
+                    # old error handling
+                    #print 'More than one record "%s" found for subject %s, event %s, visit date %s:' % (form_name, key[0], key[1], form_target_date)
+                    error = dict(subject_id=key[0],
+                                 form_name=form_name,
+                                 event_id=key[1],
+                                 visit_date=form_target_date,
+                                 error='More than one record found for subject on event with same visit date')
+                    print json.dumps(error, sort_keys=True)
                     if args.verbose:
                         print records_this_visit
                 elif len(records_this_visit) == 1:
