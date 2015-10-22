@@ -436,26 +436,27 @@ for form_prefix, form_name in forms.iteritems():
 
         # Arm 3 - For sleep data, get the visit date for this record
         if form_prefix in forms_date_increments.keys():
-            sleep_date = str( row['sleep_date'] )
-            subject_age = get_subject_age( key[0], sleep_date )
+            sleep_date = str(row['sleep_date'])
+            subject_age = get_subject_age(key[0], sleep_date)
             if (sleep_date != 'nan') and (subject_age != ''):
                 total_records += 1
                 # Select all records within given maximum number of days after visit date            
-                form_target_date = (datetime.datetime.strptime( sleep_date, date_format_ymd) + datetime.timedelta( forms_date_increments[form_prefix] )).strftime(date_format_ymd)
-                records_this_visit = records_this_subject[ records_this_subject['%s_date' % form_prefix] == form_target_date ]
+                form_target_date = (datetime.datetime.strptime(sleep_date, date_format_ymd) + datetime.timedelta(forms_date_increments[form_prefix])).strftime(date_format_ymd)
+                records_this_visit = records_this_subject[records_this_subject['%s_date' % form_prefix] == form_target_date]
 
                 # Make sure there is only one, unique record
-                if len( records_this_visit ) > 1:
+                if len(records_this_visit) > 1:
                     # Not unique - bail
-                    print 'More than one record "%s" found for subject %s, event %s, visit date %s:' % (form_name,key[0],key[1],form_target_date)
-                    print records_this_visit
-                elif len( records_this_visit ) == 1:
-                    total_uploaded += add_to_upload( form_prefix, form_name, key[0], key[1], records_this_visit.ix[0], subject_age )
+                    print 'More than one record "%s" found for subject %s, event %s, visit date %s:' % (form_name, key[0], key[1], form_target_date)
+                    if args.verbose:
+                        print records_this_visit
+                elif len(records_this_visit) == 1:
+                    total_uploaded += add_to_upload(form_prefix, form_name, key[0], key[1], records_this_visit.ix[0], subject_age)
                 elif (existing_form_data[complete_label][key] > 0) and (existing_form_data[missing_label][key] != 1):
-                    print "WARNING: Previously assigned form",form_name,"for subject",key[0],"event",key[1],"date",form_target_date,"appears to have disappeared."
+                    print "WARNING: Previously assigned form", form_name, "for subject", key[0], "event", key[1], "date", form_target_date, "appears to have disappeared."
                     if args.reset_disappeared:
-                        total_uploaded += add_empty_to_upload( form_prefix, form_name, key[0], key[1] )
+                        total_uploaded += add_empty_to_upload(form_prefix, form_name, key[0], key[1])
 
     # Anything to upload?
     if args.verbose:
-        print "Uploaded",total_uploaded,"of",total_records,"records to form",form_name
+        print "Uploaded", total_uploaded, "of", total_records, "records to form", form_name
