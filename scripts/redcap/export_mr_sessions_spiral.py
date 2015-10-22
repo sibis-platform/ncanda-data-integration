@@ -67,7 +67,13 @@ def do_export_spiral_files(xnat, resource_location, to_directory, spiral_nifti_o
 
     physio_files = glob_for_files_recursive(tmpdir, pattern="P*.physio")
     if len(physio_files) > 1:
-        print "ERROR: more than one physio file found: {}".format(', '.join(physio_files))
+        # old error reporting
+        # print "ERROR: more than one physio file found: {}".format(', '.join(physio_files))
+        error = dict(experiment_site_id=xnat_eid,
+                     tmp_file_path=tmp_file_path,
+                     physio_files=physio_files,
+                     error='More than one physio file found.')
+        print json.dumps(error, sort_keys=True)
         return False
 
     if len(spiral_E_files) == 1:
