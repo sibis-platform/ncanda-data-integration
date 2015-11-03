@@ -143,7 +143,8 @@ def check_experiment(experiment):
     subject_label_match = re.match(subject_id_pattern_nophantom, ifc.select.project(prj).subject(sid).label())
     if subject_label_match:
         # This is a dictionary that maps subjects who changed sites to the correct phantom
-        changed_sites_map = {'D-00094-M-5-20141111': 'B-99999-P-9'}
+        changed_sites_map = {'D-00094-M-5-20141111': 'B-99999-P-9',
+                             'B-80556-F-6-20151023': 'D-99999-P-9'}
         changed_sites_phantom = changed_sites_map.get(experiment_label)
         try:
             phantom_label = "%s-99999-P-9" % subject_label_match.group(1)
