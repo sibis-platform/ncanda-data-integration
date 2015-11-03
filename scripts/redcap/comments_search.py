@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #import needed libraries
 import time
 start = time.time()
