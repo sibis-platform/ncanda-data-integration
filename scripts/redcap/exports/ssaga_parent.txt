@@ -158,10 +158,8 @@ ssaga_parent_pt1a18
 ssaga_parent_pt1a18age
 ssaga_parent_pt1a19
 ssaga_parent_pt1a19age
-ssaga_parent_pt1a19_specify
 ssaga_parent_pt1a20
 ssaga_parent_pt1a20age
-ssaga_parent_pt1a20_specify
 ssaga_parent_pt1b
 ssaga_parent_pt1bevent
 ssaga_parent_pt3

@@ -163,10 +163,8 @@ ssaga_youth_pt1a18
 ssaga_youth_pt1a18age
 ssaga_youth_pt1a19
 ssaga_youth_pt1a19age
-ssaga_youth_pt1a19_specify
 ssaga_youth_pt1a20
 ssaga_youth_pt1a20age
-ssaga_youth_pt1a20_specify
 ssaga_youth_pt1b
 ssaga_youth_pt1bevent
 ssaga_youth_pt3
