@@ -29,7 +29,7 @@ parser.add_argument( "outdir", help="Output directory. All CSV files are created
 args = parser.parse_args()
 
 file = open( args.infile, 'r').read().decode('utf-16').split("\r\n")
-    
+
 RT=[]
 response=[]
 procedure=[]
@@ -54,10 +54,10 @@ for s in file:
     # get response time
     if (".RT" in s) and ("RTI" not in s):
         RT.append(s[s.find(":")+2:])
-    # get response    
+    # get response
     if (".RESP" in s) and ("RTI" not in s):
         response.append(s[s.find(":")+2:])
-    # get procedures    
+    # get procedures
     if "Procedure:" in s and "Block" not in s:
         procedure.append(s[s.find(":")+2:])
     # get runnings
@@ -84,7 +84,7 @@ if os.path.exists(output_filename):
     else:
         sys.exit("ERROR: output file {} already exists.".format(output_filename))
 
-# convert response time to integer        
+# convert response time to integer
 RT=[float(x) for x in RT]
 
 # matching = [procedure for i, procedure in procedure if test_ref[1] in procedure]
@@ -116,13 +116,16 @@ def get_item(criteria,all_record):
     value = [i for i in range(len(all_record)) if criteria in all_record[i]]
     return value
 
-def samplestd (data):
-    mean=data.mean()
-    samplestd=math.sqrt(sum((data-mean)**2)/(len(data)-1))
+def samplestd(data):
+    try:
+        mean=data.mean()
+        samplestd=math.sqrt(sum((data-mean)**2)/(len(data)-1))
+    except RuntimeWarning, e:
+        print("Error: {}. Data contains: {}".format(e, data))
     return samplestd
 
 
-        
+
 for j in range(1,9):
     index1 = get_item(test_ref[2*j-2],running)
     index2 = get_item(test_ref[2*j-1],procedure)
@@ -143,11 +146,11 @@ for j in range(1,9):
     #running = [running[i] for i in index_range]
     #procedure = [procedure[i] for i in index_range]
     miss[j-1] = len(index)-len(index_range)
-    
+
     # get correct responses
     index_correct=get_item(correct_ans[j-1],response_subset)
     error[j-1]=len(response_subset)-len(index_correct)
-    # get all the correct response time and change them to array          
+    # get all the correct response time and change them to array
     time_correct=[RT_subset[i] for i in index_correct]
     time_correct=np.asarray(time_correct)
     for i in index_correct:
@@ -184,7 +187,7 @@ for j in range(1,9):
     # collect all the correct response time
     total_correct_time.extend(time_correct)
     response_error.extend(response_error_subset)
-        
+
 total_correct_time=np.asarray(total_correct_time)
 if len( total_correct_time ):
     mean[8]=total_correct_time.mean()
@@ -221,7 +224,7 @@ zs[3]=z[7]-z[3]
 zs[4]=0.5*(z[0]+z[2])
 zs[5]=0.5*(z[1]+z[3])
 zs[6]=0.5*(z[0]+z[2])
-zs[7]=0.5*(z[2]+z[3])   
+zs[7]=0.5*(z[2]+z[3])
 
 if not os.path.exists(args.outdir):
     os.makedirs(args.outdir)
@@ -233,7 +236,7 @@ if args.mr_session:
     record_id_variable = "study_id"
 else:
     record_id_variable = "record_id"
-    
+
 title=[ record_id_variable,"stroop_complete",
        "stroop_total_mean","stroop_total_std", "stroop_total_median", "stroop_mean_3stdl","stroop_mean_3stdu", "stroop_conm_rr_mean","stroop_conm_rs_mean","stroop_connm_rr_mean","stroop_connm_rs_mean", "stroop_incm_rr_mean","stroop_incm_rs_mean",
        "stroop_incnm_rr_mean","stroop_incnm_rs_mean","stroop_conm_rr_std","stroop_conm_rs_std", "stroop_connm_rr_std","stroop_connm_rs_std","stroop_incm_rr_std","stroop_incm_rs_std","stroop_incnm_rr_std","stroop_incnm_rs_std",
@@ -257,7 +260,7 @@ if args.mr_session:
     # If this is for the MRI Stroop, add date also and prefix all fields accordingly
     title.append( 'stroop_date' )
     result.append( date_of_test )
-    title = [ re.sub ( '^stroop_', 'mri_stroop_', t ) for t in title ]    
+    title = [ re.sub ( '^stroop_', 'mri_stroop_', t ) for t in title ]
 else:
     # Non-MRI session - add import-specific fields
     title += [ "visit_information_complete" ]
@@ -271,6 +274,6 @@ if args.event:
 wr.writerow(title)
 wr.writerow(result)
 
-output_file.close()    
+output_file.close()
 
 print output_filename
