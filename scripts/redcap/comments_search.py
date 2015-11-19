@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+"""
+Scan Report Comment Search
+======================
+This code searches through comments to find those with No MRI. In addition, a list of subjects that were skipped is also generated.
+
+"""
+
 #import needed libraries
 import time
 start = time.time()
