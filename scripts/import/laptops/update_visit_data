@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 ##
 ##  Copyright 2015 SRI International
@@ -21,8 +22,7 @@ import requests
 date_format_ymd = '%Y-%m-%d'
 
 # Setup command line parser
-parser = argparse.ArgumentParser(description="Update longitudinal project forms from data "
-                                             "imported from the data capture laptops",
+parser = argparse.ArgumentParser(description="Update longitudinal project forms from data imported from the data capture laptops",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-v", "--verbose",
                     help="Verbose operation",
@@ -122,7 +122,7 @@ if args.forms:
             lookup = [k for (k, v) in all_forms.iteritems() if v == f]
             forms[lookup[0]] = f
         else:
-            print "WARNING: no form with name or prefix '%s' defined.\n" % f            
+            print "WARNING: no form with name or prefix '%s' defined.\n" % f
 else:
     forms = all_forms
 
@@ -200,7 +200,7 @@ def to_redcap( upload_records ):
             print import_response
 
     except requests.exceptions.RequestException as e:
-        print "WARNING: Record may be locked... {0}".format(e) 
+        print "WARNING: Record may be locked... {0}".format(e)
     return 0
 
 
@@ -440,7 +440,7 @@ for form_prefix, form_name in forms.iteritems():
             subject_age = get_subject_age(key[0], sleep_date)
             if (sleep_date != 'nan') and (subject_age != ''):
                 total_records += 1
-                # Select all records within given maximum number of days after visit date            
+                # Select all records within given maximum number of days after visit date
                 form_target_date = (datetime.datetime.strptime(sleep_date, date_format_ymd) + datetime.timedelta(forms_date_increments[form_prefix])).strftime(date_format_ymd)
                 records_this_visit = records_this_subject[records_this_subject['%s_date' % form_prefix] == form_target_date]
 
