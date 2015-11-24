@@ -69,6 +69,13 @@ parser.add_argument("-e", "--exceptions",
                     default="/fs/ncanda-share/pipeline/cases/outside_window.csv")
 args = parser.parse_args()
 
+if args.verbose:
+    print args
+
+
+# Get a list of cases outside the visit window that should be included.
+exceptions = pandas.read_csv(args.exceptions)
+
 # Open connection with REDCap server
 redcap_token_path = os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' )
 redcap_token_file = open( redcap_token_path, 'r' )
@@ -116,8 +123,13 @@ def get_sessions_in_range(xnat, subject_label, project_id, subject_id, date_rang
     for session_id, session_subject_id, projects, date, scanner in xnat_sessions_list:
         if (subject_id == session_subject_id) and (date >= date_range_from) and (date <= date_range_to):
             sessions_in_range.append((session_id, projects, date))
-    if not len(sessions_in_range):
-        if today >= date_range_to:
+    if not sessions_in_range:
+        # handling subjects that are outside the visit window
+        if subject_id in exceptions.subject_id.tolist():
+            for session_id, session_subject_id, projects, date, scanner in xnat_sessions_list:
+                if subject_id == session_subject_id and session_id in exceptions.experiment_id.tolist():
+                    sessions_in_range.append((session_id, projects, date))
+        elif today >= date_range_to:
             error = dict(project_id=project_id,
                          subject_id=subject_id,
                          experiment_site_id=subject_label,
@@ -289,8 +301,8 @@ def get_xnat_data(redcap_key, xnat, visit_date, date_of_birth, next_visit_date, 
     # Get all experiments for this subject within the given range of the visit date
     xnat_session_data = get_sessions_in_range(xnat, subject, xnat_pid, xnat_sid, visit_date, visit_date_plusNd)
     if verbose:
-        print xnat_session_data
-    if not len(xnat_session_data):
+        print "XNAT Session Data:", xnat_session_data
+    if not xnat_session_data:
         if today > visit_date_plusNd:
             error = dict(project_id=xnat_pid,
                          subject_id=xnat_sid,
