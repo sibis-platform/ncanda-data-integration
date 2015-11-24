@@ -85,9 +85,10 @@ for ( session_id, session_subject_id, projects, date, scanner ) in xnat_sessions
 
 
 def get_sessions_in_range(xnat, subject_label, project_id, subject_id, date_range_from, date_range_to):
-    sessions_in_range = [( session_id, projects, date )
-                         for (session_id, session_subject_id, projects, date, scanner) in xnat_sessions_list
-                         if (subject_id == session_subject_id) and (date >= date_range_from) and (date <= date_range_to)]
+    sessions_in_range = []
+    for session_id, session_subject_id, projects, date, scanner in xnat_sessions_list:
+        if (subject_id == session_subject_id) and (date >= date_range_from) and (date <= date_range_to):
+            sessions_in_range.append((session_id, projects, date))
     if not len(sessions_in_range):
         if today >= date_range_to:
             error = dict(project_id=project_id,
