@@ -468,7 +468,7 @@ for form_prefix, form_name in forms.iteritems():
                                  form_name=form_name,
                                  event_id=key[1],
                                  visit_date=form_target_date,
-			                     error='WARNING: Previously assigned form appears to have disappered.')
+                                 error='WARNING: Previously assigned form appears to have disappered.')
                     print json.dumps(error, sort_keys=True)
                     if args.reset_disappeared:
                         total_uploaded += add_empty_to_upload(form_prefix, form_name, key[0], key[1])
