@@ -53,8 +53,15 @@ def do_export_spiral_files(xnat, resource_location, to_directory, spiral_nifti_o
 
     errcode, stdout, stderr = untar_to_dir(tmp_file_path, tmpdir)
     if errcode != 0:
-        print "ERROR: unable to un-tar resource file {}. File is likely corrupt" \
-              " and needs to be uploaded again.".format(resource_location)
+        #old error reporting
+        #print "ERROR: unable to un-tar resource file {}. File is likely corrupt" \
+        #      " and needs to be uploaded again.".format(resource_location)
+        error = dict(experiment_site_id=xnat_eid,
+                     tempfile_path=tmp_file_path,
+                     resource_location=resource_location,
+                     error="ERROR: Unable to un-tar resource file. File is likely corrupt."
+        )
+        print(json.dumps(error, sort_keys=True))
         if verbose:
             print "StdErr:\n{}".format(stderr)
             print "StdOut:\n{}".format(stdout)
