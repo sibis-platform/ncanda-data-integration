@@ -167,7 +167,15 @@ def check_experiment(experiment):
             elif len(phantom_scans) == 0:
                 find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified, phantom_id, edate, etime, scanner)
         except IndexError, e:
-            print "ERROR: Subject:{0} in Project:{1} with EID:{2} and Label:{3} likely switched sites: {4}".format(sid, prj, seid, experiment_label, e)
+            #old error message
+            #print "ERROR: Subject:{0} in Project:{1} with EID:{2} and Label:{3} likely switched sites: {4}".format(sid, prj, seid, experiment_label, e)
+            error = dict(experiment_site_id=experiment_label,
+                         site_id=sid,
+                         project=prj,
+                         subject_experiment_id=seid,
+                         error="ERROR: Subject likely swithced sites. {}".format(e)
+            )
+            print(json.dumps(error,sort_keys=True))
 
 experiment_ids = list()
 if args.eid:
