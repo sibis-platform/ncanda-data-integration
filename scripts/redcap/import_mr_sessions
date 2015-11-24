@@ -29,17 +29,44 @@ import export_redcap_to_pipeline as rcpipeline
 date_format_ymd = '%Y-%m-%d'
 
 # Setup command line parser
-parser = argparse.ArgumentParser( description="For all subjects and visits in the REDCap database, find MR sessions in XNAT", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
-parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
-parser.add_argument( "--max-days-after-visit", help="Maximum number of days the scan session can be after the entered 'visit date' in REDCap to be assigned to a given event.", action="store", default=120, type=int)
-parser.add_argument( "--site", help="Limit processing by site (SRI, UCSD, OHSU, UPMC, DUKE). Multiple sites can be listed, separated by comma (',')", action="store", default=None )
-parser.add_argument( "--pipeline-root-dir", help="Root directory of the image analysis pipeline. Newly detected imaging series will be converted to NIFTI files and put here for processing. ", action="store")
-parser.add_argument( "--run-pipeline-script", help="Run image processing pipeline if new files were exported.", action="store")
-parser.add_argument( "-f", "--force-update", help="Update all records in REDCap, overwriting existing data", action="store_true")
-parser.add_argument( "--missing-only", help="Only consider missing records in REDCap, rather than unverified ones also.", action="store_true")
-parser.add_argument( "--force-update-stroop", help="Update all Stroop records in REDCap, overwriting existing data", action="store_true")
-parser.add_argument( "--no-stroop", help="Do not check for, or upload, MRI Stroop results (ePrime files in XNAT)", action="store_true")
-parser.add_argument( "-n", "--no-upload", help="Only check correspondences; do not upload results to REDCap", action="store_true")
+parser = argparse.ArgumentParser(description="For all subjects and visits in the REDCap database, find MR sessions in XNAT",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter )
+parser.add_argument("-v", "--verbose",
+                    help="Verbose operation",
+                    action="store_true")
+parser.add_argument("--max-days-after-visit",
+                    help="Maximum number of days the scan session can be after the entered 'visit date' in REDCap to be assigned to a given event.",
+                    action="store",
+                    default=120,
+                    type=int)
+parser.add_argument("--site",
+                    help="Limit processing by site (SRI, UCSD, OHSU, UPMC, DUKE). Multiple sites can be listed, separated by comma (',')",
+                    action="store",
+                    default=None )
+parser.add_argument("--pipeline-root-dir",
+                    help="Root directory of the image analysis pipeline. Newly detected imaging series will be converted to NIFTI files and put here for processing. ",
+                    action="store")
+parser.add_argument("--run-pipeline-script",
+                    help="Run image processing pipeline if new files were exported.",
+                    action="store")
+parser.add_argument("-f", "--force-update",
+                    help="Update all records in REDCap, overwriting existing data",
+                    action="store_true")
+parser.add_argument("--missing-only",
+                     help="Only consider missing records in REDCap, rather than unverified ones also.",
+                    action="store_true")
+parser.add_argument("--force-update-stroop",
+                    help="Update all Stroop records in REDCap, overwriting existing data",
+                     action="store_true")
+parser.add_argument("--no-stroop",
+                    help="Do not check for, or upload, MRI Stroop results (ePrime files in XNAT)",
+                    action="store_true")
+parser.add_argument("-n", "--no-upload",
+                    help="Only check correspondences; do not upload results to REDCap",
+                    action="store_true")
+parser.add_argument("-e", "--exceptions",
+                    help="A csv file of the XNAT Experiment IDs of cases outside the visit window that should be still be included.",
+                    default="/fs/ncanda-share/pipeline/cases/outside_window.csv")
 args = parser.parse_args()
 
 # Open connection with REDCap server
