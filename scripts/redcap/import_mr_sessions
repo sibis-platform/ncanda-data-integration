@@ -72,9 +72,11 @@ args = parser.parse_args()
 if args.verbose:
     print args
 
-
-# Get a list of cases outside the visit window that should be included.
-exceptions = pandas.read_csv(args.exceptions)
+try:
+    # Get a list of cases outside the visit window that should be included.
+    exceptions = pandas.read_csv(args.exceptions)
+except:
+    exceptions = pandas.DataFrame(columns=['subject_id', 'experiment_id'])
 
 # Open connection with REDCap server
 redcap_token_path = os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' )
@@ -314,7 +316,7 @@ def get_xnat_data(redcap_key, xnat, visit_date, date_of_birth, next_visit_date, 
 
             # Old error reporting, can be removed once new format works
             # print "Missing MRI for subject",subject,"/",event,"- visit date",visit_date
-        return result    
+        return result
 
     # Get the experiment IDs for all sessions in the given range
     xnat_eid_list = [session for (session, project, date) in xnat_session_data]
@@ -390,22 +392,22 @@ def get_xnat_data(redcap_key, xnat, visit_date, date_of_birth, next_visit_date, 
             this_date = datetime.datetime.strptime( t1w_experiment_data[0], date_format_ymd)
             tomorrow = (this_date + datetime.timedelta(1)).strftime(date_format_ymd)
             yesterday = (this_date - datetime.timedelta(1)).strftime(date_format_ymd)
-                        
+
             # Search for all sessions on previous day after given time, or next day before given time (we already know there isn't a scan on the same date)
             phantom_scans = get_phantom_scans_for_date_24h(yesterday, tomorrow, t1w_experiment_data[1])
-            
+
             # Found it now or not?
             if len(phantom_scans):
                 result['mri_adni_phantom'] = '2'  # Found 24h
                 result['mri_adni_phantom_eid'] = phantom_scans[0]
             else:
                 result['mri_adni_phantom'] = '3'  # Missing
-   
+
     # Get custom variables of the "Reading" group
     t1w_experiment = xnat.select.project( xnat_pid ).subject( xnat_sid ).experiment( re.sub('/.*', '', result['mri_series_t1']))
-    [ result['mri_datetodvd'], result['mri_findingsdate'], result['mri_findings'], 
+    [ result['mri_datetodvd'], result['mri_findingsdate'], result['mri_findings'],
       result['mri_excludefromanalysis'], result['mri_referredtopi']] = get_custom_variables( t1w_experiment, [ 'DateToDVD', 'FindingsDate', 'Findings', 'ExcludeFromAnalysis', 'ReferredToPI'], '')
-    
+
     # Check if images have received reading and have either been labeled 'normal' or marked as checked
     if (result['mri_findings'].lower() == 'normal') or mri_inspection_completed:
         result['mri_qa_completed'] = '1'
@@ -462,7 +464,7 @@ for event in redcap_project.events:
     forms_by_event_dict[event_id] = set( form_event_mapping[form_event_mapping['unique_event_name'] == event_id ]['form_name'].tolist() )
 
 # Have pipeline feeder check for "excluded" subjects that might have previously entered the pipeline
-if args.pipeline_root_dir:    
+if args.pipeline_root_dir:
     excluded_subjects = mr_sessions_redcap[ mr_sessions_redcap.index.map( lambda key: subject_data['exclude'][key[0]] == 1 ) ]['mri_xnat_sid'].dropna().tolist()
     mrpipeline.check_excluded_subjects( excluded_subjects, args.pipeline_root_dir )
 
@@ -482,7 +484,7 @@ if args.verbose:
 records_uploaded = 0
 for [key, row] in mr_sessions_redcap.iterrows():
     visit_date = str(visit_log_redcap['visit_date'][key])
-    if visit_date == 'nan': 
+    if visit_date == 'nan':
         if float(row['visit_ignore___yes']) != 1:
             error = dict(experiment_site_id=key[0],
                          visit_id=key[1],
@@ -525,18 +527,18 @@ for [key, row] in mr_sessions_redcap.iterrows():
                 (record['study_id'], record['redcap_event_name']) = key
                 for (key,value) in xnat_data.iteritems():
                     record[key] = value
-        
+
                 import_response = redcap_project.import_records( [record], overwrite='overwrite' )
                 if 'count' in import_response.keys():
                     records_uploaded += import_response['count']
 
                 if 'error' in import_response.keys():
                     print "UPLOAD ERROR:", import_response['error'],record
-            
+
                 if 'records' in import_response.keys():
                     for r in import_response['records']:
                         print "\t", r
-                    
+
 if args.verbose:
     if not args.no_upload:
         print "Successfully uploaded %d/%d records to REDCap." % ( records_uploaded, len( mr_sessions_redcap ) )
