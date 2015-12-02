@@ -1,0 +1,6 @@
+taylor_complex_figure_scores
+rec_taylor_figscor_miss
+rec_taylor_copy_acc
+rec_taylor_copy_org
+rec_taylor_del_acc
+rec_taylor_delay_org
