@@ -2,7 +2,6 @@ cnp_summary
 cnp_missing
 cnp_missing_why
 cnp_age
-cnp_instruments
 cnp_mpract_mp1rt
 cnp_mpract_mp2
 cnp_mpract_mp2rtcr
