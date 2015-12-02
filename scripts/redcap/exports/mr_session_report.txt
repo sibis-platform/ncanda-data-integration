@@ -8,4 +8,3 @@ mri_adni_phantom
 mri_qa_completed
 mri_analysisanomalies
 mri_nofa
-mri_inspection
