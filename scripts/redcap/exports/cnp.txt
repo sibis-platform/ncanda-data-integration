@@ -2,6 +2,7 @@ cnp_summary
 cnp_missing
 cnp_missing_why
 cnp_age
+cnp_instruments
 cnp_mpract_mp1rt
 cnp_mpract_mp2
 cnp_mpract_mp2rtcr
@@ -71,6 +72,8 @@ cnp_sfnb2_sfnb_fn2
 cnp_sfnb2_sfnb_rtc2
 cnp_sfnb2_sfnb_mcr
 cnp_sfnb2_sfnb_mrtc
+cnp_sfnb2_sfnb_mrt
+cnp_sfnb2_sfnb_meff
 cnp_pmat24a_pmat24_a_cr
 cnp_pmat24a_pmat24_a_cr_zscore
 cnp_pmat24a_pmat24_a_si
@@ -214,5 +217,3 @@ cnp_svdelay_svt_ldtnrt
 cnp_svdelay_svt_ldfprt
 cnp_svdelay_svt_ldfnrt
 cnp_svdelay_svt_effd
-cnp_sfnb2_sfnb_mrt
-cnp_sfnb2_sfnb_meff

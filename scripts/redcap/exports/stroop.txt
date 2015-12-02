@@ -5,6 +5,7 @@ stroop_timeofday
 stroop_age
 stroop_total_mean
 stroop_total_std
+stroop_total_median
 stroop_mean_3stdl
 stroop_mean_3stdu
 stroop_conm_rr_mean
@@ -71,4 +72,3 @@ stroop_stroopm_z
 stroop_stroopnm_z
 stroop_rr_z
 stroop_rs_z
-
