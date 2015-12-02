@@ -1,7 +1,5 @@
 daily_activity_log
 rec_dailactlog_miss
-rec_act_timefellasleep
-rec_act_timewokeup
 rec_act_sleep
 rec_act_groom
 rec_act_eat
