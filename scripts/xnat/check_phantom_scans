@@ -16,6 +16,7 @@ import time
 import argparse
 import datetime
 
+import yaml
 import pyxnat
 
 from xnat_email import XnatEmail
@@ -41,6 +42,13 @@ parser.add_argument("-e", "--experiment-id",
                     dest="eid",
                     default=False,
                     help="Check only session indicated, regardless of modification date.")
+parser.add_argument("-s", "--special-cases",
+                    dest="special_cases",
+                    default=os.path.join(os.path.expanduser('~'),
+                                         '.server_config',
+                                         'ncanda-operations',
+                                         'special_cases.yml' ),
+                    help="Path to the special_cases.yml file.")
 parser.add_argument("-v", "--verbose",
                     dest="verbose",
                     action='store_true',
@@ -142,10 +150,12 @@ def check_experiment(experiment):
 
     subject_label_match = re.match(subject_id_pattern_nophantom, ifc.select.project(prj).subject(sid).label())
     if subject_label_match:
-        # This is a dictionary that maps subjects who changed sites to the correct phantom
-        changed_sites_map = {'D-00094-M-5-20141111': 'B-99999-P-9',
-                             'B-80556-F-6-20151023': 'D-99999-P-9'}
+        # This is a dictionary that maps subjects who changed sites to the correct phantom.
+        with open(args.special_cases, 'r') as fi:
+            changed_sites_map = yaml.load(fi).get('moved_sites')
+        print changed_sites_map
         changed_sites_phantom = changed_sites_map.get(experiment_label)
+        print changed_sites_phantom
         try:
             phantom_label = "%s-99999-P-9" % subject_label_match.group(1)
             if changed_sites_phantom:
