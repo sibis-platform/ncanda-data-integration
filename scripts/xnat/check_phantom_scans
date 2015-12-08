@@ -57,17 +57,16 @@ xnat_date_format = '%Y-%m-%d %H:%M:%S'
 now_str = time.strftime('%Y-%m-%d %H:%M:%S')
 
 # Get the sibis config
-yml = os.getenv('SIBIS_CONFIG')
+yml = os.path.join(os.path.expanduser("~"), '.server_config/config.yml')
 with open(yml, 'r') as fi:
     sibis_config = yaml.load(fi).get('operations')
 if not sibis_config:
-    raise IOError("""Please set SIBIS_CONFIG to a valid config.yml file.
-                     Currently set to: {}""".format(yml))
+    raise IOError("Please ensure config.yml file exists at: {}".format(yml))
 
 # Create interface using stored configuration
 if args.verbose:
     print "Connecting to XNAT..."
-ifc = pyxnat.Interface(config=os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg'))
+ifc = pyxnat.Interface(config=os.path.join(os.path.expanduser("~"), '.server_config/ncanda.cfg'))
 ifc._memtimeout = 0
 
 # Set up email object to contact users and admin
@@ -100,7 +99,7 @@ def get_custom_variable( experiment, field_name ):
 # Find a phantom scan within 24h of the given experiment
 def find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified, phantom_id, edate, etime, scanner):
     # Compute the date before and after the experiment date
-    this_date = datetime.datetime.strptime( edate, '%Y-%m-%d')
+    this_date = datetime.datetime.strptime(edate, '%Y-%m-%d')
     edate_tomorrow = (this_date + datetime.timedelta(1)).strftime('%Y-%m-%d')
     edate_yesterday = (this_date - datetime.timedelta(1)).strftime('%Y-%m-%d')
 

@@ -71,12 +71,12 @@ if args.verbose:
     print args
 
 # Get the sibis config
-yml = os.getenv('SIBIS_CONFIG')
+yml = os.path.join(os.path.expanduser("~"), '.server_config/config.yml')
 with open(yml, 'r') as fi:
     sibis_config = yaml.load(fi).get('operations')
 if not sibis_config:
-    raise IOError("""Please set SIBIS_CONFIG to a valid config.yml file.
-                     Currently set to: {}""".format(yml))
+    raise IOError("Please ensure config.yml file exists at: {}".format(yml))
+
 # Get a list of cases outside the visit window that should be included.
 with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
     exceptions = yaml.load(fi).get('outside_visit_window')
