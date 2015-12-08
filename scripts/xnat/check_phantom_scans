@@ -42,13 +42,6 @@ parser.add_argument("-e", "--experiment-id",
                     dest="eid",
                     default=False,
                     help="Check only session indicated, regardless of modification date.")
-parser.add_argument("-s", "--special-cases",
-                    dest="special_cases",
-                    default=os.path.join(os.path.expanduser('~'),
-                                         '.server_config',
-                                         'ncanda-operations',
-                                         'special_cases.yml' ),
-                    help="Path to the special_cases.yml file.")
 parser.add_argument("-v", "--verbose",
                     dest="verbose",
                     action='store_true',
@@ -62,6 +55,14 @@ subject_id_pattern_nophantom = '^([A-F])-[0-9]{5}-[MF]-[0-9]$'
 # Date format for XNAT dates
 xnat_date_format = '%Y-%m-%d %H:%M:%S'
 now_str = time.strftime('%Y-%m-%d %H:%M:%S')
+
+# Get the sibis config
+yml = os.getenv('SIBIS_CONFIG')
+with open(yml, 'r') as fi:
+    sibis_config = yaml.load(fi).get('operations')
+if not sibis_config:
+    raise IOError("""Please set SIBIS_CONFIG to a valid config.yml file.
+                     Currently set to: {}""".format(yml))
 
 # Create interface using stored configuration
 if args.verbose:
@@ -151,11 +152,9 @@ def check_experiment(experiment):
     subject_label_match = re.match(subject_id_pattern_nophantom, ifc.select.project(prj).subject(sid).label())
     if subject_label_match:
         # This is a dictionary that maps subjects who changed sites to the correct phantom.
-        with open(args.special_cases, 'r') as fi:
+        with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
             changed_sites_map = yaml.load(fi).get('moved_sites')
-        print changed_sites_map
         changed_sites_phantom = changed_sites_map.get(experiment_label)
-        print changed_sites_phantom
         try:
             phantom_label = "%s-99999-P-9" % subject_label_match.group(1)
             if changed_sites_phantom:
