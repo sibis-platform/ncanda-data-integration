@@ -17,6 +17,7 @@ import time
 import datetime
 import argparse
 
+import yaml
 import pandas
 import pyxnat
 import redcap
@@ -64,19 +65,21 @@ parser.add_argument("--no-stroop",
 parser.add_argument("-n", "--no-upload",
                     help="Only check correspondences; do not upload results to REDCap",
                     action="store_true")
-parser.add_argument("-e", "--exceptions",
-                    help="A csv file of the XNAT Experiment IDs of cases outside the visit window that should be still be included.",
-                    default="/fs/ncanda-share/pipeline/cases/outside_window.csv")
 args = parser.parse_args()
 
 if args.verbose:
     print args
 
-try:
-    # Get a list of cases outside the visit window that should be included.
-    exceptions = pandas.read_csv(args.exceptions)
-except:
-    exceptions = pandas.DataFrame(columns=['subject_id', 'experiment_id'])
+# Get the sibis config
+yml = os.getenv('SIBIS_CONFIG')
+with open(yml, 'r') as fi:
+    sibis_config = yaml.load(fi).get('operations')
+if not sibis_config:
+    raise IOError("""Please set SIBIS_CONFIG to a valid config.yml file.
+                     Currently set to: {}""".format(yml))
+# Get a list of cases outside the visit window that should be included.
+with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
+    exceptions = yaml.load(fi).get('outside_visit_window')
 
 # Open connection with REDCap server
 redcap_token_path = os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' )
@@ -127,9 +130,9 @@ def get_sessions_in_range(xnat, subject_label, project_id, subject_id, date_rang
             sessions_in_range.append((session_id, projects, date))
     if not sessions_in_range:
         # handling subjects that are outside the visit window
-        if subject_id in exceptions.subject_id.tolist():
+        if subject_id in exceptions.iterkeys():
             for session_id, session_subject_id, projects, date, scanner in xnat_sessions_list:
-                if subject_id == session_subject_id and session_id in exceptions.experiment_id.tolist():
+                if subject_id == session_subject_id and session_id in exceptions.itervalues():
                     sessions_in_range.append((session_id, projects, date))
         elif today >= date_range_to:
             error = dict(project_id=project_id,
