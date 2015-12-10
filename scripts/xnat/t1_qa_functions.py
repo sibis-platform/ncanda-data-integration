@@ -30,15 +30,15 @@ def check_xml_file( xml_file, project, session, label ):
                 match = re.match( '^.*distance="([0-9]+\.[0-9]+)".*$', line )
                 distance = float( match.group(1) )
                 if distance > 3.0:
-                    warnings.append( "CNR spheres used for centroid location (distance to SNR center = %f mm) - problem with the SNR sphere?" % distance )                
-                
+                    warnings.append( "CNR spheres used for centroid location (distance to SNR center = %f mm) - problem with the SNR sphere?" % distance )
+
             # Check number of landmarks
             match = re.match( '<landmarkList.*count="([0-9]+)">', line )
             if match:
                 count = int( match.group(1) )
                 if ( count < 165 ):
                     warnings.append( "Landmark count=%d" % (project,session,count) )
-                    
+
             # Check SNR
             match = re.match( '<snr>([0-9]*\.[0-9]*)</snr>', line )
             if match:
@@ -62,7 +62,12 @@ def check_xml_file( xml_file, project, session, label ):
                     if ( (nonlinear > 0.5) ):
                         warnings.append( "Nonlinearity[%d]=%f" % (project,session,idx,nonlinear) )
     except:
-        print "ERROR: could not open XML file for experiment %s/%s" % (project,session)
+        error = dict(experiment_site_id=session,
+                     project_id=project,
+                     error='Could not open XML file for experiment.')
+        print json.dumps(error, sort_keys=True)
+        # Old error reporting.
+        #print "ERROR: could not open XML file for experiment %s/%s" % (project,session)
 
     finally:
         xml.close()
@@ -146,4 +151,3 @@ def process_phantom_session( interface, project, subject, session, label, force_
         else:
             # If there was no matching scan in the session, print a warning
             print "WARNING: ADNI phantom session %s/%s does not have a usable T1-weighted scan" % (session,label)
-
