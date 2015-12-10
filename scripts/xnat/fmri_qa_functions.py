@@ -11,6 +11,7 @@
 
 import re
 import os
+import json
 import os.path
 import tempfile
 import shutil
@@ -34,10 +35,10 @@ class QAMetric:
 
 
 # QA metric thresholds: 'sign' is +1 for upper limits (these should not be exceeded), and -1 for lower limits (these must be exceeded)
-QA_thresholds = { 'percentFluc': QAMetric( .15, 'Percent Fluctuation', +1 ), 
-                  'drift': QAMetric( 0.7, 'Drift', +1 ), 
+QA_thresholds = { 'percentFluc': QAMetric( .15, 'Percent Fluctuation', +1 ),
+                  'drift': QAMetric( 0.7, 'Drift', +1 ),
                   'driftfit': QAMetric( 0.7, 'Drift Fit', +1 ),
-                  'SNR': QAMetric( 200, 'Signal-to-Noise Ratio', -1 ), 
+                  'SNR': QAMetric( 200, 'Signal-to-Noise Ratio', -1 ),
                   'SFNR': QAMetric( 200, 'Signal-to-Fluctuation-Noise Ratio', -1 ) }
 
 # Run Phantom QA procedure on a single scan series
@@ -47,13 +48,13 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
 
     # Switch to temp directory
     original_wd = os.getcwd()
-    os.chdir( temp_dir )
+    os.chdir(temp_dir)
 
     # Make XML file as wrapper for the DICOM files
     bxh_file = '%s.bxh' % session[7:]
-    subprocess.call( 'dicom2bxh %s/* %s >& /dev/null' % ( dicom_path, bxh_file ), shell=True )
+    subprocess.call('dicom2bxh %s/* %s >& /dev/null' % ( dicom_path, bxh_file ), shell=True)
     if not os.path.exists( bxh_file ):
-	print "ERROR: BXH file %s was not created from DICOM files in %s (session %s)" % ( bxh_file, dicom_path, session )
+	print "ERROR: BXH file %s was not created from DICOM files in %s (session %s)" % (bxh_file, dicom_path, session)
 	return
 
     # Run the PERL QA script and capture its output
@@ -86,8 +87,16 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
         if match and (match.group(1) in QA_thresholds.keys()):
             value = float( match.group(2) )
             metric = QA_thresholds[match.group(1)]
-            if metric.exceeds( value ):
-                print "QA metric %s, %s=%f fails to meet threshold %f for Experiment %s/%s" % ( metric._name, match.group(1), value, metric._thresh, session, label )
+            if metric.exceeds(value):
+                error = dict(experiment_site_id=session,
+                             metric_name=metric._name,
+                             metric_key=match.group(1),
+                             metric_value=value,
+                             metric_threshold=metric._thresh,
+                             error='QA metric fails to meet threshhold.')
+                print json.dumps(error, sort_keys=True)
+                # Old error reporting.
+                #print "QA metric %s, %s=%f fails to meet threshold %f for Experiment %s/%s" % ( metric._name, match.group(1), value, metric._thresh, session, label )
 
     # Convert QA results from html to pdf
     summary_file_path = '%s/QA-Summary.pdf' % temp_dir
@@ -101,7 +110,7 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
             print "Something bad happened uploading QA summary file to Experiment %s/%s" % (session,label)
     else:
         print "Unable to create PDF QA summary file %s from DICOMs in %s (session %s/%s)" % (summary_file_path, dicom_path, session, label )
-    
+
     # Clean up - remove temp directory
     os.chdir( original_wd )
     shutil.rmtree( temp_dir )
@@ -167,10 +176,10 @@ def run_subject_qa( interface, project, subject, session, scan_number, dicom_pat
             print "Something bad happened uploading QA summary file to Experiment %s" % session
     else:
         print "Unable to create PDF QA summary file %s" % summary_file_path
-    
+
     # Clean up - remove temp directory
     shutil.rmtree( temp_dir )
-    
+
 
 # Process a subject MR imaging session
 def process_subject_session( interface, project, subject, session, force_updates=False ):
