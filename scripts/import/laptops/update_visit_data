@@ -430,7 +430,15 @@ for form_prefix, form_name in forms.iteritems():
             # We absolutely have no records to assign - check now if one had been assigned
             # previously and somehow disappeared
             elif (existing_form_data[complete_label][key] > 0) and (existing_form_data[missing_label][key] != 1):
-                print "WARNING: Previously assigned record",existing_form_data[recordid_label][key],"for form",form_name,"subject",key[0],"event",key[1],"visit date",visit_date,"appears to have disappeared."
+                #OLD ERROR MESSAGE
+                #print "WARNING: Previously assigned record",existing_form_data[recordid_label][key],"for form",form_name,"subject",key[0],"event",key[1],"visit date",visit_date,"appears to have disappeared."
+                error = dict(experiment_site_id="{}-{}".format(key[0], visit_date),
+                                 subject_id=key[0],
+                                 form_name=form_name,
+                                 event_id=key[1],
+                                 visit_date=visit_date,
+                                 error='WARNING: Previously assigned form appears to have disappered.')
+                print json.dumps(error, sort_keys=True)
                 if args.reset_disappeared:
                     total_uploaded += add_empty_to_upload( form_prefix, form_name, key[0], key[1] )
 
