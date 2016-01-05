@@ -104,7 +104,12 @@ for eid in experiments_to_check:
     if len( this_session ):
         previous_sessions.append( this_session[0] )
     else:
-        print "WARNING: flagged session %s appears to have disappeared." % eid
+         error = dict(experiment_site_id=eid,
+                      error='WARNING: flagged session appears to have disappeared.')
+         print json.dumps(error, sort_keys=True)
+
+        # Old error reporting can be removed once it works
+        #print "WARNING: flagged session %s appears to have disappeared." % eid
 
 # All sessions to check - previously flagged plus updated
 sessions_to_check = sorted( list( set( new_sessions + previous_sessions ) ), key=lambda tuple: tuple[0] )
