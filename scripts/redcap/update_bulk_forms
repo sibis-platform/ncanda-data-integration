@@ -9,26 +9,38 @@
 ##  $LastChangedDate$
 ##
 
-import argparse
 import os
-import pandas
 import re
+import time
+import argparse
 
+import pandas
 import redcap
 
 # Setup command line parser
-parser = argparse.ArgumentParser( description="Update completion status of forms that contain more than one instrument", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
-parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
-parser.add_argument( "--forms", help="Select specific forms to update. Separate multiple forms with commas.", action="store", default=None )
-parser.add_argument( "-a", "--update-all", help="Update all summary records, regardless of current completion status (otherwise, only 'Complete' forms will be skipped)", action="store_true")
-parser.add_argument( "-n", "--no-upload", help="Do not upload any scores to REDCap server; instead write to CSV file with given path.", action="store")
+parser = argparse.ArgumentParser(description="Update completion status of forms that contain more than one instrument",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument("-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument("--forms", help="Select specific forms to update. Separate multiple forms with commas.", action="store", default=None )
+parser.add_argument("-a", "--update-all", help="Update all summary records, regardless of current completion status (otherwise, only 'Complete' forms will be skipped)", action="store_true")
+parser.add_argument("-n", "--no-upload", help="Do not upload any scores to REDCap server; instead write to CSV file with given path.", action="store")
 args = parser.parse_args()
 
+
 # First REDCap connection for the Summary project (this is where we put data)
-summary_key_file = open( os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' ), 'r' )
-summary_api_key = summary_key_file.read().strip()
-rc_summary = redcap.Project( 'https://ncanda.sri.com/redcap/api/', summary_api_key, verify_ssl=False)
-form_event_mapping = rc_summary.export_fem( format='df' )
+def connect_to_redcap():
+    summary_key_file = open(os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token'), 'r')
+    summary_api_key = summary_key_file.read().strip()
+    rc = redcap.Project('https://ncanda.sri.com/redcap/api/', summary_api_key, verify_ssl=False)
+    return rc
+
+try:
+    rc_summary = connect_to_redcap()
+except KeyError:
+    time.sleep(30)
+    rc_summary = connect_to_redcap()
+
+form_event_mapping = rc_summary.export_fem(format='df')
 
 # Compute the bulk "Complete" status of a record based on component status values
 def compute_bulk_status( row, field_names, form_complete_field ):
