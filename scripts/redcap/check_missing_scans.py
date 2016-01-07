@@ -25,13 +25,14 @@ __author__ = 'Nolan Nichols <https://orcid.org/0000-0003-1099-3328>'
 import os
 import sys
 
+import pyxnat
 import redcap
 import pandas as pd
 
 
 event_mapping = dict(baseline='baseline_visit_arm_1',
-                     followup_yr1='1y_visit_arm_1',
-                     followup_yr2='2y_visit_arm_1')
+                     followup_1y='1y_visit_arm_1',
+                     followup_2y='2y_visit_arm_1')
 
 
 def parse_csv(in_file):
@@ -47,9 +48,9 @@ def main(args=None):
     if args.verbose:
         print("Validating input csv.")
     csv = parse_csv(args.input)
-    subject_ids = csv.subject_ids
-    event = csv.visit_id.get(0)
 
+    # currently just working with one visit
+    event = event_mapping.get(csv.visit_id.get(0))
 
     if args.verbose:
         print("Creating connection...")
@@ -64,11 +65,24 @@ def main(args=None):
                                             events=[event],
                                             fields=['subject_id'],
                                             format='df')
+    visit_form = project_entry.export_records(forms=['visit'],
+                                              events=[event],
+                                              fields=['visit_ignore', 'visit_ignore_why'],
+                                              format='df')
+    # These are subject ids from the list that are in REDCap.
     rc_filter = mri_form.mri_xnat_sid.isin(csv.subject_id)
-    rc_cases = mri_form
+    rc_cases = mri_form[rc_filter]
 
-    pass
+    # These are the cases that are not in REDCap (i.e., missing sessions)
+    non_rc_filter = ~csv.subject_id.isin(rc_cases.mri_xnat_sid)
+    non_rc_cases = csv[non_rc_filter]
 
+
+    # now look up what info is on xnat
+    # Create interface using stored configuration
+    ifc = pyxnat.Interface(config=os.path.join(os.path.expanduser("~"),
+                                               '.server_config/ncanda.cfg'))
+    print visit_form
 
 if __name__ == "__main__":
     import argparse
