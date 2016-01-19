@@ -272,14 +272,23 @@ def compute_scores( data, demographics ):
                     try:
                         age = (datetime.datetime.strptime( row['ssaga_%s_dotest' % ssaga], date_format_ymd ) - dob).days / 365.242
                     except:
-                        print 'WARNING: Problem parsing',ssaga,'SSAGA date',row['ssaga_%s_dotest' % ssaga],'for subject',key[0],row['ssaga_%s_record_id'%ssaga]
+                        #Old Printing method
+                        #print 'WARNING: Problem parsing',ssaga,'SSAGA date',row['ssaga_%s_dotest' % ssaga],'for subject',key[0],row['ssaga_%s_record_id'%ssaga]
+                        error = dict(subject_id=key[0],
+                                 ssage=ssage,
+                                 ssaga_date=row['ssaga_%s_dotest' % ssaga],
+                                 error='WARNING: Problem parsing.')
+                print json.dumps(error, sort_keys=True)
                         age = numpy.nan
 
                     for column in ssaga_recode_as_age:
                         fieldname = 'ssaga_%s_%s' % (ssaga,var)
                         data[fieldname][key] = recode_field_as_age( data[fieldname][key], age )
         except:
-            print 'WARNING: Problem determining DOB for subject',key[0]
+            #Old Printing Method
+            #print 'WARNING: Problem determining DOB for subject',key[0]
+            error = dict(subject_id = key[0],
+                         error = 'WARNING: Problem determining DOB for subject')
             for column in ssaga_recode_as_age:
                 for ssaga in ['youth','parent']:
                     fieldname = 'ssaga_%s_%s' % (ssaga,var)
