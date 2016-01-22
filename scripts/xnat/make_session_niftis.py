@@ -47,7 +47,7 @@ def verify_image_count( session, session_label, scan, scantype, manufacturer, im
         if scantype in expected_images[manufacturer].keys():
             imgrange = expected_images[manufacturer][scantype]
             if not images_created in imgrange:
-                error = dict(session_label =  session_label,
+                error = dict(session_label = session_label,
                     session = session,
                     scan = scan,
                     scan_type = scantype,
