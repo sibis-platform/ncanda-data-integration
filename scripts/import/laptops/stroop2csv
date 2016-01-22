@@ -125,7 +125,7 @@ def samplestd(data):
                      data_contained = data,
                      error = e.strip()
                      )
-        print = json.dumps(error, sort_keys=True)
+        print(json.dumps(error, sort_keys=True))
     return samplestd
 
 

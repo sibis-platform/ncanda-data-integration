@@ -278,9 +278,8 @@ def compute_scores( data, demographics ):
                                  ssage=ssage,
                                  ssaga_date=row['ssaga_%s_dotest' % ssaga],
                                  error='WARNING: Problem parsing.')
-                print json.dumps(error, sort_keys=True)
-                        age = numpy.nan
-
+                        print(json.dumps(error, sort_keys=True))
+                    age = numpy.nan
                     for column in ssaga_recode_as_age:
                         fieldname = 'ssaga_%s_%s' % (ssaga,var)
                         data[fieldname][key] = recode_field_as_age( data[fieldname][key], age )
