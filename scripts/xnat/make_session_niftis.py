@@ -47,7 +47,18 @@ def verify_image_count( session, session_label, scan, scantype, manufacturer, im
         if scantype in expected_images[manufacturer].keys():
             imgrange = expected_images[manufacturer][scantype]
             if not images_created in imgrange:
-                print 'WARNING: experiment %s(%s), scan %s(%s), found %d images' % ( session_label,session,scan,scantype,images_created), '(expected',imgrange,')'
+                error = dict(session_label =  session_label,
+                    session = session,
+                    scan = scan,
+                    scan_type = scantype,
+                    images_created = images_created,
+                    expected_images = expected_images,
+                    error_message = 'WARNING: Scan found more images than expected.'
+                )
+                print json.dumps(error, sort_keys=True)
+
+                #Old Error Message
+                #print 'WARNING: experiment %s(%s), scan %s(%s), found %d images' % ( session_label,session,scan,scantype,images_created), '(expected',imgrange,')'
 
 #
 # Export experiment files to NIFTI
