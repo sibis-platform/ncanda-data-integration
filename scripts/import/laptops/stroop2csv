@@ -121,7 +121,11 @@ def samplestd(data):
         mean=data.mean()
         samplestd=math.sqrt(sum((data-mean)**2)/(len(data)-1))
     except RuntimeWarning, e:
-        print("Error: {}. Data contains: {}".format(e, data))
+        error = dict(record_id = args.record,
+                     data_contained = data,
+                     error = e.strip()
+                     )
+        print = json.dumps(error, sort_keys=True)
     return samplestd
 
 
