@@ -56,7 +56,7 @@ def verify_image_count( session, session_label, scan, scantype, manufacturer, im
                     expected_images = expected_images,
                     error_message = 'WARNING: Scan found more images than expected.'
                 )
-                print json.dumps(error, sort_keys=True)
+                print(json.dumps(error, sort_keys=True))
 
                 #Old Error Message
                 #print 'WARNING: experiment %s(%s), scan %s(%s), found %d images' % ( session_label,session,scan,scantype,images_created), '(expected',imgrange,')'
