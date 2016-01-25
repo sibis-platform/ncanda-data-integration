@@ -11,6 +11,7 @@
 
 import pyxnat
 import os.path
+import json
 import re
 import subprocess
 import tempfile
