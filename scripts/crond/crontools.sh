@@ -23,7 +23,7 @@ catch_output_email()
     eval ${cmd} &> ${tmpfile}
     if [ -s ${tmpfile} ]; then
         eval "mailx -r crond@ncanda.sri.com -s \"${subject}\" ${mailto} < ${tmpfile}"
-        eval "python ${HOME}/scripts/crond/post_github_issues.py --org sibis-platform --repo ncanda-operations --title \"${subject}\" --body ${tmpfile}"
+        eval "python ${SIBIS}/scripts/crond/post_github_issues.py --org sibis-platform --repo ncanda-operations --title \"${subject}\" --body ${tmpfile}"
     fi
 
     rm -f ${tmpfile}

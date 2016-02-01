@@ -9,16 +9,19 @@
 ##  $LastChangedDate$
 ##
 
+# Set the SIBIS environment variable to the data integration repo
+export SIBIS=${HOME}/ncanda-data-integration
+
 [ -r $HOME/.bashrc ] && . $HOME/.bashrc
 
 # Import some useful functions
 . $(dirname $0)/crontools.sh
 
 # Run QA on fBIRN and ADNI phantom scans
-catch_output_email nolan.nichols@gmail.com,kilian.pohl@sri.com "NCANDA XNAT: Phantom QA Messages (phantom_qa)" ${HOME}/scripts/xnat/phantom_qa
+catch_output_email nolan.nichols@gmail.com,kilian.pohl@sri.com "NCANDA XNAT: Phantom QA Messages (phantom_qa)" ${SIBIS}/scripts/xnat/phantom_qa
 
 # Import data from the sites' data capture laptops into REDCap and reconcile imported with longitudinal data
-catch_output_email weiwei.chu@sri.com,nolan.nichols@gmail.com "NCANDA: Laptop Data Import Stage 1 (harvester)" ${HOME}/scripts/import/laptops/harvester ${HOME}/laptops/ncanda ${HOME}/laptops/imported
+catch_output_email weiwei.chu@sri.com,nolan.nichols@gmail.com "NCANDA: Laptop Data Import Stage 1 (harvester)" ${SIBIS}/scripts/import/laptops/harvester ${HOME}/laptops/ncanda ${HOME}/laptops/imported
 
 # At midnight PST, run full update; otherwise, add only previously-missing data
 update_args=""
@@ -27,7 +30,7 @@ if [ ${hour} -ne 0 ]; then
     update_args+=" --missing-only"
 fi
 
-catch_output_email weiwei.chu@sri.com,nolan.nichols@gmail.com "NCANDA: Laptop Data Import Stage 2 (update_visit_date)" ${HOME}/scripts/import/laptops/update_visit_data --max-days-after-visit 120 ${update_args}
+catch_output_email weiwei.chu@sri.com,nolan.nichols@gmail.com "NCANDA: Laptop Data Import Stage 2 (update_visit_date)" ${SIBIS}/scripts/import/laptops/update_visit_data --max-days-after-visit 120 ${update_args}
 
 # REDCap updates
 update_args=""
@@ -35,6 +38,6 @@ hour=$(date +%H)
 if [ ${hour} -eq 0 ]; then
     update_args+="--update-all"
 fi
-catch_output_email weiwei.chu@sri.com,nolan.nichols@gmail.com "NCANDA REDCap: Update Scores (update_summary_scores)" ${HOME}/scripts/redcap/update_summary_scores ${update_args}
+catch_output_email weiwei.chu@sri.com,nolan.nichols@gmail.com "NCANDA REDCap: Update Scores (update_summary_scores)" ${SIBIS}/scripts/redcap/update_summary_scores ${update_args}
 
-catch_output_email weiwei.chu@sri.com,nolan.nichols@gmail.com "NCANDA REDCap: Update Form Status (update_bulk_forms)" ${HOME}/scripts/redcap/update_bulk_forms
+catch_output_email weiwei.chu@sri.com,nolan.nichols@gmail.com "NCANDA REDCap: Update Form Status (update_bulk_forms)" ${SIBIS}/scripts/redcap/update_bulk_forms
