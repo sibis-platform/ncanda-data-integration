@@ -21,7 +21,7 @@ rc_summary = redcap.Project('https://ncanda.sri.com/redcap/api/', summary_api_ke
 # Get all np reports for baseline and 1r
 visit  = rc_summary.export_records(fields=['study_id', 'exclude', 'visit_ignore___yes'],
                                  forms=['mr_session_report','visit_date'],
-                                 events=['baseline_visit_arm_1'], 
+                                 events=['baseline_visit_arm_1'],
                                  format='df')
 
 # Create filters for cases that are included
@@ -32,4 +32,3 @@ np_collected = visit.visit_ignore___yes != 1
 results = visit[visit_included & np_collected]
 
 results.to_csv('baseline_case.csv', columns = ['exclude','visit_ignore___yes', 'mri_xnat_sid','mri_xnat_eids'])
-
