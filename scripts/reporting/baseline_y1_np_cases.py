@@ -6,7 +6,7 @@
 """
 Baseline cases
 
-This script generates a list of all subject that have a valid baseline visit and valid mri session.
+This script generates a list of all subject that have a valid baseline and follow-up visit.
 """
 import os
 
@@ -21,7 +21,7 @@ rc_summary = redcap.Project('https://ncanda.sri.com/redcap/api/', summary_api_ke
 # Get all np reports for baseline and 1r
 visit  = rc_summary.export_records(fields=['study_id', 'exclude', 'visit_ignore___yes'],
                                  forms=['mr_session_report','visit_date'],
-                                 events=['baseline_visit_arm_1'], 
+                                 events=['baseline_visit_arm_1', '1y_visit_arm_1'], 
                                  format='df')
 
 # Create filters for cases that are included
@@ -31,5 +31,5 @@ np_collected = visit.visit_ignore___yes != 1
 # Apply filters for results
 results = visit[visit_included & np_collected]
 
-results.to_csv('baseline_case.csv', columns = ['exclude','visit_ignore___yes', 'mri_xnat_sid','mri_xnat_eids'])
+results.to_csv('baseline_y1_np_case.csv', columns = ['exclude','visit_ignore___yes', 'mri_xnat_sid','mri_xnat_eids'])
 
