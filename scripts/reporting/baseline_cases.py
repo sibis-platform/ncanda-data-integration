@@ -5,8 +5,8 @@
 ##
 """
 Baseline cases
-
-This script generates a list of all subject that have a valid baseline visit and valid mri session.
+==============
+This script generates a list of all subject that have a valid baseline and follow-up visit.
 """
 import os
 
@@ -31,4 +31,4 @@ np_collected = visit.visit_ignore___yes != 1
 # Apply filters for results
 results = visit[visit_included & np_collected]
 
-results.to_csv('baseline_case.csv', columns = ['exclude','visit_ignore___yes', 'mri_xnat_sid','mri_xnat_eids'])
+results.to_csv('baseline.csv', columns = ['exclude','visit_ignore___yes', 'mri_xnat_sid','mri_xnat_eids'])
