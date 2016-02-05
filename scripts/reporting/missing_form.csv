@@ -1,0 +1,3 @@
+subject_site_id,visit_date,np_missing,event_name,error
+B-00223-F-5,2014-09-11,youthreport1b_missing,1y_visit_arm_1,ERROR: Form is missing
+E-01053-M-1,2015-03-26,parentreport_missing,1y_visit_arm_1,ERROR: Form is missing

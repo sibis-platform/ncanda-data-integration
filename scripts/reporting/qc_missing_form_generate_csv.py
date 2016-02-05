@@ -28,8 +28,9 @@ fields = ['study_id', 'redcap_event_name','exclude', 'visit_ignore',
           'ssage_youth_missing','ssage_youth_date'];
 
 form_fields = [['youthreport1_missing','youthreport1_date'],
-          ['youthreport1b_missing', 'youthreport1b_date'],['youthreport2_missing', 
-          'youthreport2_date'],['parentreport_missing','parentreport_date'],
+          ['youthreport1b_missing', 'youthreport1b_date'],
+          ['youthreport2_missing','youthreport2_date'],
+          ['parentreport_missing','parentreport_date'],
           ['ssage_youth_missing','ssage_youth_date']];
 
 
@@ -86,10 +87,23 @@ def main(args=None):
 			check = value_check(idx,row,f[0],f[1])
 			if check:
 				error.append(check)
-
+	
 	for e in error:
-		if e != 'null':
-			print json.dumps(e, sort_keys = True)
+		if e == 'null':
+			error.remove(e)
+  
+	f = csv.writer(open("missing_form.csv", "wb+"))
+
+	# Write CSV Header, If you dont need that, remove this line
+	f.writerow(["subject_site_id", "visit_date", "np_missing", "event_name", "error"])
+
+	for x in error:
+  	 	f.writerow([x["subject_site_id"], 
+    	   	        x["visit_date"], 
+        	   	    x["np_missing"], 
+            	   	x["event_name"],
+               		x["error"]])
+
 
 
 if __name__ == '__main__':
