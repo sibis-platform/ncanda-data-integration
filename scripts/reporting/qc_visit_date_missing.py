@@ -70,7 +70,6 @@ def main(args=None):
 	project_df =  data_entry_fields(fields,project_entry,'year1_arm_3');
 	error = []
 
-	# Try using `for` loops rather than `while` to be `pythonic`... this looks like java or c =)
 	for idx, row in project_df.iterrows():
 		error.append(visit_data_missing(idx,row))
 
