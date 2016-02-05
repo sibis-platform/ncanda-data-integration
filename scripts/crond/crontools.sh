@@ -9,6 +9,9 @@
 ##  $LastChangedDate$
 ##
 
+# Set the SIBIS environment variable to the data integration repo
+export SIBIS=${HOME}/ncanda-data-integration
+
 # Run a command, and send its output (stdout and stderr) to a given email address, but only if there is output
 catch_output_email()
 {
