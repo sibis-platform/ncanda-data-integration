@@ -21,9 +21,6 @@ import redcap
 import math
 import pandas as pd
 
-# The convention is to simply use `pd` (e.g., pd.DataFrame(foo))
-#from pandas import DataFrame as df
-
 # Fields
 fields = ['study_id', 'redcap_event_name','exclude', 'visit_ignore',
           'visit_date','visit_notes', 'np_notes', 'bio_np_missing', 'bio_np_date',
