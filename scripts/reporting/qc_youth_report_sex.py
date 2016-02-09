@@ -60,9 +60,9 @@ def value_check(idx,row, field_missing, field_sex):
 	# visit_ignore____yes with value 0 is not ignored
 	error = dict()
 	if math.isnan(row.get('exclude')):
-		if row.get('visit_ignore___yes') == 0:
+		if row.get('visit_ignore___yes') != 1:
 			# np is not missing if field_missing if value nan or zero
-			if row.get(field_missing) == 0:
+			if row.get(field_missing) != 1:
 				if row.get('sex') == row.get(field_sex):
 					error = dict(subject_site_id = idx[0],
 								visit_date = row.get('visit_date'),

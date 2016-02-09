@@ -76,9 +76,9 @@ def value_check(idx,row,field_missing, field_value):
 	# visit_ignore____yes with value 0 is not ignored
 	error = dict()
 	if math.isnan(row.get('exclude')):
-		if row.get('visit_ignore___yes') == 0:
+		if row.get('visit_ignore___yes') != 1:
 			# np is not missing if field_missing if value nan or zero
-			if row.get(field_missing) == 0 or math.isnan(row.get(field_missing)):
+			if row.get(field_missing) != 1:
 				# for np_date, date is stored as a string
 				if type(row.get(field_value)) == float:
 					# If field is left blank, a NaN is put in it's place
@@ -121,7 +121,7 @@ def main(args=None):
 	year1 = data_entry_fields(fields,project_entry,'1y_visit_arm_1')
 
 	error = []
-	# Try using `for` loops rather than `while` to be `pythonic`... this looks like java or c =)
+	
 	for idx, row in year1.iterrows():
 		for np in np_fields:
 			check = value_check(idx,row,np[0],np[1])
