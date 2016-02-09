@@ -29,7 +29,7 @@ fields = ['study_id', 'redcap_event_name','exclude', 'visit_ignore',
           'np_reyo_missing','np_reyo_copy_time', 'np_atax_missing','np_atax_sht_trial1', 
           'np_wais4_missing', 'np_wais4_corr15s', 'pasat_missing','pasat_date', 
           'cnp_missing','cnp_test_sessions_dotest','stroop_missing',
-          'stroop_date', 'mri_stroop_missing','mri_stroop_date'];
+          'stroop_date'];
 
 np_fields = [['bio_np_missing', 'bio_np_date'],['dd1000_missing','dd1000_date'], 
 			['dd100_missing','dd100_date'],['np_wrat4_missing','np_wrat4_wr_raw'],
@@ -73,9 +73,9 @@ def value_check(idx,row,field_missing, field_value):
 	# visit_ignore____yes with value 0 is not ignored
 	error = dict()
 	if math.isnan(row.get('exclude')):
-		if row.get('visit_ignore___yes') == 0:
+		if row.get('visit_ignore___yes') != 1:
 			# np is not missing if field_missing if value nan or zero
-			if row.get(field_missing) == 0 or math.isnan(row.get(field_missing)):
+			if row.get(field_missing) != 1:
 				# for np_date, date is stored as a string
 				if type(row.get(field_value)) == float:
 					# If field is left blank, a NaN is put in it's place
@@ -117,7 +117,7 @@ def main(args=None):
 	project_entry = get_project_entry()
 	project_df = data_entry_fields(fields,project_entry,'1y_visit_arm_1')
 	error = []
-	# Try using `for` loops rather than `while` to be `pythonic`... this looks like java or c =)
+	
 	for idx, row in project_df.iterrows():
 		for np in np_fields:
 			check = value_check(idx,row,np[0],np[1])

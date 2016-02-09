@@ -56,8 +56,8 @@ def visit_data_missing(idx,row):
 	Gets the subjects with missing visit dates
 	"""
 	error = dict()
-	if row.get('exclude') == 0:
-		if row.get('visit_ignore___yes') == 0:
+	if row.get('exclude') != 1:
+		if row.get('visit_ignore___yes') != 1:
 			if type(row.get('visit_date')) != str:
 				error = dict(subject_site_id = idx[0],
 					event_name = idx[1],

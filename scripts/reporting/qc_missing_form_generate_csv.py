@@ -64,9 +64,9 @@ def value_check(idx,row,field_missing, field_value):
 	# visit_ignore____yes with value 0 is not ignored
 	error = dict()
 	if math.isnan(row.get('exclude')):
-		if row.get('visit_ignore___yes') == 0:
+		if row.get('visit_ignore___yes') != 1:
 			# form is not missing if form_missing if value nan or zero
-			if row.get(field_missing) == 0:
+			if row.get(field_missing) != 1:
 				# for form_date, date is stored as a string
 				if type(row.get(field_value)) == float:
 					error = dict(subject_site_id = idx[0],
@@ -81,7 +81,7 @@ def main(args=None):
 	project_entry = get_project_entry()
 	project_df = data_entry_fields(fields,project_entry,'1y_visit_arm_1')
 	error = []
-	# Try using `for` loops rather than `while` to be `pythonic`... this looks like java or c =)
+
 	for idx, row in project_df.iterrows():
 		for f in form_fields:
 			check = value_check(idx,row,f[0],f[1])
@@ -94,7 +94,6 @@ def main(args=None):
   
 	f = csv.writer(open("missing_form.csv", "wb+"))
 
-	# Write CSV Header, If you dont need that, remove this line
 	f.writerow(["subject_site_id", "visit_date", "np_missing", "event_name", "error"])
 
 	for x in error:

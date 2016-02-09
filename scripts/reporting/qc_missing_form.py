@@ -10,7 +10,7 @@
 """
 Missing Forms
 ======================
-Generate a report indicating which Questionnaires have not been entered.
+Generate a report indicating which Questionnaires and Forms have not been entered.
 """
 import os
 import sys
@@ -25,12 +25,14 @@ fields = ['study_id', 'redcap_event_name','exclude', 'visit_ignore',
           'visit_date','visit_notes','youthreport1_missing','youthreport1_date',
           'youthreport1b_missing', 'youthreport1b_date','youthreport2_missing', 
           'youthreport2_date','parentreport_missing','parentreport_date',
-          'ssage_youth_missing','ssage_youth_date'];
+          'ssage_youth_missing','ssage_youth_date', 'lssaga1_youth_missing',
+          'lssaga1_youth_date','lssaga1_parent_missing','lssaga1_parent_date'];
 
 form_fields = [['youthreport1_missing','youthreport1_date'],
           ['youthreport1b_missing', 'youthreport1b_date'],['youthreport2_missing', 
           'youthreport2_date'],['parentreport_missing','parentreport_date'],
-          ['ssage_youth_missing','ssage_youth_date']];
+          ['ssage_youth_missing','ssage_youth_date'],['lssaga1_youth_missing',
+          'lssaga1_youth_date'],['lssaga1_parent_missing','lssaga1_parent_date']];
 
 
 def get_project_entry(args=None):
@@ -63,15 +65,16 @@ def value_check(idx,row,field_missing, field_value):
 	# visit_ignore____yes with value 0 is not ignored
 	error = dict()
 	if math.isnan(row.get('exclude')):
-		if row.get('visit_ignore___yes') == 0:
+		if row.get('visit_ignore___yes') != 1:
 			# form is not missing if form_missing if value nan or zero
-			if row.get(field_missing) == 0:
+			if row.get(field_missing) != 1:
 				# for form_date, date is stored as a string
 				if type(row.get(field_value)) == float:
 					error = dict(subject_site_id = idx[0],
 							visit_date = row.get('visit_date'),
-							np_missing = field_missing,
+							form_missing = field_missing,
 							event_name = idx[1],
+							visit_notes = row.get('visit_notes'),
 							error = 'ERROR: Form is missing'
 							)
 	return error
@@ -80,7 +83,7 @@ def main(args=None):
 	project_entry = get_project_entry()
 	project_df = data_entry_fields(fields,project_entry,'1y_visit_arm_1')
 	error = []
-	# Try using `for` loops rather than `while` to be `pythonic`... this looks like java or c =)
+	
 	for idx, row in project_df.iterrows():
 		for f in form_fields:
 			check = value_check(idx,row,f[0],f[1])
