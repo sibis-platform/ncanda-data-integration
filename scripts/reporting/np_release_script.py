@@ -58,10 +58,22 @@ def replace_binge_groups_1(x):
 		result = pd.np.NaN
 	return result
 
-final_df['binge_groups_1'] = binge_groups_1_had_binge.apply(replace_binge_groups_1)
-final_df['binge_groups_1'] = binge_groups_1_no_binge.apply(lambda x: 0 if x == True)
+def replace_binge_groups_month(x):
+	"""
+	 #3groups based on past month binge drinking (0 - is o or blank, but not missing)
+	"""
+	if x == 0:
+		result = 'None'
+	elif x == 1:
+		result = '1'
+	elif x > 1:
+		result = '2+'
+	else:
+		result = ''
+	return result
 
 
-binge_groups_month
+final_df['binge_groups_1'] = final_df['cddr_past_year_binge'].apply(replace_binge_groups_1)
+final_df['binge_groups_month'] = final_df['cddr_past_month_binge'].apply(replace_binge_groups_month)
 
 final_df.to_csv('np_release.csv')
