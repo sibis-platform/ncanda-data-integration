@@ -42,4 +42,7 @@ for i in nps_file:
 	                 index_col=['subject','arm','visit'])
 	final_df = pd.concat([final_df, df], axis=1)
 
+final_df = final_df.rename(columns={'cddr31':'CDDR_PastMo_Binge',
+									'cddr30':'CDDR_PastYr_BingeCDR'});
+
 final_df.to_csv('np_release.csv')
