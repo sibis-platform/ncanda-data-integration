@@ -42,7 +42,26 @@ for i in nps_file:
                      index_col=['subject','arm','visit'])
     final_df = pd.concat([final_df, df], axis=1)
 
-final_df = final_df.rename(columns={'cddr31':'CDDR_PastMo_Binge',
-                                    'cddr30':'CDDR_PastYr_BingeCDR'});
+final_df = final_df.rename(columns={'cddr31':'cddr_past_month_binge',
+                                    'cddr30':'cddr_past_year_binge'})
+
+def replace_binge_groups_1(x):
+	"""
+	 A binary variable from CDDR_PastYr_Binge (i.e., 0 or blank, 
+	 but not missing = 0, and 1 or more = 1)
+	"""
+	if x > 0:
+		result = 1
+	elif x == 0:
+		result = 0
+	else:
+		result = pd.np.NaN
+	return result
+
+final_df['binge_groups_1'] = binge_groups_1_had_binge.apply(replace_binge_groups_1)
+final_df['binge_groups_1'] = binge_groups_1_no_binge.apply(lambda x: 0 if x == True)
+
+
+binge_groups_month
 
 final_df.to_csv('np_release.csv')
