@@ -20,7 +20,8 @@ directory = "/fs/ncanda-share/releases/NCANDA_DATA_00019/summaries"
 
 nps_file = ["ataxia.csv", "cddr.csv", "clinical.csv", "cnp.csv", "dd100.csv",
             "dd1000.csv", "grooved_pegboard.csv", "ishihara.csv",
-            "landoltc.csv", "rey-o.csv", "wais4.csv", "wrat4.csv"]
+            "landoltc.csv", "rey-o.csv", "wais4.csv", "wrat4.csv",
+            "mr_session_report.csv"]
 
 final_df = pd.read_csv(os.path.join(directory, "demographics.csv"),
                        index_col=['subject','arm','visit'])
@@ -76,11 +77,14 @@ def replace_binge_groups_month(x):
 final_df['binge_groups_1'] = final_df['cddr_past_year_binge'].apply(replace_binge_groups_1)
 final_df['binge_groups_month'] = final_df['cddr_past_month_binge'].apply(replace_binge_groups_month)
 
+final_df['exceed_or_mrianomaly'] = pd.np.NaN
+final_df['hi_ed'] = pd.np.NaN
+
 final_df = final_df[['site', 'sex', 'visit_age',
-'exceed_or_mrianomaly', 'exceeds_bl_drinking', 'cddr_pastmo_binge',
-'cddr_pastyr_binge', 'binge_groups_1', 'binge_groups_month', 'hispanic', 'race_code',
-'race', 'mri_analysisanomalies', 'hi_ed', 'african_american_black', 'asian',
-'caucasian_white', 'native_american_americanindian', 'pacific_islander',
+'exceed_or_mrianomaly', 'exceeds_bl_drinking', 'cddr_past_month_binge',
+'cddr_past_year_binge', 'binge_groups_1', 'binge_groups_month', 'hispanic', 'race',
+'race_label', 'mri_analysisanomalies', 'hi_ed', 'african_american_black', 'asian',
+'caucasian_white', 'native_american_american_indian', 'pacific_islander',
 'cddrheight_inches', 'cddrweight_pounds', 'ses_parent_yoe', 'fh_alc_density',
 'fh_drug_density', 'bmi_value', 'bmi_zscore', 'bmi_percentile', 'pds_score',
 'np_atax_sht_sum', 'np_atax_steps_sum', 'np_atax_standr_sum',
