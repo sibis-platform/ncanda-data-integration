@@ -1,6 +1,8 @@
 #!/usr/bin/en python
 import os
+import sys
 import glob
+import json
 
 import numpy as np
 from lxml import objectify
@@ -63,17 +65,17 @@ def get_cases(cases_root, case=None):
     return glob.glob(os.path.join(cases_root, match))
 
 def get_dti_stack(case, arm=None, event=None):
-  if arm:
-    path = os.path.join(case, arm)
-  else:
-    path = os.path.join(case, '*')
-  if event:
-    path = os.path.join(path, event)
-  else:
-    path = os.path.join(path,'*')
+    if arm:
+        path = os.path.join(case, arm)
+    else:
+            path = os.path.join(case, '*')
+    if event:
+        path = os.path.join(path, event)
+    else:
+        path = os.path.join(path,'*')
 
-  path = os.path.join(path, 'diffusion/native/dti60b1000/*.xml')
-  return glob.glob(path)
+    path = os.path.join(path, 'diffusion/native/dti60b1000/*.xml')
+    return glob.glob(path)
 
 def get_all_gradients(dti_stack, decimals=None):
     """
@@ -90,30 +92,62 @@ def get_all_gradients(dti_stack, decimals=None):
                                                      decimals=decimals))
     return gradiets_per_frame
 
+def main(args=None):
+    print args.base_dir
+    # Using NCANDA_S00033 as ground truth
+    test_path = '/fs/ncanda-share/pipeline/cases'
+    test_case = 'NCANDA_S00033'
+    test_arm = 'standard'
+    test_event = 'baseline'
 
-# Using NCANDA_S00033 as ground truth
-path = '/fs/ncanda-share/pipeline/cases'
-case = 'NCANDA_S00033'
-arm = 'standard'
-event = 'baseline'
+    dti_path = os.path.join(test_path, test_case)
+    dti_stack = get_dti_stack(dti_path, arm=test_arm, event=test_event)
+    gradients = get_all_gradients(dti_stack, decimals=args.decimals)
 
-dti_path = os.path.join(path, case)
-dti_stack = get_dti_stack(dti_path, arm=arm, event=event)
-gradients = get_all_gradients(dti_stack, decimals=1)
+    # Get the gradient tables for all cases and compare to ground truth
+    cases = get_cases(args.base_dir, case=args.case)
+    for case in cases:
+        if args.verbose:
+            print("Processing: {}".format(case))
+        case_dti = os.path.join(args.base_dir, case)
+        case_stack = get_dti_stack(case_dti, arm=args.arm, event=args.event)
+        case_gradients = get_all_gradients(case_stack, decimals=args.decimals)
+        errors = list()
+        for idx, frame in enumerate(case_gradients):
+            # if there is a frame that doesn't match, report it.
+            if not (gradients[idx]==frame).all():
+                errors.append(idx)
+        if errors:
+            key = '-'.join([case, args.arm, args.event])
+            result = dict(subject_site_id=key,
+                          frames=errors,
+                          error="Gradient tables do not match for frames.")
+            print(json.dumps(result, sort_keys=True))
 
-# Get the gradient tables for all cases and compare to ground truth
-results = dict()
-for case in get_cases(path):
-    print("Processing: {}...".format(case))
-    case_dti = os.path.join(path, case)
-    case_stack = get_dti_stack(dti_path, arm=arm, event=event)
-    case_gradients = get_all_gradients(case_stack, decimals=1)
-    errors = list()
-    for idx, frame in enumerate(case_gradients):
-        # if there is a frame that doesn't match, report it.
-        if not (gradients[idx]==frame).all():
-            errors.append(idx)
-    if errors:
-        key = '-'.join([case, arm, event])
-        results.update({key: errors})
-        print("Error: {}...".format(results))
+if __name__ == '__main__':
+    import argparse
+
+    formatter = argparse.RawDescriptionHelpFormatter
+    default = 'default: %(default)s'
+    parser = argparse.ArgumentParser(prog="check_gradient_tables.py",
+                                     description=__doc__,
+                                     formatter_class=formatter)
+    parser.add_argument('-a', '--arm', dest="arm",
+                        help="Study arm. {}".format(default),
+                        default='standard')
+    parser.add_argument('-b', '--base-dir', dest="base_dir",
+                        help="Study base directory. {}".format(default),
+                        default='/fs/ncanda-share/pipeline/cases')
+    parser.add_argument('-d', '--decimals', dest="decimals",
+                        help="Number of decimals. {}".format(default),
+                        default=3)
+    parser.add_argument('-e', '--event', dest="event",
+                        help="Study event. {}".format(default),
+                        default='baseline')
+    parser.add_argument('-c', '--case', dest="case",
+                        help="Study case. {}".format(default),
+                        default=None)
+    parser.add_argument('-v', '--verbose', dest="verbose",
+                        help="Turn on verbose", action='store_true')
+    argv = parser.parse_args()
+    sys.exit(main(args=argv))
