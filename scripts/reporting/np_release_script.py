@@ -47,7 +47,7 @@ final_df = final_df.rename(columns={'cddr31':'cddr_past_month_binge',
 
 def replace_binge_groups_1(x):
 	"""
-	 A binary variable from CDDR_PastYr_Binge (i.e., 0 or blank, 
+	 A binary variable from CDDR_PastYr_Binge (i.e., 0 or blank,
 	 but not missing = 0, and 1 or more = 1)
 	"""
 	if x > 0:
@@ -75,5 +75,36 @@ def replace_binge_groups_month(x):
 
 final_df['binge_groups_1'] = final_df['cddr_past_year_binge'].apply(replace_binge_groups_1)
 final_df['binge_groups_month'] = final_df['cddr_past_month_binge'].apply(replace_binge_groups_month)
+
+final_df = final_df[['site', 'sex', 'visit_age',
+'exceed_or_mrianomaly', 'exceeds_bl_drinking', 'cddr_pastmo_binge',
+'cddr_pastyr_binge', 'binge_groups_1', 'binge_groups_month', 'hispanic', 'race_code',
+'race', 'mri_analysisanomalies', 'hi_ed', 'african_american_black', 'asian',
+'caucasian_white', 'native_american_americanindian', 'pacific_islander',
+'cddrheight_inches', 'cddrweight_pounds', 'ses_parent_yoe', 'fh_alc_density',
+'fh_drug_density', 'bmi_value', 'bmi_zscore', 'bmi_percentile', 'pds_score',
+'np_atax_sht_sum', 'np_atax_steps_sum', 'np_atax_standr_sum',
+'np_atax_standl_sum', 'cnp_mpract_mp2rtcr', 'cnp_cpf_ifac_tot',
+'cnp_cpf_ifac_rtc', 'cnp_cpw_iwrd_tot', 'cnp_cpw_iwrd_rtc',
+'cnp_spcptnl_scpl_tprt', 'cnp_spcptnl_scpt_tp', 'cnp_spcptnl_scpt_tprt',
+'cnp_sfnb2_sfnb_rtc', 'cnp_sfnb2_sfnb_rtc0', 'cnp_sfnb2_sfnb_rtc1',
+'cnp_sfnb2_sfnb_rtc2', 'cnp_sfnb2_sfnb_mcr', 'cnp_sfnb2_sfnb_mrtc',
+'cnp_pmat24a_pmat24_a_cr', 'cnp_pmat24a_pmat24_a_rtcr', 'cnp_cpfd_cpfdtp',
+'cnp_cpfd_cpfdtprt', 'cnp_cpwd_dwrd_tot', 'cnp_cpwd_dwrd_rtc',
+'cnp_shortvolt_svt', 'cnp_shortvolt_svtcrt', 'cnp_shortvolt_svt_eff',
+'cnp_er40d_er40_cr', 'cnp_er40d_er40_crt', 'cnp_er40d_er40angrt',
+'cnp_er40d_er40fearrt', 'cnp_er40d_er40haprt', 'cnp_er40d_er40noert',
+'cnp_er40d_er40sadrt', 'cnp_pcet_pcetcr', 'cnp_pcet_pcetrtcr',
+'cnp_pcet_pcet_eff', 'cnp_pcet_pcet_acc', 'cnp_pcet_pcet_acc2',
+'cnp_medf36_medf36_hap_rtcr', 'cnp_medf36_medf36_sad_rtcr',
+'cnp_medf36_medf36_ang_rtcr', 'cnp_medf36_medf36_fear_rtcr',
+'cnp_medf36_medf36_a', 'cnp_medf36_medf36_t', 'cnp_pvoc_pvoccr',
+'cnp_pvoc_pvocrtcr', 'cnp_pvrt_pvrtcr', 'cnp_pvrt_pvrtrtcr',
+'cnp_pvrt_pvrt_eff', 'cnp_svdelay_svt_ld', 'cnp_svdelay_svtldrtc',
+'cnp_svdelay_svtldrter', 'cnp_svdelay_svt_effd', 'cnp_sfnb2_sfnb_mrt',
+'cnp_sfnb2_sfnb_meff', 'np_gpeg_dh_time', 'np_gpeg_ndh_time',
+'np_wais4_rawscore', 'np_wrat4_wr_raw', 'np_wrat4_mc_raw',
+'cnp_spcptnl_scpn_tp', 'cnp_spcptnl_scpn_tprt', 'cnp_spcptnl_scpl_tp',
+'cnp_cpfd_dfac_tot', 'cnp_cpfd_dfac_rtc']]
 
 final_df.to_csv('np_release.csv')
