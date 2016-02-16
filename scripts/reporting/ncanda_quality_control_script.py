@@ -85,14 +85,13 @@ def fourteen_days_MRI_report(idx,row):
     """
     error = dict()
     idx, row = exclude_visit_ignore_check(idx,row)
-        if row.get('mrireport_missing') != 1:
-            if type(row.get('mrireport_missing')) == str:
-                if datetime.datetime.strptime(row.get('mrireport_date'),'%Y-%m-%d') == datetime.date.today()-datetime.timedelta(days = 14):
-                    error = dict(subject_site_id = idx[0],
-                                visit_date = row.get('visit_date'),
-                                event_name = idx[1],
-                                error = 'ERROR: No MRI data after 14 days'
-                                )
+    if row.get('mrireport_missing') != 1:
+        if type(row.get('mrireport_missing')) == str:
+            if datetime.datetime.strptime(row.get('mrireport_date'),'%Y-%m-%d') == datetime.date.today()-datetime.timedelta(days = 14):
+                error = dict(subject_site_id = idx[0],
+                            visit_date = row.get('visit_date'),
+                            event_name = idx[1],
+                            error = 'ERROR: No MRI data after 14 days')
     return error
 
 def main(args=None):
