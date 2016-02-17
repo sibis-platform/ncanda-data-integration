@@ -21,7 +21,7 @@ directory = "/fs/ncanda-share/releases/NCANDA_DATA_00019/summaries"
 nps_file = ["ataxia.csv", "cddr.csv", "clinical.csv", "cnp.csv", "dd100.csv",
             "dd1000.csv", "grooved_pegboard.csv", "ishihara.csv",
             "landoltc.csv", "rey-o.csv", "wais4.csv", "wrat4.csv",
-            "mr_session_report.csv"]
+            "mr_session_report.csv", "parentreport.csv"]
 
 final_df = pd.read_csv(os.path.join(directory, "demographics.csv"),
                        index_col=['subject','arm','visit'])
