@@ -5,6 +5,7 @@ import glob
 import json
 
 import numpy as np
+import pandas as pd
 from lxml import objectify
 
 def read_xml_sidecar(filepath):
@@ -92,25 +93,69 @@ def get_all_gradients(dti_stack, decimals=None):
                                                      decimals=decimals))
     return gradiets_per_frame
 
-def main(args=None):
-    print args.base_dir
-    # Using NCANDA_S00033 as ground truth
+def get_site_scanner(site):
+    """
+    Returns the "ground truth" case for gradients.
+    """
+    site_scanner = dict(A='Siemens',
+                        B='GE',
+                        C='GE',
+                        D='Siemens',
+                        E='GE')
+    return site_scanner.get(site)
+
+def get_ground_truth_gradients(args=None):
+    """
+    Return a dictionary for scanner:gratient
+    """
+    # Choose arbitrary cases for ground truth
     test_path = '/fs/ncanda-share/pipeline/cases'
-    test_case = 'NCANDA_S00033'
+    scanner_subject = dict(Siemens='NCANDA_S00061',
+                           GE='NCANDA_S00033')
+
+    # Paths to scanner specific gradients
+    siemens_path = os.path.join(test_path, scanner_subject.get('Siemens'))
+    ge_path = os.path.join(test_path, scanner_subject.get('GE'))
+
+    # Get ground truth for standard baseline
     test_arm = 'standard'
     test_event = 'baseline'
 
-    dti_path = os.path.join(test_path, test_case)
-    dti_stack = get_dti_stack(dti_path, arm=test_arm, event=test_event)
-    gradients = get_all_gradients(dti_stack, decimals=args.decimals)
+    # Gets files for each scanner
+    siemens_stack = get_dti_stack(siemens_path, arm=test_arm, event=test_event)
+    ge_stack = get_dti_stack(ge_path, arm=test_arm, event=test_event)
+
+    siemens_stack.sort()
+    ge_stack.sort()
+
+    # Parse the xml files to get scanner specific gradients per frame
+    siemens_gradients = get_all_gradients(siemens_stack, decimals=args.decimals)
+    ge_gradients = get_all_gradients(ge_stack, decimals=args.decimals)
+    return dict(Siemens=siemens_gradients, GE=ge_gradients)
+
+def main(args=None):
 
     # Get the gradient tables for all cases and compare to ground truth
     cases = get_cases(args.base_dir, case=args.case)
+
+    # Demographics from pipeline to grab case to scanner mapping
+    demo_path = '/fs/ncanda-share/pipeline/summaries/demographics.csv'
+    demographics = pd.read_csv(demo_path, index_col=['subject',
+                                                     'arm',
+                                                     'visit'])
+    gradient_map = get_ground_truth_gradients(args=args)
     for case in cases:
         if args.verbose:
             print("Processing: {}".format(case))
+        # Get the case's site
+        sid = os.path.basename(case)
+        site = demographics.loc[sid, args.arm, args.event].site
+        scanner = get_site_scanner(site)
+        gradients = gradient_map.get(scanner)
+
         case_dti = os.path.join(args.base_dir, case)
         case_stack = get_dti_stack(case_dti, arm=args.arm, event=args.event)
+        case_stack.sort()
         case_gradients = get_all_gradients(case_stack, decimals=args.decimals)
         errors = list()
         for idx, frame in enumerate(case_gradients):
@@ -118,7 +163,7 @@ def main(args=None):
             if not (gradients[idx]==frame).all():
                 errors.append(idx)
         if errors:
-            key = '-'.join([case, args.arm, args.event])
+            key = os.path.join(case, args.arm, args.event, 'diffusion/native/dti60b1000')
             result = dict(subject_site_id=key,
                           frames=errors,
                           error="Gradient tables do not match for frames.")
