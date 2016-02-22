@@ -415,8 +415,8 @@ for form_prefix, form_name in forms.iteritems():
                     #OLD Version
                     #print 'ERROR: more than one closest record "%s" found for subject %s, event %s, visit date %s:' % (form_name,key[0],key[1],visit_date)
                     error = dict(experiment_site_id="{}-{}".format(key[0], visit_date),
+                                    subject_id = key[0],
                                     form_name = form_name,
-                                    subject = key[0],
                                     event_id = key[1],
                                     visit_date = visit_date
                                     error = 'ERROR: more than one closest record')
