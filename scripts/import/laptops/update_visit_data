@@ -412,8 +412,16 @@ for form_prefix, form_name in forms.iteritems():
                 records_this_visit.sort( columns = 'days_from_visit', inplace = True )
                 if records_this_visit.ix[0]['days_from_visit'] == records_this_visit.ix[1]['days_from_visit']:
                     # Still not unique - print error and skip
-                    print 'ERROR: more than one closest record "%s" found for subject %s, event %s, visit date %s:' % (form_name,key[0],key[1],visit_date)
-                    print '\n\t'.join( records_this_visit.index.tolist() )
+                    #OLD Version
+                    #print 'ERROR: more than one closest record "%s" found for subject %s, event %s, visit date %s:' % (form_name,key[0],key[1],visit_date)
+                    error = dict(experiment_site_id="{}-{}".format(key[0], visit_date),
+                                    form_name = form_name,
+                                    subject = key[0],
+                                    event_id = key[1],
+                                    visit_date = visit_date
+                                    error = 'ERROR: more than one closest record')
+                    print json.dumps(error, sort_keys=True)
+                    #print '\n\t'.join( records_this_visit.index.tolist() )
                 else:
                     # Unique by proximity to visit_date - upload record that is closest
                     records_this_visit.drop( ['days_from_visit'], axis=1 )
