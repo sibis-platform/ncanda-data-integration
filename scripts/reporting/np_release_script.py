@@ -16,7 +16,7 @@ import os
 
 import pandas as pd
 
-directory = "/fs/ncanda-share/releases/NCANDA_DATA_00019/summaries"
+directory = "/fs/ncanda-share/releases/NCANDA_DATA_00010/summaries"
 
 nps_file = ["ataxia.csv", "cddr.csv", "clinical.csv", "cnp.csv", "dd100.csv",
             "dd1000.csv", "grooved_pegboard.csv", "ishihara.csv",
