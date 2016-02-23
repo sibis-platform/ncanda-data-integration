@@ -418,7 +418,7 @@ for form_prefix, form_name in forms.iteritems():
                                     subject_id = key[0],
                                     form_name = form_name,
                                     event_id = key[1],
-                                    visit_date = visit_date
+                                    visit_date = visit_date,
                                     error = 'ERROR: more than one closest record')
                     print json.dumps(error, sort_keys=True)
                     #print '\n\t'.join( records_this_visit.index.tolist() )

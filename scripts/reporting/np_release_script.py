@@ -13,6 +13,7 @@ NP Release Script
 Generates a CSV file for all subjects included in NP analysis
 """
 import os
+import sys
 
 import pandas as pd
 
@@ -21,7 +22,7 @@ directory = "/fs/ncanda-share/releases/NCANDA_DATA_00010/summaries"
 nps_file = ["ataxia.csv", "cddr.csv", "clinical.csv", "cnp.csv", "dd100.csv",
             "dd1000.csv", "grooved_pegboard.csv", "ishihara.csv",
             "landoltc.csv", "rey-o.csv", "wais4.csv", "wrat4.csv",
-            "mr_session_report.csv", "parentreport.csv"]
+            "mri_report.csv", "parentreport.csv"]
 
 fields = ['site', 'sex', 'visit_age','exceed_or_mrianomaly',
           'exceeds_bl_drinking', 'cddr_past_month_binge','cddr_past_year_binge',
@@ -56,42 +57,42 @@ fields = ['site', 'sex', 'visit_age','exceed_or_mrianomaly',
           'cnp_spcptnl_scpn_tp', 'cnp_spcptnl_scpn_tprt', 'cnp_spcptnl_scpl_tp',
           'cnp_cpfd_dfac_tot', 'cnp_cpfd_dfac_rtc']
 
-race_map = dict(native_american_american_indian=1,
-                asian=2,
-                pacific_islander=3,
-                african_american_black=4,
-                caucasian_white=5);
-
 def replace_binge_groups_1(x):
-	"""
-	 A binary variable from CDDR_PastYr_Binge (i.e., 0 or blank,
-	 but not missing = 0, and 1 or more = 1)
-	"""
-	if x > 0:
-		result = 1
-	elif x == 0:
-		result = 0
-	else:
-		result = pd.np.NaN
-	return result
+    """
+     A binary variable from CDDR_PastYr_Binge (i.e., 0 or blank,
+     but not missing = 0, and 1 or more = 1)
+    """
+    if x > 0:
+        result = 1
+    elif x == 0:
+        result = 0
+    else:
+        result = pd.np.NaN
+    return result
 
 def replace_binge_groups_month(x):
-	"""
-	 #3groups based on past month binge drinking (0 - is o or blank, but not missing)
-	"""
-	if x == 0:
-		result = 'None'
-	elif x == 1:
-		result = '1'
-	elif x > 1:
-		result = '2+'
-	else:
-		result = ''
-	return result
+    """
+     #3groups based on past month binge drinking (0 - is o or blank, but not missing)
+    """
+    if x == 0:
+        result = 'None'
+    elif x == 1:
+        result = '1'
+    elif x > 1:
+        result = '2+'
+    else:
+        result = ''
+    return result
 
 def main(args=None):
     final_df = pd.read_csv(os.path.join(directory, "demographics.csv"),
                                         index_col=['subject','arm','visit'])
+
+    race_map = dict(native_american_american_indian=1,
+                    asian=2,
+                    pacific_islander=3,
+                    african_american_black=4,
+                    caucasian_white=5);
 
     # Create a series for each race where there is a 1 or 0 indicating if the
     # participant belongs to the race or not and append to the final_df
@@ -99,23 +100,24 @@ def main(args=None):
         race_filter = final_df.race == v
         final_df[k] = race_filter.apply(lambda x: 1 if x == True else 0)
 
-        for i in nps_file:
-            df = pd.read_csv(os.path.join(directory, i),
-                        index_col=['subject','arm','visit'])
-                        final_df = pd.concat([final_df, df], axis=1)
+    for i in nps_file:
+        df = pd.read_csv(os.path.join(directory, i),
+                    index_col=['subject','arm','visit'])
+        final_df = pd.concat([final_df, df], axis=1)
 
-        final_df = final_df.rename(columns={'cddr31':'cddr_past_month_binge',
+    final_df = final_df.rename(columns={'cddr31':'cddr_past_month_binge',
                                     'cddr30':'cddr_past_year_binge'})
 
-        final_df['binge_groups_1'] = final_df['cddr_past_year_binge'].apply(replace_binge_groups_1)
-        final_df['binge_groups_month'] = final_df['cddr_past_month_binge'].apply(replace_binge_groups_month)
+    final_df['binge_groups_1'] = final_df['cddr_past_year_binge'].apply(replace_binge_groups_1)
+    final_df['binge_groups_month'] = final_df['cddr_past_month_binge'].apply(replace_binge_groups_month)
 
-        final_df['exceed_or_mrianomaly'] = pd.np.NaN
-        final_df['hi_ed'] = pd.np.NaN
+    final_df['exceed_or_mrianomaly'] = pd.np.NaN
+    final_df['hi_ed'] = pd.np.NaN
+    final_df['mri_analysisanomalies'] = pd.np.NaN
 
-        final_df = final_df[fields]
+    final_df = final_df[fields]
 
-        final_df.to_csv('np_release.csv')
+    final_df.to_csv('np_release.csv')
 
 if __name__ == '__main__':
     import argparse
