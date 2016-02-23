@@ -278,9 +278,9 @@ def youth_report_sex(idx,row, field_missing, field_sex):
     return error
 
 
-def main(args=arm):
+def main(args=visit):
     project_entry = get_project_entry()
-    project_df = data_entry_fields(fields,project_entry,arm)
+    project_df = data_entry_fields(fields,project_entry,visit)
     error = []
 
     for idx, row in project_df.iterrows():
@@ -305,6 +305,6 @@ def main(args=arm):
 
 if __name__ == '__main__':
     import argparse
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser('-v','--visit',choices=['baseline_visit_arm_1','1y_visit_arm_1'],default='1y_visit_arm_1')
     argv = parser.parse_args()
     sys.exit(main(args=argv))
