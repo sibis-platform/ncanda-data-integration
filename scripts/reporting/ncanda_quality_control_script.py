@@ -11,6 +11,10 @@
 ncanda_quality_control_script
 ======================
 This script checks the quality of the data for the NCANDA Project on REDCap.
+Call script on command line.
+
+Example Usage:
+python ncanda_quality_control_script.py
 """
 import os
 import sys
@@ -40,29 +44,35 @@ fields = ['study_id', 'redcap_event_name','exclude', 'visit_ignore',
           'np_wais4_rawscore_diff(correct)','pasat_missing','pasat_date',
           'cnp_missing','cnp_test_sessions_dotest','stroop_missing',
           'stroop_date','mrireport_missing','mrireport_date',
-          'mr_session_report_complete'];
+          'mr_session_report_complete']
 
 form_fields = [['youthreport1_missing','youthreport1_date'],
-          ['youthreport1b_missing', 'youthreport1b_date'],['youthreport2_missing',
-          'youthreport2_date'],['parentreport_missing','parentreport_date'],
-          ['ssage_youth_missing','ssage_youth_date'],['lssaga1_youth_missing',
-          'lssaga1_youth_date'],['lssaga1_parent_missing','lssaga1_parent_date'],
-          ['bio_np_missing', 'bio_np_date'],['dd1000_missing','dd1000_date'],
-          ['dd100_missing','dd100_date'],['np_wrat4_missing','np_wrat4_wr_raw'],
-          ['np_reyo_missing','np_reyo_copy_time'], ['np_atax_missing',
-          'np_atax_sht_trial1'],['np_wais4_missing', 'np_wais4_rawscore'],
-          ['pasat_missing','pasat_date'],['cnp_missing',
-          'cnp_test_sessions_dotest'],['stroop_missing','stroop_date']];
+                ['youthreport1b_missing', 'youthreport1b_date'],
+                ['youthreport2_missing', 'youthreport2_date'],
+                ['parentreport_missing','parentreport_date'],
+                ['ssage_youth_missing','ssage_youth_date'],
+                ['lssaga1_youth_missing','lssaga1_youth_date'],
+                ['lssaga1_parent_missing','lssaga1_parent_date'],
+                ['bio_np_missing', 'bio_np_date'],
+                ['dd1000_missing','dd1000_date'],
+                ['dd100_missing','dd100_date'],
+                ['np_wrat4_missing','np_wrat4_wr_raw'],
+                ['np_reyo_missing','np_reyo_copy_time'],
+                ['np_atax_missing','np_atax_sht_trial1'],
+                ['np_wais4_missing', 'np_wais4_rawscore'],
+                ['pasat_missing','pasat_date'],
+                ['cnp_missing','cnp_test_sessions_dotest'],
+                ['stroop_missing','stroop_date']]
 
 np_gpeg_fields = [['np_gpeg_exclusion___dh','np_gpeg_dh_time'],
                   ['np_gpeg_exclusion___ndh','np_gpeg_ndh_time']]
 
 saliva_fields = [['saliva_1_collected','saliva_1_date'],
           ['saliva_2_collected','saliva_2_date'],['saliva_3_collected',
-          'saliva_3_date'],['saliva_4_collected','saliva_4_date']];
+          'saliva_3_date'],['saliva_4_collected','saliva_4_date']]
 
 fields_sex = [['youthreport1_missing','youthreport1_yid2'],
-			['youthreport2_missing','youthreport2_yid2']]
+            ['youthreport2_missing','youthreport2_yid2']]
 
 def get_project_entry(args=None):
     """
@@ -133,7 +143,7 @@ def np_groove_check(idx,row,field_missing, field_excluded, field_value):
                                 )
     return error
 
-def fourteen_days_MRI_report(idx,row):
+def fourteen_days_mri_report(idx,row):
     """
     Generates a report indicating which MRI reports have no data after 14 days.
     """
@@ -212,56 +222,56 @@ def missing_saliva_sample(idx,row,saliva_collected, saliva_date):
     return error
 
 def visit_data_missing(idx,row):
-	"""
-	Generate a report indicating which Visit Dates are missing.
-	"""
-	error = dict()
-	if row.get('exclude') != 1:
-		if row.get('visit_ignore___yes') != 1:
-			if type(row.get('visit_date')) != str:
-				error = dict(subject_site_id = idx[0],
-					event_name = idx[1],
-					error = 'ERROR: Visit date missing.'
-					)
-	return error
+    """
+    Generate a report indicating which Visit Dates are missing.
+    """
+    error = dict()
+    if row.get('exclude') != 1:
+        if row.get('visit_ignore___yes') != 1:
+            if type(row.get('visit_date')) != str:
+                error = dict(subject_site_id = idx[0],
+                    event_name = idx[1],
+                    error = 'ERROR: Visit date missing.'
+                    )
+    return error
 
-def WAIS_score_verification(idx,row):
-	"""
-	Verifies whether the wais_rawscore was computed correctly.
-	"""
-	# visit_ignore____yes with value 0 is not ignored
-	error = dict()
-	if math.isnan(row.get('exclude')):
-		if row.get('visit_ignore___yes') != 1:
-			# form is not missing if form_missing if value nan or zero
-			if row.get('np_wais4_missing') != 1:
-				if row.get('np_wais4_rawscore_computed') == row.get('np_wais4_rawscore_diff(correct)'):
-					if row.get('np_wais4_rawscore_diff(correct)') != 0:
-						error = dict(subject_site_id = idx[0],
-							visit_date = row.get('visit_date'),
-							event_name = idx[1],
-							error = 'ERROR: WAIS score is not verified'
-							)
-	return error
+def wais_score_verification(idx,row):
+    """
+    Verifies whether the wais_rawscore was computed correctly.
+    """
+    # visit_ignore____yes with value 0 is not ignored
+    error = dict()
+    if math.isnan(row.get('exclude')):
+        if row.get('visit_ignore___yes') != 1:
+            # form is not missing if form_missing if value nan or zero
+            if row.get('np_wais4_missing') != 1:
+                if row.get('np_wais4_rawscore_computed') == row.get('np_wais4_rawscore_diff(correct)'):
+                    if row.get('np_wais4_rawscore_diff(correct)') != 0:
+                        error = dict(subject_site_id = idx[0],
+                            visit_date = row.get('visit_date'),
+                            event_name = idx[1],
+                            error = 'ERROR: WAIS score is not verified'
+                            )
+    return error
 
 def youth_report_sex(idx,row, field_missing, field_sex):
-	"""
-	Checks whether or not sex was entered correctly in the Youth Report
-	"""
-	# visit_ignore____yes with value 0 is not ignored
-	error = dict()
-	if math.isnan(row.get('exclude')):
-		if row.get('visit_ignore___yes') != 1:
-			# np is not missing if field_missing if value nan or zero
-			if row.get(field_missing) != 1:
-				if row.get('sex') != row.get(field_sex):
-					error = dict(subject_site_id = idx[0],
-								visit_date = row.get('visit_date'),
-								event_name = idx[1],
-								field = field_sex,
-								error = 'ERROR: SEX and SEX in YOUTHREPORT do not match.'
-								)
-	return error
+    """
+    Checks whether or not sex was entered correctly in the Youth Report
+    """
+    # visit_ignore____yes with value 0 is not ignored
+    error = dict()
+    if math.isnan(row.get('exclude')):
+        if row.get('visit_ignore___yes') != 1:
+            # np is not missing if field_missing if value nan or zero
+            if row.get(field_missing) != 1:
+                if row.get('sex') != row.get(field_sex):
+                    error = dict(subject_site_id = idx[0],
+                                visit_date = row.get('visit_date'),
+                                event_name = idx[1],
+                                field = field_sex,
+                                error = 'ERROR: SEX and SEX in YOUTHREPORT do not match.'
+                                )
+    return error
 
 
 def main(args=None):
@@ -278,7 +288,7 @@ def main(args=None):
             check = np_groove_check(idx,row,'np_gpeg_missing',np[0],np[1])
             if check:
                 error.append(check)
-        check = fourteen_days_MRI_report(idx,row)
+        check = fourteen_days_mri_report(idx,row)
         if check:
             error.append(check)
         check = cnp_dob(idx, row)
@@ -294,13 +304,13 @@ def main(args=None):
         check = visit_data_missing(idx,row)
         if check:
             error.append(check)
-        check = WAIS_score_verification(idx,row)
+        check = wais_score_verification(idx,row)
         if check:
             error.append(check)
         for f in fields_sex:
-			check = youth_report_sex(idx,row,f[0],f[1])
-			if check:
-				error.append(check)
+            check = youth_report_sex(idx,row,f[0],f[1])
+            if check:
+                error.append(check)
 
 
     for e in error:
