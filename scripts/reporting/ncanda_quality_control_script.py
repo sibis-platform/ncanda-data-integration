@@ -98,6 +98,10 @@ def data_entry_fields(fields,project,arm):
         events=[arm])
     return data_entry_raw
 
+def check(check, error):
+    if check:
+        error.append(check)
+
 def missing_form(idx,row,field_missing, field_value):
     """
     Generates a report indicating which Forms have not been entered onto redcap
@@ -281,37 +285,18 @@ def main(args=arm):
 
     for idx, row in project_df.iterrows():
         for f in form_fields:
-            check = missing_form(idx,row,f[0],f[1])
-            if check:
-                error.append(check)
+            check(missing_form(idx,row,f[0],f[1]),error)
         for np in np_gpeg_fields:
-            check = np_groove_check(idx,row,'np_gpeg_missing',np[0],np[1])
-            if check:
-                error.append(check)
-        check = fourteen_days_mri_report(idx,row)
-        if check:
-            error.append(check)
-        check = cnp_dob(idx, row)
-        if check:
-            error.append(check)
-        check = missing_mri_stroop(idx, row)
-        if check:
-            error.append(check)
+            check(np_groove_check(idx,row,'np_gpeg_missing',np[0],np[1]),error)
+        check(fourteen_days_mri_report(idx,row),error)
+        check(cnp_dob(idx, row),error)
+        check(missing_mri_stroop(idx, row),error)
         for s in saliva_fields:
-            check = missing_saliva_sample(idx,row,s[0],s[1])
-            if check:
-                error.append(check)
-        check = visit_data_missing(idx,row)
-        if check:
-            error.append(check)
-        check = wais_score_verification(idx,row)
-        if check:
-            error.append(check)
+            check(missing_saliva_sample(idx,row,s[0],s[1]),error)
+        check(visit_data_missing(idx,row),error)
+        check(wais_score_verification(idx,row),error)
         for f in fields_sex:
-            check = youth_report_sex(idx,row,f[0],f[1])
-            if check:
-                error.append(check)
-
+            check(youth_report_sex(idx,row,f[0],f[1]),error)
 
     for e in error:
         if e != 'null':
