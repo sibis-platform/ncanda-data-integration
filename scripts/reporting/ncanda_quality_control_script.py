@@ -274,9 +274,9 @@ def youth_report_sex(idx,row, field_missing, field_sex):
     return error
 
 
-def main(args=None):
+def main(args=arm):
     project_entry = get_project_entry()
-    project_df = data_entry_fields(fields,project_entry,'1y_visit_arm_1')
+    project_df = data_entry_fields(fields,project_entry,arm)
     error = []
 
     for idx, row in project_df.iterrows():
