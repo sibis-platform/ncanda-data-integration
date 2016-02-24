@@ -14,7 +14,7 @@ This script checks the quality of the data for the NCANDA Project on REDCap.
 Call script on command line.
 
 Example Usage:
-python ncanda_quality_control_script.py
+python ncanda_quality_control_script.py -a "baseline_visit_arm_1"
 """
 import os
 import sys
