@@ -9,11 +9,11 @@
 ##  $LastChangedDate$
 ##
 
-import re
 import os
-import os.path
-import tempfile
+import re
+import json
 import shutil
+import tempfile
 import subprocess
 
 # Check the phantom XML file for various thresholds
