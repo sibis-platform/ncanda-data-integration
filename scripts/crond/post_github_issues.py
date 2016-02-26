@@ -149,8 +149,8 @@ def create_issues(repo, title, body, verbose=None):
             print "Issue is a Traceback..."
         string = "".join(issues)
         sha = hashlib.sha1(string).hexdigest()[0:6]
-        error = dict(experiment_site_id = "Traceback:{}".format(sha)
-                    error = "Traceback"
+        error = dict(experiment_site_id = "Traceback:{}".format(sha),
+                    error = "Traceback",
                     message = string)
     for issue in issues:
         # Check for new format
