@@ -17,6 +17,7 @@ import argparse
 import datetime
 
 import yaml
+import sibis
 import pyxnat
 
 from xnat_email import XnatEmail
@@ -113,14 +114,11 @@ def find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified,
         if args.sendmail:
             email.add_admin_message("%s %s - no phantom scan for %s, last modified %s (scanner: %s)" % (prj, edate, experiment_label, experiment_last_modified, scanner))
         else:
-            error = dict(project_id=prj,
+            error = 'No phantom scan.'
+            sibis.logging(experiment_label,error
+                         project_id=prj,
                          experiment_id=seid,
-                         experiment_site_id=experiment_label,
-                         experiment_date=edate,
-                         error='No phantom scan.')
-            print json.dumps(error, sort_keys=True)
-            # Old error reporting being temporarily commented out before removal
-            #print "ERROR: %s - no phantom scan for session %s;acquired: %s, last modified %s;scanner: %s" % (prj, experiment_label, edate, experiment_last_modified, scanner)
+                         experiment_date=edate)
     else:
         if args.warn_same_day_phantom:
             if args.sendmail:
@@ -177,13 +175,11 @@ def check_experiment(experiment):
         except IndexError, e:
             #old error message
             #print "ERROR: Subject:{0} in Project:{1} with EID:{2} and Label:{3} likely switched sites: {4}".format(sid, prj, seid, experiment_label, e)
-            error = dict(experiment_site_id=experiment_label,
+            error="ERROR: Subject likely swithced sites. {}".format(e)
+            sibis.logging(experiment_label,error
                          site_id=sid,
                          project=prj,
-                         subject_experiment_id=seid,
-                         error="ERROR: Subject likely swithced sites. {}".format(e)
-            )
-            print(json.dumps(error,sort_keys=True))
+                         subject_experiment_id=seid)
 
 experiment_ids = list()
 if args.eid:

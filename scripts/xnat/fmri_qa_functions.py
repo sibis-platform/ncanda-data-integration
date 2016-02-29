@@ -88,15 +88,12 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
             value = float( match.group(2) )
             metric = QA_thresholds[match.group(1)]
             if metric.exceeds(value):
-                error = dict(experiment_site_id=session,
-                             metric_name=metric._name,
-                             metric_key=match.group(1),
-                             metric_value=value,
-                             metric_threshold=metric._thresh,
-                             error='QA metric fails to meet threshhold.')
-                print json.dumps(error, sort_keys=True)
-                # Old error reporting.
-                #print "QA metric %s, %s=%f fails to meet threshold %f for Experiment %s/%s" % ( metric._name, match.group(1), value, metric._thresh, session, label )
+                error = 'QA metric fails to meet threshhold.'
+                sibis.logging(session,error
+                              metric_name=metric._name,
+                              metric_key=match.group(1),
+                              metric_value=value,
+                              metric_threshold=metric._thresh)
 
     # Convert QA results from html to pdf
     summary_file_path = '%s/QA-Summary.pdf' % temp_dir

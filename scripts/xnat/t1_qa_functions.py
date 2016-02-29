@@ -62,12 +62,10 @@ def check_xml_file( xml_file, project, session, label ):
                     if ( (nonlinear > 0.5) ):
                         warnings.append( "Nonlinearity[%d]=%f" % (project,session,idx,nonlinear) )
     except:
-        error = dict(experiment_site_id=session,
-                     project_id=project,
-                     error='Could not open XML file for experiment.')
-        print json.dumps(error, sort_keys=True)
-        # Old error reporting.
-        #print "ERROR: could not open XML file for experiment %s/%s" % (project,session)
+         error='Could not open XML file for experiment.'
+        sibis.logging(session,error
+                     project_id=project)
+
 
     finally:
         xml.close()
