@@ -307,16 +307,12 @@ def get_xnat_data(redcap_key, xnat, visit_date, date_of_birth, next_visit_date, 
         print "XNAT Session Data:", xnat_session_data
     if not xnat_session_data:
         if today > visit_date_plusNd:
-            error = dict(project_id=xnat_pid,
-                         subject_id=xnat_sid,
+            error='Missing MRI for Subject with visit date.'
+            sibis.logging(xnat_sid,error
+                         project_id=xnat_pid,
                          experiment_site_id=subject_label,
                          visit_id=event,
-                         visit_date=visit_date,
-                         error='Missing MRI for Subject with visit date.')
-            print json.dumps(error, sort_keys=True)
-
-            # Old error reporting, can be removed once new format works
-            # print "Missing MRI for subject",subject,"/",event,"- visit date",visit_date
+                         visit_date=visit_date)
         return result
 
     # Get the experiment IDs for all sessions in the given range
@@ -487,14 +483,10 @@ for [key, row] in mr_sessions_redcap.iterrows():
     visit_date = str(visit_log_redcap['visit_date'][key])
     if visit_date == 'nan':
         if float(row['visit_ignore___yes']) != 1:
-            error = dict(experiment_site_id=key[0],
+            error = 'Missing visit date for subject with visit data.'
+            sibis.logging(key[0], error
                          visit_id=key[1],
-                         visit_date=visit_date,
-                         error='Missing visit date for subject with visit data.')
-            print json.dumps(error, sort_keys=True)
-
-            # Old error reporting can be removed once it works
-            # print "Missing '%s' visit date for subject %s" % ( key[1], key[0] )
+                         visit_date=visit_date)
     else:
         this_subject_data = subject_data.ix[key[0]]
         if str( this_subject_data['dob'] ) == 'nan':
