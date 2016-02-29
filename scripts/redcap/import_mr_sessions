@@ -138,7 +138,7 @@ def get_sessions_in_range(xnat, subject_label, project_id, subject_id, date_rang
         elif today >= date_range_to:
             error='No MR session for Subject {} between {} and {}'.format(subject_label,
                                                                           date_range_from,
-                                                                          date_range_to))
+                                                                          date_range_to)
             sibis.logging(subject_label, error,
                           project_id=project_id,
                           subject_id=subject_id,
