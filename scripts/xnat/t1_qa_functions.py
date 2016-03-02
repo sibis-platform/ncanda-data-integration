@@ -63,7 +63,7 @@ def check_xml_file( xml_file, project, session, label ):
                         warnings.append( "Nonlinearity[%d]=%f" % (project,session,idx,nonlinear) )
     except:
          error='Could not open XML file for experiment.'
-        sibis.logging(session,error
+        sibis.logging(session,error,
                      project_id=project)
 
 

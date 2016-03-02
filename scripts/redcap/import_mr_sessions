@@ -308,7 +308,7 @@ def get_xnat_data(redcap_key, xnat, visit_date, date_of_birth, next_visit_date, 
     if not xnat_session_data:
         if today > visit_date_plusNd:
             error='Missing MRI for Subject with visit date.'
-            sibis.logging(xnat_sid,error
+            sibis.logging(xnat_sid,error,
                          project_id=xnat_pid,
                          experiment_site_id=subject_label,
                          visit_id=event,
@@ -484,7 +484,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
     if visit_date == 'nan':
         if float(row['visit_ignore___yes']) != 1:
             error = 'Missing visit date for subject with visit data.'
-            sibis.logging(key[0], error
+            sibis.logging(key[0], error,
                          visit_id=key[1],
                          visit_date=visit_date)
     else:

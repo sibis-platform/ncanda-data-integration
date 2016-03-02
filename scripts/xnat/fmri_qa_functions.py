@@ -89,7 +89,7 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
             metric = QA_thresholds[match.group(1)]
             if metric.exceeds(value):
                 error = 'QA metric fails to meet threshhold.'
-                sibis.logging(session,error
+                sibis.logging(session,error,
                               metric_name=metric._name,
                               metric_key=match.group(1),
                               metric_value=value,

@@ -50,7 +50,7 @@ def verify_image_count( session, session_label, scan, scantype, manufacturer, im
             imgrange = expected_images[manufacturer][scantype]
             if not images_created in imgrange:
                 error = 'WARNING: Scan found more images than expected.'
-                sibis.logging(session_label, error
+                sibis.logging(session_label, error,
                     session = session,
                     scan = scan,
                     scan_type = scantype,

@@ -19,6 +19,8 @@ import pandas
 import redcap
 import requests
 
+import sibis
+
 date_format_ymd = '%Y-%m-%d'
 
 # Setup command line parser
@@ -414,14 +416,12 @@ for form_prefix, form_name in forms.iteritems():
                     # Still not unique - print error and skip
                     #OLD Version
                     #print 'ERROR: more than one closest record "%s" found for subject %s, event %s, visit date %s:' % (form_name,key[0],key[1],visit_date)
-                    error = dict(experiment_site_id="{}-{}".format(key[0], visit_date),
+                    error ='ERROR: more than one closest record'
+                    sibis.logging("{}-{}".format(key[0], visit_date), error,
                                     subject_id = key[0],
                                     form_name = form_name,
                                     event_id = key[1],
-                                    visit_date = visit_date,
-                                    error = 'ERROR: more than one closest record')
-                    print json.dumps(error, sort_keys=True)
-                    #print '\n\t'.join( records_this_visit.index.tolist() )
+                                    visit_date = visit_date)
                 else:
                     # Unique by proximity to visit_date - upload record that is closest
                     records_this_visit.drop( ['days_from_visit'], axis=1 )
@@ -438,15 +438,12 @@ for form_prefix, form_name in forms.iteritems():
             # We absolutely have no records to assign - check now if one had been assigned
             # previously and somehow disappeared
             elif (existing_form_data[complete_label][key] > 0) and (existing_form_data[missing_label][key] != 1):
-                #OLD ERROR MESSAGE
-                #print "WARNING: Previously assigned record",existing_form_data[recordid_label][key],"for form",form_name,"subject",key[0],"event",key[1],"visit date",visit_date,"appears to have disappeared."
-                error = dict(experiment_site_id="{}-{}".format(key[0], visit_date),
+                error = 'WARNING: Previously assigned form appears to have disappered.'
+                sibis.logging("{}-{}".format(key[0], visit_date), error,
                                  subject_id=key[0],
                                  form_name=form_name,
                                  event_id=key[1],
-                                 visit_date=visit_date,
-                                 error='WARNING: Previously assigned form appears to have disappered.')
-                print json.dumps(error, sort_keys=True)
+                                 visit_date=visit_date)
                 if args.reset_disappeared:
                     total_uploaded += add_empty_to_upload( form_prefix, form_name, key[0], key[1] )
 
@@ -463,15 +460,12 @@ for form_prefix, form_name in forms.iteritems():
                 # Make sure there is only one, unique record
                 if len(records_this_visit) > 1:
                     # Not unique - bail
-                    # old error handling
-                    #print 'More than one record "%s" found for subject %s, event %s, visit date %s:' % (form_name, key[0], key[1], form_target_date)
-                    error = dict(experiment_site_id="{}-{}".format(key[0], form_target_date),
+                    error = 'More than one record found for subject on event with same visit date'
+                    sibis.logging("{}-{}".format(key[0], form_target_date), error,
                                  subject_id=key[0],
                                  form_name=form_name,
                                  event_id=key[1],
-                                 visit_date=form_target_date,
-                                 error='More than one record found for subject on event with same visit date')
-                    print json.dumps(error, sort_keys=True)
+                                 visit_date=form_target_date)
                     if args.verbose:
                         print records_this_visit
                 elif len(records_this_visit) == 1:
@@ -479,13 +473,12 @@ for form_prefix, form_name in forms.iteritems():
                 elif (existing_form_data[complete_label][key] > 0) and (existing_form_data[missing_label][key] != 1):
                     #Old Error Message
                     #print "WARNING: Previously assigned form", form_name, "for subject", key[0], "event", key[1], "date", form_target_date, "appears to have disappeared."
-                    error = dict(experiment_site_id="{}-{}".format(key[0], form_target_date),
+                    error = 'WARNING: Previously assigned form appears to have disappered.'
+                    sibis.logging("{}-{}".format(key[0], form_target_date), error,
                                  subject_id=key[0],
                                  form_name=form_name,
                                  event_id=key[1],
-                                 visit_date=form_target_date,
-                                 error='WARNING: Previously assigned form appears to have disappered.')
-                    print json.dumps(error, sort_keys=True)
+                                 visit_date=form_target_date)
                     if args.reset_disappeared:
                         total_uploaded += add_empty_to_upload(form_prefix, form_name, key[0], key[1])
 

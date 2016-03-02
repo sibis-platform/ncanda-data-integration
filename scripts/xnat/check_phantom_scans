@@ -115,7 +115,7 @@ def find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified,
             email.add_admin_message("%s %s - no phantom scan for %s, last modified %s (scanner: %s)" % (prj, edate, experiment_label, experiment_last_modified, scanner))
         else:
             error = 'No phantom scan.'
-            sibis.logging(experiment_label,error
+            sibis.logging(experiment_label,error,
                          project_id=prj,
                          experiment_id=seid,
                          experiment_date=edate)
@@ -178,10 +178,8 @@ def check_experiment(experiment):
             elif len(phantom_scans) == 0:
                 find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified, phantom_id, edate, etime, scanner)
         except IndexError, e:
-            #old error message
-            #print "ERROR: Subject:{0} in Project:{1} with EID:{2} and Label:{3} likely switched sites: {4}".format(sid, prj, seid, experiment_label, e)
             error="ERROR: Subject likely swithced sites. {}".format(e)
-            sibis.logging(experiment_label,error
+            sibis.logging(experiment_label,error,
                          site_id=sid,
                          project=prj,
                          subject_experiment_id=seid)

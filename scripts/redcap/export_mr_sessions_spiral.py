@@ -56,7 +56,7 @@ def do_export_spiral_files(xnat, resource_location, to_directory, spiral_nifti_o
     errcode, stdout, stderr = untar_to_dir(tmp_file_path, tmpdir)
     if errcode != 0:
         error="ERROR: Unable to un-tar resource file. File is likely corrupt."
-        sibis.logging(xnat_eid,error
+        sibis.logging(xnat_eid,error,
                      tempfile_path=tmp_file_path,
                      resource_location=resource_location)
         if verbose:
@@ -86,7 +86,7 @@ def do_export_spiral_files(xnat, resource_location, to_directory, spiral_nifti_o
         errcode, stdout, stderr = make_nifti_from_spiral(spiral_E_files[0], spiral_nifti_out)
         if not os.path.exists(spiral_nifti_out):
             error="Unable to make NIfTI from resource file, please try running makenifti manually"
-            sibis.logging(xnat_eid, error
+            sibis.logging(xnat_eid, error,
                          spiral_file=spiral_E_files[0])
             if verbose:
                 print "StdErr:\n{}".format(stderr)
