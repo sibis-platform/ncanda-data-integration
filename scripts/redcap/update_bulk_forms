@@ -13,6 +13,9 @@ import os
 import re
 import time
 import argparse
+from random import randint
+import sys
+import urllib
 
 import pandas
 import redcap
@@ -26,19 +29,37 @@ parser.add_argument("-a", "--update-all", help="Update all summary records, rega
 parser.add_argument("-n", "--no-upload", help="Do not upload any scores to REDCap server; instead write to CSV file with given path.", action="store")
 args = parser.parse_args()
 
+# this should be defined centrally not hard coded 
+redcap_server='https://ncanda.sri.com/redcap/api/'
 
 # First REDCap connection for the Summary project (this is where we put data)
 def connect_to_redcap():
     summary_key_file = open(os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token'), 'r')
     summary_api_key = summary_key_file.read().strip()
-    rc = redcap.Project('https://ncanda.sri.com/redcap/api/', summary_api_key, verify_ssl=False)
+    rc = redcap.Project(redcap_server, summary_api_key, verify_ssl=False)
     return rc
 
-try:
-    rc_summary = connect_to_redcap()
-except KeyError:
-    time.sleep(30)
-    rc_summary = connect_to_redcap()
+# If connection to redcap server fail, try multiple times  
+errLoop=0
+rc_summary= ""
+waitTime=0
+while (errLoop < 3) and (rc_summary == "" ) :   
+  time.sleep(waitTime)
+  try:
+    rc_summary = connect_to_redcap()    
+  except Exception,error:
+    errLoop +=1
+    waitTime=randint(60,300)
+
+# if not connected to redcap_server then throw error message 
+if (rc_summary == ""): 
+   
+   try:  
+     connect_code=urllib.urlopen(redcap_server).getcode()
+   except: 
+     connect_code='down'
+
+   sys.exit( "ERROR: Could not connect to redcap!\nERROR: %s\nINFO:  Status of '%s' - %s" %(error,redcap_server,connect_code))
 
 form_event_mapping = rc_summary.export_fem(format='df')
 
