@@ -16,6 +16,7 @@ import time
 import re
 import subprocess
 import stat
+import sibis
 
 import argparse
 parser = argparse.ArgumentParser( description="Find new MR sessions in XNAT, check for missing and duplicate scans, and list all sessions with questionable scans." )
@@ -55,7 +56,7 @@ def export_t1t2_to_zip( experiment, experiment_label ):
             match = re.match( '.*(/fs/storage/XNAT/.*)scan_.*_catalog.xml.*', experiment.scan( scan ).get(), re.DOTALL )
             if match:
                 scan_dirs.append( match.group(1) )
-                
+
     if len( scan_dirs ) > 0:
         if args.verbose:
             print "INFO: exporting T1w and T2w DICOM files for",experiment,"/",experiment_label
@@ -67,10 +68,10 @@ def export_t1t2_to_zip( experiment, experiment_label ):
         else:
             basedir = re.sub( 'SCANS/.*', 'SCANS/', scan_dirs[0] )
             scan_dirs_rel = [ re.sub( '.*/SCANS/', '', scan_dirs[0] ) ]
-            
+
         # Get today's date for naming
         date_today = time.strftime( '%Y-%m-%d', time.localtime() )
-    
+
         # Check if output directory is already there
         outdir = os.path.join( args.zip_root, date_today )
         if not os.path.exists( outdir ):
@@ -80,7 +81,7 @@ def export_t1t2_to_zip( experiment, experiment_label ):
         # Create ZIP file
         zipfile = os.path.join( outdir, experiment_label+'.zip' )
 	zip_command = 'cd %s; /usr/bin/zip -rqu %s %s' % ( basedir, zipfile, ' '.join( scan_dirs_rel  ))
-        try:  
+        try:
             subprocess.check_call( zip_command, shell=True )
         except:
            print 'ERROR: unable to create ZIP file',zipfile,'from these directories:', ' '.join( scan_dirs )
@@ -190,11 +191,11 @@ def validate_new_and_outstanding( ifc, project, objects_to_check, date_last_chec
     if len( subject_list ) > 0:
         subject_lookup = dict()
         # First, check each subject
-        for (sid,slabel,sinsert,sdate) in subject_list.items():            
+        for (sid,slabel,sinsert,sdate) in subject_list.items():
             subject_lookup[sid] = slabel
             if (sid in objects_to_check) or (sdate > date_last_checked):
                 check_again += validate_subject( ifc, sid, slabel, sinsert )
-                
+
                 if len( [ eid for ( eid,elabel,esid,edate,einsert,emodified ) in experiment_list.items() if sid == esid ] ) == 0:
                     check_again.append( sid )
                     if args.send_mail:
@@ -210,10 +211,12 @@ def validate_new_and_outstanding( ifc, project, objects_to_check, date_last_chec
                     if sid in subject_lookup.keys():
                         check_again += validate_experiment( ifc, project, sid, subject_lookup[sid], eid, elabel, edate, einsert )
                     else:
-                        print 'ERROR: cannot determine (unique) label for subject',sid,'in experiment',eid
+                        error = 'ERROR: cannot determine (unique) label'
+                        sibis.logging(subject,error,
+                                      eid = experiment)
 
     return check_again
-    
+
 # Create interface using stored configuration
 ifc = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
 
@@ -249,7 +252,7 @@ if not args.check_all:
             print 'Re-checking %d previously flagged objects' % len( objects_to_check )
 
     except:
-        # If we cannot get last script run date from server, leave at epoch (Jan 1, 1970)    
+        # If we cannot get last script run date from server, leave at epoch (Jan 1, 1970)
         if args.verbose:
             print 'Unable to retrieve date of last script run and list of flagged projects from server.'
 

@@ -124,7 +124,12 @@ def find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified,
             if args.sendmail:
                 email.add_admin_message("%s %s - no same-day phantom scan for %s, last modified %s (scanner: %s), but found one within 24h" % (prj, edate, experiment_label, experiment_last_modified, scanner))
             else:
-                print "ERROR: %s - no same-day phantom scan for session %s;acquired: %s, last modified %s;scanner: %s;But found one within 24h" % (prj, experiment_label, edate, experiment_last_modified, scanner)
+                error = "ERROR: no same-day phantom scan for session acquired;But found one within 24h"
+                sibis.logging(experiment_label, error,
+                              project_id = prj,
+                              experiment_date = edate,
+                              experiment_last_modified = experiment_last_modified,
+                              scanner = scanner)
 
 
 # Check one experiment for matching phantom scans
