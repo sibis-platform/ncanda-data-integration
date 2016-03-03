@@ -11,7 +11,10 @@
 
 import os
 import re
+import sys
 import time
+import random
+import requests
 import argparse
 
 import pandas
@@ -26,19 +29,38 @@ parser.add_argument("-a", "--update-all", help="Update all summary records, rega
 parser.add_argument("-n", "--no-upload", help="Do not upload any scores to REDCap server; instead write to CSV file with given path.", action="store")
 args = parser.parse_args()
 
+# this should be defined centrally not hard coded
+redcap_server='https://ncanda.sri.com/redcap/api/'
 
 # First REDCap connection for the Summary project (this is where we put data)
 def connect_to_redcap():
     summary_key_file = open(os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token'), 'r')
     summary_api_key = summary_key_file.read().strip()
-    rc = redcap.Project('https://ncanda.sri.com/redcap/api/', summary_api_key, verify_ssl=False)
+    rc = redcap.Project(redcap_server, summary_api_key, verify_ssl=False)
     return rc
 
-try:
+# If connection to redcap server fail, try multiple times
+errLoop = 0
+rc_summary = ""
+waitTime = 0
+while (errLoop < 3) and (rc_summary == ""):
+  time.sleep(waitTime)
+  try:
     rc_summary = connect_to_redcap()
-except KeyError:
-    time.sleep(30)
-    rc_summary = connect_to_redcap()
+  except Exception, error:
+    errLoop += 1
+    waitTime=random.randint(60,300)
+
+# if not connected to redcap_server then throw error message
+if (rc_summary == ""):
+    try:
+        r = requests.get(redcap_server)
+        connect_code = r.status_code
+        reason = r.reason
+    except:
+        connect_code='down'
+
+    sys.exit( "ERROR: Could not connect to redcap!\nERROR: %s\nINFO:  Status of '%s' - %s" %(error,redcap_server,connect_code))
 
 form_event_mapping = rc_summary.export_fem(format='df')
 
@@ -54,9 +76,9 @@ def compute_bulk_status( row, field_names, form_complete_field ):
 def process_form( form, complete_field_names ):
     # Label of the "Complete" status field for this form
     form_complete_field = '%s_complete' % form
-    
+
     # Get list of events for which this form exists
-    events_this_form = form_event_mapping[ form_event_mapping[ 'form_name' ] == form ]['unique_event_name'].tolist()    
+    events_this_form = form_event_mapping[ form_event_mapping[ 'form_name' ] == form ]['unique_event_name'].tolist()
 
     if args.verbose:
         print "Processing events",events_this_form
@@ -67,7 +89,7 @@ def process_form( form, complete_field_names ):
     # Unless we force complete update, drop already-Complete records for speed
     if not args.update_all:
         records = records[ records[form_complete_field].map( str ) != '2' ]
-   
+
     previous = records[ [form_complete_field] ]
     records[form_complete_field] = records.apply( compute_bulk_status, axis=1, args = (complete_field_names, form_complete_field) ).map( lambda x: str( x ) if not str( x ) == 'nan' else '' )
 
