@@ -19,6 +19,8 @@ import redcap
 
 import cnp
 
+import sibis
+
 # Setup command line parser
 parser = argparse.ArgumentParser( description="Import WebCNP CSV file into REDCap database" )
 parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
@@ -43,7 +45,7 @@ data = data[data['test_sessions_datasetid'] >= 22000]
 # Remove all records that are already in REDCap
 if not args.import_all:
     # See what's already on the server
-    records_in_redcap = redcap.export_records( fields=['record_id', 'test_sessions_datasetid'], format='df') 
+    records_in_redcap = redcap.export_records( fields=['record_id', 'test_sessions_datasetid'], format='df')
     # Filter out existing records
     existing = records_in_redcap['test_sessions_datasetid'].tolist()
     data = data[ data['test_sessions_datasetid'].map( lambda x: x not in existing ) ]
@@ -84,12 +86,13 @@ for [key,row] in data.iterrows():
 
     # If there were any errors, try to print them as well as possible
     if 'error' in import_response.keys():
-        print "UPLOAD ERROR:", import_response['error']
-        
+        error "UPLOAD ERROR: {}".format(import_response['error'])
+        sibis.logging(hashlib.sha1(string).hexdigest()[0:6],error)
+
     if 'fields' in import_response.keys():
         for field in import_response['fields']:
             print "\t", field
-                    
+
     if 'records' in import_response.keys():
         for record in import_response['records']:
             print "\t", record

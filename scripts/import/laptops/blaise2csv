@@ -20,9 +20,10 @@ import string
 import sys
 
 import ssaga
+import sibis
 
 #
-# Score SSAGA using SAS scripts 
+# Score SSAGA using SAS scripts
 #
 # This function makes the following assumptions about the operating environment:
 #
@@ -41,7 +42,9 @@ def score_ssaga( filename_asc ):
         try:
             subprocess.check_call( ['wine', sas_path, '-SYSIN', sas_script_path, '-NOSPLASH'], stderr=devnull )
         except:
-            print 'ERROR: SAS script',sas_script,'cannot be run for',filename_asc
+            print 'ERROR: SAS script {} cannot be run for {}'.format(sas_script, filename_asc)
+            sibis.logging(hashlib.sha1(string).hexdigest()[0:6],error,
+                          sas_script = sas_script)
             shutil.rmtree( '/tmp/ssaga' )
             raise Exception()
 
@@ -57,7 +60,7 @@ def get_id_and_date( record ):
     match_id = re.search( '^([A-F])([0-9]{5})([MFT])([0-9])$', subject_id )
     if match_id:
         subject_id = "%s-%s-%s-%s" % ( match_id.group(1), match_id.group(2), match_id.group(3), match_id.group(4) )
-        
+
     date_of_test = '%s-%s-%s' % ( record[15:19], record[13:15], record[11:13] )
     record_id = re.sub( ' ', '_', '%s-%s' % ( subject_id, date_of_test ) )
 
@@ -88,12 +91,12 @@ def process_ascfile( ascfile_name ):
                     ssaga_fields = dict()
                     for field in ssaga.fields_to_copy:
                         ssaga_fields['ssaga_%s_%s' % ( args.ssaga_type, string.lower( field ) )] = ssaga.get_field( record, field ).strip()
-                
+
                     ssaga_fields['record_id'] = record_id
                     ssaga_fields['ssaga_%s_dotest' % ( args.ssaga_type ) ] = date_of_test
                     ssaga_fields['ssaga_%s_copy_complete' % ( args.ssaga_type ) ] = 1
                     ssaga_fields['visit_information_complete'] = 1;
-        
+
                     try:
                         pandas.DataFrame( [ ssaga_fields ] ).to_csv( filename_fields, index=False )
                         print filename_fields
@@ -114,9 +117,9 @@ def process_ascfile( ascfile_name ):
                     ssaga_scores['ssaga_%s_dotest' % ( args.ssaga_type ) ] = date_of_test
                     ssaga_scores['ssaga_%s_complete' % ( args.ssaga_type ) ] = 1
                     ssaga_scores['visit_information_complete'] = 1;
-            
+
                     try:
-                        ssaga_scores.to_csv( filename_scores, index=False )                    
+                        ssaga_scores.to_csv( filename_scores, index=False )
                         print filename_scores
                     except:
                         pass
@@ -137,7 +140,7 @@ def process_blaise( infile ):
         shutil.copy( os.path.join( os.path.expanduser("~"), 'src', 'manipula', 'crtNSSAGA_v3.%s' % suffix ), tempdir )
 
     # Run Manipula
-    olddir = os.getcwd() 
+    olddir = os.getcwd()
     os.chdir( tempdir )
     try:
         subprocess.check_call( ['wine', os.path.join( os.path.expanduser("~"), 'src', 'manipula', 'Manipula.exe' ), 'crtNSSAGA_v3.man' ], stderr=devnull )
@@ -191,4 +194,3 @@ else:
 if not args.no_xvfb:
     Xvfb.terminate()
 devnull.close()
-

@@ -175,7 +175,7 @@ def check_experiment(experiment):
                 err = "Error: {0} - scanner mismatch for session {1} and phantom {2};".format(prj, experiment_label, eids)
                 err += "Session scanner: {0};".format(scanner)
                 err += "Phantom scanner(s): {0}".format(phantom_scanners)
-                sibis.logging(experiment_label,error,
+                sibis.logging(experiment_label,err,
                               experiment_id = eids,
                               project = prj)
             elif len(phantom_scans) == 0:

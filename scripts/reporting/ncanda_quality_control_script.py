@@ -280,9 +280,9 @@ def youth_report_sex(idx,row, field_missing, field_sex):
     return error
 
 
-def main(args=visit):
+def main(args):
     project_entry = get_project_entry()
-    project_df = data_entry_fields(fields,project_entry,visit)
+    project_df = data_entry_fields(fields,project_entry,args.visit)
     error = []
 
     for idx, row in project_df.iterrows():
@@ -302,11 +302,14 @@ def main(args=visit):
 
     for e in error:
         if e != 'null':
-            print json.dumps(e, sort_keys = True)
+            #print json.dumps(e, sort_keys=True)
+            #print "{}-{}".format(e['subject_site_id'], e['visit_date']), e['error'],e
+            sibis.logging("{}-{}".format(e['subject_site_id'], e['visit_date']), e['error'],e_dictionary=e)
 
 
 if __name__ == '__main__':
     import argparse
-    parser = argparse.ArgumentParser('-v','--visit',choices=['baseline_visit_arm_1','1y_visit_arm_1'],default='1y_visit_arm_1')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-v','--visit',choices=['baseline_visit_arm_1','1y_visit_arm_1'],default='1y_visit_arm_1')
     argv = parser.parse_args()
     sys.exit(main(args=argv))
