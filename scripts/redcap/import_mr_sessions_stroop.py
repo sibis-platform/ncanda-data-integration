@@ -14,6 +14,7 @@ import re
 import tempfile
 import shutil
 import subprocess
+import sibis
 
 #
 # Check for Stroop data (ePrime log file) in given XNAT session
@@ -31,14 +32,16 @@ def check_for_stroop( xnat, xnat_eid_list, verbose=False ):
         for resource in  experiment.resources().get():
             resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files?format=json' % ( xnat_eid, resource ) );
             stroop_files += [ (xnat_eid, resource, re.sub( '.*\/files\/', '', file['URI']) ) for file in resource_files if re.match( '^NCANDAStroopMtS_3cycles_7m53stask_.*.txt$', file['Name'] ) ]
-        
+
     # No matching files - nothing to do
     if len( stroop_files ) == 0:
-        return (None, None, None) 
+        return (None, None, None)
 
     # Get first file from list, warn if more files
     if len( stroop_files ) > 1:
-        print "ERROR: experiment(s)",','.join(xnat_eid_list),"have/has more than one Stroop .txt file. Please make sure there is exactly one per session."
+        error = "ERROR: experiment have/has more than one Stroop .txt file. Please make sure there is exactly one per session."
+        for xnat_eid in xnat_eid_list:
+            sibis.logging(xnat_eid,error)
 	return (None, None, None)
 
     return stroop_files[0]
@@ -68,13 +71,14 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, red
                 if re.match( '.*\.csv$', file ):
                     if verbose:
                         print "Uploading ePrime Stroop scores",file
-                    subprocess.call( [ os.path.join( bindir, 'csv2redcap' ), file ] )            
+                    subprocess.call( [ os.path.join( bindir, 'csv2redcap' ), file ] )
             # Upload original ePrime file for future reference
             if verbose:
                 print "Uploading ePrime Stroop file",stroop_file_path
             subprocess.check_output( [ os.path.join( import_bindir, "eprime2redcap" ), "--api-key", redcap_token, '--record', redcap_key[0], '--event', redcap_key[1], stroop_file_path, 'mri_stroop_log_file' ] )
     else:
-        print "ERROR: could not convert Stroop file %s:%s" % ( xnat_eid, stroop_file )
+        error = "ERROR: could not convert Stroop file %s:%s" % ( xnat_eid, stroop_file )
+        sibis.logging(xnat_eid,error,
+                      stroop_file = stroop_file)
 
     shutil.rmtree( tempdir )
-

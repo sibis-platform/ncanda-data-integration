@@ -16,6 +16,7 @@ import os.path
 import tempfile
 import shutil
 import subprocess
+import sibis
 
 # QA metric thresholds - defines a general threshold, either upper or lower.
 #  Having this as a class makes it easier to put all thresholds, upper and lower, into a single table.
@@ -54,15 +55,22 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
     bxh_file = '%s.bxh' % session[7:]
     subprocess.call('dicom2bxh %s/* %s >& /dev/null' % ( dicom_path, bxh_file ), shell=True)
     if not os.path.exists( bxh_file ):
-	print "ERROR: BXH file %s was not created from DICOM files in %s (session %s)" % (bxh_file, dicom_path, session)
-	return
+        error = "ERROR: BXH file was not created from DICOM files"
+        sibis.logging(session,error,
+                  bxh_file = bxh_file,
+                  dicom_path = dicom_path)
+        return
 
     # Run the PERL QA script and capture its output
     html_dir = './html'
     script_output = os.popen( 'fmriqa_phantomqa.pl %s %s 2> /dev/null' % (bxh_file,html_dir) ).readlines()
     if not os.path.exists( '%s/index.html' % html_dir ):
-        print "ERROR: html file %s/index.html was not created from BXH file %s (session %s/%s)" % ( html_dir, bxh_file, session, label )
-        print "QA Script Output:\n",'\n'.join( script_output )
+        error =  "ERROR: html file %s/index.html was not created from BXH file %s (session %s/%s)" % ( html_dir, bxh_file, session, label )
+        qa_script_output = '\n'.join( script_output )
+        sibis.logging('session {}/{}'.format(session, label),error,
+                      html_dir = html_dir,
+                      bxh_file = bxh_file,
+                      qa_script_output = qa_script_output)
         return
 
     # Copy the entire output to a text file for upload to XNAT
@@ -151,14 +159,18 @@ def run_subject_qa( interface, project, subject, session, scan_number, dicom_pat
     bxh_file = '%s/dicoms.bxh' % temp_dir
     subprocess.call( 'dicom2bxh %s/* %s >& /dev/null' % ( dicom_path, bxh_file ), shell=True )
     if not os.path.exists( bxh_file ):
-	print "ERROR: BXH file %s was not created from DICOM files in %s" % ( bxh_file, dicom_path )
-	return
+        error = "ERROR: BXH file was not created from DICOM files"
+        sibis.logging(dicom_path,error,
+                  bxh_file = bxh_file)
+    return
 
     # Run the PERL QA script and capture its output
     html_dir = '%s/html' % temp_dir
     script_output = os.popen( 'fmriqa_generate.pl %s %s 2> /dev/null' % (bxh_file,html_dir) ).readlines()
     if not os.path.exists( html_dir ):
-        print "ERROR: html directory %s was not created from BXH file %s" % ( html_dir, bxh_file )
+        error = "ERROR: html directory was not created from BXH file"
+        sibis.logging(html_dir,error,
+                      bxh_file = bxh_file)
         return
 
     # Convert QA results from html to pdf

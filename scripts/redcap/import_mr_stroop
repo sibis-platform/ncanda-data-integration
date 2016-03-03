@@ -154,4 +154,5 @@ for [key,row] in mr_sessions_redcap.iterrows():
                 for xnat_eid in row['mri_xnat_eids'].split( ' ' ):
                     check_for_stroop( xnat, xnat_eid, redcap_token, key, verbose=args.verbose, no_upload=args.no_upload )
             except AttributeError, e:
-                print "Error for xnat_eid: {0}...{1}".format(xnat_eid, e)
+                error = "Error for xnat_eid: {}".format(e)
+                sibis.logging(xnat_eid,error)

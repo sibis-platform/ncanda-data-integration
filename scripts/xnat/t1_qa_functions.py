@@ -63,7 +63,7 @@ def check_xml_file( xml_file, project, session, label ):
                         warnings.append( "Nonlinearity[%d]=%f" % (project,session,idx,nonlinear) )
     except:
          error='Could not open XML file for experiment.'
-        sibis.logging(session,error,
+         sibis.logging(session,error,
                      project_id=project)
 
 
@@ -88,8 +88,13 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
     nii_file = 't1.nii.gz'
     subprocess.call( 'cmtk dcm2image --tolerance 1e-3 -rO %s %s >& /dev/null' % ( nii_file, dicom_path ), shell=True )
     if not os.path.exists( nii_file ):
-	print "ERROR: NIFTI file %s was not created from DICOM files in %s, experiment %s/%s" % ( nii_file, dicom_path, project, session )
-	return
+        error = "ERROR: NIFTI file was not created from DICOM files experiment"
+        sibis.logging('{}/{}'.format(project,session),error,
+                         session = session,
+                         project = project,
+                         nii_file = nii_file,
+                         dicom_path = dicom_path)
+        return
 
     # Upload NIFTI file
     try:
@@ -103,7 +108,12 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
     lbl_file = 'phantom.nii.gz'
     subprocess.call( 'cmtk detect_adni_phantom --tolerant --refine-xform --erode-snr 15 --write-labels %s %s %s' % ( lbl_file, nii_file, xml_file ), shell=True )
     if not os.path.exists( xml_file ) or not os.path.exists( lbl_file ):
-        print "ERROR: mandatory output file (either xml or label image) was not created from file %s, experiment %s/%s/%s" % ( nii_file,project,session,label )
+        error = "ERROR: mandatory output file (either xml or label image) was not created from file %s, experiment %s/%s/%s" % ( nii_file,project,session,label )
+        sibis.logging('{}/{}/{}'.format(project,session,label),error,
+                       nii_file=nii_file,
+                       project = project,
+                       session = session,
+                       label= label)
         return
 
     # Upload phantom files to XNAT

@@ -84,7 +84,9 @@ def export_t1t2_to_zip( experiment, experiment_label ):
         try:
             subprocess.check_call( zip_command, shell=True )
         except:
-           print 'ERROR: unable to create ZIP file',zipfile,'from these directories:', ' '.join( scan_dirs )
+           error = 'ERROR: unable to create ZIP file from these directories'
+           sibis.logging(zipfile, error,
+                         scan_dirs = ' '.join( scan_dirs ))
            print zip_command
            try:
                os.remove( zipfile )
@@ -98,7 +100,9 @@ def export_t1t2_to_zip( experiment, experiment_label ):
             try:
                 experiment.attrs.set( 'xnat:mrSessionData/fields/field[name=datetodvd]/field', date_today )
             except:
-                print "ERROR: failed to set DateToDVD field on experiment",experiment_label,"- removing archive file",zipfile
+                error = "ERROR: failed to set DateToDVD field on experiment - removing archive file"
+                sibis.logging(experiment_label,error,
+                              zipfile = zipfile)
                 os.remove( zipfile )
 
     return len( scan_dirs ) > 0

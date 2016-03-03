@@ -66,7 +66,9 @@ def do_export_spiral_files(xnat, resource_location, to_directory, spiral_nifti_o
 
     spiral_E_files = glob_for_files_recursive(tmpdir, pattern="E*P*.7")
     if len(spiral_E_files) > 1:
-        print "ERROR: more than one E file found: {}".format(', '.join(spiral_E_files))
+        error = "ERROR: more than one E file found"
+        sibis.logging(xnat_eid,error,
+                      spiral_e_files = ', '.join(spiral_E_files))
         return False
 
     physio_files = glob_for_files_recursive(tmpdir, pattern="P*.physio")
@@ -93,7 +95,9 @@ def do_export_spiral_files(xnat, resource_location, to_directory, spiral_nifti_o
                 print "StdOut:\n{}".format(stdout)
             return False
     else:
-        print "ERROR: no spiral data file found in", resource_location
+        error = "ERROR: no spiral data file found"
+        sibis.logging(xnat_eid,error,
+                      resource_location=resource_location)
         return False
 
     if len(physio_files) == 1:

@@ -229,14 +229,18 @@ def get_subject_age( subject_id, at_date ):
     try:
         date_of_birth = subject_dates_of_birth[subject_id]
     except KeyError, e:
-        print "ERROR: no birth date for subject", subject_id, e
+        error = "ERROR: no birth date for subject"
+        sibis.logging(subject_id, error,
+                      e = e)
         return ''
     # Set actual age - do this after everything else, because some surveys have "age" fields; we want to overwrite those
     try:
         return str(days_between_dates(date_of_birth, at_date) / 365.242)
     except:
         if at_date != 'nan':
-            print "ERROR: could not parse visit date", at_date, "for subject", subject_id
+            error = "ERROR: could not parse visit date"
+            sibis.logging(subject_id,error,
+                          date = at_date)
         return ''
 
 
@@ -413,9 +417,6 @@ for form_prefix, form_name in forms.iteritems():
                 records_this_visit['days_from_visit'] = records_this_visit['%s_date' % form_prefix].map( lambda d: abs( days_between_dates( visit_date, d ) ) )
                 records_this_visit.sort( columns = 'days_from_visit', inplace = True )
                 if records_this_visit.ix[0]['days_from_visit'] == records_this_visit.ix[1]['days_from_visit']:
-                    # Still not unique - print error and skip
-                    #OLD Version
-                    #print 'ERROR: more than one closest record "%s" found for subject %s, event %s, visit date %s:' % (form_name,key[0],key[1],visit_date)
                     error ='ERROR: more than one closest record'
                     sibis.logging("{}-{}".format(key[0], visit_date), error,
                                     subject_id = key[0],
@@ -471,8 +472,6 @@ for form_prefix, form_name in forms.iteritems():
                 elif len(records_this_visit) == 1:
                     total_uploaded += add_to_upload(form_prefix, form_name, key[0], key[1], records_this_visit.ix[0], subject_age)
                 elif (existing_form_data[complete_label][key] > 0) and (existing_form_data[missing_label][key] != 1):
-                    #Old Error Message
-                    #print "WARNING: Previously assigned form", form_name, "for subject", key[0], "event", key[1], "date", form_target_date, "appears to have disappeared."
                     error = 'WARNING: Previously assigned form appears to have disappered.'
                     sibis.logging("{}-{}".format(key[0], form_target_date), error,
                                  subject_id=key[0],

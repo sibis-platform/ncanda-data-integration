@@ -14,6 +14,7 @@ import os
 import subprocess
 import shutil
 import sys
+import sibis
 
 from export_mr_sessions_spiral import export_spiral_files
 
@@ -92,7 +93,8 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
         try:
             open( eid_file_path, 'w' ).writelines( session_and_scan_list )
         except:
-            print "ERROR: unable to write EID file",eid_file_path
+            error = "ERROR: unable to write EID file"
+            sibis.logging(eid_file_path,error)
 
         return True
     return False
@@ -164,7 +166,8 @@ def gzip_physio( physio_file_path ):
     try:
         subprocess.check_call( [ 'gzip', '-9f', physio_file_path ] )
     except:
-        print "ERROR: unable to compress physio file", physio_file_path
+        error = "ERROR: unable to compress physio file"
+        sibis.logging(physio_file_path,error)
 
 #
 # Copy physio files (cardio and respiratory) for resting-state fMRI session
@@ -404,4 +407,5 @@ def check_excluded_subjects( excluded_subjects, pipeline_root_dir ):
     for subject in excluded_subjects:
         subject_dir = os.path.join( pipeline_root_dir, subject )
         if os.path.exists( subject_dir ):
-            print "ERROR: pipeline directory",subject_dir,"is from an *excluded* subject and should probable be deleted"
+            error = "ERROR: pipeline directory is from an *excluded* subject and should probable be deleted"
+            sibis.logging(subject_dir,error)
