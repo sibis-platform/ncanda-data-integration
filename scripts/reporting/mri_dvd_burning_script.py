@@ -24,7 +24,10 @@ fields = ['study_id', 'redcap_event_name','exclude', 'visit_ignore',
           'mri_series_t2'];
 
 forms=['mr_session_report', 'visit_date',
-       'demographics'],
+       'demographics']
+
+csv_dir="/fs/u00/alfonso/Desktop"
+csv_file="{}/bart_list.csv".format(csv_dir)
 
 def get_project_entry(args=None):
 	"""
@@ -49,19 +52,24 @@ def data_entry_fields(fields,project,arm):
 	data_entry_raw = project.export_records(fields=fields, forms = forms, format='df', events=[arm])
 	return data_entry_raw
 
-def main(args=[visit, csv_file]):
+def main(args):
     project_entry = get_project_entry()
-    project_df = data_entry_fields(fields,project_entry,visit)
+    project_df = data_entry_fields(fields,project_entry,args.visit)
 
     ## Generate Subject List from csv
     with open(csv_file, 'rb') as f:
         reader = csv.reader(f)
-        subject_list = map(tuple, reader)
+        subject_list = []
+        for i in reader:
+            subject_list.append(i[0])
 
-    filter_df = project_df.filter(item = subject_list)
+    #Filter
+    filter_df = project_df[project_df['mri_xnat_sid'].isin(subject_list)]
+    print filter_df['mri_series_t1']
 
 if __name__ == '__main__':
     import argparse
-    parser = argparse.ArgumentParser('-v','--visit',choices=['baseline_visit_arm_1','1y_visit_arm_1'],default='1y_visit_arm_1')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-v','--visit',choices=['baseline_visit_arm_1','1y_visit_arm_1'],default='1y_visit_arm_1')
     argv = parser.parse_args()
     sys.exit(main(args=argv))
