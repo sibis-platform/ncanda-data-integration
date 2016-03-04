@@ -399,16 +399,21 @@ def export_and_queue( xnat, session_data, redcap_key, pipeline_root_dir, stroop=
             if verbose:
                 print 'Testing on ', os.path.join(test_pipeline_root_dir, pipeline_workdir_rel )
 
+            sge_env = os.environ.copy()
+            sge_env['SGE_ROOT'] = '/opt/sge' 
             qsub_args= [ '/opt/sge/bin/lx-amd64/qsub','-S','/bin/bash','-cwd','-o','/dev/null','-j','y','-pe','smp','4','-l','h_vmem=32G','-N', 'Nightly-Test-%s' %  (pipeline_workdir_rel) ]
-            qsub_exe = 'export SGE_ROOT=/opt/sge; cd %s;  /fs/ncanda-test/pipeline/utils/ncanda_link_data_and_run_pipelines %s' % (test_pipeline_root_dir,pipeline_workdir_rel)
+            qsub_exe = 'cd %s; /fs/ncanda-test/pipeline/utils/ncanda_link_data_and_run_pipelines %s' % (test_pipeline_root_dir,pipeline_workdir_rel)
             cmd_str='echo "%s" | %s\n' % (qsub_exe," ".join(qsub_args)) 
 
-            qsub_command = subprocess.Popen( qsub_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT )
+            qsub_command = subprocess.Popen( qsub_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=sge_env)
             (stdoutdata, stderrdata) = qsub_command.communicate(qsub_exe)
             if verbose and (stdoutdata != None):
                 print stdoutdata
             
             # keep a log to make sure it is working 
+            if verbose:
+               print cmd_str
+
             with open("/tmp/ncanda_test_nightly.txt", "a") as myfile:
                myfile.write(cmd_str)
                myfile.write(stdoutdata) 
