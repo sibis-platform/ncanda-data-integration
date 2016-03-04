@@ -16,6 +16,8 @@ import fnmatch
 import tempfile
 import subprocess
 
+import sibis
+
 
 def export_spiral_files(xnat, resource_location, to_directory, stroop=(None, None, None), verbose=None):
     if verbose:
@@ -53,15 +55,10 @@ def do_export_spiral_files(xnat, resource_location, to_directory, spiral_nifti_o
 
     errcode, stdout, stderr = untar_to_dir(tmp_file_path, tmpdir)
     if errcode != 0:
-        #old error reporting
-        #print "ERROR: unable to un-tar resource file {}. File is likely corrupt" \
-        #      " and needs to be uploaded again.".format(resource_location)
-        error = dict(experiment_site_id=xnat_eid,
+        error="ERROR: Unable to un-tar resource file. File is likely corrupt."
+        sibis.logging(xnat_eid,error,
                      tempfile_path=tmp_file_path,
-                     resource_location=resource_location,
-                     error="ERROR: Unable to un-tar resource file. File is likely corrupt."
-        )
-        print(json.dumps(error, sort_keys=True))
+                     resource_location=resource_location)
         if verbose:
             print "StdErr:\n{}".format(stderr)
             print "StdOut:\n{}".format(stdout)
@@ -69,18 +66,17 @@ def do_export_spiral_files(xnat, resource_location, to_directory, spiral_nifti_o
 
     spiral_E_files = glob_for_files_recursive(tmpdir, pattern="E*P*.7")
     if len(spiral_E_files) > 1:
-        print "ERROR: more than one E file found: {}".format(', '.join(spiral_E_files))
+        error = "ERROR: more than one E file found"
+        sibis.logging(xnat_eid,error,
+                      spiral_e_files = ', '.join(spiral_E_files))
         return False
 
     physio_files = glob_for_files_recursive(tmpdir, pattern="P*.physio")
     if len(physio_files) > 1:
-        # old error reporting
-        # print "ERROR: more than one physio file found: {}".format(', '.join(physio_files))
-        error = dict(experiment_site_id=xnat_eid,
+        error = 'More than one physio file found.'
+        sibis.logging(xnat_eid,error,
                      tmp_file_path=tmp_file_path,
-                     physio_files=physio_files,
-                     error='More than one physio file found.')
-        print json.dumps(error, sort_keys=True)
+                     physio_files=physio_files)
         return False
 
     if len(spiral_E_files) == 1:
@@ -91,18 +87,17 @@ def do_export_spiral_files(xnat, resource_location, to_directory, spiral_nifti_o
         # Now try to make the NIfTI
         errcode, stdout, stderr = make_nifti_from_spiral(spiral_E_files[0], spiral_nifti_out)
         if not os.path.exists(spiral_nifti_out):
-            #print "ERROR: unable to make NIfTI from resource file {0}. " \
-            #      "Please try running makenifti manually.".format(resource_location)
-            error = dict(experiment_site_id=xnat_eid,
-                         spiral_file=spiral_E_files[0],
-                         error="Unable to make NIfTI from resource file, please try running makenifti manually")
-            print json.dumps(error, sort_keys=True)
+            error="Unable to make NIfTI from resource file, please try running makenifti manually"
+            sibis.logging(xnat_eid, error,
+                         spiral_file=spiral_E_files[0])
             if verbose:
                 print "StdErr:\n{}".format(stderr)
                 print "StdOut:\n{}".format(stdout)
             return False
     else:
-        print "ERROR: no spiral data file found in", resource_location
+        error = "ERROR: no spiral data file found"
+        sibis.logging(xnat_eid,error,
+                      resource_location=resource_location)
         return False
 
     if len(physio_files) == 1:

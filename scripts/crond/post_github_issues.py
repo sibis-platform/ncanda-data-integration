@@ -147,7 +147,11 @@ def create_issues(repo, title, body, verbose=None):
     if 'Traceback' in ''.join(issues):
         if verbose:
             print "Issue is a Traceback..."
-        issues = [''.join(issues)]
+        string = "".join(issues)
+        sha = hashlib.sha1(string).hexdigest()[0:6]
+        error = dict(experiment_site_id = "Traceback:{}".format(sha),
+                    error = "Traceback",
+                    message = string)
     for issue in issues:
         # Check for new format
         try:

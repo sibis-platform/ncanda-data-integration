@@ -23,6 +23,7 @@ import glob
 
 import pandas
 
+import sibis
 import redcap
 import pyxnat
 
@@ -55,7 +56,7 @@ def check_for_stroop( xnat, xnat_eid, redcap_token, redcap_key, verbose=False, n
 
         experiment_files += [ (resource, re.sub( '.*\/files\/', '', file['URI']) ) for file in resource_files if re.match( '^NCANDAStroopMtS_3cycles_7m53stask_.*.txt$', file['Name'] ) ]
 
-   
+
     # No matching files - nothing to do
     if len( experiment_files ) == 0:
         return
@@ -75,20 +76,20 @@ def check_for_stroop( xnat, xnat_eid, redcap_token, redcap_key, verbose=False, n
     stroop_file_path = experiment.resource( stroop_resource ).file( stroop_file ).get_copy( os.path.join( tempdir, stroop_file ) )
 
 
-    
+
     if stroop_file_path.find ("zip") != -1:
        zip_handler=zipfile.ZipFile(stroop_file_path,'r')
        zip_handler.extractall(tempdir)
        stroop_file_path_zip=glob.glob(os.path.join(tempdir,"*.txt" ))
        stroop_file_path_zip+=glob.glob(os.path.join(tempdir,"*","*.txt" ))
        stroop_file_path=stroop_file_path_zip
-      
+
 
 
     # Convert downloaded Stroop file to CSV scores file
     added_files = subprocess.check_output( [ os.path.join( import_bindir, "stroop2csv" ), '--mr-session', '--record', redcap_key[0], '--event', redcap_key[1], stroop_file_path, tempdir ] )
 
-   
+
    # added_files = subprocess.check_output( [ os.path.join( import_bindir, "stroop2csv" ), '--mr-session', '--record', redcap_key[0], '--event', redcap_key[1],stroop_file_path_zip[0], tempdir ] )
 
 
@@ -100,13 +101,15 @@ def check_for_stroop( xnat, xnat_eid, redcap_token, redcap_key, verbose=False, n
                 if re.match( '.*\.csv$', file ):
                     if verbose:
                         print "Uploading ePrime Stroop scores",file
-                    subprocess.call( [ os.path.join( bindir, 'csv2redcap' ), file ] )            
+                    subprocess.call( [ os.path.join( bindir, 'csv2redcap' ), file ] )
             # Upload original ePrime file for future reference
             if verbose:
                 print "Uploading ePrime Stroop file",stroop_file_path
             subprocess.check_output( [ os.path.join( import_bindir, "eprime2redcap" ), "--api-key", redcap_token, '--record', redcap_key[0], '--event', redcap_key[1], stroop_file_path, 'mri_stroop_log_file' ] )
     else:
-        print "ERROR: could not convert Stroop file %s:%s" % ( xnat_eid, stroop_file )
+        error = "ERROR: could not convert Stroop file"
+        sibis.logging(xnat_eid, error,
+                      stroop_file = stroop_file)
 
     shutil.rmtree( tempdir )
 
@@ -151,4 +154,5 @@ for [key,row] in mr_sessions_redcap.iterrows():
                 for xnat_eid in row['mri_xnat_eids'].split( ' ' ):
                     check_for_stroop( xnat, xnat_eid, redcap_token, key, verbose=args.verbose, no_upload=args.no_upload )
             except AttributeError, e:
-                print "Error for xnat_eid: {0}...{1}".format(xnat_eid, e)
+                error = "Error for xnat_eid: {}".format(e)
+                sibis.logging(xnat_eid,error)

@@ -31,4 +31,4 @@ np_collected = visit.visit_ignore___yes != 1
 # Apply filters for results
 results = visit[visit_included & np_collected]
 
-results.to_csv('baseline.csv', columns = ['exclude','visit_ignore___yes', 'mri_xnat_sid','mri_xnat_eids'])
+results.to_csv('subjects_with_valid_baseline.csv', columns = ['exclude','visit_ignore___yes', 'mri_xnat_sid','mri_xnat_eids'])

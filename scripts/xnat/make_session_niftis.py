@@ -9,6 +9,7 @@
 ##  $LastChangedDate$
 ##
 
+import sibis
 import pyxnat
 import os.path
 import json
@@ -22,7 +23,7 @@ import sys
 
 #
 # Verify image count in temp directory created by dcm2image
-# 
+#
 
 expected_images = dict()
 expected_images['GE'] = { 'ncanda-t1spgr-v1' : [1],
@@ -48,19 +49,13 @@ def verify_image_count( session, session_label, scan, scantype, manufacturer, im
         if scantype in expected_images[manufacturer].keys():
             imgrange = expected_images[manufacturer][scantype]
             if not images_created in imgrange:
-                error = dict(session_label = session_label,
+                error = 'WARNING: Scan found more images than expected.'
+                sibis.logging(session_label, error,
                     session = session,
                     scan = scan,
                     scan_type = scantype,
                     images_created = images_created,
-                    expected_images = expected_images,
-                    error_message = 'WARNING: Scan found more images than expected.'
-                )
-                print(json.dumps(error, sort_keys=True))
-
-                #Old Error Message
-                #print 'WARNING: experiment %s(%s), scan %s(%s), found %d images' % ( session_label,session,scan,scantype,images_created), '(expected',imgrange,')'
-
+                    expected_images = expected_images)
 #
 # Export experiment files to NIFTI
 #
@@ -84,44 +79,44 @@ def export_to_nifti( interface, project, subject, session, session_label, manufa
             else :
                 temp_dir = tempfile.mkdtemp()
                 zip_path = '%s/%s_%s.zip' % (temp_dir, scan, scantype)
-                
+
                 logFileName='%s/%s_%s/dcm2image.log' % (temp_dir,scan,scantype)
                 dcm2image_command = 'cmtk dcm2image --tolerance 1e-3 --write-single-slices --no-progress -rvxO %s/%s_%s/image%%n.nii %s 2>&1' % ( temp_dir, scan, scantype, dicom_path )
-                
+
                 try:
                     output = subprocess.check_output( dcm2image_command, shell=True )
                 except:
-                    errorMSG.append("The following command failed: %s" % dcm2image_command) 
-                
+                    errorMSG.append("The following command failed: %s" % dcm2image_command)
+
                 if len(errorMSG)==0:
                     output_file = open( logFileName , 'w' )
-                    try: 
+                    try:
                         output_file.writelines( output )
-                    finally: 
-                        output_file.close()            
-                
-                    try: 
+                    finally:
+                        output_file.close()
+
+                    try:
                         fzip = zipfile.ZipFile( zip_path, 'w' )
                         for src in sorted( glob.glob( '%s/*/*' % temp_dir ) ):
                            fzip.write( src, re.sub( '%s/' % temp_dir, '', src ) )
                         fzip.close()
                     except:
                         errorMSG.append("Could not zip %s" % zip_path )
-                
-                
+
+
                 if os.path.exists( zip_path ):
                     try:
                         interface.select.project( project ).subject( subject ).experiment( session ).resource('nifti').put_zip( zip_path, overwrite=True, extract=True )
                     except:
                         errorMSG.append("Unable to upload ZIP file %s to experiment %s" % (zip_path,session))
-                
+
                 # Verify image counts for various series
                 images_created = len( glob.glob( '%s/*/*.nii.gz' % temp_dir ) )
-                
+
                 if images_created > 0:
                     manufacturer_u = manufacturer.upper()
                     verify_image_count( session, session_label, scan, scantype, manufacturer_u, images_created )
-                    
+
                     if manufacturer_u == 'SIEMENS':
                         if 'dti6b500pepolar' in scantype:
                             xml_file = open( os.path.join( temp_dir, '%s_%s' % (scan,scantype), 'image1.nii.xml' ), 'r' )
@@ -130,10 +125,10 @@ def export_to_nifti( interface, project, subject, session, session_label, manufa
                                     match = re.match( '.*<phaseEncodeDirectionSign>(.+)</phaseEncodeDirectionSign>.*', line )
                                     if match and match.group(1).upper() != 'POS':
                                         errorMSG.append("Scan %s of type %s in session %s has wrong PE sign %s (expected POS)" % (scan, scantype, session_label, match.group(1).upper()))
-                
+
                             except:
-                                errorMSG.append("Cannot read XML sidecar file for scan %s of session %s" % (scan, session_label)) 
-                
+                                errorMSG.append("Cannot read XML sidecar file for scan %s of session %s" % (scan, session_label))
+
                             finally:
                                 xml_file.close()
                         elif 'dti60b1000' in scantype:
@@ -143,17 +138,17 @@ def export_to_nifti( interface, project, subject, session, session_label, manufa
                                     match = re.match( '.*<phaseEncodeDirectionSign>(.+)</phaseEncodeDirectionSign>.*', line )
                                     if match and match.group(1).upper() != 'NEG':
                                         errorMSG.append("Scan %s of type %s in session %s has wrong PE sign %s (expected NEG)" % (scan, scantype, session_label, match.group(1).upper()))
-                
+
                             except:
-                                errorMSG.append("Cannot read XML sidecar file for scan %s of session %s" % (scan, session_label)) 
-                
+                                errorMSG.append("Cannot read XML sidecar file for scan %s of session %s" % (scan, session_label))
+
                             finally:
                                 xml_file.close()
-                
+
                 # Clean up - remove temp directory
                 shutil.rmtree( temp_dir )
 
-    for MSG in errorMSG : 
+    for MSG in errorMSG :
         print "ERROR: ", MSG
 
-    return errorMSG 
+    return errorMSG
