@@ -44,6 +44,13 @@ def export_spiral_files(xnat, resource_location, to_directory, stroop=(None, Non
             shutil.rmtree(tmpdir)
 
             result = True
+
+    if verbose:
+        if result: 
+            print("...done!")
+        else:
+            print("...nothing exported!")
+
     return result
 
 
