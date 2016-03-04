@@ -410,7 +410,7 @@ def export_and_queue( xnat, session_data, redcap_key, pipeline_root_dir, stroop=
             
             # keep a log to make sure it is working 
             with open("/tmp/ncanda_test_nightly.txt", "a") as myfile:
-               myfile.write(cmd)
+               myfile.write(cmd_str)
                myfile.write(stdoutdata) 
             
         # It is very important to clear the PyXNAT cache, lest we run out of disk space and shut down all databases in the process
