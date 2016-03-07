@@ -126,13 +126,13 @@ class XnatEmail:
 
         # Create the body of the message (a plain-text and an HTML version).
         html = '<html>\n\
-<head></head>\n\
-<body>\n\
-We have detected the following problem(s) with data on <a href="%s">N-CANDA XNAT image repository</a>:</br>\n\
-%s\n\
-</p>\n\
-</body>\n\
-</html>' % (self._site_url, '\n'.join( problem_list ))
+        <head></head>\n\
+        <body>\n\
+        We have detected the following problem(s) with data on <a href="%s">N-CANDA XNAT image repository</a>:</br>\n\
+        %s\n\
+        </p>\n\
+        </body>\n\
+        </html>' % (self._site_url, '\n'.join( problem_list ))
 
         self.send( "%s XNAT problem update" % self._site_name, self._admin_email, [ self._admin_email ], html )
 
