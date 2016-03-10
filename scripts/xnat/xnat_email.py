@@ -89,17 +89,17 @@ class XnatEmail:
 
         # Create the body of the message (a plain-text and an HTML version).
         html = '<html>\n\
-<head></head>\n\
-<body>\n\
-<p>Dear %s %s:<br><br>\n\
-We have detected the following problem(s) with data you uploaded to the <a href="%s">%s XNAT image repository</a>:</br>\n\
-%s\n\
-Please address these issues as soon as possible (direct links to the respective data items are provided above for your convenience).\n\
-You may want to consult the <a href="http://www.nitrc.org/docman/view.php/672/1206/N-CANDA%%20MRI%%20and%%20Image%%20Management%%20Manual">N-CANDA MRI and Image Management Manual</a> for instructions.<br></br>\n\
-If you have further questions, feel free to contact the <a href="mailto:%s">Site Administrator</a>\n\
-</p>\n\
-</body>\n\
-</html>' % (user_firstname, user_lastname, self._site_url, self._site_name, '\n'.join( problem_list ), self._admin_email)
+        <head></head>\n\
+        <body>\n\
+        <p>Dear %s %s:<br><br>\n\
+        We have detected the following problem(s) with data you uploaded to the <a href="%s">%s XNAT image repository</a>:</br>\n\
+        %s\n\
+        Please address these issues as soon as possible (direct links to the respective data items are provided above for your convenience).\n\
+        You may want to consult the <a href="http://www.nitrc.org/docman/view.php/672/1206/N-CANDA%%20MRI%%20and%%20Image%%20Management%%20Manual">N-CANDA MRI and Image Management Manual</a> for instructions.<br></br>\n\
+        If you have further questions, feel free to contact the <a href="mailto:%s">Site Administrator</a>\n\
+        </p>\n\
+        </body>\n\
+        </html>' % (user_firstname, user_lastname, self._site_url, self._site_name, '\n'.join( problem_list ), self._admin_email)
 
         self.send( "N-CANDA XNAT: problems with your uploaded data", self._admin_email, [ user_email ], html )
 
@@ -126,13 +126,13 @@ If you have further questions, feel free to contact the <a href="mailto:%s">Site
 
         # Create the body of the message (a plain-text and an HTML version).
         html = '<html>\n\
-<head></head>\n\
-<body>\n\
-We have detected the following problem(s) with data on <a href="%s">N-CANDA XNAT image repository</a>:</br>\n\
-%s\n\
-</p>\n\
-</body>\n\
-</html>' % (self._site_url, '\n'.join( problem_list ))
+        <head></head>\n\
+        <body>\n\
+        We have detected the following problem(s) with data on <a href="%s">N-CANDA XNAT image repository</a>:</br>\n\
+        %s\n\
+        </p>\n\
+        </body>\n\
+        </html>' % (self._site_url, '\n'.join( problem_list ))
 
         self.send( "%s XNAT problem update" % self._site_name, self._admin_email, [ self._admin_email ], html )
 
