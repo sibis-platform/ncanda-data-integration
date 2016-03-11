@@ -85,12 +85,15 @@ def main(args):
             eids.append(i[0])
 
     eids = set(eids)
-    with open("{}/eidlist.txt".format(csv_dir), 'w') as file:
+    with open("{}/eidlist2.txt".format(csv_dir), 'w') as file:
         file.write("\n".join(eids))
+
+    csv_for_dolf = filter_df['mri_xnat_sid']
+    csv_for_dolf.to_csv('{}/bart_list_with_subject_ids.csv'.format(csv_dir))
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('-v','--visit',choices=['baseline_visit_arm_1','1y_visit_arm_1'],default='1y_visit_arm_1')
+    parser.add_argument('-v','--visit',choices=['baseline_visit_arm_1','1y_visit_arm_1'],default='baseline_visit_arm_1')
     argv = parser.parse_args()
     sys.exit(main(args=argv))
