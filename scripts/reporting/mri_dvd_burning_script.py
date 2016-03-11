@@ -85,7 +85,7 @@ def main(args):
             eids.append(i[0])
 
     eids = set(eids)
-    with open("{}/eidlist.txt".format(csv_dir), 'w') as file:
+    with open("{}/eidlist2.txt".format(csv_dir), 'w') as file:
         file.write("\n".join(eids))
 
 if __name__ == '__main__':
