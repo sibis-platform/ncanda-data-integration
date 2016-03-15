@@ -192,6 +192,9 @@ def check_dti( ifc, eid, dti_scans ):
 
     return errors
 
+def complete_scan_check(ifc, eid):
+    experiment = ifc.select.experiment( eid )
+
 #
 # Main loop
 #
