@@ -152,7 +152,7 @@ def create_issues(repo, title, body, verbose=None):
         error = dict(experiment_site_id = "Traceback:{}".format(sha),
                     error = "Traceback",
                     message = string)
-        issues = json.dumps(error, sort_keys=True)
+        issues = [json.dumps(error, sort_keys=True)]
     for issue in issues:
         # Check for new format
         try:
