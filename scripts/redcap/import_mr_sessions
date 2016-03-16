@@ -142,7 +142,7 @@ def get_sessions_in_range(xnat, subject_label, project_id, subject_id, date_rang
             sibis.logging(subject_label, error,
                           project_id=project_id,
                           subject_id=subject_id,
-                          experiment_site_id=,
+                          experiment_site_id=subject_label,
                           date_range_from=date_range_from,
                           date_range_to=date_range_to)
     return sessions_in_range

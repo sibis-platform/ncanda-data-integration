@@ -74,20 +74,20 @@ for [ index, row ] in data.iterrows():
 data = data.drop( ['test_sessions_subid', 'test_sessions_dotest'], axis=1 )
 
 # Bring original "siteid" column back to assign each record to the correct data access group
-data['redcap_data_access_group'] = data['test_sessions_siteid'].map( lambda s: string.lower(s) );
+data['redcap_data_access_group'] = data['test_sessions_siteid'].map(lambda s: string.lower(s));
 
 # Make list of dicts for REDCap import
 uploaded = 0
 for [key,row] in data.iterrows():
-    record = dict( row.dropna() )
+    record = dict(row.dropna())
 
     # Upload new data to REDCap
-    import_response = redcap.import_records( [record], overwrite='overwrite' )
+    import_response = redcap.import_records([record], overwrite='overwrite')
 
     # If there were any errors, try to print them as well as possible
     if 'error' in import_response.keys():
-        error "UPLOAD ERROR: {}".format(import_response['error'])
-        sibis.logging(hashlib.sha1(string).hexdigest()[0:6],error)
+        error = "UPLOAD ERROR: {}".format(import_response['error'])
+        sibis.logging(hashlib.sha1(string).hexdigest()[0:6], error)
 
     if 'fields' in import_response.keys():
         for field in import_response['fields']:
