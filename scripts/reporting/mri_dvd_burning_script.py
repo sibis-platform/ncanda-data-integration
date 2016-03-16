@@ -8,9 +8,9 @@
 ##  $LastChangedDate: 2015-08-07 09:10:29 -0700 (Fri, 07 Aug 2015) $
 ##
 """
-Missing MRI Report
+mri_dvd_burning_script
 ======================
-Generate a report indicating which MRI Reports have not been entered.
+Generate a list of eids for a special subset of subjects. this list can be used in script/xnat/check_object_names
 """
 import os
 import sys
