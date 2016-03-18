@@ -383,6 +383,7 @@ def export_and_queue( xnat, session_data, redcap_key, pipeline_root_dir, stroop=
 
         if verbose:
             print subject_label,'/',subject_code,'/',event_label,'to',pipeline_workdir
+
         new_files_created = export_to_workdir( xnat, session_data, pipeline_workdir, stroop=stroop, verbose=verbose )
 
         if new_files_created and run_pipeline_script:
@@ -390,7 +391,7 @@ def export_and_queue( xnat, session_data, redcap_key, pipeline_root_dir, stroop=
                 print 'Submitting script',run_pipeline_script,'to process',pipeline_workdir
             just_pipeline_script=os.path.basename(run_pipeline_script)
 
-            qsub_command = subprocess.Popen( [ '/usr/bin/qsub', '-j', 'oe', '-o', '/dev/null', '-l', 'nodes=1:ppn=4,vmem=32gb', '-N', '%s-%s'%(just_pipeline_script,subject_code) ], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT )
+            qsub_command = subprocess.Popen( [ '/usr/bin/qsub', '-j', 'oe', '-o', '/dev/null', '-l', 'nodes=1:ppn=4,vmem=32gb', '-N', '%s-%s-%s'%(just_pipeline_script,visit_code, subject_code) ], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT )
             (stdoutdata, stderrdata) = qsub_command.communicate( 'cd %s; %s %s' % ( pipeline_root_dir,run_pipeline_script,pipeline_workdir_rel) )
             if verbose and (stdoutdata != None):
                 print stdoutdata
@@ -404,8 +405,8 @@ def export_and_queue( xnat, session_data, redcap_key, pipeline_root_dir, stroop=
 
             sge_env = os.environ.copy()
             sge_env['SGE_ROOT'] = '/opt/sge' 
-            qsub_args= [ '/opt/sge/bin/lx-amd64/qsub','-S','/bin/bash','-cwd','-o','/dev/null','-j','y','-pe','smp','4','-l','h_vmem=32G','-N', 'Nightly-Test-%s' %  (pipeline_workdir_rel) ]
-            qsub_exe = 'cd %s; /fs/ncanda-test/pipeline/utils/ncanda_link_data_and_run_pipelines %s' % (test_pipeline_root_dir,pipeline_workdir_rel)
+            qsub_args= [ '/opt/sge/bin/lx-amd64/qsub','-S','/bin/bash','-o','/dev/null','-j','y','-pe','smp','4','-l','h_vmem=32G','-N', 'Nightly-Test-%s-%s-%s' % (just_pipeline_script,visit_code, subject_code) ]
+            qsub_exe = 'cd %s; /fs/ncanda-test/pipeline/scripts/utils/ncanda_link_data_and_run_pipelines %s' % (test_pipeline_root_dir,pipeline_workdir_rel)
             cmd_str='echo "%s" | %s\n' % (qsub_exe," ".join(qsub_args)) 
 
             qsub_command = subprocess.Popen( qsub_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=sge_env)
