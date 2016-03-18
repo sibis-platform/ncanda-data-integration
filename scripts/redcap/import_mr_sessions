@@ -22,6 +22,7 @@ import sibis
 import pandas
 import pyxnat
 import redcap
+import requests
 
 import import_mr_sessions_stroop as stroop
 import export_mr_sessions_pipeline as mrpipeline
@@ -521,7 +522,13 @@ for [key, row] in mr_sessions_redcap.iterrows():
                 for (key,value) in xnat_data.iteritems():
                     record[key] = value
 
-                import_response = redcap_project.import_records( [record], overwrite='overwrite' )
+                try:
+                   import_response = redcap_project.import_records( [record], overwrite='overwrite' )
+
+                except requests.exceptions.RequestException, error: 
+                   print "UPLOAD Error:", error
+                   continue
+
                 if 'count' in import_response.keys():
                     records_uploaded += import_response['count']
 
