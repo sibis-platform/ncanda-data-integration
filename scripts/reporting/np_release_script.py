@@ -19,6 +19,7 @@ import pandas as pd
 
 directory = "/fs/ncanda-share/releases/NCANDA_DATA_00010/summaries"
 
+
 nps_file = ["ataxia.csv", "cddr.csv", "clinical.csv", "cnp.csv", "dd100.csv",
             "dd1000.csv", "grooved_pegboard.csv", "ishihara.csv",
             "landoltc.csv", "rey-o.csv", "wais4.csv", "wrat4.csv",
@@ -85,7 +86,7 @@ def replace_binge_groups_month(x):
     return result
 
 def main(args=None):
-    final_df = pd.read_csv(os.path.join(directory, "demographics.csv"),
+    final_df = pd.read_csv(os.path.join(directory, "subset.csv"),
                                         index_col=['subject','arm','visit'])
 
     race_map = dict(native_american_american_indian=1,
@@ -100,10 +101,10 @@ def main(args=None):
         race_filter = final_df.race == v
         final_df[k] = race_filter.apply(lambda x: 1 if x == True else 0)
 
-    for i in nps_file:
-        df = pd.read_csv(os.path.join(directory, i),
-                    index_col=['subject','arm','visit'])
-        final_df = pd.concat([final_df, df], axis=1)
+    #for i in nps_file:
+    #    df = pd.read_csv(os.path.join(directory, i),
+    #                index_col=['subject','arm','visit'])
+    #    final_df = pd.concat([final_df, df], axis=1)
 
     final_df = final_df.rename(columns={'cddr31':'cddr_past_month_binge',
                                     'cddr30':'cddr_past_year_binge'})

@@ -11,6 +11,9 @@
 
 import os
 import re
+import sys
+import time
+import random
 import argparse
 
 import pandas
@@ -39,9 +42,35 @@ parser.add_argument("-n", "--no-upload",
 args = parser.parse_args()
 
 # First REDCap connection for the Summary project (this is where we put data)
-summary_key_file = open(os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token'), 'r')
-summary_api_key = summary_key_file.read().strip()
-rc_summary = redcap.Project('https://ncanda.sri.com/redcap/api/', summary_api_key, verify_ssl=False)
+def connect_to_redcap():
+    summary_key_file = open(os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token'), 'r')
+    summary_api_key = summary_key_file.read().strip()
+    rc = redcap.Project(redcap_server, summary_api_key, verify_ssl=False)
+    return rc
+
+# If connection to redcap server fail, try multiple times
+errLoop = 0
+rc_summary = ""
+waitTime = 0
+while (errLoop < 3) and (rc_summary == ""):
+  time.sleep(waitTime)
+  try:
+    rc_summary = connect_to_redcap()
+  except Exception, error:
+    errLoop += 1
+    waitTime=random.randint(60,300)
+
+# if not connected to redcap_server then throw error message
+if (rc_summary == ""):
+    try:
+        r = requests.get(redcap_server)
+        connect_code = r.status_code
+        reason = r.reason
+    except:
+        connect_code='down'
+
+    sys.exit( "ERROR: Could not connect to redcap!\nERROR: %s\nINFO:  Status of '%s' - %s" %(error,redcap_server,connect_code))
+
 form_event_mapping = rc_summary.export_fem(format='df')
 
 # Get record IDs and exclusions

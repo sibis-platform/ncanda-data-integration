@@ -50,8 +50,8 @@ def data_entry_fields(fields,project,arm):
 	Gets the dataframe containing a specific arm from REDCap
 	"""
 	# Get a dataframe of fields
-	data_entry_raw = project.export_records(fields=fields, forms = forms, format='df', events=[arm])
-	return data_entry_raw
+	data_entry_raw = project.export_records(fields=fields, forms = forms, format='df', events=arm)
+	return data_entry_rawg
 
 def get_session_scan(scan_field):
     session_scan = []
@@ -61,7 +61,7 @@ def get_session_scan(scan_field):
 
 def main(args):
     project_entry = get_project_entry()
-    project_df = data_entry_fields(fields,project_entry,args.visit)
+    project_df = data_entry_fields(fields,project_entry,['baseline_visit_arm_1','1y_visit_arm_1'])
 
     ## Generate Subject List from csv
     with open(csv_file, 'rb') as f:
