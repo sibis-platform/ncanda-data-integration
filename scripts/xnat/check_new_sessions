@@ -193,15 +193,22 @@ def check_dti( ifc, eid, dti_scans ):
     return errors
 
 def incomplete_scan_check( eid, manufacturer):
-    scan_id_dictionary = {'GE MEDICAL SYSTEMS': ['1', '10', '11', '12', '13', '3', '4', '6', '7', '8', '9'],
-                            'SIEMENS': ['1', '10', '11', '12', '13', '2', '3', '4', '6', '7', '8', '9']}
-    scan_ids = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/id')
+    scan_type_dictionary = {'GE MEDICAL SYSTEMS': required_ge.keys(),
+                            'SIEMENS': required_siemens.keys()}
+    scan_types = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/type')
     if manufacturer == 'GE MEDICAL SYSTEMS':
-        if set(scan_ids) != set(scan_id_dictionary['GE MEDICAL SYSTEMS']):
-            return sibis.logging(eid, 'ERROR: Scans missing from Session')
+        for scantype in set(scan_type_dictionary['GE MEDICAL SYSTEMS']):
+            if scantype in set(scan_types):
+                scantype = scantype
+            else:
+                return sibis.logging(eid, 'ERROR: {} missing from Session'.format(scantype))
     elif manufacturer == 'SIEMENS':
-        if set(scan_ids) != set(scan_id_dictionary['SIEMENS']):
-            return sibis.logging(eid, 'ERROR: Scans missing from Session')
+        for scantype in set(scan_type_dictionary['SIEMENS']):
+            if scantype in set(scan_types):
+                if scan_types.count('ncanda-grefieldmap-v1') != 2:
+                    return sibis.logging(eid, 'ERROR: Session does not contain two ncanda-grefieldmap-v1 files')
+            else:
+                return sibis.logging(eid, 'ERROR: {} missing from Session'.format(scantype))
 
 #
 # Main loop
