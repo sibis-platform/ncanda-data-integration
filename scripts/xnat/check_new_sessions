@@ -137,9 +137,9 @@ def get_custom_variable( experiment, field_name ):
     field_regex = '.*<xnat:field name="%s">(.*?)</xnat:field>' % field_name
     match = re.match( field_regex, experiment.get(), flags=re.DOTALL )
     if match:
-	return re.sub( '\s*<!--.*?-->\s*', '', match.group( 1 ), flags=re.DOTALL )
+        return re.sub( '\s*<!--.*?-->\s*', '', match.group( 1 ), flags=re.DOTALL )
     else:
-	return None
+        return None
 
 #calculating unseen, duplicated, missing, and questionable scans
 htmln =[]
@@ -176,7 +176,7 @@ def check_dti( ifc, eid, dti_scans ):
 
     parameters = []
     for ( scan,scantype ) in dti_scans:
-	parameters += [experiment.scan( scan ).attrs.mget(['xnat:mrScanData/parameters/te','xnat:mrScanData/parameters/fov/x','xnat:mrScanData/parameters/fov/y','xnat:mrScanData/parameters/voxelRes/x','xnat:mrScanData/parameters/voxelRes/y'])]
+        parameters += [experiment.scan( scan ).attrs.mget(['xnat:mrScanData/parameters/te','xnat:mrScanData/parameters/fov/x','xnat:mrScanData/parameters/fov/y','xnat:mrScanData/parameters/voxelRes/x','xnat:mrScanData/parameters/voxelRes/y'])]
 
     if len( parameters ):
         (te0,fovx0,fovy0,pixx0,pixy0) = parameters[0]
@@ -192,8 +192,16 @@ def check_dti( ifc, eid, dti_scans ):
 
     return errors
 
-def complete_scan_check(ifc, eid):
-    experiment = ifc.select.experiment( eid )
+def incomplete_scan_check( eid, manufacturer):
+    scan_id_dictionary = {'GE MEDICAL SYSTEMS': ['1', '10', '11', '12', '13', '3', '4', '6', '7', '8', '9'],
+                            'SIEMENS': ['1', '10', '11', '12', '13', '2', '3', '4', '6', '7', '8', '9']}
+    scan_ids = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/id')
+    if manufacturer == 'GE MEDICAL SYSTEMS':
+        if set(scan_ids) != set(scan_id_dictionary['GE MEDICAL SYSTEMS']):
+            return sibis.logging(eid, 'ERROR: Scans missing from Session')
+    elif manufacturer == 'SIEMENS':
+        if set(scan_ids) != set(scan_id_dictionary['SIEMENS']):
+            return sibis.logging(eid, 'ERROR: Scans missing from Session')
 
 #
 # Main loop
@@ -244,7 +252,7 @@ for (eid, project, subject, insert_date, session_label, last_modified ) in sessi
     for (scan,scantype,quality) in scantype_and_quality:
         # New Code
 
-	if re.match( '^ncanda-.*-v[0-9]$', scantype ):
+        if re.match( '^ncanda-.*-v[0-9]$', scantype ):
              errorMSG=make_session_niftis.export_to_nifti( ifc, project, subject, eid, session_label, manufacturer, scan, scantype, dry_run=args.no_update, verbose=args.verbose )
              if len(errorMSG):
                 nifti_export_ok = False

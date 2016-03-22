@@ -14,10 +14,15 @@ Generates a CSV file for all subjects included in NP analysis
 """
 import os
 import sys
+import datetime
 
 import pandas as pd
 
 directory = "/fs/ncanda-share/releases/NCANDA_DATA_00010/summaries"
+
+csv_dir = "/fs/u00/alfonso/Desktop/"
+
+today =  datetime.date.today()
 
 nps_file = ["ataxia.csv", "cddr.csv", "clinical.csv", "cnp.csv", "dd100.csv",
             "dd1000.csv", "grooved_pegboard.csv", "ishihara.csv",
@@ -117,7 +122,7 @@ def main(args=None):
 
     final_df = final_df[fields]
 
-    final_df.to_csv('np_release.csv')
+    final_df.to_csv('{}np_release_{}.csv'.format(csv_dir,today))
 
 if __name__ == '__main__':
     import argparse

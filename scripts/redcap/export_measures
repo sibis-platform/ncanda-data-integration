@@ -36,6 +36,7 @@ parser.add_argument( "--site", help="Limit export by site (SRI, UCSD, OHSU, UPMC
 parser.add_argument( "--events", help="Limit export by event labels (e.g., 'baseline_visit_arm_1'). Multiple events can be listed, separated by comma (',')", action="store", default=None )
 parser.add_argument( "--subject", help="Limit export by subject site id (e.g., 'X-12345-X-9').", action="store", default=None )
 parser.add_argument( "--export", help="Limit export by output file (e.g., 'cddr'; do not include '.txt' suffix). Multiple exports can be listed, separated by comma (',')", action="store", default=None )
+parser.add_argument( "-e", "--exclude", help="Exports Meausres for excluded subjects", action="store_true" )
 parser.add_argument( "--datadict-dir", help="Provides a directory in which the script creates data dictionaries for all supported export files.", action="store", default=None )
 parser.add_argument( "pipelinedir", help="Root directory of the image analysis pipeline.", action="store")
 args = parser.parse_args()
@@ -116,7 +117,11 @@ for event in redcap_project.events:
     forms_by_event_dict[event_id] = set( form_event_mapping[form_event_mapping['unique_event_name'] == event_id ]['form_name'].tolist() )
 
 # Filter out all excluded subjects
-visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: False if subject_data['exclude'][key[0]] == 1 else True ) ]
+if args.exclude:
+    visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: False if subject_data['exclude'][key[0]] != 1 else True ) ]
+    visit_log_redcap = visit_log_redcap[~visit_log_redcap.visit_date.isnull()]
+else:
+    visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: False if subject_data['exclude'][key[0]] == 1 else True ) ]
 
 # Limit to selected events
 if args.events:
@@ -157,8 +162,14 @@ for [key,row] in visit_log_redcap.iterrows():
             else:
                 visit_age = days_between_dates( subject_dob_str, visit_date ) / 365.242
 
+                # If exclude flag is set, this will override the excludes value and export excluded subjects
+                if args.exclude:
+                    excludes = 0.0
+                else:
+                    excludes = 1
+
                 # Check if pipeline directory given and export imaging series there
-                if (this_subject_data['exclude'] != 1):
+                if (this_subject_data['exclude'] != excludes):
                     (arm_code,visit_code,subject_datadir_rel) = (None, None, None)
                     try:
                         (arm_code,visit_code,subject_datadir_rel) = mrpipeline.translate_subject_and_event( subject_xnat_id, key[1] )

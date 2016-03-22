@@ -525,7 +525,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                 try:
                    import_response = redcap_project.import_records( [record], overwrite='overwrite' )
 
-                except requests.exceptions.RequestException, error: 
+                except requests.exceptions.RequestException, error:
                    print "UPLOAD Error:", error
                    continue
 
@@ -533,7 +533,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                     records_uploaded += import_response['count']
 
                 if 'error' in import_response.keys():
-                    print "UPLOAD ERROR:", import_response['error'],record
+                    sibis.logging(record, "UPLOAD ERROR: {}".format(import_response['error']))
 
                 if 'records' in import_response.keys():
                     for r in import_response['records']:
