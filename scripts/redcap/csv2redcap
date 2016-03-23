@@ -10,10 +10,13 @@
 ##
 
 # Setup command line parser
-import argparse
 import os
-import string
 import re
+import sys
+import time
+import random
+import string
+import argparse
 
 import pandas
 
@@ -37,10 +40,23 @@ data.rename( columns = lambda s: string.lower( s.replace( '.', '_' ) ), inplace=
 if not args.data_access_group == None:
     data['redcap_data_access_group'] = args.data_access_group
 
-# Open connection to REDCap server
-key_file = open( args.api_key_file, 'r' )
-api_key = key_file.read().strip()
-project = redcap.Project( 'https://ncanda.sri.com/redcap/api/', api_key, verify_ssl=False)
+# First REDCap connection for the Summary project (this is where we put data)
+def connect_to_redcap():
+    summary_key_file = open(os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token'), 'r')
+    summary_api_key = summary_key_file.read().strip()
+    redcap_server = 'https://ncanda.sri.com/redcap/api/'
+    rc = redcap.Project(redcap_server, summary_api_key, verify_ssl=False)
+    return rc
+
+# If connection to redcap server fail, try multiple times
+try:
+    rc_summary = connect_to_redcap()
+except Exception, error:
+    sibis.logging(hashlib.sha1('update_summary_scores').hexdigest()[0:6],
+    "ERROR: Could not connect to redcap!",
+    script = 'update_summary_scores')
+    sys.exit()
+
 
 # Get "complete" field of existing records so we can protect "Complete" records from overwriting
 complete_field = ''
@@ -64,7 +80,7 @@ for [key,row] in data.iterrows():
     if not args.force:
         record = dict( row.dropna() )
     else:
-        record = dict( row.fillna('') ) 
+        record = dict( row.fillna('') )
     record_list.append( record )
 
 # Upload new data to REDCap
@@ -73,15 +89,15 @@ import_response = project.import_records( record_list, overwrite='overwrite' )
 # If there were any errors, try to print them as well as possible
 if 'error' in import_response.keys():
     print "UPLOAD ERROR:", import_response['error']
-        
+
 if 'fields' in import_response.keys():
     for field in import_response['fields']:
         print "\t", field
-                    
+
 if 'records' in import_response.keys():
     for record in import_response['records']:
         print "\t", record
 
-# Finally, print upload status if so desired                    
+# Finally, print upload status if so desired
 if args.verbose and 'count' in import_response.keys():
     print "Successfully uploaded %d/%d records to REDCap." % ( import_response['count'], len( data ) )

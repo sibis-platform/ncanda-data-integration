@@ -196,38 +196,38 @@ scan_type_dictionary = {'GE MEDICAL SYSTEMS': required_ge.keys(),
                         'SIEMENS': required_siemens.keys()}
 
 def incomplete_scan_check( eid, manufacturer):
+    error = []
     scan_types = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/type')
     if manufacturer == 'GE MEDICAL SYSTEMS':
         for scantype in set(scan_type_dictionary['GE MEDICAL SYSTEMS']):
             if scantype in set(scan_types):
                 scantype = scantype
             else:
-                return sibis.logging(eid, 'ERROR: {} missing from Session'.format(scantype))
+                error.append(sibis.logging(eid, 'ERROR: {} missing from Session'.format(scantype)))
     elif manufacturer == 'SIEMENS':
         for scantype in set(scan_type_dictionary['SIEMENS']):
             if scantype in set(scan_types):
                 if scan_types.count('ncanda-grefieldmap-v1') != 2:
-                    return sibis.logging(eid, 'ERROR: Session does not contain two ncanda-grefieldmap-v1 files')
+                    error.append(sibis.logging(eid, 'ERROR: Session does not contain two ncanda-grefieldmap-v1 files'))
             else:
-                return sibis.logging(eid, 'ERROR: {} missing from Session'.format(scantype))
+                error.append(sibis.logging(eid, 'ERROR: {} missing from Session'.format(scantype)))
+    return error
 
-def naming_convention_check(eid, manufacturer):
-    scans = ifc.select.experiment( eid ).scans('*').get()
+def voxelRes_check(eid,scan):
+        scan_info = ifc.select.experiment( eid ).scan(scan).get()
+        field_regex = '.*<xnat:voxelRes (.*?)/>'
+        match = re.match( field_regex, scan_info, flags=re.DOTALL )
+        if match:
+            return re.sub( '\s*<!--.*?-->\s*', '', match.group( 1 ), flags=re.DOTALL )
+        else:
+            return None
+
+def quality_check(eid):
+    scans = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/id')
+    voxel_res = {}
     for scan in scans:
-        if manufacturer == 'GE MEDICAL SYSTEMS':
-            if scan in naming_convention_ge.keys():
-                scan_type = ifc.select.experiment(eid).scan(scan).attrs.mget(['type'])
-                if naming_convention_ge[scan] != scan_type:
-                    return sibis.logging(eid, 'ERROR: Naming convetion violation',
-                                    scan_id = scan,
-                                    current_scan_type = scan_type,
-                                    expected_scan_type = naming_convention_ge[scan])
-        elif manufacturer == 'SIEMENS':
-            if scan in naming_convention_siemens.keys():
-                if naming_convention_siemens[scan] != scan_type:
-                    return sibis.logging(eid, 'ERROR: Naming convetion violation',
-                                    scan_id = scan,
-                                    scan_type = scan_type)
+        voxel_res[scan] = voxelRes_check(eid,scan)
+    return voxel_res
 #
 # Main loop
 #
@@ -284,7 +284,9 @@ for (eid, project, subject, insert_date, session_label, last_modified ) in sessi
                 htmln.append(''.join([session_html_link,session_file_link, ', '.join ([ scan, scantype, 'ERROR:']), ', ERROR:'.join(errorMSG) ]))
 
     # MRI Session Quality Checks
-    incomplete_scan_check(eid,manufacturer)
+    error = incomplete_scan_check(eid,manufacturer)
+    for e in error:
+        print e
 
     # failed dti te comparison
     failed_dti = check_dti( ifc, eid, dti_scans )
