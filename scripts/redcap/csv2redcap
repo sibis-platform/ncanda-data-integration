@@ -13,9 +13,8 @@
 import os
 import re
 import sys
-import time
-import random
 import string
+import hashlib
 import argparse
 
 import pandas
