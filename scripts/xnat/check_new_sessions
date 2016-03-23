@@ -213,7 +213,7 @@ def incomplete_scan_check( eid, manufacturer):
                 error.append(sibis.logging(eid, 'ERROR: {} missing from Session'.format(scantype)))
     return error
 
-def voxelRes_check(eid,scan):
+def voxelRes_get(eid,scan):
         scan_info = ifc.select.experiment( eid ).scan(scan).get()
         field_regex = '.*<xnat:voxelRes (.*?)/>'
         match = re.match( field_regex, scan_info, flags=re.DOTALL )
@@ -222,12 +222,20 @@ def voxelRes_check(eid,scan):
         else:
             return None
 
-def quality_check(eid):
+def voxelRes_check(eid):
     scans = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/id')
     voxel_res = {}
     for scan in scans:
-        voxel_res[scan] = voxelRes_check(eid,scan)
+        voxel_res[scan] = [ifc.select.experiment( eid ).scan(scan).attrs.get('type'), voxelRes_get(eid,scan)]
     return voxel_res
+
+def frame_check(eid):
+    scans = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/id')
+    frames = {}
+    for scan in scans:
+        frames[scan] = ifc.select.experiment( eid ).scan(scan).attrs.mget(['type','frames'])
+    return frames
+
 #
 # Main loop
 #
