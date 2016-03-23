@@ -211,20 +211,6 @@ def incomplete_scan_check( eid, manufacturer):
             else:
                 return sibis.logging(eid, 'ERROR: {} missing from Session'.format(scantype))
 
-naming_convention_siemens = {'2':['ncanda-t2fse-v1'],
-                            '3': ['ncanda-mprage-v1'],
-                            '4': ['ncanda-dti6b500pepolar-v1'],
-                            '6': ['ncanda-dti60b1000-v1'],
-                            '12': ['ncanda-grefieldmap-v1'],
-                            '13': ['ncanda-grefieldmap-v1'],
-                            '14': ['ncanda-rsfmri-v1']}
-naming_convention_ge = {'3': ['ncanda-t2fse-v1'],
-                        '4': ['ncanda-t1spgr-v1'],
-                        '6': ['ncanda-dti6b500pepolar-v1'],
-                        '7': ['ncanda-dti60b1000-v1'],
-                        '8': ['ncanda-grefieldmap-v1'],
-                        '9': ['ncanda-rsfmri-v1']}
-
 def naming_convention_check(eid, manufacturer):
     scans = ifc.select.experiment( eid ).scans('*').get()
     for scan in scans:
@@ -299,7 +285,6 @@ for (eid, project, subject, insert_date, session_label, last_modified ) in sessi
 
     # MRI Session Quality Checks
     incomplete_scan_check(eid,manufacturer)
-    naming_convention_check(eid,manufacturer)
 
     # failed dti te comparison
     failed_dti = check_dti( ifc, eid, dti_scans )
