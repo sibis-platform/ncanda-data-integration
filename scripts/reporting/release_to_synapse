@@ -1,0 +1,53 @@
+#!/usr/bin/env python
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+"""
+release_to_synapse
+============================================
+This script uploads release csvs to synapse
+"""
+
+import os
+from os import listdir
+from os.path import isfile, join
+import sys
+import yaml
+import datetime
+
+import synapseclient
+from synapseclient import Project, Folder, File
+
+today =  datetime.date.today()
+release_name = "NCANDA Public Release {}".format(today)
+
+def filecollector(mypath):
+    return [join(mypath,f) for f in listdir(mypath) if isfile(join(mypath,f))]
+
+def main(args):
+    files = filecollector(args.releasedir)
+
+    ###Log In###
+    syn = synapseclient.Synapse()
+    config = yaml.load(open(os.path.join(os.path.expanduser("~"),".server_config/synapse.cfg")))
+    syn.login(config.get('user'), config.get('password'))
+
+    ###Select Project###
+    project = syn.get('syn3565171')
+
+    ###Creating Release Folder in Project###
+    data_folder = Folder(release_name, description = release_name, parent=project)
+    data_folder = syn.store(data_folder)
+
+    ###Uploading File###
+    for f in files:
+        data_file = File(f, description = "Example CSV", parent = data_folder)
+        data_file = syn.store(data_file)
+
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument( "releasedir", help="Root directory of the public release.", action="store")
+    argv = parser.parse_args()
+    sys.exit(main(args=argv))
