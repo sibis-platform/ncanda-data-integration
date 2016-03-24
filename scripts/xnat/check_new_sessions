@@ -222,19 +222,85 @@ def voxelRes_get(eid,scan):
         else:
             return None
 
-def voxelRes_check(eid):
-    scans = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/id')
-    voxel_res = {}
-    for scan in scans:
-        voxel_res[scan] = [ifc.select.experiment( eid ).scan(scan).attrs.get('type'), voxelRes_get(eid,scan)]
-    return voxel_res
+voxelRes_check_siemens ={'ncanda-mprage-v1' : 'x="0.9375" y="0.9375" z="1.2"',
+                         'ncanda-t2fse-v1' : 'x="0.46875" y="0.46875" z="1.2"',
+                         'ncanda-dti6b500pepolar-v1' : 'x="2.5" y="2.5" z="2.5"',
+                         'ncanda-dti60b1000-v1' : 'x="2.5" y="2.5" z="2.5"',
+                         'ncanda-grefieldmap-v1' : 'x="2.5" y="2.5" z="2.5"',
+                         'ncanda-rsfmri-v1' : 'x="3.75" y="3.75" z="5.0"'};
 
-def frame_check(eid):
+voxelRes_check_ge = { 'ncanda-t1spgr-v1' : 'x="0.9375" y="0.9375" z="1.2"',
+                      'ncanda-t2fse-v1' : 'x="0.4688" y="0.4688" z="1.2"',
+                      'ncanda-dti6b500pepolar-v1' : 'x="1.875" y="1.875" z="2.5"',
+                      'ncanda-dti60b1000-v1' : 'x="1.875" y="1.875" z="2.5"',
+                      'ncanda-grefieldmap-v1' : 'x="1.875" y="1.875" z="2.5"',
+                      'ncanda-rsfmri-v1' : 'x="3.75" y="3.75" z="5.0"' }
+
+def voxelRes_check(eid, manufacturer):
     scans = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/id')
-    frames = {}
+    voxel_res = []
+    error = []
     for scan in scans:
-        frames[scan] = ifc.select.experiment( eid ).scan(scan).attrs.mget(['type','frames'])
-    return frames
+        voxel_res.append([ifc.select.experiment( eid ).scan(scan).attrs.get('type'), voxelRes_get(eid,scan)])
+    if manufacturer == 'GE MEDICAL SYSTEMS':
+        for v in voxel_res:
+            if  v[0] in scan_type_dictionary['GE MEDICAL SYSTEMS']:
+                if voxelRes_check_ge[v[0]] != v[1]:
+                    error.append(sibis.logging(eid, 'ERROR: Voxel Resolution is questionable',
+                    scan_type = v[0],
+                    voxel_res = v[1]))
+    elif manufacturer == 'SIEMENS':
+        for v in voxel_res:
+            if  v[0] in scan_type_dictionary['SIEMENS']:
+                if voxelRes_check_siemens[v[0]] != v[1]:
+                    error.append(sibis.logging(eid, 'ERROR: Voxel Resolution is questionable',
+                    scan_type = v[0],
+                    voxel_res = v[1]))
+    return error
+
+frame_check_siemens = {'ncanda-mprage-v1' : '160',
+                         'ncanda-t2fse-v1' : '160',
+                         'ncanda-dti6b500pepolar-v1' : '7',
+                         'ncanda-dti60b1000-v1' : '62',
+                         'ncanda-grefieldmap-v1' : ['128','64'],
+                         'ncanda-rsfmri-v1' : '275'}
+
+frame_check_ge = { 'ncanda-t1spgr-v1' : '146',
+                   'ncanda-t2fse-v1' : '292',
+                   'ncanda-dti6b500pepolar-v1' : '512',
+                   'ncanda-dti60b1000-v1' : '3968',
+                   'ncanda-grefieldmap-v1' : '384',
+                   'ncanda-rsfmri-v1' : '8768' }
+
+def frame_check(eid, manufacturer):
+    scans = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/id')
+    frames = []
+    error = []
+    for scan in scans:
+        frames.append(ifc.select.experiment( eid ).scan(scan).attrs.mget(['type','frames']))
+    if manufacturer == 'GE MEDICAL SYSTEMS':
+        for f in frames:
+            if  f[0] in scan_type_dictionary['GE MEDICAL SYSTEMS']:
+                if frame_check_ge[f[0]] != f[1]:
+                    error.append(sibis.logging(eid, 'ERROR: Inncorrect Number of Frames',
+                        scan_type = f[0],
+                        frames = f[1]))
+    elif manufacturer == 'SIEMENS':
+        for f in frames:
+            if  f[0] in scan_type_dictionary['SIEMENS']:
+                if f[0] == 'ncanda-grefieldmap-v1':
+                    if f[1] in frame_check_siemens[f[0]]:
+                        f[1] = f[1]
+                    else:
+                        error.append(sibis.logging(eid, 'ERROR: Inncorrect Number of Frames',
+                            scan_type = f[0],
+                            number_of_frames = f[1]))
+                else:
+                    if frame_check_siemens[f[0]] != f[1]:
+                        error.append(sibis.logging(eid, 'ERROR: Inncorrect Number of Frames',
+                        scan_type = f[0],
+                        number_of_frames = f[1]))
+    return error
 
 #
 # Main loop
@@ -292,7 +358,19 @@ for (eid, project, subject, insert_date, session_label, last_modified ) in sessi
                 htmln.append(''.join([session_html_link,session_file_link, ', '.join ([ scan, scantype, 'ERROR:']), ', ERROR:'.join(errorMSG) ]))
 
     # MRI Session Quality Checks
+    if args.verbose:
+        sys.stdout.write( "Beginning QC..." )
+        sys.stdout.flush()
+
     error = incomplete_scan_check(eid,manufacturer)
+    for e in error:
+        print e
+
+    error = voxelRes_check(eid,manufacturer)
+    for e in error:
+        print e
+
+    error = frame_check(eid,manufacturer)
     for e in error:
         print e
 
