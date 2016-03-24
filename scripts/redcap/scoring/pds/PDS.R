@@ -2,10 +2,7 @@
 ##  Copyright 2015 SRI International
 ##  License: https://ncanda.sri.com/software-license.txt
 ##
-##  $Revision$
-##  $LastChangedBy$
-##  $LastChangedDate$
-##
+
 #############################
 # Pubertal Development Scale
 # Related Documents: PDS Scoring Criteria-Fiona.docx

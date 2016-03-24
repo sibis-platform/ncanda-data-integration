@@ -2,10 +2,7 @@
 ##  Copyright 2015 SRI International
 ##  License: https://ncanda.sri.com/software-license.txt
 ##
-##  $Revision$
-##  $LastChangedBy$
-##  $LastChangedDate$
-##
+
 #####################################
 # Ten Item Personality Inventry(TIPI)
 # Related Docs: N-CANDA Scoring Criteria.doc

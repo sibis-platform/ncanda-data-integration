@@ -2,10 +2,7 @@
 ##  Copyright 2015 SRI International
 ##  License: https://ncanda.sri.com/software-license.txt
 ##
-##  $Revision$
-##  $LastChangedBy$
-##  $LastChangedDate$
-##
+
 ##############################
 # Driving & Riding Behavior & History Questionnaire
 # Related Document: N-CANDA SCORING CRITERIA.doc

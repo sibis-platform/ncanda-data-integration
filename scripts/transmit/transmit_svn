@@ -4,10 +4,7 @@
 ##  Copyright 2015 SRI International
 ##  License: https://ncanda.sri.com/software-license.txt
 ##
-##  $Revision$
-##  $LastChangedBy$
-##  $LastChangedDate$
-##
+
 
 # Upload file to S3
 upload_to_s3()

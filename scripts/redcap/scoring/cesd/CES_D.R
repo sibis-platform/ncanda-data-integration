@@ -2,10 +2,7 @@
 ##  Copyright 2015 SRI International
 ##  License: https://ncanda.sri.com/software-license.txt
 ##
-##  $Revision$
-##  $LastChangedBy$
-##  $LastChangedDate$
-##
+
 #############################
 # Center for Epidemiologic Studies Depression Scale
 # Related Document: N-CANDA Scoring Criteria.docx

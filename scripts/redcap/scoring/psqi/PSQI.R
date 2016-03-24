@@ -2,10 +2,7 @@
 ##  Copyright 2015 SRI International
 ##  License: https://ncanda.sri.com/software-license.txt
 ##
-##  $Revision$
-##  $LastChangedBy$
-##  $LastChangedDate$
-##
+
 ###############################
 # Pittsburgh Sleep Quality Index
 # Related Document: PSQI-scoring,refs.doc

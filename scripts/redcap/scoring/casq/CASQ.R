@@ -2,10 +2,7 @@
 ##  Copyright 2015 SRI International
 ##  License: https://ncanda.sri.com/software-license.txt
 ##
-##  $Revision$
-##  $LastChangedBy$
-##  $LastChangedDate$
-##
+
 ##############################################
 # Cleveland Adolescent Sleepiness Questionnaire
 # Related Documents: Cleveland Adolescent Sleepiness Questionnaire_scoring.docx
