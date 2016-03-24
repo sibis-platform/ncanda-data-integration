@@ -16,6 +16,7 @@ import hashlib
 import requests
 import argparse
 
+import sibis
 import pandas
 import redcap
 
