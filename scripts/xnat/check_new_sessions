@@ -195,6 +195,16 @@ def check_dti( ifc, eid, dti_scans ):
 scan_type_dictionary = {'GE MEDICAL SYSTEMS': required_ge.keys(),
                         'SIEMENS': required_siemens.keys()}
 
+def label_check(label):
+    phantom = ['.-99999','.-00000']
+    match = re.match( phantom[0], label, flags=re.DOTALL )
+    if match:
+        return match
+    else:
+        match = re.match( phantom[1], label, flags=re.DOTALL )
+        if match:
+            return match
+
 def incomplete_scan_check( eid, manufacturer):
     error = []
     scan_types = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/type')
@@ -362,9 +372,12 @@ for (eid, project, subject, insert_date, session_label, last_modified ) in sessi
         sys.stdout.write( "Beginning QC..." )
         sys.stdout.flush()
 
-    error = incomplete_scan_check(eid,manufacturer)
-    for e in error:
-        print e
+    label = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scanner/label')
+
+    if label_check(label) == None:
+        error = incomplete_scan_check(eid,manufacturer)
+        for e in error:
+            print e
 
     error = voxelRes_check(eid,manufacturer)
     for e in error:
