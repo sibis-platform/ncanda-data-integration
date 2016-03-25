@@ -378,14 +378,12 @@ for (eid, project, subject, insert_date, session_label, last_modified ) in sessi
         error = incomplete_scan_check(eid,manufacturer)
         for e in error:
             print e
-
-    error = voxelRes_check(eid,manufacturer)
-    for e in error:
-        print e
-
-    error = frame_check(eid,manufacturer)
-    for e in error:
-        print e
+        error = voxelRes_check(eid,manufacturer)
+        for e in error:
+            print e
+        error = frame_check(eid,manufacturer)
+        for e in error:
+            print e
 
     # failed dti te comparison
     failed_dti = check_dti( ifc, eid, dti_scans )
