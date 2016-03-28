@@ -229,8 +229,6 @@ def voxelRes_get(eid,scan):
         match = re.match( field_regex, scan_info, flags=re.DOTALL )
         if match:
             return re.sub( '\s*<!--.*?-->\s*', '', match.group( 1 ), flags=re.DOTALL )
-        else:
-            return None
 
 voxelRes_check_siemens ={'ncanda-mprage-v1' : 'x="0.9375" y="0.9375" z="1.2"',
                          'ncanda-t2fse-v1' : 'x="0.46875" y="0.46875" z="1.2"',
@@ -377,13 +375,16 @@ for (eid, project, subject, insert_date, session_label, last_modified ) in sessi
     if label_check(label) == None:
         error = incomplete_scan_check(eid,manufacturer)
         for e in error:
-            print e
+            if e:
+                print e
         error = voxelRes_check(eid,manufacturer)
         for e in error:
-            print e
+            if e:
+                print e
         error = frame_check(eid,manufacturer)
         for e in error:
-            print e
+            if e:
+                print e
 
     # failed dti te comparison
     failed_dti = check_dti( ifc, eid, dti_scans )
