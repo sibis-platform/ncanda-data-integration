@@ -196,7 +196,7 @@ scan_type_dictionary = {'GE MEDICAL SYSTEMS': required_ge.keys(),
                         'SIEMENS': required_siemens.keys()}
 
 def label_check(label):
-    phantom = ['.-99999','.-00000']
+    phantom = ['.-9999\d','.-00000']
     match = re.match( phantom[0], label, flags=re.DOTALL )
     if match:
         return match
@@ -205,7 +205,7 @@ def label_check(label):
         if match:
             return match
 
-def incomplete_scan_check( eid, manufacturer):
+def incomplete_scan_check( eid, manufacturer,label):
     error = []
     scan_types = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/type')
     if manufacturer == 'GE MEDICAL SYSTEMS':
@@ -213,14 +213,17 @@ def incomplete_scan_check( eid, manufacturer):
             if scantype in set(scan_types):
                 scantype = scantype
             else:
-                error.append(sibis.logging(eid, 'ERROR: {} missing from Session'.format(scantype)))
+                error.append(sibis.logging(eid, 'ERROR: {} missing from Session'.format(scantype),
+                scan_session_label=label))
     elif manufacturer == 'SIEMENS':
         for scantype in set(scan_type_dictionary['SIEMENS']):
             if scantype in set(scan_types):
                 if scan_types.count('ncanda-grefieldmap-v1') != 2:
-                    error.append(sibis.logging(eid, 'ERROR: Session does not contain two ncanda-grefieldmap-v1 files'))
+                    error.append(sibis.logging(eid, 'ERROR: Session does not contain two ncanda-grefieldmap-v1 files',
+                    scan_session_label=label))
             else:
-                error.append(sibis.logging(eid, 'ERROR: {} missing from Session'.format(scantype)))
+                error.append(sibis.logging(eid, 'ERROR: {} missing from Session'.format(scantype),
+                scan_session_label=label))
     return error
 
 def voxelRes_get(eid,scan):
@@ -230,21 +233,21 @@ def voxelRes_get(eid,scan):
         if match:
             return re.sub( '\s*<!--.*?-->\s*', '', match.group( 1 ), flags=re.DOTALL )
 
-voxelRes_check_siemens ={'ncanda-mprage-v1' : 'x="0.9375" y="0.9375" z="1.2"',
-                         'ncanda-t2fse-v1' : 'x="0.46875" y="0.46875" z="1.2"',
-                         'ncanda-dti6b500pepolar-v1' : 'x="2.5" y="2.5" z="2.5"',
-                         'ncanda-dti60b1000-v1' : 'x="2.5" y="2.5" z="2.5"',
-                         'ncanda-grefieldmap-v1' : 'x="2.5" y="2.5" z="2.5"',
-                         'ncanda-rsfmri-v1' : 'x="3.75" y="3.75" z="5.0"'};
+voxelRes_check_siemens ={'ncanda-mprage-v1' : 'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"',
+                         'ncanda-t2fse-v1' : 'x="0.46875\d*" y="0.46875\d*" z="1.2\d*"',
+                         'ncanda-dti6b500pepolar-v1' : 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
+                         'ncanda-dti60b1000-v1' : 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
+                         'ncanda-grefieldmap-v1' : 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
+                         'ncanda-rsfmri-v1' : 'x="3.75\d*" y="3.75\d*" z="5.0\d*"'};
 
-voxelRes_check_ge = { 'ncanda-t1spgr-v1' : 'x="0.9375" y="0.9375" z="1.2"',
-                      'ncanda-t2fse-v1' : 'x="0.4688" y="0.4688" z="1.2"',
-                      'ncanda-dti6b500pepolar-v1' : 'x="1.875" y="1.875" z="2.5"',
-                      'ncanda-dti60b1000-v1' : 'x="1.875" y="1.875" z="2.5"',
-                      'ncanda-grefieldmap-v1' : 'x="1.875" y="1.875" z="2.5"',
-                      'ncanda-rsfmri-v1' : 'x="3.75" y="3.75" z="5.0"' }
+voxelRes_check_ge = { 'ncanda-t1spgr-v1' : 'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"',
+                      'ncanda-t2fse-v1' : 'x="0.4688\d*" y="0.4688\d*" z="1.2\d*"',
+                      'ncanda-dti6b500pepolar-v1' : 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
+                      'ncanda-dti60b1000-v1' : 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
+                      'ncanda-grefieldmap-v1' : 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
+                      'ncanda-rsfmri-v1' : 'x="3.75\d*" y="3.75\d*" z="5.0\d*"' }
 
-def voxelRes_check(eid, manufacturer):
+def voxelRes_check(eid, manufacturer,label):
     scans = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/id')
     voxel_res = []
     error = []
@@ -253,17 +256,21 @@ def voxelRes_check(eid, manufacturer):
     if manufacturer == 'GE MEDICAL SYSTEMS':
         for v in voxel_res:
             if  v[0] in scan_type_dictionary['GE MEDICAL SYSTEMS']:
-                if voxelRes_check_ge[v[0]] != v[1]:
+                match = re.match(voxelRes_check_ge[v[0]], v[1], flags=re.DOTALL)
+                if match == None:
                     error.append(sibis.logging(eid, 'ERROR: Voxel Resolution is questionable',
                     scan_type = v[0],
-                    voxel_res = v[1]))
+                    voxel_res = v[1],
+                    scan_session_label=label))
     elif manufacturer == 'SIEMENS':
         for v in voxel_res:
             if  v[0] in scan_type_dictionary['SIEMENS']:
-                if voxelRes_check_siemens[v[0]] != v[1]:
+                match = re.match(voxelRes_check_siemens[v[0]], v[1], flags=re.DOTALL)
+                if match == None:
                     error.append(sibis.logging(eid, 'ERROR: Voxel Resolution is questionable',
                     scan_type = v[0],
-                    voxel_res = v[1]))
+                    voxel_res = v[1],
+                    scan_session_label=label))
     return error
 
 frame_check_siemens = {'ncanda-mprage-v1' : '160',
@@ -280,7 +287,7 @@ frame_check_ge = { 'ncanda-t1spgr-v1' : '146',
                    'ncanda-grefieldmap-v1' : '384',
                    'ncanda-rsfmri-v1' : '8768' }
 
-def frame_check(eid, manufacturer):
+def frame_check(eid, manufacturer,label):
     scans = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/id')
     frames = []
     error = []
@@ -292,7 +299,8 @@ def frame_check(eid, manufacturer):
                 if frame_check_ge[f[0]] != f[1]:
                     error.append(sibis.logging(eid, 'ERROR: Inncorrect Number of Frames',
                         scan_type = f[0],
-                        frames = f[1]))
+                        frames = f[1],
+                        scan_session_label=label))
     elif manufacturer == 'SIEMENS':
         for f in frames:
             if  f[0] in scan_type_dictionary['SIEMENS']:
@@ -302,12 +310,14 @@ def frame_check(eid, manufacturer):
                     else:
                         error.append(sibis.logging(eid, 'ERROR: Inncorrect Number of Frames',
                             scan_type = f[0],
-                            number_of_frames = f[1]))
+                            number_of_frames = f[1],
+                            scan_session_label=label))
                 else:
                     if frame_check_siemens[f[0]] != f[1]:
                         error.append(sibis.logging(eid, 'ERROR: Inncorrect Number of Frames',
                         scan_type = f[0],
-                        number_of_frames = f[1]))
+                        number_of_frames = f[1],
+                        scan_session_label=label))
     return error
 
 #
@@ -373,15 +383,15 @@ for (eid, project, subject, insert_date, session_label, last_modified ) in sessi
     label = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scanner/label')
 
     if label_check(label) == None:
-        error = incomplete_scan_check(eid,manufacturer)
+        error = incomplete_scan_check(eid,manufacturer,label)
         for e in error:
             if e:
                 print e
-        error = voxelRes_check(eid,manufacturer)
+        error = voxelRes_check(eid,manufacturer,label)
         for e in error:
             if e:
                 print e
-        error = frame_check(eid,manufacturer)
+        error = frame_check(eid,manufacturer,label)
         for e in error:
             if e:
                 print e
