@@ -205,7 +205,7 @@ def label_check(label):
         if match:
             return match
 
-def incomplete_scan_check( eid, manufacturer,label):
+def incomplete_scan_check( eid, manufacturer, label):
     error = []
     scan_types = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/type')
     if manufacturer == 'GE MEDICAL SYSTEMS':
@@ -226,7 +226,7 @@ def incomplete_scan_check( eid, manufacturer,label):
                 scan_session_label=label))
     return error
 
-def voxelRes_get(eid,scan):
+def voxelRes_get(eid, scan):
         scan_info = ifc.select.experiment( eid ).scan(scan).get()
         field_regex = '.*<xnat:voxelRes (.*?)/>'
         match = re.match( field_regex, scan_info, flags=re.DOTALL )
@@ -247,7 +247,7 @@ voxelRes_check_ge = { 'ncanda-t1spgr-v1' : 'x="0.9375\d*" y="0.9375\d*" z="1.2\d
                       'ncanda-grefieldmap-v1' : 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
                       'ncanda-rsfmri-v1' : 'x="3.75\d*" y="3.75\d*" z="5.0\d*"' }
 
-def voxelRes_check(eid, manufacturer,label):
+def voxelRes_check(eid, manufacturer, label):
     scans = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/id')
     voxel_res = []
     error = []
@@ -259,8 +259,8 @@ def voxelRes_check(eid, manufacturer,label):
                 match = re.match(voxelRes_check_ge[v[0]], v[1], flags=re.DOTALL)
                 if match == None:
                     error.append(sibis.logging(eid, 'ERROR: Voxel Resolution is questionable',
-                    scan_type = v[0],
-                    voxel_res = v[1],
+                    scan_type=v[0],
+                    voxel_res=v[1],
                     scan_session_label=label))
     elif manufacturer == 'SIEMENS':
         for v in voxel_res:
@@ -268,8 +268,8 @@ def voxelRes_check(eid, manufacturer,label):
                 match = re.match(voxelRes_check_siemens[v[0]], v[1], flags=re.DOTALL)
                 if match == None:
                     error.append(sibis.logging(eid, 'ERROR: Voxel Resolution is questionable',
-                    scan_type = v[0],
-                    voxel_res = v[1],
+                    scan_type=v[0],
+                    voxel_res=v[1],
                     scan_session_label=label))
     return error
 
@@ -287,7 +287,7 @@ frame_check_ge = { 'ncanda-t1spgr-v1' : '146',
                    'ncanda-grefieldmap-v1' : '384',
                    'ncanda-rsfmri-v1' : '8768' }
 
-def frame_check(eid, manufacturer,label):
+def frame_check(eid, manufacturer, label):
     scans = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/id')
     frames = []
     error = []
@@ -298,8 +298,8 @@ def frame_check(eid, manufacturer,label):
             if  f[0] in scan_type_dictionary['GE MEDICAL SYSTEMS']:
                 if frame_check_ge[f[0]] != f[1]:
                     error.append(sibis.logging(eid, 'ERROR: Inncorrect Number of Frames',
-                        scan_type = f[0],
-                        frames = f[1],
+                        scan_type=f[0],
+                        frames=f[1],
                         scan_session_label=label))
     elif manufacturer == 'SIEMENS':
         for f in frames:
@@ -309,14 +309,14 @@ def frame_check(eid, manufacturer,label):
                         f[1] = f[1]
                     else:
                         error.append(sibis.logging(eid, 'ERROR: Inncorrect Number of Frames',
-                            scan_type = f[0],
-                            number_of_frames = f[1],
+                            scan_type=f[0],
+                            number_of_frames=f[1],
                             scan_session_label=label))
                 else:
                     if frame_check_siemens[f[0]] != f[1]:
                         error.append(sibis.logging(eid, 'ERROR: Inncorrect Number of Frames',
-                        scan_type = f[0],
-                        number_of_frames = f[1],
+                        scan_type=f[0],
+                        number_of_frames=f[1],
                         scan_session_label=label))
     return error
 
@@ -383,15 +383,15 @@ for (eid, project, subject, insert_date, session_label, last_modified ) in sessi
     label = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scanner/label')
 
     if label_check(label) == None:
-        error = incomplete_scan_check(eid,manufacturer,label)
+        error = incomplete_scan_check(eid, manufacturer, label)
         for e in error:
             if e:
                 print e
-        error = voxelRes_check(eid,manufacturer,label)
+        error = voxelRes_check(eid, manufacturer, label)
         for e in error:
             if e:
                 print e
-        error = frame_check(eid,manufacturer,label)
+        error = frame_check(eid, manufacturer, label)
         for e in error:
             if e:
                 print e
