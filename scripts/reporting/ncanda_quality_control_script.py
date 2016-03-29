@@ -14,7 +14,7 @@ This script checks the quality of the data for the NCANDA Project on REDCap.
 Call script on command line.
 
 Example Usage:
-python ncanda_quality_control_script.py -a "baseline_visit_arm_1"
+python ncanda_quality_control_script.py -v "baseline_visit_arm_1"
 """
 import os
 import sys
@@ -97,7 +97,7 @@ def data_entry_fields(fields,project,arm):
     """
     # Get a dataframe of fields
     data_entry_raw = project.export_records(fields=fields, format='df',
-        events=[arm])
+        events=arm)
     return data_entry_raw
 
 def check(check, error):
@@ -300,16 +300,32 @@ def main(args):
         for f in fields_sex:
             check(youth_report_sex(idx,row,f[0],f[1]),error)
 
-    for e in error:
-        if e != 'null':
-            #print json.dumps(e, sort_keys=True)
-            #print "{}-{}".format(e['subject_site_id'], e['visit_date']), e['error'],e
-            sibis.logging("{}-{}".format(e['subject_site_id'], e['visit_date']), e['error'],e_dictionary=e)
+    if args.csvdir:
+        for e in error:
+    		if e == 'null':
+    			error.remove(e)
+        f = csv.writer(open("missing_form.csv", "wb+"))
+    	f.writerow(["subject_site_id", "visit_date", "np_missing", "event_name", "error"])
+    	for x in error:
+      	 	f.writerow([x["subject_site_id"],
+        	   	        x["visit_date"],
+            	   	    x["np_missing"],
+                	   	x["event_name"],
+                   		x["error"]])
+    else:
+        for e in error:
+            if e != 'null':
+                #print json.dumps(e, sort_keys=True)
+                #print "{}-{}".format(e['subject_site_id'], e['visit_date']), e['error'],e
+                sibis.logging("{}-{}".format(e['subject_site_id'], e['visit_date']), e['error'],e_dictionary=e)
 
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('-v','--visit',choices=['baseline_visit_arm_1','1y_visit_arm_1'],default='1y_visit_arm_1')
+    parser.add_argument('-v','--visit', default=['baseline_visit_arm_1', '1y_visit_arm_1'],
+                        help='Select which visit the QC script runs on',)
+    parser.add_argument( "-c","--csvdir",  action="store",
+                        help="Directory where CSV will be stored.")
     argv = parser.parse_args()
     sys.exit(main(args=argv))

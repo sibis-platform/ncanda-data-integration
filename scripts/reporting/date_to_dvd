@@ -8,9 +8,9 @@
 ##  $LastChangedDate: 2015-08-07 09:10:29 -0700 (Fri, 07 Aug 2015) $
 ##
 """
-date_to_dvd
+REPORT: date_to_dvd
 ======================
-This gathers the mri_datetodvd from REDCap
+This script generates a report of the mri_datetodvd from the MRI_sessions_report in REDCap.
 """
 
 import os

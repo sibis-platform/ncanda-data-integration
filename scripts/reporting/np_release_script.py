@@ -10,7 +10,7 @@
 """
 NP Release Script
 ======================
-Generates a CSV file for all subjects included in NP analysis
+Generates a CSV file for all subjects included in NP analysis for Dolf
 """
 import os
 import sys
