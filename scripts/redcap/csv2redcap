@@ -49,11 +49,11 @@ def connect_to_redcap():
 
 # If connection to redcap server fail, try multiple times
 try:
-    rc_summary = connect_to_redcap()
+    project = connect_to_redcap()
 except Exception, error:
-    sibis.logging(hashlib.sha1('update_summary_scores').hexdigest()[0:6],
+    sibis.logging(hashlib.sha1('csv2redcap').hexdigest()[0:6],
     "ERROR: Could not connect to redcap!",
-    script = 'update_summary_scores')
+    script = 'csv2redcap')
     sys.exit()
 
 
