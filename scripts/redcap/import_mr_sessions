@@ -526,7 +526,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                    import_response = redcap_project.import_records( [record], overwrite='overwrite' )
 
                 except requests.exceptions.RequestException, error:
-                   print "UPLOAD Error:", error
+                   print error
                    continue
 
                 if 'count' in import_response.keys():
