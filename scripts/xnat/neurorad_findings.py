@@ -172,6 +172,14 @@ def main(args=None):
             subject = record.subject_id.values[0]
             experiment = args.reset_datetodvd
             set_experiment_attrs(args.config, project, subject, experiment, 'datetodvd', 'none')
+        if args.dates_to_reset_datetodvd:
+            record = result[result.experiment_id == experiment]
+            project = record.project.values[0]
+            subject = record.subject_id.values[0]
+            dates_df = pd.read_csv(args.dates_to_reset_datetodvd)
+            experiment = project_df[project_df['mri_xnat_sid'] == subject]['mri_xnat_eids'][0]
+            date = project_df[project_df['mri_xnat_sid'] == subject]['mri_datetodvd'][0]
+            set_experiment_attrs(args.config, project, subject, experiment, 'datetodvd', date)
 
     elif args.report_type == 'no_findings_before_date':
         # Findings and Findings Date is empty before a given date
@@ -216,6 +224,9 @@ if __name__ == "__main__":
                         type=str,
                         default='/tmp/experiments',
                         help='Name of experiments xml directory')
+    parser.add_argument('-f', '--file_to_reset_datetodvd',
+                        action='store',
+                        help='CSV file used to reset the datetodvd to a specific date for a given XNAT experiment id (e.g., NCANDA_E12345)')
     parser.add_argument('-o', '--outfile',
                         type=str,
                         default='/tmp/neurorad_findings.csv',
