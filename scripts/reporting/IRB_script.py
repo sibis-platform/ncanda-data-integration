@@ -5,9 +5,9 @@
 ##  See COPYING file distributed along with the package for the copyright and license terms.
 ##
 """
-IRB_script
+Reprot: IRB_script
 ======================
-Pulls data off of redcap for IRB renewal
+This script generates a report of the numbers needed for the IRB renewal.
 """
 import os
 import sys

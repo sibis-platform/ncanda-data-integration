@@ -2,14 +2,11 @@
 ##
 ##  Copyright 2016 SRI International
 ##  See COPYING file distributed along with the package for the copyright and license terms.
-####  $Revision: 2110 $
-##  $LastChangedBy: nicholsn $
-##  $LastChangedDate: 2015-08-07 09:10:29 -0700 (Fri, 07 Aug 2015) $
 ##
 """
 NP Release Script
 ======================
-Generates a CSV file for all subjects included in NP analysis
+Generates a CSV file for all subjects included in NP analysis for Dolf
 """
 import os
 import sys
