@@ -1,12 +1,8 @@
 #!/usr/bin/env python
 
 ##
-##  Copyright 2015 SRI International
-##  License: https://ncanda.sri.com/software-license.txt
-##
-##  $Revision$
-##  $LastChangedBy$
-##  $LastChangedDate$
+##  Copyright 2016 SRI International
+##  See COPYING file distributed along with the package for the copyright and license terms.
 ##
 """
 ==================
@@ -276,8 +272,10 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--project", dest="project", required=True,
                         help="Project Name in lowercase_underscore.")
     parser.add_argument("-a", "--arm", dest="arm", required=True,
+                        choices=['Standard Protocol'],
                         help="Arm Name as appears in UI")
     parser.add_argument("-e", "--event", dest="event", required=True,
+                        choices=['Baseline visit', '1y visit', '2y visit'],
                         help="Event Name in as appears in UI")
     parser.add_argument("-f", "--form", dest="form", required=True,
                         help="Form Name in lowercase_underscore")

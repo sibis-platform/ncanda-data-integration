@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 ##
-##  Copyright 2015 SRI International
-##  License: https://ncanda.sri.com/software-license.txt
-##
-"""
+##  Copyright 2016 SRI International
+##  See COPYING file distributed along with the package for the copyright and license terms.
+##"""
 Baseline cases
 
 This script generates a list of all subject that have a valid baseline and follow-up visit.
