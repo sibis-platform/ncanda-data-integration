@@ -185,7 +185,7 @@ for [key,row] in visit_log_redcap.iterrows():
                             # Link directory names with names in REDCap mysql
                             visit_map = dict(baseline="Baseline visit",
                                              followup_1y="1y visit",
-                                             followup_2yr="2y visit",
+                                             followup_2y="2y visit",
                                              followup_3y="3y visit")
                             # Get a dataframe of the locked forms
                             arm = "{0} Protocol".format(arm_code.capitalize())
