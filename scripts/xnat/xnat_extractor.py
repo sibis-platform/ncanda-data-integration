@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 ##
-##  Copyright 2015 SRI International
-##  License: https://ncanda.sri.com/software-license.txt
-##
-##  $Revision$
-##  $LastChangedBy$
-##  $LastChangedDate$
+##  Copyright 2016 SRI International
+##  See COPYING file distributed along with the package for the copyright and license terms.
 ##
 """
 NCANDA XNAT Extractor

@@ -1,12 +1,8 @@
 #!/usr/bin/env python
 
 ##
-##  Copyright 2015 SRI International
-##  License: https://ncanda.sri.com/software-license.txt
-##
-##  $Revision: 2113 $
-##  $LastChangedBy: nicholsn $
-##  $LastChangedDate: 2015-08-07 09:17:50 -0700 (Fri, 07 Aug 2015) $
+##  Copyright 2016 SRI International
+##  See COPYING file distributed along with the package for the copyright and license terms.
 ##
 
 # Mail-related stuff
