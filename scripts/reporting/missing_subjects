@@ -1,0 +1,44 @@
+#!/usr/bin/env python
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+"""
+Report: Missing_subjects
+============================================
+Checks whether a list of subjects have no data in redcap and have skipped the visit.
+
+Usage:
+python missing_subjects.py subject.txt case.csv
+"""
+
+import sys
+import pandas
+
+def subject_check(df,s):
+    df = df[df['mri_xnat_sid']==s]
+    if len(df)==0:
+        return "{} is not REDCap".format(s)
+    else:
+        return "{} is in REDCap".format(s)
+
+def main(args):
+    df = pandas.read_csv(args.redcapcsv)
+    subject_list = open(args.subjectlist).readlines()
+
+    for s in subject_list:
+        print subject_check(df,s)
+
+if __name__ == '__main__':
+    import argparse
+
+    formatter = argparse.RawDescriptionHelpFormatter
+    parser = argparse.ArgumentParser(prog="missing_subjects",
+                                     description=__doc__,
+                                     formatter_class=formatter)
+    parser.add_argument('subjectlist', action='store',
+                        help="The txt file containing the subjects in question")
+    parser.add_argument('redcapcsv',  action="store",
+                        help="The CSV containing the data from redcap.")
+    argv = parser.parse_args()
+    sys.exit(main(args=argv))
