@@ -176,25 +176,31 @@ def main(args=None):
     elif args.report_type == 'correct_dvd_date':
         dates_df = pd.read_csv(args.file_to_reset_datetodvd)
         for subject in df['subject_id'].tolist():
+            if args.verbose:
+                print "Checking for {}".format(subject)
             eids = dates_df[dates_df['mri_xnat_sid'] == subject]['mri_xnat_eids'].tolist()
-            if len(eids[0]) == 13 or eids == None:
-                experiment = eids[0]
-                record = df[df.experiment_id == experiment]
-                date = dates_df[dates_df['mri_xnat_sid'] == subject]['mri_datetodvd'].tolist()[0]
-                if record['datetodvd'].tolist()[0] != date or record['datetodvd'].tolist()[0] == None:
-                    project = record.project.values[0]
-                    subject = record.subject_id.values[0]
-                    experiment = record.experiment_id.values[0]
-                    set_experiment_attrs(args.config, project, subject, experiment, 'datetodvd', date)
-            elif len(eids[0]) == 27 or eids == None:
-                experiment = eids[0].split(" ")
-                for e in experiment:
-                    record = df[df.experiment_id == e]
-                    date = dates_df[dates_df['mri_xnat_sid'] == subject]['mri_datetodvd'].tolist()[0]
-                    if record['datetodvd'].tolist()[0] != date or record['datetodvd'].tolist()[0] == None:
-                        project = record.project.values[0]
-                        subject = record.subject_id.values[0]
-                        set_experiment_attrs(args.config, project, subject, e, 'datetodvd', date)
+            date = dates_df[dates_df['mri_xnat_sid'] == subject]['mri_datetodvd'].tolist()
+            if eids != []:
+                if len(eids[0]) == 13:
+                    experiment = eids[0]
+                    record = df[df.experiment_id == experiment]
+                    record_date = record['datetodvd'].tolist()
+                    if date != [] and record_date != []:
+                        if record_date[0] != date[0] or type(record_date[0]) != str() :
+                            project = record.project.values[0]
+                            subject = record.subject_id.values[0]
+                            experiment = record.experiment_id.values[0]
+                            set_experiment_attrs(args.config, project, subject, experiment, 'datetodvd', date[0])
+                elif len(eids[0]) == 27 or eids == None:
+                    experiment = eids[0].split(" ")
+                    for e in experiment:
+                        record_date = record['datetodvd'].tolist()
+                        record = df[df.experiment_id == e]
+                        if date != [] and record_date != []:
+                            if record_date[0] != date[0] or type(record_date[0]) == str():
+                                project = record.project.values[0]
+                                subject = record.subject_id.values[0]
+                                set_experiment_attrs(args.config, project, subject, e, 'datetodvd', date[0])
 
     elif args.report_type == 'no_findings_before_date':
         # Findings and Findings Date is empty before a given date
