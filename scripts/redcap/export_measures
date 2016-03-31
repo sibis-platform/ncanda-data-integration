@@ -182,10 +182,7 @@ for [key,row] in visit_log_redcap.iterrows():
                             if args.verbose:
                                 print "Creating a report of locked forms for: " \
                                       "{0}, {1}, {2}".format(subject_xnat_id, arm_code, visit_code)
-                            if arm_code != 'standard' or visit_code != 'baseline':
-                                if args.verbose:
-                                    print "Currently only standard arm and baseline visit is supported..."
-                                continue
+                            # Link directory names with names in REDCap mysql
                             visit_map = dict(baseline="Baseline visit",
                                              followup_1y="1y visit",
                                              followup_2yr="2y visit",
