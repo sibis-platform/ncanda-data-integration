@@ -31,6 +31,8 @@ def get_project(args):
     # Get all the mri session reports for baseline and 1r
     if args.baseline:
         events = ['baseline_visit_arm_1']
+    elif args.yearonefollowup:
+        events = ['1y_visit_arm_1']
     else:
         events = ['baseline_visit_arm_1','1y_visit_arm_1']
     mri  = rc_summary.export_records(fields=['study_id', 'exclude',
