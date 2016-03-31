@@ -92,6 +92,8 @@ if __name__ == '__main__':
                         help="Select only baseline events", action='store_true')
     parser.add_argument( '-c','--csvdir',  action="store", default = '',
                         help="Directory where CSV will be stored.")
+    parser.add_argument('-f', '--yearonefollowup', dest="yearonefollowup",
+                        help="Select only 1y Follow-Up events", action='store_true')
     parser.add_argument('-o', '--outfile', dest="outfile",
                         help="File to write out. {}".format(default),
                         default='baseline_1yr_cases.csv')
