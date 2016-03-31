@@ -2,7 +2,8 @@
 ##
 ##  Copyright 2016 SRI International
 ##  See COPYING file distributed along with the package for the copyright and license terms.
-##"""
+##
+"""
 Report: Baseline and Year 1 Cases with Scans
 ============================================
 Creates a csv files containing all cases that are included in the study, hanve
