@@ -70,6 +70,10 @@ def main(args=None):
     project = get_project(args)
     if args.verbose:
         print("Filtering dataframe...")
+    if args.subjectlist:
+        with open(args.subjectlist, 'r') as f:
+            subject_list = [line.strip() for line in f]
+        project = project[project['mri_xnat_sid'].isin(subject_list)]
     if args.mri_cases:
         results = mri_filter_dataframe(project)
     elif args.np_cases:
@@ -103,6 +107,8 @@ if __name__ == '__main__':
                         help="Generate report for subjects with valid visit & MRI session", action='store_true')
     parser.add_argument('-n', '--np_cases', dest="np_cases",
                         help="Generate report for subjects with valid visit session", action='store_true')
+    parser.add_argument('-s', '--subjectlist', dest="subjectlist",
+                        help="Text file containing the SIDS for subjects of interest", action='store')
     parser.add_argument('-v', '--verbose', dest="verbose",
                         help="Turn on verbose", action='store_true')
     argv = parser.parse_args()
