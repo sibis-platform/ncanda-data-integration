@@ -123,14 +123,22 @@ def export( redcap_project, redcap_key, subject_data, visit_age, visit_data, arm
             all_fields += [ re.sub( '___.*', '', field_name ) for field_name in export_forms[export_name] ]
             export_list.append( export_name )
 
-    all_records = redcap_project.export_records( fields=all_fields, records=[redcap_subject], events=[redcap_event], format='df' )
+    all_records = redcap_project.export_records(fields=all_fields,
+                                                records=[redcap_subject],
+                                                events=[redcap_event],
+                                                format='df')
 
     # Now go form by form and export data
     for export_name in export_list:
-        fields = export_forms[export_name]
+        # Remove the complete field from the list of forms
+        form = import_forms[export_name]
+        complete = '{}_complete'.format(form)
+        fields = [column for column in import_forms[export_name]
+                  if column != complete]
 
-        # Select data for this form - "reindex_axis" is necessary to put fields in listed order - REDCap returns them lexicographically sorted
-        record = all_records[fields].drop( [ '%s_complete' % import_forms[export_name] ], axis=1 ).reindex_axis( fields, axis=1 )
+        # Select data for this form - "reindex_axis" is necessary to put
+        # fields in listed order - REDCap returns them lexicographically sorted
+        record = all_records[fields].reindex_axis(fields, axis=1)
 
         if len( record ) == 1:
             # First, add the three index columns
