@@ -175,6 +175,7 @@ def main(args=None):
 
     elif args.report_type == 'correct_dvd_date':
         dates_df = pd.read_csv(args.file_to_reset_datetodvd)
+        results = dates_df
         for subject in df['subject_id'].tolist():
             if args.verbose:
                 print "Checking for {}".format(subject)
