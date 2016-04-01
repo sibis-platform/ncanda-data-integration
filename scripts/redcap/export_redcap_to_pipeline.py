@@ -131,7 +131,7 @@ def export( redcap_project, redcap_key, subject_data, visit_age, visit_data, arm
     # Now go form by form and export data
     for export_name in export_list:
         # Remove the complete field from the list of forms
-        complete = '{}_complete'.format(export_name)
+        complete = '{}_complete'.format(import_forms.get(export_name))
         fields = [column for column in export_forms.get(export_name)
                   if column != complete]
 
