@@ -132,7 +132,7 @@ def export( redcap_project, redcap_key, subject_data, visit_age, visit_data, arm
     for export_name in export_list:
         # Remove the complete field from the list of forms
         complete = '{}_complete'.format(export_name)
-        fields = [column for column in import_forms[export_name]
+        fields = [column for column in export_forms.get(export_name)
                   if column != complete]
 
         # Select data for this form - "reindex_axis" is necessary to put
