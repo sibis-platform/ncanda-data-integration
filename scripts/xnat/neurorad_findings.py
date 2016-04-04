@@ -177,7 +177,7 @@ def main(args=None):
         dates_df = pd.read_csv(args.file_to_reset_datetodvd)
         result = pd.DataFrame(index=['Subject'], columns=['project', 'subject_id', 'experiment_id',
                  'site_experiment_id', 'datetodvd', 'findingsdate'])
-        result = results.fillna(0)
+        result = result.fillna(0)
         for subject in df['subject_id'].tolist():
             if subject in dates_df['mri_xnat_sid'].tolist():
                 if args.verbose:
