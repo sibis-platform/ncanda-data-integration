@@ -56,6 +56,7 @@ def safe_csv_export( df, fname, verbose=False ):
                 print "Updated",fname
 
 
+
 # Export selected REDCap data to pipeline/distribution directory
 def export( redcap_project, redcap_key, subject_data, visit_age, visit_data, arm_code, visit_code, subject_code, subject_datadir, forms_this_event, select_exports=None, verbose=False ):
     (redcap_subject,redcap_event) = redcap_key
@@ -89,10 +90,20 @@ def export( redcap_project, redcap_key, subject_data, visit_age, visit_data, arm
 	hispanic_code = re.sub( '(.0)|(nan)', '', str( subject_data['hispanic'] ) )
 	race_code = re.sub( '(.0)|(nan)', '', str( subject_data['race'] ) )
 
+    # mfg code
+    mfg = {'A': 'S',
+           'B': 'G',
+           'C': 'G',
+           'D': 'S',
+           'E': 'G'
+    }
+
         demographics = [ ( 'subject',   subject_code ),
                          ( 'arm',       arm_code ),
                          ( 'visit',     visit_code ),
                          ( 'site',      redcap_subject[0] ),
+                         ( 'site_label',        redcap_subject ),
+                         ( 'mfg',       mfg[redcap_subject[0]] ),
                          ( 'sex',       redcap_subject[8] ),
                          ( 'visit_age',            truncate_age( visit_age ) ),
                          ( 'mri_structural_age',   truncate_age( visit_data['mri_t1_age'] ) ),
@@ -103,7 +114,7 @@ def export( redcap_project, redcap_key, subject_data, visit_age, visit_data, arm
                          ( 'siblings_id_first',    subject_data['siblings_id1'] ),
                          ( 'hispanic',             code_to_label_dict['hispanic'][hispanic_code][0:1] ),
                          ( 'race',                 race_code ),
-                         ( 'race_label',           code_to_label_dict['race'][race_code] )]
+                         ( 'race_label',           code_to_label_dict['race'][race_code]]
 
         if race_code == '6':
             # if other race is specified, mark race label with manually curated race code
@@ -199,7 +210,7 @@ metadata_dict = dict()
 def filter_all_forms( redcap_metadata ):
     # First turn metadata into easily digested dict
     for field in redcap_metadata:
-        metadata_dict[field['field_name']] = ( field['field_type'], field['text_validation_type_or_show_slider_number'], field['field_label'], 
+        metadata_dict[field['field_name']] = ( field['field_type'], field['text_validation_type_or_show_slider_number'], field['field_label'],
                                                field['text_validation_min'], field['text_validation_max'], field['select_choices_or_calculations'] )
 
     # Filter each form
@@ -239,24 +250,24 @@ def create_datadicts_general( datadict_dir, datadict_base_file, export_forms_lis
        field_name = re.sub( '___.*', '', var )
        ddict["Variable / Field Name"][var] = field_name
        ddict["Form Name"][var] = form_name
-  
+
        # Check if var is in data dict ('FORM_complete' fields are NOT)
        if field_name in metadata_dict.keys() :
            ddict["Field Type"][var] = metadata_dict[field_name][0]
-           # need to transfer to utf-8 code otherwise can create problems when writing dictionary to file 
-           # it just is a text field so it should not matter 
+           # need to transfer to utf-8 code otherwise can create problems when writing dictionary to file
+           # it just is a text field so it should not matter
            ddict["Field Label"][var] = metadata_dict[field_name][2].encode('utf-8')
            ddict["Text Validation Type OR Show Slider Number"][var] = metadata_dict[field_name][1]
            ddict["Text Validation Min"][var] = metadata_dict[field_name][3]
            ddict["Text Validation Max"][var] = metadata_dict[field_name][4]
-           # need to transfer to utf-8 code otherwise can create problems when writing dictionary to file 
-           # it just is a choice field so it should not matter 
+           # need to transfer to utf-8 code otherwise can create problems when writing dictionary to file
+           # it just is a choice field so it should not matter
            ddict["Choices, Calculations, OR Slider Labels"][var] = metadata_dict[field_name][5].encode('utf-8')
 
     # Finally, write the data dictionary to a CSV file
     dicFileName=os.path.join( datadict_dir, datadict_base_file + '_datadict.csv' )
-    try:  
-      ddict.to_csv(dicFileName, index=False ) 
+    try:
+      ddict.to_csv(dicFileName, index=False )
     except :
       import sys
       sys.exit("ERROR:create_datadicts: could not export dictionary %s: \n%s:%s" %  (dicFileName, sys.exc_info()[0].__doc__,sys.exc_info()[1]) )
@@ -266,14 +277,14 @@ def create_datadicts( datadict_dir):
     # Go over all exported forms
     for export_name in export_forms.keys():
         export_form_entry_list = export_forms[export_name]
-        size_entry_list = len(export_form_entry_list) 
+        size_entry_list = len(export_form_entry_list)
         export_form_list = [export_name]*size_entry_list
         create_datadicts_general(datadict_dir,export_name,export_form_list,export_form_entry_list)
 
-    # Create custom form for demographics 
+    # Create custom form for demographics
     export_form_entry_list=['site','sex','visit_age','mri_structural_age','mri_diffusion_age','mri_restingstate_age','exceeds_bl_drinking','siblings_enrolled_yn','siblings_id_first','hispanic','race','race_label']
 
-    # First two entries are extracted from SubjectID 
+    # First two entries are extracted from SubjectID
     export_form_list=['basic_demographics','basic_demographics','basic_demographics','mri_report','mri_report','mri_report','basic_demographics','basic_demographics','basic_demographics','basic_demographics','basic_demographics','basic_demographics']
     create_datadicts_general(datadict_dir,'demographics',export_form_list,export_form_entry_list)
 
@@ -293,7 +304,7 @@ for f in exports_files:
     file.close()
 
     export_name = re.sub( '\.txt$', '', os.path.basename( f ) )
-    
+
     import_form_name = re.sub( '\n', '', contents[0] )
     import_forms[export_name] = import_form_name
     export_forms[export_name] = [ re.sub( '\[.*\]', '', field ) for field in contents[1:] ] + [ '%s_complete' % import_form_name ]

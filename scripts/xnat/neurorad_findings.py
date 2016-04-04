@@ -173,6 +173,37 @@ def main(args=None):
             experiment = args.reset_datetodvd
             set_experiment_attrs(args.config, project, subject, experiment, 'datetodvd', 'none')
 
+    elif args.report_type == 'correct_dvd_date':
+        dates_df = pd.read_csv(args.file_to_reset_datetodvd)
+        results = dates_df
+        for subject in df['subject_id'].tolist():
+            if args.verbose:
+                print "Checking for {}".format(subject)
+            if subject in dates_df['mri_xnat_sid'].tolist():
+                eids = dates_df[dates_df['mri_xnat_sid'] == subject]['mri_xnat_eids'].tolist()
+                date = dates_df[dates_df['mri_xnat_sid'] == subject]['mri_datetodvd'].tolist()
+                if eids != []:
+                    if len(eids[0]) == 13:
+                        experiment = eids[0]
+                        record = df[df.experiment_id == experiment]
+                        record_date = record['datetodvd'].tolist()
+                        if date != [] and record_date != []:
+                            if record_date[0] != date[0] or type(record_date[0]) != str() :
+                                project = record.project.values[0]
+                                subject = record.subject_id.values[0]
+                                experiment = record.experiment_id.values[0]
+                                set_experiment_attrs(args.config, project, subject, experiment, 'datetodvd', date[0])
+                    elif len(eids[0]) == 27 or eids == None:
+                        experiment = eids[0].split(" ")
+                        for e in experiment:
+                            record_date = record['datetodvd'].tolist()
+                            record = df[df.experiment_id == e]
+                            if date != [] and record_date != []:
+                                if record_date[0] != date[0] or type(record_date[0]) == str():
+                                    project = record.project.values[0]
+                                    subject = record.subject_id.values[0]
+                                    set_experiment_attrs(args.config, project, subject, e, 'datetodvd', date[0])
+
     elif args.report_type == 'no_findings_before_date':
         # Findings and Findings Date is empty before a given date
         if not args.before_date:
@@ -216,6 +247,9 @@ if __name__ == "__main__":
                         type=str,
                         default='/tmp/experiments',
                         help='Name of experiments xml directory')
+    parser.add_argument('-f', '--file_to_reset_datetodvd',
+                        action='store',
+                        help='CSV file used to reset the datetodvd to a specific date for a given XNAT experiment id (e.g., NCANDA_E12345)')
     parser.add_argument('-o', '--outfile',
                         type=str,
                         default='/tmp/neurorad_findings.csv',
@@ -226,7 +260,7 @@ if __name__ == "__main__":
     parser.add_argument('-r', '--report-type',
                         type=str,
                         required=True,
-                        choices=['no_findings_date', 'no_findings', 'no_findings_or_date', 'no_findings_before_date'],
+                        choices=['no_findings_date', 'no_findings', 'no_findings_or_date', 'no_findings_before_date','correct_dvd_date'],
                         help='Select a report type. Note that no_findings_before_date requires --before_date.')
     parser.add_argument('-s', '--set-findings-date',
                         action='store_true',

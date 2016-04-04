@@ -31,8 +31,6 @@ def get_project(args):
     # Get all the mri session reports for baseline and 1r
     if args.baseline:
         events = ['baseline_visit_arm_1']
-    elif args.yearonefollowup:
-        events = ['1y_visit_arm_1']
     else:
         events = ['baseline_visit_arm_1','1y_visit_arm_1']
     mri  = rc_summary.export_records(fields=['study_id', 'exclude',
@@ -70,6 +68,10 @@ def main(args=None):
     project = get_project(args)
     if args.verbose:
         print("Filtering dataframe...")
+    if args.subjectlist:
+        with open(args.subjectlist, 'r') as f:
+            subject_list = [line.strip() for line in f]
+        project = project[project['mri_xnat_sid'].isin(subject_list)]
     if args.mri_cases:
         results = mri_filter_dataframe(project)
     elif args.np_cases:
@@ -80,7 +82,7 @@ def main(args=None):
         print("Writing results to {}...".format(args.outfile))
     # Write out results
     results.to_csv(os.path.join(args.csvdir, args.outfile),
-                   columns=['mri_xnat_sid', 'mri_xnat_eids'])
+                   columns=['mri_xnat_sid', 'mri_xnat_eids','mri_datetodvd'])
 
 if __name__ == '__main__':
     import argparse
@@ -103,6 +105,8 @@ if __name__ == '__main__':
                         help="Generate report for subjects with valid visit & MRI session", action='store_true')
     parser.add_argument('-n', '--np_cases', dest="np_cases",
                         help="Generate report for subjects with valid visit session", action='store_true')
+    parser.add_argument('-s', '--subjectlist', dest="subjectlist",
+                        help="Text file containing the SIDS for subjects of interest", action='store')
     parser.add_argument('-v', '--verbose', dest="verbose",
                         help="Turn on verbose", action='store_true')
     argv = parser.parse_args()

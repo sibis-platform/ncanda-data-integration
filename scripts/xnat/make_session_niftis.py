@@ -115,7 +115,20 @@ def export_to_nifti( interface, project, subject, session, session_label, manufa
 
                     if manufacturer_u == 'SIEMENS':
                         if 'dti6b500pepolar' in scantype:
-                            xml_file = open( os.path.join( temp_dir, '%s_%s' % (scan,scantype), 'image1.nii.xml' ), 'r' )
+                            xml_file_list = glob.glob(os.path.join( temp_dir, '%s_%s' % (scan,scantype), 'image*.nii.xml' ))
+                            case_gradients = check_gradient_tables.get_all_gradients(xml_file_list, decimals=3)
+                            errors = list()
+                            for idx, frame in enumerate(case_gradients):
+                                # if there is a frame that doesn't match, report it.
+                                if not (gradients[idx]==frame).all():
+                                    errors.append(idx)
+                            if errors:
+                                #key = os.path.join(case, args.arm, args.event, 'diffusion/native/dti60b1000')
+                                key = session_label
+                                sibis.logging(key,"ERROR: Gradient tables do not match for frames.",
+                                              frames=errors,
+                                              session=session)
+                            xml_file = open( xml_file_list[0], 'r' )
                             try:
                                 for line in xml_file:
                                     match = re.match( '.*<phaseEncodeDirectionSign>(.+)</phaseEncodeDirectionSign>.*', line )
@@ -128,7 +141,20 @@ def export_to_nifti( interface, project, subject, session, session_label, manufa
                             finally:
                                 xml_file.close()
                         elif 'dti60b1000' in scantype:
-                            xml_file = open( os.path.join( temp_dir, '%s_%s' % (scan,scantype), 'image01.nii.xml' ), 'r' )
+                            xml_file_list = glob.glob(os.path.join( temp_dir, '%s_%s' % (scan,scantype), 'image*.nii.xml' ))
+                            case_gradients = check_gradient_tables.get_all_gradients(xml_file_list, decimals=3)
+                            errors = list()
+                            for idx, frame in enumerate(case_gradients):
+                                # if there is a frame that doesn't match, report it.
+                                if not (gradients[idx]==frame).all():
+                                    errors.append(idx)
+                            if errors:
+                                #key = os.path.join(case, args.arm, args.event, 'diffusion/native/dti60b1000')
+                                key = session_label
+                                sibis.logging(key,"ERROR: Gradient tables do not match for frames.",
+                                              frames=errors,
+                                              session=session)
+                            xml_file = open( xml_file_list[0], 'r' )
                             try:
                                 for line in xml_file:
                                     match = re.match( '.*<phaseEncodeDirectionSign>(.+)</phaseEncodeDirectionSign>.*', line )
@@ -145,6 +171,13 @@ def export_to_nifti( interface, project, subject, session, session_label, manufa
                 shutil.rmtree( temp_dir )
 
     for MSG in errorMSG :
-        print "ERROR: ", MSG
+        sibis.logging(subject, "ERROR: {}".format(MSG),
+                      interface=interface,
+                      project=project,
+                      session=session,
+                      session_label=session_label,
+                      manufacturer=manufacturer,
+                      scan=scan,
+                      scantype=scantype)
 
     return errorMSG
