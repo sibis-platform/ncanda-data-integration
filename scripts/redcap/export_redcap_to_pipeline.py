@@ -56,6 +56,7 @@ def safe_csv_export( df, fname, verbose=False ):
                 print "Updated",fname
 
 
+
 # Export selected REDCap data to pipeline/distribution directory
 def export( redcap_project, redcap_key, subject_data, visit_age, visit_data, arm_code, visit_code, subject_code, subject_datadir, forms_this_event, select_exports=None, verbose=False ):
     (redcap_subject,redcap_event) = redcap_key
@@ -93,7 +94,8 @@ def export( redcap_project, redcap_key, subject_data, visit_age, visit_data, arm
                          ( 'arm',       arm_code ),
                          ( 'visit',     visit_code ),
                          ( 'site',      redcap_subject[0] ),
-                         ( 'mfg',       "" ),
+                         #( 'site_label',            ),
+                         ( 'mfg',       redcap_subject[0].replace(['A','D'],'S').replace(['B','C','E'],'G') ),
                          ( 'sex',       redcap_subject[8] ),
                          ( 'visit_age',            truncate_age( visit_age ) ),
                          ( 'mri_structural_age',   truncate_age( visit_data['mri_t1_age'] ) ),
@@ -104,7 +106,7 @@ def export( redcap_project, redcap_key, subject_data, visit_age, visit_data, arm
                          ( 'siblings_id_first',    subject_data['siblings_id1'] ),
                          ( 'hispanic',             code_to_label_dict['hispanic'][hispanic_code][0:1] ),
                          ( 'race',                 race_code ),
-                         ( 'race_label',           code_to_label_dict['race'][race_code] )]
+                         ( 'race_label',           code_to_label_dict['race'][race_code].replace(['African-American/Black' , 'African-American_Caucasian', 'Caucasian/White', 'Asian_White', 'Native American/American Indian', 'Pacific Islander'] ,['African_American/Black', 'African_American_Caucasian', 'Caucasian_White','Asian_Caucasian','NativeAmerican_AmericanIndian','Pacific_Islander'],inplace=True) )]
 
         if race_code == '6':
             # if other race is specified, mark race label with manually curated race code
