@@ -84,7 +84,7 @@ def main(args=None):
         print("Writing results to {}...".format(args.outfile))
     # Write out results
     results.to_csv(os.path.join(args.csvdir, args.outfile),
-                   columns=['mri_xnat_sid', 'mri_xnat_eids'])
+                   columns=['mri_xnat_sid', 'mri_xnat_eids','mri_datetodvd'])
 
 if __name__ == '__main__':
     import argparse
@@ -96,8 +96,8 @@ if __name__ == '__main__':
                                      formatter_class=formatter)
     parser.add_argument('-b', '--baseline', dest="baseline",
                         help="Select only baseline events", action='store_true')
-    parser.add_argument('-f', '--yearonefollowup', dest="yearonefollowup",
-                        help="Select only 1y Follow-Up events", action='store_true')
+    #parser.add_argument('-f', '--yearonefollowup', dest="yearonefollowup",
+    #                    help="Select only 1y Follow-Up events", action='store_true')
     parser.add_argument( '-c','--csvdir',  action="store", default = '',
                         help="Directory where CSV will be stored.")
     parser.add_argument('-f', '--yearonefollowup', dest="yearonefollowup",
