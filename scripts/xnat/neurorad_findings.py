@@ -214,15 +214,15 @@ def main(args=None):
     else:
         raise(NotImplementedError("The report you entered is not in the list."))
 
-    #result.to_csv(args.outfile,
-                  #columns=['project', 'subject_id', 'experiment_id',
-                #           'site_experiment_id', 'datetodvd', 'findingsdate'],
-                 # index=False)
+    result.to_csv(args.outfile,
+                  columns=['project', 'subject_id', 'experiment_id',
+                           'site_experiment_id', 'datetodvd', 'findingsdate'],
+                  index=False)
     if verbose:
-    #    pd.set_option('display.max_rows', len(result))
-    #    print("Total records found: {}".format(len(result)))
-    #    print(result[['experiment_id', 'site_experiment_id']])
-    #    pd.reset_option('display.max_rows')
+        pd.set_option('display.max_rows', len(result))
+        print("Total records found: {}".format(len(result)))
+        print(result[['experiment_id', 'site_experiment_id']])
+        pd.reset_option('display.max_rows')
         print("Finished!")
 
 if __name__ == "__main__":
