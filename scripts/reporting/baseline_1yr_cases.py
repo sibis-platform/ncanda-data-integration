@@ -31,8 +31,6 @@ def get_project(args):
     # Get all the mri session reports for baseline and 1r
     if args.baseline:
         events = ['baseline_visit_arm_1']
-    elif args.yearonefollowup:
-        events = ['1y_visit_arm_1']
     else:
         events = ['baseline_visit_arm_1','1y_visit_arm_1']
     mri  = rc_summary.export_records(fields=['study_id', 'exclude',
@@ -96,8 +94,6 @@ if __name__ == '__main__':
                                      formatter_class=formatter)
     parser.add_argument('-b', '--baseline', dest="baseline",
                         help="Select only baseline events", action='store_true')
-    #parser.add_argument('-f', '--yearonefollowup', dest="yearonefollowup",
-    #                    help="Select only 1y Follow-Up events", action='store_true')
     parser.add_argument( '-c','--csvdir',  action="store", default = '',
                         help="Directory where CSV will be stored.")
     parser.add_argument('-f', '--yearonefollowup', dest="yearonefollowup",
