@@ -90,12 +90,20 @@ def export( redcap_project, redcap_key, subject_data, visit_age, visit_data, arm
 	hispanic_code = re.sub( '(.0)|(nan)', '', str( subject_data['hispanic'] ) )
 	race_code = re.sub( '(.0)|(nan)', '', str( subject_data['race'] ) )
 
+    # mfg code
+    mfg = {'A': 'S',
+           'B': 'G',
+           'C': 'G',
+           'D': 'S',
+           'E': 'G'
+    }
+
         demographics = [ ( 'subject',   subject_code ),
                          ( 'arm',       arm_code ),
                          ( 'visit',     visit_code ),
                          ( 'site',      redcap_subject[0] ),
-                         #( 'site_label',            ),
-                         ( 'mfg',       redcap_subject[0].replace(['A','D'],'S').replace(['B','C','E'],'G') ),
+                         ( 'site_label',        redcap_subject ),
+                         ( 'mfg',       mfg[redcap_subject[0]] ),
                          ( 'sex',       redcap_subject[8] ),
                          ( 'visit_age',            truncate_age( visit_age ) ),
                          ( 'mri_structural_age',   truncate_age( visit_data['mri_t1_age'] ) ),
@@ -106,7 +114,7 @@ def export( redcap_project, redcap_key, subject_data, visit_age, visit_data, arm
                          ( 'siblings_id_first',    subject_data['siblings_id1'] ),
                          ( 'hispanic',             code_to_label_dict['hispanic'][hispanic_code][0:1] ),
                          ( 'race',                 race_code ),
-                         ( 'race_label',           code_to_label_dict['race'][race_code].replace(['African-American/Black' , 'African-American_Caucasian', 'Caucasian/White', 'Asian_White', 'Native American/American Indian', 'Pacific Islander'] ,['African_American/Black', 'African_American_Caucasian', 'Caucasian_White','Asian_Caucasian','NativeAmerican_AmericanIndian','Pacific_Islander'],inplace=True) )]
+                         ( 'race_label',           code_to_label_dict['race'][race_code]]
 
         if race_code == '6':
             # if other race is specified, mark race label with manually curated race code
