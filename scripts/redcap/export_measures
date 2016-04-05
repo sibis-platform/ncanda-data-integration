@@ -42,7 +42,8 @@ redcap_token_path = os.path.join( os.path.expanduser("~"), '.server_config/redca
 redcap_token_file = open( redcap_token_path, 'r' )
 redcap_token = redcap_token_file.read().strip()
 
-redcap_project = redcap.Project( 'https://ncanda.sri.com/redcap/api/', redcap_token, verify_ssl=False)
+redcap_project = redcap.Project( 'https://ncanda.sri.com/redcap/api/',
+                                 redcap_token, verify_ssl=False)
 form_event_mapping = redcap_project.export_fem( format='df' )
 
 # Organize REDCap metadata, e.g., filter all confidential fields out of export lists, and make code-to-label lookup dictionaries
@@ -97,11 +98,23 @@ def days_between_dates( date_from_str, date_to_str, date_format=date_format_ymd 
 # Main program loop
 #
 baseline_events = ['baseline_visit_arm_1','baseline_visit_arm_4']
-subject_data = redcap_project.export_records(fields=['dob', 'exclude', 'enroll_exception', 'siblings_enrolled', 'siblings_id1', 'hispanic', 'race', 'race_other_code'], events=baseline_events, event_name='unique', format='df' )
-subject_data = pandas.concat( [ subject_data.xs( event, level=1 ) for event in baseline_events ] )
+subject_fields = ['study_id', 'dob',  'exclude', 'enroll_exception',
+                  'siblings_enrolled', 'siblings_id1', 'hispanic', 'race',
+                  'race_other_code']
+subject_data = redcap_project.export_records(fields=subject_fields,
+                                             events=baseline_events,
+                                             event_name='unique',
+                                             format='df')
+subject_data = pandas.concat([subject_data.xs(event, level=1) for event in baseline_events])
 subject_data['siblings_id1'] = subject_data['siblings_id1'].map( lambda x: subject_label_to_sid_dict[x] if x in subject_label_to_sid_dict.keys() else '' )
 
-visit_log_redcap = redcap_project.export_records(fields=['redcap_data_access_group', 'visit_date', 'mri_qa_completed', 'mri_t1_age', 'mri_dti_age', 'mri_rsfmri_age' ], event_name='unique', export_data_access_groups=True, format='df' )
+visit_log_fields = ['study_id', 'redcap_data_access_group', 'visit_date',
+                    'mri_qa_completed', 'mri_t1_age', 'mri_dti_age',
+                    'mri_rsfmri_age']
+visit_log_redcap = redcap_project.export_records(fields=visit_log_fields,
+                                                 event_name='unique',
+                                                 export_data_access_groups=True,
+                                                 format='df')
 
 if args.site:
     sites = args.site.lower().split( ',' )
