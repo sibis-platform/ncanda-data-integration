@@ -98,6 +98,18 @@ def export( redcap_project, redcap_key, subject_data, visit_age, visit_data, arm
            'E': 'G'
     }
 
+    # Creating race_label
+    race_label = code_to_label_dict['race'][race_code]
+
+    race_label_dic = {'African-American/Black': 'African_American/Black',
+                      'African-American_Caucasian': 'African_American_Caucasian',
+                      'Caucasian/White': 'Caucasian_White',
+                      'Asian_White': 'Asian_Caucasian',
+                      'Native American/American Indian': 'NativeAmerican_AmericanIndian',
+                      'Pacific Islander': 'Pacific_Islander'}
+    if race_label in race_label_dic.keys():
+        race_label = race_label_dic[race_label]
+
         demographics = [ ( 'subject',   subject_code ),
                          ( 'arm',       arm_code ),
                          ( 'visit',     visit_code ),
@@ -114,7 +126,7 @@ def export( redcap_project, redcap_key, subject_data, visit_age, visit_data, arm
                          ( 'siblings_id_first',    subject_data['siblings_id1'] ),
                          ( 'hispanic',             code_to_label_dict['hispanic'][hispanic_code][0:1] ),
                          ( 'race',                 race_code ),
-                         ( 'race_label',           code_to_label_dict['race'][race_code]]
+                         ( 'race_label',           race_label]
 
         if race_code == '6':
             # if other race is specified, mark race label with manually curated race code
