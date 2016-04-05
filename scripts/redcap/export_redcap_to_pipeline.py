@@ -126,7 +126,7 @@ def export( redcap_project, redcap_key, subject_data, visit_age, visit_data, arm
                          ( 'siblings_id_first',    subject_data['siblings_id1'] ),
                          ( 'hispanic',             code_to_label_dict['hispanic'][hispanic_code][0:1] ),
                          ( 'race',                 race_code ),
-                         ( 'race_label',           race_label]
+                         ( 'race_label',           race_label)]
 
         if race_code == '6':
             # if other race is specified, mark race label with manually curated race code
