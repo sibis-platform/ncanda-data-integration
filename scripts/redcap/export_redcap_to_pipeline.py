@@ -251,8 +251,8 @@ def filter_out_confidential(field_list, metadata_dict):
             (field_type, field_validation, field_label, text_val_min,
              text_val_max, choices) = metadata_dict[
                 re.sub('___.*', '', field_name)]
-            if (field_type != 'text' and field_type != 'notes') or (
-                field_validation in ['number', 'integer', 'time']):
+            if (field_type != 'text' and field_type != 'notes') \
+                    or (field_validation in ['number', 'integer', 'time']):
                 filtered_list.append(field_name)
             else:
                 print "WARNING: field '%s' is of type '%s' with " \
