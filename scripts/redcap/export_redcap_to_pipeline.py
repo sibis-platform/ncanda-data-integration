@@ -69,6 +69,20 @@ def export(redcap_project, redcap_key, subject_data, visit_age, visit_data,
            forms_this_event, select_exports=None, verbose=False):
     redcap_subject, redcap_event = redcap_key
 
+    # Site changes are mapped here to the correct case identifier.
+    # Get the sibis config
+    yml = os.path.join(os.path.expanduser("~"), '.server_config/config.yml')
+    with open(yml, 'r') as fi:
+        sibis_config = yaml.load(fi).get('operations')
+    if not sibis_config:
+        raise IOError(
+            "Please ensure config.yml file exists at: {}".format(yml))
+
+    # Get a map of subjects that changed sited
+    with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
+        site_change_map = yaml.load(fi).get('site_change')
+        export_measures_map = site_change_map.get('export_measures')
+
     # Mark subjects/visits that have QA completed by creating a hidden marker
     # file
     qafile_path = os.path.join(subject_datadir, '.qacomplete')
@@ -109,19 +123,7 @@ def export(redcap_project, redcap_key, subject_data, visit_age, visit_data,
         # site - first letter for the site id
         site = redcap_subject[0]
 
-        # Site changes are mapped here to the correct case identifier.
-        # Get the sibis config
-        yml = os.path.join(os.path.expanduser("~"), '.server_config/config.yml')
-        with open(yml, 'r') as fi:
-            sibis_config = yaml.load(fi).get('operations')
-        if not sibis_config:
-            raise IOError(
-                "Please ensure config.yml file exists at: {}".format(yml))
-
-        # Get a map of subjects that changed sited
-        with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
-            site_change_map = yaml.load(fi).get('site_change')
-            export_measures_map = site_change_map.get('export_measures')
+        # Handle mapping demographic info for subjects that changed site
         if redcap_subject in export_measures_map.iterkeys():
             # Only set for visits in the past
             visit_case_id_map = export_measures_map.get(redcap_subject)
