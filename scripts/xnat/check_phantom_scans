@@ -152,8 +152,9 @@ def check_experiment(experiment):
     if subject_label_match:
         # This is a dictionary that maps subjects who changed sites to the correct phantom.
         with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
-            changed_sites_map = yaml.load(fi).get('moved_sites')
-        changed_sites_phantom = changed_sites_map.get(experiment_label)
+            site_change_map = yaml.load(fi).get('site_change')
+            phantom_scan_map = site_change_map.get('check_phantom_scans')
+        changed_sites_phantom = phantom_scan_map.get(experiment_label)
         try:
             phantom_label = "%s-99999-P-9" % subject_label_match.group(1)
             if changed_sites_phantom:
