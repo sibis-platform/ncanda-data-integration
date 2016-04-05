@@ -100,9 +100,30 @@ def export(redcap_project, redcap_key, subject_data, visit_age, visit_data,
         except:
             print "ERROR: unable to remove QA marker file", qafile_path
 
+    # site - first letter for the site id
+    site = redcap_subject[0]
+
     # Check if the "measures" subdirectory already exists - this is where all
     # the csv files go. Create it if necessary.
     measures_dir = os.path.join(subject_datadir, 'measures')
+
+    # Handle mapping demographic info for subjects that changed site
+    if redcap_subject in export_measures_map.iterkeys():
+        # Only set for visits in the past
+        visit_case_id_map = export_measures_map.get(redcap_subject)
+        if visit_code in visit_case_id_map.iterkeys():
+            case_id_map = visit_case_id_map.get(visit_code)
+            # Use correct case id (NCANDA_S00001)
+            correct_subject_code = case_id_map.get('subject')
+            # Make sure results goto the correct directory
+            measures_dir = measures_dir.replace(subject_code,
+                                                correct_subject_code)
+            subject_code = correct_subject_code
+        else:
+            # update with default info for future events
+            defaults = visit_case_id_map.get('default')
+            site = defaults.get('site')
+
     if not os.path.exists(measures_dir):
         os.makedirs(measures_dir)
 
@@ -119,23 +140,6 @@ def export(redcap_project, redcap_key, subject_data, visit_age, visit_data,
 
         # scanner manufacturer map
         mfg = dict(A='S', B='G', C='G', D='S', E='G')
-
-        # site - first letter for the site id
-        site = redcap_subject[0]
-
-        # Handle mapping demographic info for subjects that changed site
-        if redcap_subject in export_measures_map.iterkeys():
-            # Only set for visits in the past
-            visit_case_id_map = export_measures_map.get(redcap_subject)
-            if visit_code in visit_case_id_map.iterkeys():
-                case_id_map = visit_case_id_map.get(visit_code)
-                # Use correct case id (NCANDA_S00001)
-                subject_code = case_id_map.get('subject')
-            else:
-                # update with default info for future events
-                defaults = visit_case_id_map.get('default')
-                site = defaults.get('site')
-                # Todo: Test how to swap site
 
         demographics = [
             ['subject', subject_code],
