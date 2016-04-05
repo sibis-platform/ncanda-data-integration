@@ -56,78 +56,84 @@ def safe_csv_export( df, fname, verbose=False ):
                 print "Updated",fname
 
 
-
 # Export selected REDCap data to pipeline/distribution directory
-def export( redcap_project, redcap_key, subject_data, visit_age, visit_data, arm_code, visit_code, subject_code, subject_datadir, forms_this_event, select_exports=None, verbose=False ):
-    (redcap_subject,redcap_event) = redcap_key
+def export(redcap_project, redcap_key, subject_data, visit_age, visit_data,
+           arm_code, visit_code, subject_code, subject_datadir,
+           forms_this_event, select_exports=None, verbose=False):
+    redcap_subject, redcap_event = redcap_key
 
-    # Mark subjects/visits that have QA completed by creating a hidden marker file
-    qafile_path = os.path.join( subject_datadir, '.qacomplete' )
+    # Mark subjects/visits that have QA completed by creating a hidden marker
+    # file
+    qafile_path = os.path.join(subject_datadir, '.qacomplete')
     if visit_data['mri_qa_completed'] == '1':
         try:
-            if not os.path.exists( qafile_path ):
-                qafile = open( qafile_path, 'w' )
+            if not os.path.exists(qafile_path):
+                qafile = open(qafile_path, 'w')
                 qafile.close()
         except:
-            print "ERROR: unable to open QA marker file in",subject_datadir
+            print "ERROR: unable to open QA marker file in", subject_datadir
     else:
         try:
-            if os.path.exists( qafile_path ):
-                os.remove( qafile_path )
+            if os.path.exists(qafile_path):
+                os.remove(qafile_path)
         except:
-            print "ERROR: unable to remove QA marker file",qafile_path
+            print "ERROR: unable to remove QA marker file", qafile_path
 
-    # Check if the "measures" subdirectory already exists - this is where all the csv files go. Create it if necessary.
-    measures_dir = os.path.join( subject_datadir, 'measures' )
-    if not os.path.exists( measures_dir ):
+    # Check if the "measures" subdirectory already exists - this is where all
+    # the csv files go. Create it if necessary.
+    measures_dir = os.path.join(subject_datadir, 'measures')
+    if not os.path.exists(measures_dir):
         os.makedirs( measures_dir )
 
     # Export demographics (if selected)
     if not select_exports or 'demographics' in select_exports:
-        # Create "demographics" file "by hand" - this has some data not (yet) in REDCap.
+        # Create "demographics" file "by hand" - this has some data not (yet)
+        # in REDCap.
 
-	# Latino and race coding arrives here as floating point numbers; make int strings from that (cannot use "int()" because it would fail for missing data
-	hispanic_code = re.sub( '(.0)|(nan)', '', str( subject_data['hispanic'] ) )
-	race_code = re.sub( '(.0)|(nan)', '', str( subject_data['race'] ) )
+        # Latino and race coding arrives here as floating point numbers; make
+        # int strings from that (cannot use "int()" because it would fail for
+        # missing data
+        hispanic_code = re.sub('(.0)|(nan)', '', str(subject_data['hispanic']))
+        race_code = re.sub('(.0)|(nan)', '', str(subject_data['race']))
 
-    # mfg code
-    mfg = {'A': 'S',
-           'B': 'G',
-           'C': 'G',
-           'D': 'S',
-           'E': 'G'
-    }
+        # mfg code
+        mfg = dict(A='S', B='G', C='G', D='S', E='G')
 
-        demographics = [ ( 'subject',   subject_code ),
-                         ( 'arm',       arm_code ),
-                         ( 'visit',     visit_code ),
-                         ( 'site',      redcap_subject[0] ),
-                         ( 'site_label',        redcap_subject ),
-                         ( 'mfg',       mfg[redcap_subject[0]] ),
-                         ( 'sex',       redcap_subject[8] ),
-                         ( 'visit_age',            truncate_age( visit_age ) ),
-                         ( 'mri_structural_age',   truncate_age( visit_data['mri_t1_age'] ) ),
-                         ( 'mri_diffusion_age',    truncate_age( visit_data['mri_dti_age'] ) ),
-                         ( 'mri_restingstate_age', truncate_age( visit_data['mri_rsfmri_age'] ) ),
-                         ( 'exceeds_bl_drinking',  'NY'[int(subject_data['enroll_exception___drinking'])] ),
-                         ( 'siblings_enrolled_yn', 'NY'[int(subject_data['siblings_enrolled___true'])] ),
-                         ( 'siblings_id_first',    subject_data['siblings_id1'] ),
-                         ( 'hispanic',             code_to_label_dict['hispanic'][hispanic_code][0:1] ),
-                         ( 'race',                 race_code ),
-                         ( 'race_label',           code_to_label_dict['race'][race_code]]
+        demographics = [
+            ['subject', subject_code],
+            ['arm', arm_code],
+            ['visit', visit_code],
+            ['site', redcap_subject[0]],
+            ['site_label', redcap_subject],
+            ['mfg', mfg[redcap_subject[0]]],
+            ['sex', redcap_subject[8]],
+            ['visit_age', truncate_age(visit_age)],
+            ['mri_structural_age', truncate_age(visit_data['mri_t1_age'])],
+            ['mri_diffusion_age', truncate_age(visit_data['mri_dti_age'])],
+            ['mri_restingstate_age', truncate_age(visit_data['mri_rsfmri_age'])],
+            ['exceeds_bl_drinking', 'NY'[int(subject_data['enroll_exception___drinking'])]],
+            ['siblings_enrolled_yn', 'NY'[int(subject_data['siblings_enrolled___true'])]],
+            ['siblings_id_first', subject_data['siblings_id1']],
+            ['hispanic', code_to_label_dict['hispanic'][hispanic_code][0:1]],
+            ['race', race_code],
+            ['race_label', code_to_label_dict['race'][race_code]]
+        ]
 
         if race_code == '6':
-            # if other race is specified, mark race label with manually curated race code
+            # if other race is specified, mark race label with manually curated
+            # race code
             demographics[14] = ('race_label', subject_data['race_other_code'])
 
         series = pandas.Series()
-        for (key,value) in demographics:
-            series = series.set_value( key, value )
+        for (key, value) in demographics:
+            series = series.set_value(key, value)
 
-        safe_csv_export( pandas.DataFrame( series ).T, os.path.join( measures_dir, 'demographics.csv' ), verbose=verbose )
+        safe_csv_export(pandas.DataFrame(series).T,
+                        os.path.join(measures_dir, 'demographics.csv'),
+                        verbose=verbose)
 
     # First get data for all fields across all forms in this event - this speeds up transfers over getting each form separately
-    all_fields = []
+    all_fields = ['study_id']
     export_list = []
     for export_name in export_forms.keys():
         if (import_forms[export_name] in forms_this_event) and ( not select_exports or export_name in select_exports ):
