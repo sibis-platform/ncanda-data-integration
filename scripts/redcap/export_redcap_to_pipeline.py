@@ -106,6 +106,26 @@ def export(redcap_project, redcap_key, subject_data, visit_age, visit_data,
         # mfg code
         mfg = dict(A='S', B='G', C='G', D='S', E='G')
 
+        # Site changes are mapped here to the correct case identifier.
+        # Get the sibis config
+        yml = os.path.join(os.path.expanduser("~"), '.server_config/config.yml')
+        with open(yml, 'r') as fi:
+            sibis_config = yaml.load(fi).get('operations')
+        if not sibis_config:
+            raise IOError(
+                "Please ensure config.yml file exists at: {}".format(yml))
+
+        # Get a list of cases outside the visit window that should be included.
+        with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
+            site_change_map = yaml.load(fi).get('site_change')
+            export_measures_map = site_change_map.get('export_measures')
+        if redcap_subject in export_measures_map.iterkeys():
+            visit_case_id_map = export_measures_map.get(redcap_subject)
+            if visit_code in visit_case_id_map.iterkeys():
+                case_id_map = visit_case_id_map.get(visit_code)
+                subject_code = case_id_map.get('subject')
+                # Todo: Test how to swap site.
+
         demographics = [
             ['subject', subject_code],
             ['arm', arm_code],
