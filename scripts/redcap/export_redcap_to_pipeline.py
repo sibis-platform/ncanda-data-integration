@@ -349,12 +349,13 @@ def create_datadicts(datadict_dir):
                               'mri_diffusion_age', 'mri_restingstate_age',
                               'exceeds_bl_drinking', 'siblings_enrolled_yn',
                               'siblings_id_first', 'hispanic', 'race',
-                              'race_label']
+                              'race_label', 'participant_id', 'scanner']
 
     # First two entries are extracted from SubjectID
     export_form_list = ['basic_demographics', 'basic_demographics',
                         'basic_demographics', 'mri_report', 'mri_report',
                         'mri_report', 'basic_demographics',
+                        'basic_demographics', 'basic_demographics',
                         'basic_demographics', 'basic_demographics',
                         'basic_demographics', 'basic_demographics',
                         'basic_demographics']
