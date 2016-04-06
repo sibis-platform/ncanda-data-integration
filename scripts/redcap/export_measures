@@ -9,9 +9,9 @@ import os
 import re
 import sys
 import argparse
-
 import datetime
 
+import yaml
 import pandas
 import redcap
 import pyxnat
@@ -199,11 +199,53 @@ for [key,row] in visit_log_redcap.iterrows():
                         if args.verbose:
                             print "Event",key[1],"is not supported yet."
 
-                    if arm_code != None:
-                        subject_datadir = os.path.join( args.pipelinedir, subject_datadir_rel )
-                        rcpipeline.export( redcap_project, key, this_subject_data, visit_age, row, arm_code, visit_code, subject_xnat_id, subject_datadir, forms_by_event_dict[key[1]], select_exports=select_exports, verbose=args.verbose )
+                    if arm_code:
+                        subject_datadir = os.path.join(args.pipelinedir,
+                                                       subject_datadir_rel)
 
-                        # Write report of forms locked for this subject, arm, visit
+                        # map the redcap subject key to readable vars
+                        redcap_subject, redcap_event = key
+                        site = redcap_subject[0]
+
+                        # Handle mapping demographic info for subjects that
+                        # changed site
+                        if redcap_subject in export_measures_map.iterkeys():
+                            # Only set for visits in the past
+                            visit_case_id_map = export_measures_map.get(
+                                redcap_subject)
+                            if visit_code in visit_case_id_map.iterkeys():
+                                case_id_map = visit_case_id_map.get(visit_code)
+                                # Use correct case id (NCANDA_S00001)
+                                correct_subject_code = case_id_map.get(
+                                    'subject')
+                                # Make sure results goto the correct directory
+                                subject_datadir = subject_datadir.replace(
+                                    subject_xnat_id,
+                                    correct_subject_code)
+                                subject_xnat_id = correct_subject_code
+                            else:
+                                # update with default info for future events
+                                defaults = visit_case_id_map.get('default')
+                                site = defaults.get('site')
+
+                        # Export measures from RECap into the pipeline.
+                        rcpipeline.export(redcap_project,
+                                          site,
+                                          redcap_subject,
+                                          redcap_event,
+                                          this_subject_data,
+                                          visit_age,
+                                          row,
+                                          arm_code,
+                                          visit_code,
+                                          subject_xnat_id,
+                                          subject_datadir,
+                                          forms_by_event_dict[key[1]],
+                                          select_exports=select_exports,
+                                          verbose=args.verbose)
+
+                        # Write report of forms locked for this subject, arm,
+                        # visit
                         if args.locked_form_report:
                             if args.verbose:
                                 print "Creating a report of locked forms for: " \
