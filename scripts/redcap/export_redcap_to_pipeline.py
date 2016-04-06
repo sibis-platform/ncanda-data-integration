@@ -120,7 +120,7 @@ def export(redcap_project, site, subject, event, subject_data, visit_age,
             ['hispanic', code_to_label_dict['hispanic'][hispanic_code][0:1]],
             ['race', race_code],
             ['race_label', code_to_label_dict['race'][race_code],
-            ['subject_site_id', subject],
+            ['subject_id', subject],
             ['mfg', mfg[site]]]
 
         if race_code == '6':
