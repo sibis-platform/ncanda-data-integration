@@ -99,15 +99,13 @@ def export(redcap_project, site, subject, event, subject_data, visit_age,
         race_code = re.sub('(.0)|(nan)', '', str(subject_data['race']))
 
         # scanner manufacturer map
-        mfg = dict(A='S', B='G', C='G', D='S', E='G')
+        mfg = dict(A='siemens', B='ge', C='ge', D='siemens', E='ge')
 
         demographics = [
             ['subject', subject_code],
             ['arm', arm_code],
             ['visit', visit_code],
             ['site', site],
-            ['site_label', subject],
-            ['mfg', mfg[site]],
             ['sex', subject[8]],
             ['visit_age', truncate_age(visit_age)],
             ['mri_structural_age', truncate_age(visit_data['mri_t1_age'])],
@@ -121,7 +119,9 @@ def export(redcap_project, site, subject, event, subject_data, visit_age,
             ['siblings_id_first', subject_data['siblings_id1']],
             ['hispanic', code_to_label_dict['hispanic'][hispanic_code][0:1]],
             ['race', race_code],
-            ['race_label', code_to_label_dict['race'][race_code]]
+            ['race_label', code_to_label_dict['race'][race_code]],
+            ['participant_id', subject],
+            ['scanner', mfg[site]],
         ]
 
         if race_code == '6':
@@ -349,12 +349,13 @@ def create_datadicts(datadict_dir):
                               'mri_diffusion_age', 'mri_restingstate_age',
                               'exceeds_bl_drinking', 'siblings_enrolled_yn',
                               'siblings_id_first', 'hispanic', 'race',
-                              'race_label']
+                              'race_label', 'participant_id', 'scanner']
 
     # First two entries are extracted from SubjectID
     export_form_list = ['basic_demographics', 'basic_demographics',
                         'basic_demographics', 'mri_report', 'mri_report',
                         'mri_report', 'basic_demographics',
+                        'basic_demographics', 'basic_demographics',
                         'basic_demographics', 'basic_demographics',
                         'basic_demographics', 'basic_demographics',
                         'basic_demographics']
