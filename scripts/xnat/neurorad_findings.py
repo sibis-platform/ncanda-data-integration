@@ -175,11 +175,13 @@ def main(args=None):
 
     elif args.report_type == 'correct_dvd_date':
         dates_df = pd.read_csv(args.file_to_reset_datetodvd)
-        results = dates_df
+        result = pd.DataFrame(index=['Subject'], columns=['project', 'subject_id', 'experiment_id',
+                 'site_experiment_id', 'datetodvd', 'findingsdate'])
+        result = result.fillna(0)
         for subject in df['subject_id'].tolist():
-            if args.verbose:
-                print "Checking for {}".format(subject)
             if subject in dates_df['mri_xnat_sid'].tolist():
+                if args.verbose:
+                    print "Checking for {}".format(subject)
                 eids = dates_df[dates_df['mri_xnat_sid'] == subject]['mri_xnat_eids'].tolist()
                 date = dates_df[dates_df['mri_xnat_sid'] == subject]['mri_datetodvd'].tolist()
                 if eids != []:
