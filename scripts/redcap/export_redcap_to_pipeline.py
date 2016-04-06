@@ -6,16 +6,12 @@
 ##
 
 import os
-import os.path
-import glob
 import re
+import glob
 import time
 import filecmp
 
-import yaml
 import pandas
-
-import redcap
 
 
 # Truncate age to 2 digits for increased identity protection
@@ -64,24 +60,9 @@ def safe_csv_export(df, fname, verbose=False):
 
 
 # Export selected REDCap data to pipeline/distribution directory
-def export(redcap_project, redcap_key, subject_data, visit_age, visit_data,
-           arm_code, visit_code, subject_code, subject_datadir,
+def export(redcap_project, site, subject, event, subject_data, visit_age,
+           visit_data, arm_code, visit_code, subject_code, subject_datadir,
            forms_this_event, select_exports=None, verbose=False):
-    redcap_subject, redcap_event = redcap_key
-
-    # Site changes are mapped here to the correct case identifier.
-    # Get the sibis config
-    yml = os.path.join(os.path.expanduser("~"), '.server_config/config.yml')
-    with open(yml, 'r') as fi:
-        sibis_config = yaml.load(fi).get('operations')
-    if not sibis_config:
-        raise IOError(
-            "Please ensure config.yml file exists at: {}".format(yml))
-
-    # Get a map of subjects that changed sited
-    with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
-        site_change_map = yaml.load(fi).get('site_change')
-        export_measures_map = site_change_map.get('export_measures')
 
     # Mark subjects/visits that have QA completed by creating a hidden marker
     # file
@@ -100,30 +81,9 @@ def export(redcap_project, redcap_key, subject_data, visit_age, visit_data,
         except:
             print "ERROR: unable to remove QA marker file", qafile_path
 
-    # site - first letter for the site id
-    site = redcap_subject[0]
-
     # Check if the "measures" subdirectory already exists - this is where all
     # the csv files go. Create it if necessary.
     measures_dir = os.path.join(subject_datadir, 'measures')
-
-    # Handle mapping demographic info for subjects that changed site
-    if redcap_subject in export_measures_map.iterkeys():
-        # Only set for visits in the past
-        visit_case_id_map = export_measures_map.get(redcap_subject)
-        if visit_code in visit_case_id_map.iterkeys():
-            case_id_map = visit_case_id_map.get(visit_code)
-            # Use correct case id (NCANDA_S00001)
-            correct_subject_code = case_id_map.get('subject')
-            # Make sure results goto the correct directory
-            measures_dir = measures_dir.replace(subject_code,
-                                                correct_subject_code)
-            subject_code = correct_subject_code
-        else:
-            # update with default info for future events
-            defaults = visit_case_id_map.get('default')
-            site = defaults.get('site')
-
     if not os.path.exists(measures_dir):
         os.makedirs(measures_dir)
 
@@ -146,9 +106,9 @@ def export(redcap_project, redcap_key, subject_data, visit_age, visit_data,
             ['arm', arm_code],
             ['visit', visit_code],
             ['site', site],
-            ['site_label', redcap_subject],
-            ['mfg', mfg[redcap_subject[0]]],
-            ['sex', redcap_subject[8]],
+            ['site_label', subject],
+            ['mfg', mfg[site]],
+            ['sex', subject[8]],
             ['visit_age', truncate_age(visit_age)],
             ['mri_structural_age', truncate_age(visit_data['mri_t1_age'])],
             ['mri_diffusion_age', truncate_age(visit_data['mri_dti_age'])],
@@ -189,8 +149,8 @@ def export(redcap_project, redcap_key, subject_data, visit_age, visit_data,
             export_list.append(export_name)
 
     all_records = redcap_project.export_records(fields=all_fields,
-                                                records=[redcap_subject],
-                                                events=[redcap_event],
+                                                records=[subject],
+                                                events=[event],
                                                 format='df')
 
     # Now go form by form and export data
