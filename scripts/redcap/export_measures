@@ -5,24 +5,23 @@
 ##  See COPYING file distributed along with the package for the copyright and license terms.
 ##
 
-import argparse
-import sys
 import os
 import re
-import subprocess
-
-import time
+import sys
+import argparse
 import datetime
-date_format_ymd = '%Y-%m-%d'
 
+import yaml
 import pandas
-
 import redcap
 import pyxnat
 
 import export_mr_sessions_pipeline as mrpipeline
 import export_redcap_to_pipeline as rcpipeline
 import redcap_form_locker as rclocker
+
+# Time format
+date_format_ymd = '%Y-%m-%d'
 
 # Setup command line parser
 parser = argparse.ArgumentParser( description="For all subjects and visits in the REDCap database, export demographics, clinical measures, NP test scores, and other configured information into the pipeline directory tree.", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
@@ -37,12 +36,27 @@ parser.add_argument( "--datadict-dir", help="Provides a directory in which the s
 parser.add_argument( "pipelinedir", help="Root directory of the image analysis pipeline.", action="store")
 args = parser.parse_args()
 
+# Site changes are mapped here to the correct case identifier.
+# Get the sibis config
+yml = os.path.join(os.path.expanduser("~"), '.server_config/config.yml')
+with open(yml, 'r') as fi:
+    sibis_config = yaml.load(fi).get('operations')
+if not sibis_config:
+    raise IOError(
+        "Please ensure config.yml file exists at: {}".format(yml))
+
+# Get a map of subjects that changed sited
+with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
+    site_change_map = yaml.load(fi).get('site_change')
+    export_measures_map = site_change_map.get('export_measures')
+
 # Open connection with REDCap server
 redcap_token_path = os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' )
 redcap_token_file = open( redcap_token_path, 'r' )
 redcap_token = redcap_token_file.read().strip()
 
-redcap_project = redcap.Project( 'https://ncanda.sri.com/redcap/api/', redcap_token, verify_ssl=False)
+redcap_project = redcap.Project( 'https://ncanda.sri.com/redcap/api/',
+                                 redcap_token, verify_ssl=False)
 form_event_mapping = redcap_project.export_fem( format='df' )
 
 # Organize REDCap metadata, e.g., filter all confidential fields out of export lists, and make code-to-label lookup dictionaries
@@ -97,11 +111,23 @@ def days_between_dates( date_from_str, date_to_str, date_format=date_format_ymd 
 # Main program loop
 #
 baseline_events = ['baseline_visit_arm_1','baseline_visit_arm_4']
-subject_data = redcap_project.export_records(fields=['dob', 'exclude', 'enroll_exception', 'siblings_enrolled', 'siblings_id1', 'hispanic', 'race', 'race_other_code'], events=baseline_events, event_name='unique', format='df' )
-subject_data = pandas.concat( [ subject_data.xs( event, level=1 ) for event in baseline_events ] )
+subject_fields = ['study_id', 'dob',  'exclude', 'enroll_exception',
+                  'siblings_enrolled', 'siblings_id1', 'hispanic', 'race',
+                  'race_other_code']
+subject_data = redcap_project.export_records(fields=subject_fields,
+                                             events=baseline_events,
+                                             event_name='unique',
+                                             format='df')
+subject_data = pandas.concat([subject_data.xs(event, level=1) for event in baseline_events])
 subject_data['siblings_id1'] = subject_data['siblings_id1'].map( lambda x: subject_label_to_sid_dict[x] if x in subject_label_to_sid_dict.keys() else '' )
 
-visit_log_redcap = redcap_project.export_records(fields=['redcap_data_access_group', 'visit_date', 'mri_qa_completed', 'mri_t1_age', 'mri_dti_age', 'mri_rsfmri_age' ], event_name='unique', export_data_access_groups=True, format='df' )
+visit_log_fields = ['study_id', 'redcap_data_access_group', 'visit_date',
+                    'mri_qa_completed', 'mri_t1_age', 'mri_dti_age',
+                    'mri_rsfmri_age']
+visit_log_redcap = redcap_project.export_records(fields=visit_log_fields,
+                                                 event_name='unique',
+                                                 export_data_access_groups=True,
+                                                 format='df')
 
 if args.site:
     sites = args.site.lower().split( ',' )
@@ -173,11 +199,53 @@ for [key,row] in visit_log_redcap.iterrows():
                         if args.verbose:
                             print "Event",key[1],"is not supported yet."
 
-                    if arm_code != None:
-                        subject_datadir = os.path.join( args.pipelinedir, subject_datadir_rel )
-                        rcpipeline.export( redcap_project, key, this_subject_data, visit_age, row, arm_code, visit_code, subject_xnat_id, subject_datadir, forms_by_event_dict[key[1]], select_exports=select_exports, verbose=args.verbose )
+                    if arm_code:
+                        subject_datadir = os.path.join(args.pipelinedir,
+                                                       subject_datadir_rel)
 
-                        # Write report of forms locked for this subject, arm, visit
+                        # map the redcap subject key to readable vars
+                        redcap_subject, redcap_event = key
+                        site = redcap_subject[0]
+
+                        # Handle mapping demographic info for subjects that
+                        # changed site
+                        if redcap_subject in export_measures_map.iterkeys():
+                            # Only set for visits in the past
+                            visit_case_id_map = export_measures_map.get(
+                                redcap_subject)
+                            if visit_code in visit_case_id_map.iterkeys():
+                                case_id_map = visit_case_id_map.get(visit_code)
+                                # Use correct case id (NCANDA_S00001)
+                                correct_subject_code = case_id_map.get(
+                                    'subject')
+                                # Make sure results goto the correct directory
+                                subject_datadir = subject_datadir.replace(
+                                    subject_xnat_id,
+                                    correct_subject_code)
+                                subject_xnat_id = correct_subject_code
+                            else:
+                                # update with default info for future events
+                                defaults = visit_case_id_map.get('default')
+                                site = defaults.get('site')
+
+                        # Export measures from RECap into the pipeline.
+                        rcpipeline.export(redcap_project,
+                                          site,
+                                          redcap_subject,
+                                          redcap_event,
+                                          this_subject_data,
+                                          visit_age,
+                                          row,
+                                          arm_code,
+                                          visit_code,
+                                          subject_xnat_id,
+                                          subject_datadir,
+                                          forms_by_event_dict[key[1]],
+                                          select_exports=select_exports,
+                                          verbose=args.verbose)
+
+                        # Write report of forms locked for this subject, arm,
+                        # visit
                         if args.locked_form_report:
                             if args.verbose:
                                 print "Creating a report of locked forms for: " \
