@@ -106,8 +106,6 @@ def export(redcap_project, site, subject, event, subject_data, visit_age,
             ['arm', arm_code],
             ['visit', visit_code],
             ['site', site],
-            ['site_label', subject],
-            ['mfg', mfg[site]],
             ['sex', subject[8]],
             ['visit_age', truncate_age(visit_age)],
             ['mri_structural_age', truncate_age(visit_data['mri_t1_age'])],
@@ -121,7 +119,9 @@ def export(redcap_project, site, subject, event, subject_data, visit_age,
             ['siblings_id_first', subject_data['siblings_id1']],
             ['hispanic', code_to_label_dict['hispanic'][hispanic_code][0:1]],
             ['race', race_code],
-            ['race_label', code_to_label_dict['race'][race_code]]
+            ['race_label', code_to_label_dict['race'][race_code],
+            ['subject_site_id', subject],
+            ['mfg', mfg[site]]]
 
         if race_code == '6':
             # if other race is specified, mark race label with manually curated
