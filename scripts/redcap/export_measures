@@ -5,24 +5,23 @@
 ##  See COPYING file distributed along with the package for the copyright and license terms.
 ##
 
-import argparse
-import sys
 import os
 import re
-import subprocess
+import sys
+import argparse
 
-import time
 import datetime
-date_format_ymd = '%Y-%m-%d'
 
 import pandas
-
 import redcap
 import pyxnat
 
 import export_mr_sessions_pipeline as mrpipeline
 import export_redcap_to_pipeline as rcpipeline
 import redcap_form_locker as rclocker
+
+# Time format
+date_format_ymd = '%Y-%m-%d'
 
 # Setup command line parser
 parser = argparse.ArgumentParser( description="For all subjects and visits in the REDCap database, export demographics, clinical measures, NP test scores, and other configured information into the pipeline directory tree.", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
@@ -36,6 +35,20 @@ parser.add_argument( "-e", "--exclude", help="Exports Meausres for excluded subj
 parser.add_argument( "--datadict-dir", help="Provides a directory in which the script creates data dictionaries for all supported export files.", action="store", default=None )
 parser.add_argument( "pipelinedir", help="Root directory of the image analysis pipeline.", action="store")
 args = parser.parse_args()
+
+# Site changes are mapped here to the correct case identifier.
+# Get the sibis config
+yml = os.path.join(os.path.expanduser("~"), '.server_config/config.yml')
+with open(yml, 'r') as fi:
+    sibis_config = yaml.load(fi).get('operations')
+if not sibis_config:
+    raise IOError(
+        "Please ensure config.yml file exists at: {}".format(yml))
+
+# Get a map of subjects that changed sited
+with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
+    site_change_map = yaml.load(fi).get('site_change')
+    export_measures_map = site_change_map.get('export_measures')
 
 # Open connection with REDCap server
 redcap_token_path = os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' )
