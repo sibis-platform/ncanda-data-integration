@@ -246,7 +246,7 @@ for [key,row] in visit_log_redcap.iterrows():
 
                         # Write report of forms locked for this subject, arm,
                         # visit
-                        if args.locked_form_report:
+                        if args.locked_form_report and arm_code == 'standard':
                             if args.verbose:
                                 print "Creating a report of locked forms for: " \
                                       "{0}, {1}, {2}".format(subject_xnat_id, arm_code, visit_code)
