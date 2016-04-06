@@ -99,7 +99,7 @@ def export(redcap_project, site, subject, event, subject_data, visit_age,
         race_code = re.sub('(.0)|(nan)', '', str(subject_data['race']))
 
         # scanner manufacturer map
-        mfg = dict(A='S', B='G', C='G', D='S', E='G')
+        mfg = dict(A='siemens', B='ge', C='ge', D='siemens', E='ge')
 
         demographics = [
             ['subject', subject_code],
@@ -119,9 +119,10 @@ def export(redcap_project, site, subject, event, subject_data, visit_age,
             ['siblings_id_first', subject_data['siblings_id1']],
             ['hispanic', code_to_label_dict['hispanic'][hispanic_code][0:1]],
             ['race', race_code],
-            ['race_label', code_to_label_dict['race'][race_code],
-            ['subject_id', subject],
-            ['mfg', mfg[site]]]
+            ['race_label', code_to_label_dict['race'][race_code]],
+            ['participant_id', subject],
+            ['scanner', mfg[site]],
+        ]
 
         if race_code == '6':
             # if other race is specified, mark race label with manually curated
