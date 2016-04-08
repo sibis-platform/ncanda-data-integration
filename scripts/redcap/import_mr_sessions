@@ -497,7 +497,7 @@ subject_data = redcap_project.export_records(fields=['study_id',
                                              event_name='unique',
                                              format='df')
 # Gather all the subject data.
-subject_data = pandas.concat([subject_data.xs(event, level=1)
+subject_data = pd.concat([subject_data.xs(event, level=1)
                               for event in baseline_events])
 
 # Get the sibling id
@@ -514,6 +514,8 @@ visit_log_redcap = redcap_project.export_records(
     event_name='unique',
     export_data_access_groups=True,
     format='df')
+
+# Limit export by site.
 if args.site:
     sites = args.site.lower().split( ',' )
     visit_log_redcap = visit_log_redcap[ visit_log_redcap['redcap_data_access_group'].map( lambda dag: dag in sites ) ]
@@ -615,8 +617,8 @@ for [key, row] in mr_sessions_redcap.iterrows():
             # Update XNAT SID for subjects that changed sites
             subject_label = key[0]
             site_change = special_cases.get('site_change')
-            export_measures = site_change.get('export_mesaures')
-            if export_measures and subject_label in export_measures.iterkeys():
+            export_measures = site_change.get('export_measures')
+            if subject_label in export_measures.iterkeys():
                 default = export_measures.get(subject_label).get('default')
                 correct_sid = default.get('subject')
                 xnat_data.update(mri_xnat_sid=correct_sid)
