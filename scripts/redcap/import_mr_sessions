@@ -438,9 +438,18 @@ def get_subject_next_visit_date( subject, after_visit_date ):
 #
 # Main program loop
 #
-baseline_events = ['baseline_visit_arm_1','baseline_visit_arm_4'] # these are the "baseline" events of the study arms that have them
-subject_data = redcap_project.export_records(fields=['dob', 'exclude', 'enroll_exception', 'siblings_enrolled', 'siblings_id1'], events=baseline_events, event_name='unique', format='df' )
-subject_data = pandas.concat( [ subject_data.xs( event, level=1 ) for event in baseline_events ] )
+# these are the "baseline" events of the study arms that have them
+baseline_events = ['baseline_visit_arm_1', 'baseline_visit_arm_4']
+subject_data = redcap_project.export_records(fields=['study_id',
+                                                     'dob',
+                                                     'exclude',
+                                                     'enroll_exception',
+                                                     'siblings_enrolled',
+                                                     'siblings_id1'],
+                                             events=baseline_events,
+                                             event_name='unique',
+                                             format='df')
+subject_data = pandas.concat([subject_data.xs( event, level=1) for event in baseline_events])
 subject_data['siblings_id1'] = subject_data['siblings_id1'].map( lambda x: subject_label_to_sid_dict[x] if x in subject_label_to_sid_dict.keys() else '' )
 
 visit_log_redcap = redcap_project.export_records(fields=['redcap_data_access_group', 'visit_date', 'visit_ignore', 'mr_session_report_complete', 'mri_xnat_sid', 'mri_stroop_complete', 'mri_inspection'], event_name='unique', export_data_access_groups=True, format='df' )
@@ -497,6 +506,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                                       get_subject_next_visit_date( key[0], visit_date ),
                                       row['mri_inspection___completed'],
                                       verbose=args.verbose)
+
 
             if xnat_data['mri_xnat_eids'] != '':
                 # Check whether this MR session also has Stroop data
