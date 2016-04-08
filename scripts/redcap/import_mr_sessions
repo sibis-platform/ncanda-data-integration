@@ -292,7 +292,10 @@ def get_xnat_data(redcap_key, xnat, sid, pid, visit_date, date_of_birth,
         visit_date_plusNd = next_visit_date
 
     if args.verbose:
-        print("Checking {} for {} with visit date {} to {}".format(subject, event, visit_date, visit_date_plusNd))
+        print("Checking {} for {} with visit date {} to {}".format(subject,
+                                                                   event,
+                                                                   visit_date,
+                                                                   visit_date_plusNd))
 
     # Get project and subject IDs for this subject by name
     if subject not in subject_project_dict.keys():
@@ -307,18 +310,24 @@ def get_xnat_data(redcap_key, xnat, sid, pid, visit_date, date_of_birth,
     if pid:
         xnat_pid = pid
 
-    # Get all experiments for this subject within the given range of the visit date
-    xnat_session_data = get_sessions_in_range(xnat, subject, xnat_pid, xnat_sid, visit_date, visit_date_plusNd)
+    # Get all experiments for this subject within the given range of the visit
+    # date
+    xnat_session_data = get_sessions_in_range(xnat,
+                                              subject,
+                                              xnat_pid,
+                                              xnat_sid,
+                                              visit_date,
+                                              visit_date_plusNd)
     if verbose:
         print "XNAT Session Data:", xnat_session_data
     if not xnat_session_data:
         if today > visit_date_plusNd:
             error='Missing MRI for Subject with visit date.'
             sibis.logging(xnat_sid,error,
-                         project_id=xnat_pid,
-                         experiment_site_id=subject_label,
-                         visit_id=event,
-                         visit_date=visit_date)
+                          project_id=xnat_pid,
+                          experiment_site_id=subject_label,
+                          visit_id=event,
+                          visit_date=visit_date)
         return result
 
     # Get the experiment IDs for all sessions in the given range
