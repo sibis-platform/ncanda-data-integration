@@ -255,7 +255,7 @@ def encode_session_and_scan( session_and_scan, type_list ):
 today = time.strftime(date_format_ymd)
 
 
-def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_birth,
+def get_xnat_data(redcap_key, xnat, sid, pid, visit_date, date_of_birth,
                   next_visit_date, mri_inspection_completed, verbose=None):
     subject = redcap_key[0]
     event = redcap_key[1]
@@ -264,7 +264,7 @@ def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_b
 
     # Initialize result as "nothing there"
     result['mr_session_report_complete'] = ''
-    result['mri_xnat_sid'] = ''
+    result['mri_xnat_sid'] = sid
     result['mri_xnat_eids'] = ''
     result['mri_qa_completed'] = ''
     result['mri_t1_date'] = ''
@@ -305,37 +305,12 @@ def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_b
             print("Subject {} cannot be found in XNAT.".format(subject))
         return result
 
-    # Use default lookup
-    if defaultFlag:
-        xnat_sid, xnat_pid = subject_project_dict[subject]
-    else :
-        xnat_sid = sid
-        xnat_pid = pid
-
-    # Get all experiments for this subject within the given range of the visit
-    # date
-    xnat_session_data = get_sessions_in_range(xnat,
-                                              subject,
-                                              xnat_pid,
-                                              xnat_sid,
-                                              visit_date,
-                                              visit_date_plusNd)
-    # # If no results are returned, try using sid and pid (e.g., this is used
-    # # when subjects switch sites)
-    # if not xnat_session_data:
-    #     xnat_sid = sid
-    #     xnat_pid = pid
-    #     xnat_session_data = get_sessions_in_range(xnat,
-    #                                               subject,
-    #                                               xnat_pid,
-    #                                               xnat_sid,
-    #                                               visit_date,
-    #                                               visit_date_plusNd)
-    # If subject changed sites sid was passed in
+    xnat_sid, xnat_pid = subject_project_dict[subject]
     if sid:
-        result['mri_xnat_sid'] = sid
-    else:
-        result['mri_xnat_sid'] = xnat_sid
+        xnat_sid = sid
+    result['mri_xnat_sid'] = xnat_sid
+    if pid:
+        xnat_pid = pid
 
     if verbose:
         print "XNAT Session Data:", xnat_session_data
@@ -577,28 +552,12 @@ for [key, row] in mr_sessions_redcap.iterrows():
             sid = ''
             pid = ''
             subject_label = key[0]
-            event = key[1]
             site_change = special_cases.get('site_change')
             export_measures = site_change.get('export_measures')
-            defaultFlag = True
             if subject_label in export_measures.iterkeys():
-                sub_map = export_measures.get(subject_label)
-                if event == 'baseline_visit_arm_1':
-                    id_map = sub_map.get('baseline')
-                    defaultFlag = False
-                elif event == '1y_visit_arm_1' and sub_map.get('followup_1y'):
-                    id_map = sub_map.get('followup_1y')
-                    defaultFlag = False
-                elif event == '2y_visit_arm_1' and sub_map.get('followup_2y'):
-                    id_map = sub_map.get('followup_2y')
-                    defaultFlag = False
-                elif event == '3y_visit_arm_1' and sub_map.get('followup_3y'):
-                    id_map = sub_map.get('followup_3y')
-                    defaultFlag = False
-                if not id_map:
-                    id_map = sub_map.get('default')
-                correct_sid = id_map.get('subject')
-                correct_pid = id_map.get('project')
+                default = export_measures.get(subject_label).get('default')
+                correct_sid = default.get('subject')
+                correct_pid = default.get('project')
                 sid = correct_sid
                 pid = correct_pid
 
@@ -608,21 +567,11 @@ for [key, row] in mr_sessions_redcap.iterrows():
                                       xnat,
                                       sid,
                                       pid,
-                                      defaultFlag,
                                       visit_date,
                                       this_subject_data['dob'],
                                       next_visit_date,
                                       row['mri_inspection___completed'],
                                       verbose=args.verbose)
-            # Update XNAT SID for subjects that changed sites
-            subject_label = key[0]
-            site_change = special_cases.get('site_change')
-            export_measures = site_change.get('export_measures')
-            if subject_label in export_measures.iterkeys():
-                default = export_measures.get(subject_label).get('default')
-                correct_sid = default.get('subject')
-                xnat_data.update(mri_xnat_sid=correct_sid)
-
 
             if xnat_data['mri_xnat_eids'] != '':
                 # Check whether this MR session also has Stroop data
