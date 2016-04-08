@@ -612,6 +612,14 @@ for [key, row] in mr_sessions_redcap.iterrows():
                                       next_visit_date,
                                       row['mri_inspection___completed'],
                                       verbose=args.verbose)
+            # Update XNAT SID for subjects that changed sites
+            subject_label = key[0]
+            site_change = special_cases.get('site_change')
+            export_measures = site_change.get('export_mesaures')
+            if export_measures and subject_label in export_measures.iterkeys():
+                default = export_measures.get(subject_label).get('default')
+                correct_sid = default.get('subject')
+                xnat_data.update(mri_xnat_sid=correct_sid)
 
 
             if xnat_data['mri_xnat_eids'] != '':
