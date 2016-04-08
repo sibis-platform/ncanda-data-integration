@@ -217,7 +217,7 @@ def to_redcap( upload_records ):
         for e in error:
             elist = e.split(",")
             sibis.logging(elist[0][0:11],elist[3],
-                        event=elist[0][13:27]
+                        event=elist[0][13:27],
                         variable=elist[1])
         #print "WARNING: Record may be locked... {0}".format(e)
     return 0
