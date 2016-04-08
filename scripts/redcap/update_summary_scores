@@ -139,7 +139,7 @@ for instrument in instrument_list:
         if args.verbose:
             print len(scored_records), 'scored records to upload'
 
-        if args.no_upload
+        if args.no_upload:
             scored_records.to_csv(args.no_upload)
         else:
             try:
