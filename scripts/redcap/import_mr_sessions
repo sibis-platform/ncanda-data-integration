@@ -255,7 +255,8 @@ def encode_session_and_scan( session_and_scan, type_list ):
 today = time.strftime(date_format_ymd)
 
 
-def get_xnat_data(redcap_key, xnat, visit_date, date_of_birth, next_visit_date, mri_inspection_completed, verbose=None):
+def get_xnat_data(redcap_key, xnat, sid, pid, visit_date, date_of_birth,
+                  next_visit_date, mri_inspection_completed, verbose=None):
     subject = redcap_key[0]
     event = redcap_key[1]
 
@@ -263,7 +264,7 @@ def get_xnat_data(redcap_key, xnat, visit_date, date_of_birth, next_visit_date, 
 
     # Initialize result as "nothing there"
     result['mr_session_report_complete'] = ''
-    result['mri_xnat_sid'] = ''
+    result['mri_xnat_sid'] = sid
     result['mri_xnat_eids'] = ''
     result['mri_qa_completed'] = ''
     result['mri_t1_date'] = ''
@@ -300,7 +301,11 @@ def get_xnat_data(redcap_key, xnat, visit_date, date_of_birth, next_visit_date, 
         return result
 
     xnat_sid, xnat_pid = subject_project_dict[subject]
+    if sid:
+        xnat_sid = sid
     result['mri_xnat_sid'] = xnat_sid
+    if pid:
+        xnat_pid = pid
 
     # Get all experiments for this subject within the given range of the visit date
     xnat_session_data = get_sessions_in_range(xnat, subject, xnat_pid, xnat_sid, visit_date, visit_date_plusNd)
@@ -531,30 +536,37 @@ for [key, row] in mr_sessions_redcap.iterrows():
         if float(row['visit_ignore___yes']) != 1:
             error = 'Missing visit date for subject with visit data.'
             sibis.logging(key[0], error,
-                         visit_id=key[1],
-                         visit_date=visit_date)
+                          visit_id=key[1],
+                          visit_date=visit_date)
     else:
         this_subject_data = subject_data.ix[key[0]]
         if str( this_subject_data['dob'] ) == 'nan':
             print "Missing birthdate for subject %s" % key[0]
         else:
-            visit_age = days_between_dates( this_subject_data['dob'], visit_date ) / 365.242
-            xnat_data = get_xnat_data(key,
-                                      xnat,
-                                      visit_date,
-                                      this_subject_data['dob'],
-                                      get_subject_next_visit_date( key[0], visit_date ),
-                                      row['mri_inspection___completed'],
-                                      verbose=args.verbose)
-            # Update XNAT SID for subjects that changed sites
+            # Update XNAT SID and PID for subjects that changed sites
+            sid = ''
+            pid = ''
             subject_label = key[0]
             site_change = special_cases.get('site_change')
             export_measures = site_change.get('export_measures')
             if subject_label in export_measures.iterkeys():
                 default = export_measures.get(subject_label).get('default')
                 correct_sid = default.get('subject')
-                xnat_data.update(mri_xnat_sid=correct_sid)
+                correct_pid = default.get('project')
+                sid = correct_sid
+                pid = correct_pid
 
+            visit_age = days_between_dates( this_subject_data['dob'], visit_date ) / 365.242
+            next_visit_date = get_subject_next_visit_date(key[0], visit_date)
+            xnat_data = get_xnat_data(key,
+                                      xnat,
+                                      sid,
+                                      pid,
+                                      visit_date,
+                                      this_subject_data['dob'],
+                                      next_visit_date,
+                                      row['mri_inspection___completed'],
+                                      verbose=args.verbose)
 
             if xnat_data['mri_xnat_eids'] != '':
                 # Check whether this MR session also has Stroop data
