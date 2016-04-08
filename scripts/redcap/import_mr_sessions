@@ -312,6 +312,14 @@ def get_xnat_data(redcap_key, xnat, sid, pid, visit_date, date_of_birth,
     if pid:
         xnat_pid = pid
 
+    # Get all experiments for this subject within the given range of the visit
+    # date
+    xnat_session_data = get_sessions_in_range(xnat,
+                                              subject,
+                                              xnat_pid,
+                                              xnat_sid,
+                                              visit_date,
+                                              visit_date_plusNd)
     if verbose:
         print "XNAT Session Data:", xnat_session_data
     if not xnat_session_data:
