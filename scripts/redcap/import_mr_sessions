@@ -308,10 +308,10 @@ def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_b
     # Use default lookup
     if defaultFlag:
         xnat_sid, xnat_pid = subject_project_dict[subject]
-    else : 
+    else :
         xnat_sid = sid
         xnat_pid = pid
-        
+
     # Get all experiments for this subject within the given range of the visit
     # date
     xnat_session_data = get_sessions_in_range(xnat,
@@ -496,26 +496,11 @@ subject_data = redcap_project.export_records(fields=['study_id',
                                              events=baseline_events,
                                              event_name='unique',
                                              format='df')
-# Gather all the subject data.
-subject_data = pd.concat([subject_data.xs(event, level=1)
-                          for event in baseline_events])
 
-# Get the sibling id
-subject_data['siblings_id1'] = subject_data['siblings_id1'].map(get_sibling_id1)
+subject_data = pandas.concat([subject_data.xs( event, level=1) for event in baseline_events])
+subject_data['siblings_id1'] = subject_data['siblings_id1'].map( lambda x: subject_label_to_sid_dict[x] if x in subject_label_to_sid_dict.keys() else '' )
 
-visit_log_redcap = redcap_project.export_records(
-    fields=['study_id',
-            'redcap_data_access_group',
-            'visit_date', 'visit_ignore',
-            'mr_session_report_complete',
-            'mri_xnat_sid',
-            'mri_stroop_complete',
-            'mri_inspection'],
-    event_name='unique',
-    export_data_access_groups=True,
-    format='df')
-
-# Limit export by site.
+visit_log_redcap = redcap_project.export_records(fields=['redcap_data_access_group', 'visit_date', 'visit_ignore', 'mr_session_report_complete', 'mri_xnat_sid', 'mri_stroop_complete', 'mri_inspection'], event_name='unique', export_data_access_groups=True, format='df' )
 if args.site:
     sites = args.site.lower().split( ',' )
     visit_log_redcap = visit_log_redcap[ visit_log_redcap['redcap_data_access_group'].map( lambda dag: dag in sites ) ]
@@ -614,6 +599,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                                       next_visit_date,
                                       row['mri_inspection___completed'],
                                       verbose=args.verbose)
+
 
             if xnat_data['mri_xnat_eids'] != '':
                 # Check whether this MR session also has Stroop data
