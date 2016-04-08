@@ -170,14 +170,14 @@ def export_to_nifti( interface, project, subject, session, session_label, manufa
                 # Clean up - remove temp directory
                 shutil.rmtree( temp_dir )
 
-    for MSG in errorMSG :
-        sibis.logging(subject, "ERROR: {}".format(MSG),
-                      interface=interface,
-                      project=project,
-                      session=session,
-                      session_label=session_label,
-                      manufacturer=manufacturer,
-                      scan=scan,
-                      scantype=scantype)
+    #for MSG in errorMSG :
+    #    sibis.logging(subject, "ERROR: {}".format(MSG),
+    #                  interface=interface,
+    #                  project=project,
+    #                  session=session,
+    #                  session_label=session_label,
+    #                  manufacturer=manufacturer,
+    #                  scan=scan,
+    #                  scantype=scantype)
 
     return errorMSG
