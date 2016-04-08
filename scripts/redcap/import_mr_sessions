@@ -77,7 +77,8 @@ if not sibis_config:
 
 # Get a list of cases outside the visit window that should be included.
 with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
-    exceptions = yaml.load(fi).get('outside_visit_window')
+    special_cases = yaml.load(fi)
+    exceptions = special_cases.get('outside_visit_window')
 
 # Open connection with REDCap server
 redcap_token_path = os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' )
