@@ -8,17 +8,16 @@
 import os
 import re
 import sys
-import json
 import time
 import datetime
 import argparse
 
 import yaml
 import sibis
-import pandas
 import pyxnat
 import redcap
 import requests
+import pandas as pd
 
 import import_mr_sessions_stroop as stroop
 import export_mr_sessions_pipeline as mrpipeline
@@ -42,6 +41,10 @@ parser.add_argument("--site",
                     help="Limit processing by site (SRI, UCSD, OHSU, UPMC, DUKE). Multiple sites can be listed, separated by comma (',')",
                     action="store",
                     default=None )
+parser.add_argument("--site-id",
+                    help="Limit processing by site id (e.g., A-00000-F-1)",
+                    action="store",
+                    default=None)
 parser.add_argument("--pipeline-root-dir",
                     help="Root directory of the image analysis pipeline. Newly detected imaging series will be converted to NIFTI files and put here for processing. ",
                     action="store")
@@ -459,7 +462,7 @@ subject_data = redcap_project.export_records(fields=['study_id',
                                              event_name='unique',
                                              format='df')
 # Gather all the subject data.
-subject_data = pandas.concat([subject_data.xs(event, level=1)
+subject_data = pd.concat([subject_data.xs(event, level=1)
                               for event in baseline_events])
 
 # Get the sibling id
@@ -476,13 +479,27 @@ visit_log_redcap = redcap_project.export_records(
     event_name='unique',
     export_data_access_groups=True,
     format='df')
+
+# Limit export by site.
 if args.site:
     sites = args.site.lower().split( ',' )
     visit_log_redcap = visit_log_redcap[ visit_log_redcap['redcap_data_access_group'].map( lambda dag: dag in sites ) ]
 
+# Limit export by site id (e.g., A-00000-F-1)
+if args.site_id:
+    visit_log_redcap = visit_log_redcap.loc[args.site_id]
+    visit_log_redcap.reset_index(inplace=True)
+    visit_log_redcap['study_id'] = args.site_id
+    visit_log_redcap.set_index(['study_id', 'redcap_event_name'],
+                               inplace=True)
+
 # Select only events that have the "MRI Session Report" form
 mri_events_list = form_event_mapping[form_event_mapping['form_name'] == 'mr_session_report' ]['unique_event_name'].tolist()
-mr_sessions_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda x: x[1] in mri_events_list ) ][['visit_date', 'visit_ignore___yes', 'mr_session_report_complete', 'mri_xnat_sid', 'mri_inspection___completed']]
+get_events = lambda x: x[1] in mri_events_list
+events_filter = visit_log_redcap.index.map(get_events)
+columns = ['visit_date', 'visit_ignore___yes', 'mr_session_report_complete',
+           'mri_xnat_sid', 'mri_inspection___completed']
+mr_sessions_redcap = visit_log_redcap[events_filter][columns]
 
 forms_by_event_dict = dict()
 for event in redcap_project.events:
@@ -532,8 +549,8 @@ for [key, row] in mr_sessions_redcap.iterrows():
             # Update XNAT SID for subjects that changed sites
             subject_label = key[0]
             site_change = special_cases.get('site_change')
-            export_measures = site_change.get('export_mesaures')
-            if export_measures and subject_label in export_measures.iterkeys():
+            export_measures = site_change.get('export_measures')
+            if subject_label in export_measures.iterkeys():
                 default = export_measures.get(subject_label).get('default')
                 correct_sid = default.get('subject')
                 xnat_data.update(mri_xnat_sid=correct_sid)
