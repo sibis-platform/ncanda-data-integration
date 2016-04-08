@@ -496,9 +496,12 @@ subject_data = redcap_project.export_records(fields=['study_id',
                                              events=baseline_events,
                                              event_name='unique',
                                              format='df')
+# Gather all the subject data.
 subject_data = pandas.concat([subject_data.xs(event, level=1)
                               for event in baseline_events])
-subject_data['siblings_id1'] = subject_data['siblings_id1'].map(lambda x: subject_label_to_sid_dict[x] if x in subject_label_to_sid_dict.keys() else '' )
+
+# Get the sibling id
+subject_data['siblings_id1'] = subject_data['siblings_id1'].map(get_sibling_id1)
 
 visit_log_redcap = redcap_project.export_records(
     fields=['study_id',
