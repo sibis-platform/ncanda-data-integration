@@ -8,7 +8,6 @@
 import os
 import re
 import sys
-import json
 import hashlib
 import datetime
 import argparse
@@ -133,12 +132,14 @@ form_prefixes = forms.keys()
 form_names = forms.values()
 
 forms_date_increments = {
-    # PLUS, Evening and Presleep forms same date as entered, Morning form next day
+    # PLUS, Evening and Presleep forms same date as entered, Morning form next
+    # day
     'plus': 0,
     'sleepeve': 0,
     'sleeppre': 0,
     'sleepmor': 1
 }
+
 
 # First REDCap connection for the Summary project (this is where we put data)
 def connect_to_redcap():
@@ -171,30 +172,39 @@ existing_data_fields = [('%s_complete' % form) for form in form_names] + [('%s_m
 existing_data_fields += ['study_id', 'dob', 'redcap_event_name', 'visit_date', 'exclude', 'sleep_date']
 
 # Get list of existing records
-existing_data = rc_summary.export_records(fields=existing_data_fields, event_name='unique', format='df')
+existing_data = rc_summary.export_records(fields=existing_data_fields,
+                                          event_name='unique',
+                                          format='df')
 
-# Save dates of birth for later (these only exist for the 'baseline_visit_arm_1' event,
-# but we need them for other arms as well
-subject_dates_of_birth = pandas.concat([existing_data.xs(event, level=1)['dob'].dropna() for event in ['baseline_visit_arm_1', 'baseline_visit_arm_4']])
+# Save dates of birth for later (these only exist for the 'baseline_visit_arm_1'
+# event, but we need them for other arms as well
+concat = [existing_data.xs(event, level=1)['dob'].dropna()
+          for event in ['baseline_visit_arm_1', 'baseline_visit_arm_4']]
+subject_dates_of_birth = pandas.concat(concat)
 
-# Remove "excluded" cases - need to do that after getting birth dates, just in case.
+# Remove "excluded" cases - need to do that after getting birth dates, just in
+# case.
 if args.no_excluded:
     existing_data = existing_data[existing_data['exclude'] != 1]
 
-# Open connection with REDCap server - first for the laptop import project (data source)
-import_key_file = open(os.path.join( os.path.expanduser("~"), '.server_config/redcap-laptopimport-token'), 'r')
+# Open connection with REDCap server - first for the laptop import project
+# (data source)
+import_key_file = open(os.path.join(os.path.expanduser("~"),
+                                    '.server_config/redcap-laptopimport-token'),
+                       'r')
 import_api_key = import_key_file.read().strip()
-rc_import = redcap.Project('https://ncanda.sri.com/redcap/api/', import_api_key, verify_ssl=False)
+rc_import = redcap.Project('https://ncanda.sri.com/redcap/api/',
+                           import_api_key,
+                           verify_ssl=False)
 
 
 # Upload new data to REDCap
-def to_redcap( upload_records ):
+def to_redcap(upload_records):
     if args.no_upload:
         return 0
-
-    import_respoce = dict()
     try:
-        import_response = rc_summary.import_records(upload_records, overwrite='overwrite')
+        import_response = rc_summary.import_records(upload_records,
+                                                    overwrite='overwrite')
 
         # If there were any errors, try to print them as well as possible
         if 'error' in import_response.keys():
@@ -212,18 +222,13 @@ def to_redcap( upload_records ):
             print import_response
 
     except requests.exceptions.RequestException as e:
-        error = e.replace("{u'error': u'","").replace("'}","").replace('"',"")
-        error = error.split("\\n")
-        for e in error:
-            elist = e.split(",")
-            sibis.logging(elist[0][0:11],elist[3],
-                        event=elist[0][13:27],
-                        variable=elist[1])
-        #print "WARNING: Record may be locked... {0}".format(e)
+        error_id = "Requests Exception: {}".format(hashlib.sha1(e).hexdigest())
+        sibis.logging(error_id, e, note="WARNING: Records may be locked...")
     return 0
 
 
-# Map 'Y' and '1' to '1', map 'N', '2', and '0' to '0', and everything else to 'undefined'
+# Map 'Y' and '1' to '1', map 'N', '2', and '0' to '0', and everything else to
+# 'undefined'
 def map_yn_to_binary(yn):
     if (yn == 'Y') or (yn == '1'):
         return '1'
@@ -233,7 +238,8 @@ def map_yn_to_binary(yn):
         return ''
 
 
-# Number of days between two dates (signed value is returned - negative if second date is before first)
+# Number of days between two dates (signed value is returned - negative if
+# second date is before first)
 def days_between_dates(date_from_str, date_to_str, date_format=date_format_ymd):
     result = (datetime.datetime.strptime(date_to_str, date_format) -
               datetime.datetime.strptime(date_from_str, date_format)).days
@@ -247,17 +253,16 @@ def get_subject_age( subject_id, at_date ):
         date_of_birth = subject_dates_of_birth[subject_id]
     except KeyError, e:
         error = "ERROR: no birth date for subject"
-        sibis.logging(subject_id, error,
-                      e = e)
+        sibis.logging(subject_id, error, e=e)
         return ''
-    # Set actual age - do this after everything else, because some surveys have "age" fields; we want to overwrite those
+    # Set actual age - do this after everything else, because some surveys have
+    # "age" fields; we want to overwrite those
     try:
         return str(days_between_dates(date_of_birth, at_date) / 365.242)
     except:
         if at_date != 'nan':
             error = "ERROR: could not parse visit date"
-            sibis.logging(subject_id,error,
-                          date = at_date)
+            sibis.logging(subject_id, error, date=at_date)
         return ''
 
 
