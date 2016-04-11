@@ -153,7 +153,7 @@ def connect_to_redcap():
 try:
     rc_summary = connect_to_redcap()
 except Exception, error:
-    sibis.logging(hashlib.sha1('update_summary_scores').hexdigest()[0:6],
+    sibis.logging(hashlib.sha1('update_visit_date').hexdigest()[0:6],
     "ERROR: Could not connect to redcap!",
     script = 'update_visit_date')
     sys.exit()
@@ -221,10 +221,14 @@ def to_redcap(upload_records):
         else:
             print import_response
 
-    except requests.exceptions.RequestException as e:
-        error_id = "Requests Exception: {}".format(hashlib.sha1(e).hexdigest())
-        sibis.logging(error_id, e, note="WARNING: Records may be locked...")
+    except requests.exceptions.RequestException, err:
+        sha = hashlib.sha1(err.message).hexdigest()
+        error_id = "Requests Exception: {}".format(sha[0:6])
+        sibis.logging(error_id,
+                      err.message,
+                      note="WARNING: Records may be locked...")
     return 0
+
 
 # Map 'Y' and '1' to '1', map 'N', '2', and '0' to '0', and everything else to
 # 'undefined'
@@ -316,7 +320,6 @@ def add_over18_to_upload( form_prefix, form_name, subject_id, event_name ):
 def batch(iterable, n=1):
         """
         For batch processing of records
-
         :param iterable:
         :param n: batch size
         :return: generator
