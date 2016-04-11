@@ -361,8 +361,11 @@ def get_xnat_data(redcap_key, xnat, sid, pid, visit_date, date_of_birth,
 
     for xnat_eid in xnat_eid_list:
         result['mri_xnat_eids'] += xnat_eid + ' '
-        experiment_note = xnat.select.project(xnat_pid).subject(xnat_sid).experiment(xnat_eid).attrs.get('note')
-        experiment_note = experiment_note.strip()
+        project = xnat.select.project(xnat_pid)
+        subject = project.subject(xnat_sid)
+        experiment = subject.experiment(xnat_eid)
+        note = experiment.attrs.get('note')
+        experiment_note = note.strip()
         if len(experiment_note) > 0:
             result['mri_notes'] += '[%s] %s ' % (xnat_eid, re.sub('&quot;', '"', experiment_note))
 
