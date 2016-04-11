@@ -212,7 +212,7 @@ def to_redcap( upload_records ):
             print import_response
 
     except requests.exceptions.RequestException as e:
-        error = str.replace("{u'error': u'","").replace("'}","").replace('"',"")
+        error = e.replace("{u'error': u'","").replace("'}","").replace('"',"")
         error = error.split("\\n")
         for e in error:
             elist = e.split(",")
