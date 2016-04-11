@@ -560,12 +560,23 @@ for [key, row] in mr_sessions_redcap.iterrows():
             sid = ''
             pid = ''
             subject_label = key[0]
+            event = key[1]
             site_change = special_cases.get('site_change')
             export_measures = site_change.get('export_measures')
             if subject_label in export_measures.iterkeys():
-                default = export_measures.get(subject_label).get('default')
-                correct_sid = default.get('subject')
-                correct_pid = default.get('project')
+                sub_map = export_measures.get(subject_label)
+                if event == 'baseline_visit_arm_1':
+                    id_map = sub_map.get('baseline')
+                elif event == '1y_visit_arm_1':
+                    id_map = sub_map.get('followup_1y')
+                elif event == '2y_visit_arm_1':
+                    id_map = sub_map.get('followup_2y')
+                elif event == '3y_visit_arm_1':
+                    id_map = sub_map.get('followup_3y')
+                else:
+                    id_map = sub_map.get('default')
+                correct_sid = id_map.get('subject')
+                correct_pid = id_map.get('project')
                 sid = correct_sid
                 pid = correct_pid
 
