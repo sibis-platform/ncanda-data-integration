@@ -226,6 +226,7 @@ def to_redcap(upload_records):
         sibis.logging(error_id, e, note="WARNING: Records may be locked...")
     return 0
 
+
 # Map 'Y' and '1' to '1', map 'N', '2', and '0' to '0', and everything else to
 # 'undefined'
 def map_yn_to_binary(yn):
