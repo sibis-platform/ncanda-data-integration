@@ -327,8 +327,12 @@ def get_xnat_data(redcap_key, xnat, sid, pid, visit_date, date_of_birth,
                                                   xnat_sid,
                                                   visit_date,
                                                   visit_date_plusNd)
+    # If subject changed sites sid was passed in
+    if sid:
+        result['mri_xnat_sid'] = sid
+    else:
+        result['mri_xnat_sid'] = xnat_sid
 
-    result['mri_xnat_sid'] = sid
     if verbose:
         print "XNAT Session Data:", xnat_session_data
     if not xnat_session_data:
