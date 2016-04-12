@@ -129,8 +129,8 @@ def get_ground_truth_gradients(args=None):
     ge_stack.sort()
 
     # Parse the xml files to get scanner specific gradients per frame
-    siemens_gradients = get_all_gradients(siemens_stack, decimals=args.decimals)
-    ge_gradients = get_all_gradients(ge_stack, decimals=args.decimals)
+    siemens_gradients = get_all_gradients(siemens_stack, decimals=3)
+    ge_gradients = get_all_gradients(ge_stack, decimals=3)
     return dict(Siemens=siemens_gradients, GE=ge_gradients)
 
 def main(args=None):
@@ -156,7 +156,7 @@ def main(args=None):
         case_dti = os.path.join(args.base_dir, case)
         case_stack = get_dti_stack(case_dti, arm=args.arm, event=args.event)
         case_stack.sort()
-        case_gradients = get_all_gradients(case_stack, decimals=args.decimals)
+        case_gradients = get_all_gradients(case_stack, decimals=3)
         errors = list()
         for idx, frame in enumerate(case_gradients):
             # if there is a frame that doesn't match, report it.
