@@ -202,15 +202,14 @@ def label_check(label):
             return match
 
 def incomplete_scan_check( eid, manufacturer, label):
-    error = []
+    missing_scans = []
     scan_types = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/type')
     if manufacturer == 'GE MEDICAL SYSTEMS':
         for scantype in set(scan_type_dictionary['GE MEDICAL SYSTEMS']):
             if scantype in set(scan_types):
                 scantype = scantype
             else:
-                error.append(sibis.logging(eid, 'ERROR: {} missing from Session'.format(scantype),
-                scan_session_label=label))
+                missing_scans.append(scan_types)
     elif manufacturer == 'SIEMENS':
         for scantype in set(scan_type_dictionary['SIEMENS']):
             if scantype in set(scan_types):
@@ -218,9 +217,12 @@ def incomplete_scan_check( eid, manufacturer, label):
                     error.append(sibis.logging(eid, 'ERROR: Session does not contain two ncanda-grefieldmap-v1 files',
                     scan_session_label=label))
             else:
-                error.append(sibis.logging(eid, 'ERROR: {} missing from Session'.format(scantype),
-                scan_session_label=label))
-    return error
+                missing_scans.append(scan_types)
+    if missing_scans:
+        return sibis.logging(eid, 'ERROR: Missing scans from Session',
+                            scan_session_label=label,
+                            manufacturer=manufacturer,
+                            missing_scans=missing_scans)
 
 def voxelRes_get(eid, scan):
         scan_info = ifc.select.experiment( eid ).scan(scan).get()
@@ -380,9 +382,8 @@ for (eid, project, subject, insert_date, session_label, last_modified ) in sessi
 
     if label_check(label) == None:
         error = incomplete_scan_check(eid, manufacturer, label)
-        for e in error:
-            if e:
-                print e
+        if error:
+                print error
         error = voxelRes_check(eid, manufacturer, label)
         for e in error:
             if e:
