@@ -221,12 +221,9 @@ def to_redcap(upload_records):
         else:
             print import_response
 
-    except requests.exceptions.RequestException, err:
-        sha = hashlib.sha1(err.message).hexdigest()
-        error_id = "Requests Exception: {}".format(sha[0:6])
-        sibis.logging(error_id,
-                      err.message,
-                      note="WARNING: Records may be locked...")
+    except requests.exceptions.RequestException as e:
+        error_id = "Requests Exception: {}".format(hashlib.sha1(e.message).hexdigest())
+        sibis.logging(error_id, e, note="WARNING: Records may be locked...")
     return 0
 
 
