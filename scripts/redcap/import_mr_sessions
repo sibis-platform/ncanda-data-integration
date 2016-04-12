@@ -328,7 +328,7 @@ def get_xnat_data(redcap_key, xnat, sid, pid, visit_date, date_of_birth,
                                                   visit_date,
                                                   visit_date_plusNd)
 
-    result['mri_xnat_sid'] = xnat_sid
+    result['mri_xnat_sid'] = sid
     if verbose:
         print "XNAT Session Data:", xnat_session_data
     if not xnat_session_data:
@@ -457,8 +457,9 @@ def get_xnat_data(redcap_key, xnat, sid, pid, visit_date, date_of_birth,
     return result
 
 
-# Function to get a subject's next visit - this is so we can exclude MRI collected after the next visit date, but still within N days
-def get_subject_next_visit_date( subject, after_visit_date ):
+# Function to get a subject's next visit - this is so we can exclude MRI
+# collected after the next visit date, but still within N days
+def get_subject_next_visit_date(subject, after_visit_date):
     subject_visit_dates = visit_log_redcap.xs( subject, level=0 )['visit_date'].dropna()
     subject_visit_dates = subject_visit_dates[ subject_visit_dates.index.map( lambda key: key != 'recovery_baseline_arm_2' ) ] # Exclude "Recovery" baseline from list - this will usually be the MR day of a normal visit
     later_visits_this_subject = sorted( [ date for date in subject_visit_dates.tolist() if date > after_visit_date ] )
@@ -491,7 +492,7 @@ subject_data = redcap_project.export_records(fields=['study_id',
                                              format='df')
 # Gather all the subject data.
 subject_data = pd.concat([subject_data.xs(event, level=1)
-                              for event in baseline_events])
+                          for event in baseline_events])
 
 # Get the sibling id
 subject_data['siblings_id1'] = subject_data['siblings_id1'].map(get_sibling_id1)
