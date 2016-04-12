@@ -16,6 +16,7 @@ import shutil
 import glob
 import zipfile
 import sys
+import check_gradient_tables
 
 #
 # Verify image count in temp directory created by dcm2image
