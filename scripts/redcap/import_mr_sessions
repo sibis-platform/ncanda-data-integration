@@ -107,8 +107,8 @@ except:
 
 subject_project_dict = dict()
 subject_label_to_sid_dict = dict()
-for ( subject_label, subject_id, projects ) in subject_project_list:
-    subject_project_dict[subject_label] = ( subject_id, projects )
+for subject_label, subject_id, projects in subject_project_list:
+    subject_project_dict[subject_label] = (subject_id, projects)
     subject_label_to_sid_dict[subject_label] = subject_id
 
 #
@@ -285,9 +285,11 @@ def get_xnat_data(redcap_key, xnat, sid, pid, visit_date, date_of_birth,
     result['mri_series_rsfmri'] = ''
     result['mri_series_rsfmri_fieldmap'] = ''
 
-    # First, see if this subject is in the XNAT database and has a scan session for the given date or later
+    # First, see if this subject is in the XNAT database and has a scan session
+    # for the given date or later
     visit_date_plusNd = (datetime.datetime.strptime( visit_date, date_format_ymd) + datetime.timedelta(args.max_days_after_visit)).strftime(date_format_ymd)
-    # If we have a date for the next visit, and it's earlier than +N days (could be for "Recovery" final visit), then use that date instead
+    # If we have a date for the next visit, and it's earlier than +N days (could
+    # be for "Recovery" final visit), then use that date instead
     if next_visit_date and next_visit_date < visit_date_plusNd:
         visit_date_plusNd = next_visit_date
 
