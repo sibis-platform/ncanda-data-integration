@@ -264,7 +264,7 @@ def get_xnat_data(redcap_key, xnat, sid, pid, visit_date, date_of_birth,
 
     # Initialize result as "nothing there"
     result['mr_session_report_complete'] = ''
-    result['mri_xnat_sid'] = sid
+    result['mri_xnat_sid'] = ''
     result['mri_xnat_eids'] = ''
     result['mri_qa_completed'] = ''
     result['mri_t1_date'] = ''
@@ -305,12 +305,8 @@ def get_xnat_data(redcap_key, xnat, sid, pid, visit_date, date_of_birth,
             print("Subject {} cannot be found in XNAT.".format(subject))
         return result
 
+    # Use default lookup
     xnat_sid, xnat_pid = subject_project_dict[subject]
-    if sid:
-        xnat_sid = sid
-    result['mri_xnat_sid'] = xnat_sid
-    if pid:
-        xnat_pid = pid
 
     # Get all experiments for this subject within the given range of the visit
     # date
@@ -320,6 +316,19 @@ def get_xnat_data(redcap_key, xnat, sid, pid, visit_date, date_of_birth,
                                               xnat_sid,
                                               visit_date,
                                               visit_date_plusNd)
+    # If no results are returned, try using sid and pid (e.g., this is used
+    # when subjects switch sites)
+    if not xnat_session_data:
+        xnat_sid = sid
+        xnat_pid = pid
+        xnat_session_data = get_sessions_in_range(xnat,
+                                                  subject,
+                                                  xnat_pid,
+                                                  xnat_sid,
+                                                  visit_date,
+                                                  visit_date_plusNd)
+
+    result['mri_xnat_sid'] = xnat_sid
     if verbose:
         print "XNAT Session Data:", xnat_session_data
     if not xnat_session_data:
