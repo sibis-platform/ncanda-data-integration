@@ -575,7 +575,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                     id_map = sub_map.get('followup_2y')
                 elif event == '3y_visit_arm_1':
                     id_map = sub_map.get('followup_3y')
-                else:
+                if not id_map:
                     id_map = sub_map.get('default')
                 correct_sid = id_map.get('subject')
                 correct_pid = id_map.get('project')
