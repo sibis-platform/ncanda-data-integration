@@ -398,10 +398,15 @@ for (eid, project, subject, insert_date, session_label, last_modified ) in sessi
     if label_check(label) == None:
         error = incomplete_scan_check(eid, manufacturer, label)
         if error:
-            print error
-        error = mri_quality_check(eid, manufacturer, label)
-        if error:
-            print error
+                print error
+        error = voxelRes_check(eid, manufacturer, label)
+        for e in error:
+            if e:
+                print e
+        error = frame_check(eid, manufacturer, label)
+        for e in error:
+            if e:
+                print e
 
     # failed dti te comparison
     failed_dti = check_dti( ifc, eid, dti_scans )
