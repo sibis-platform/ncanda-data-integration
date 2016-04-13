@@ -113,8 +113,10 @@ def export_to_nifti( interface, project, subject, session, session_label, manufa
                 if images_created > 0:
                     manufacturer_u = manufacturer.upper()
                     verify_image_count( session, session_label, scan, scantype, manufacturer_u, images_created )
+                    gradient_map = check_gradient_tables.get_ground_truth_gradients()
 
                     if manufacturer_u == 'SIEMENS':
+                        gradients = gradient_map.get('Siemens')
                         if 'dti6b500pepolar' in scantype:
                             xml_file_list = glob.glob(os.path.join( temp_dir, '%s_%s' % (scan,scantype), 'image*.nii.xml' ))
                             case_gradients = check_gradient_tables.get_all_gradients(xml_file_list, decimals=3)
