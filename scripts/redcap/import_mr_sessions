@@ -8,17 +8,16 @@
 import os
 import re
 import sys
-import json
 import time
 import datetime
 import argparse
 
 import yaml
 import sibis
-import pandas
 import pyxnat
 import redcap
 import requests
+import pandas as pd
 
 import import_mr_sessions_stroop as stroop
 import export_mr_sessions_pipeline as mrpipeline
@@ -42,6 +41,10 @@ parser.add_argument("--site",
                     help="Limit processing by site (SRI, UCSD, OHSU, UPMC, DUKE). Multiple sites can be listed, separated by comma (',')",
                     action="store",
                     default=None )
+parser.add_argument("--site-id",
+                    help="Limit processing by site id (e.g., A-00000-F-1)",
+                    action="store",
+                    default=None)
 parser.add_argument("--pipeline-root-dir",
                     help="Root directory of the image analysis pipeline. Newly detected imaging series will be converted to NIFTI files and put here for processing. ",
                     action="store")
@@ -77,7 +80,8 @@ if not sibis_config:
 
 # Get a list of cases outside the visit window that should be included.
 with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
-    exceptions = yaml.load(fi).get('outside_visit_window')
+    special_cases = yaml.load(fi)
+    exceptions = special_cases.get('outside_visit_window')
 
 # Open connection with REDCap server
 redcap_token_path = os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' )
@@ -103,8 +107,8 @@ except:
 
 subject_project_dict = dict()
 subject_label_to_sid_dict = dict()
-for ( subject_label, subject_id, projects ) in subject_project_list:
-    subject_project_dict[subject_label] = ( subject_id, projects )
+for subject_label, subject_id, projects in subject_project_list:
+    subject_project_dict[subject_label] = (subject_id, projects)
     subject_label_to_sid_dict[subject_label] = subject_id
 
 #
@@ -251,7 +255,8 @@ def encode_session_and_scan( session_and_scan, type_list ):
 today = time.strftime(date_format_ymd)
 
 
-def get_xnat_data(redcap_key, xnat, visit_date, date_of_birth, next_visit_date, mri_inspection_completed, verbose=None):
+def get_xnat_data(redcap_key, xnat, sid, pid, visit_date, date_of_birth,
+                  next_visit_date, mri_inspection_completed, verbose=None):
     subject = redcap_key[0]
     event = redcap_key[1]
 
@@ -280,14 +285,19 @@ def get_xnat_data(redcap_key, xnat, visit_date, date_of_birth, next_visit_date, 
     result['mri_series_rsfmri'] = ''
     result['mri_series_rsfmri_fieldmap'] = ''
 
-    # First, see if this subject is in the XNAT database and has a scan session for the given date or later
+    # First, see if this subject is in the XNAT database and has a scan session
+    # for the given date or later
     visit_date_plusNd = (datetime.datetime.strptime( visit_date, date_format_ymd) + datetime.timedelta(args.max_days_after_visit)).strftime(date_format_ymd)
-    # If we have a date for the next visit, and it's earlier than +N days (could be for "Recovery" final visit), then use that date instead
+    # If we have a date for the next visit, and it's earlier than +N days (could
+    # be for "Recovery" final visit), then use that date instead
     if next_visit_date and next_visit_date < visit_date_plusNd:
         visit_date_plusNd = next_visit_date
 
     if args.verbose:
-        print("Checking {} for {} with visit date {} to {}".format(subject, event, visit_date, visit_date_plusNd))
+        print("Checking {} for {} with visit date {} to {}".format(subject,
+                                                                   event,
+                                                                   visit_date,
+                                                                   visit_date_plusNd))
 
     # Get project and subject IDs for this subject by name
     if subject not in subject_project_dict.keys():
@@ -295,21 +305,44 @@ def get_xnat_data(redcap_key, xnat, visit_date, date_of_birth, next_visit_date, 
             print("Subject {} cannot be found in XNAT.".format(subject))
         return result
 
+    # Use default lookup
     xnat_sid, xnat_pid = subject_project_dict[subject]
-    result['mri_xnat_sid'] = xnat_sid
 
-    # Get all experiments for this subject within the given range of the visit date
-    xnat_session_data = get_sessions_in_range(xnat, subject, xnat_pid, xnat_sid, visit_date, visit_date_plusNd)
+    # Get all experiments for this subject within the given range of the visit
+    # date
+    xnat_session_data = get_sessions_in_range(xnat,
+                                              subject,
+                                              xnat_pid,
+                                              xnat_sid,
+                                              visit_date,
+                                              visit_date_plusNd)
+    # If no results are returned, try using sid and pid (e.g., this is used
+    # when subjects switch sites)
+    if not xnat_session_data:
+        xnat_sid = sid
+        xnat_pid = pid
+        xnat_session_data = get_sessions_in_range(xnat,
+                                                  subject,
+                                                  xnat_pid,
+                                                  xnat_sid,
+                                                  visit_date,
+                                                  visit_date_plusNd)
+    # If subject changed sites sid was passed in
+    if sid:
+        result['mri_xnat_sid'] = sid
+    else:
+        result['mri_xnat_sid'] = xnat_sid
+
     if verbose:
         print "XNAT Session Data:", xnat_session_data
     if not xnat_session_data:
         if today > visit_date_plusNd:
             error='Missing MRI for Subject with visit date.'
             sibis.logging(xnat_sid,error,
-                         project_id=xnat_pid,
-                         experiment_site_id=subject_label,
-                         visit_id=event,
-                         visit_date=visit_date)
+                          project_id=xnat_pid,
+                          experiment_site_id=subject_label,
+                          visit_id=event,
+                          visit_date=visit_date)
         return result
 
     # Get the experiment IDs for all sessions in the given range
@@ -341,7 +374,8 @@ def get_xnat_data(redcap_key, xnat, visit_date, date_of_birth, next_visit_date, 
 
     for xnat_eid in xnat_eid_list:
         result['mri_xnat_eids'] += xnat_eid + ' '
-        experiment_note = xnat.select.project(xnat_pid).subject(xnat_sid).experiment(xnat_eid).attrs.get('note').strip()
+        note = xnat.select.experiment(xnat_eid).attrs.get('note')
+        experiment_note = note.strip()
         if len(experiment_note) > 0:
             result['mri_notes'] += '[%s] %s ' % (xnat_eid, re.sub('&quot;', '"', experiment_note))
 
@@ -425,8 +459,9 @@ def get_xnat_data(redcap_key, xnat, visit_date, date_of_birth, next_visit_date, 
     return result
 
 
-# Function to get a subject's next visit - this is so we can exclude MRI collected after the next visit date, but still within N days
-def get_subject_next_visit_date( subject, after_visit_date ):
+# Function to get a subject's next visit - this is so we can exclude MRI
+# collected after the next visit date, but still within N days
+def get_subject_next_visit_date(subject, after_visit_date):
     subject_visit_dates = visit_log_redcap.xs( subject, level=0 )['visit_date'].dropna()
     subject_visit_dates = subject_visit_dates[ subject_visit_dates.index.map( lambda key: key != 'recovery_baseline_arm_2' ) ] # Exclude "Recovery" baseline from list - this will usually be the MR day of a normal visit
     later_visits_this_subject = sorted( [ date for date in subject_visit_dates.tolist() if date > after_visit_date ] )
@@ -435,22 +470,67 @@ def get_subject_next_visit_date( subject, after_visit_date ):
     else:
         return None
 
+
+def get_sibling_id1(subject_label):
+    if subject_label in subject_label_to_sid_dict.keys():
+        result = subject_label_to_sid_dict[subject_label]
+    else:
+        result = ''
+    return result
+
 #
 # Main program loop
 #
-baseline_events = ['baseline_visit_arm_1','baseline_visit_arm_4'] # these are the "baseline" events of the study arms that have them
-subject_data = redcap_project.export_records(fields=['dob', 'exclude', 'enroll_exception', 'siblings_enrolled', 'siblings_id1'], events=baseline_events, event_name='unique', format='df' )
-subject_data = pandas.concat( [ subject_data.xs( event, level=1 ) for event in baseline_events ] )
-subject_data['siblings_id1'] = subject_data['siblings_id1'].map( lambda x: subject_label_to_sid_dict[x] if x in subject_label_to_sid_dict.keys() else '' )
+# these are the "baseline" events of the study arms that have them
+baseline_events = ['baseline_visit_arm_1', 'baseline_visit_arm_4']
+subject_data = redcap_project.export_records(fields=['study_id',
+                                                     'dob',
+                                                     'exclude',
+                                                     'enroll_exception',
+                                                     'siblings_enrolled',
+                                                     'siblings_id1'],
+                                             events=baseline_events,
+                                             event_name='unique',
+                                             format='df')
+# Gather all the subject data.
+subject_data = pd.concat([subject_data.xs(event, level=1)
+                          for event in baseline_events])
 
-visit_log_redcap = redcap_project.export_records(fields=['redcap_data_access_group', 'visit_date', 'visit_ignore', 'mr_session_report_complete', 'mri_xnat_sid', 'mri_stroop_complete', 'mri_inspection'], event_name='unique', export_data_access_groups=True, format='df' )
+# Get the sibling id
+subject_data['siblings_id1'] = subject_data['siblings_id1'].map(get_sibling_id1)
+
+visit_log_redcap = redcap_project.export_records(
+    fields=['study_id',
+            'redcap_data_access_group',
+            'visit_date', 'visit_ignore',
+            'mr_session_report_complete',
+            'mri_xnat_sid',
+            'mri_stroop_complete',
+            'mri_inspection'],
+    event_name='unique',
+    export_data_access_groups=True,
+    format='df')
+
+# Limit export by site.
 if args.site:
     sites = args.site.lower().split( ',' )
     visit_log_redcap = visit_log_redcap[ visit_log_redcap['redcap_data_access_group'].map( lambda dag: dag in sites ) ]
 
+# Limit export by site id (e.g., A-00000-F-1)
+if args.site_id:
+    visit_log_redcap = visit_log_redcap.loc[args.site_id]
+    visit_log_redcap.reset_index(inplace=True)
+    visit_log_redcap['study_id'] = args.site_id
+    visit_log_redcap.set_index(['study_id', 'redcap_event_name'],
+                               inplace=True)
+
 # Select only events that have the "MRI Session Report" form
 mri_events_list = form_event_mapping[form_event_mapping['form_name'] == 'mr_session_report' ]['unique_event_name'].tolist()
-mr_sessions_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda x: x[1] in mri_events_list ) ][['visit_date', 'visit_ignore___yes', 'mr_session_report_complete', 'mri_xnat_sid', 'mri_inspection___completed']]
+get_events = lambda x: x[1] in mri_events_list
+events_filter = visit_log_redcap.index.map(get_events)
+columns = ['visit_date', 'visit_ignore___yes', 'mr_session_report_complete',
+           'mri_xnat_sid', 'mri_inspection___completed']
+mr_sessions_redcap = visit_log_redcap[events_filter][columns]
 
 forms_by_event_dict = dict()
 for event in redcap_project.events:
@@ -482,19 +562,46 @@ for [key, row] in mr_sessions_redcap.iterrows():
         if float(row['visit_ignore___yes']) != 1:
             error = 'Missing visit date for subject with visit data.'
             sibis.logging(key[0], error,
-                         visit_id=key[1],
-                         visit_date=visit_date)
+                          visit_id=key[1],
+                          visit_date=visit_date)
     else:
         this_subject_data = subject_data.ix[key[0]]
         if str( this_subject_data['dob'] ) == 'nan':
             print "Missing birthdate for subject %s" % key[0]
         else:
+            # Update XNAT SID and PID for subjects that changed sites
+            sid = ''
+            pid = ''
+            subject_label = key[0]
+            event = key[1]
+            site_change = special_cases.get('site_change')
+            export_measures = site_change.get('export_measures')
+            if subject_label in export_measures.iterkeys():
+                sub_map = export_measures.get(subject_label)
+                if event == 'baseline_visit_arm_1':
+                    id_map = sub_map.get('baseline')
+                elif event == '1y_visit_arm_1':
+                    id_map = sub_map.get('followup_1y')
+                elif event == '2y_visit_arm_1':
+                    id_map = sub_map.get('followup_2y')
+                elif event == '3y_visit_arm_1':
+                    id_map = sub_map.get('followup_3y')
+                if not id_map:
+                    id_map = sub_map.get('default')
+                correct_sid = id_map.get('subject')
+                correct_pid = id_map.get('project')
+                sid = correct_sid
+                pid = correct_pid
+
             visit_age = days_between_dates( this_subject_data['dob'], visit_date ) / 365.242
+            next_visit_date = get_subject_next_visit_date(key[0], visit_date)
             xnat_data = get_xnat_data(key,
                                       xnat,
+                                      sid,
+                                      pid,
                                       visit_date,
                                       this_subject_data['dob'],
-                                      get_subject_next_visit_date( key[0], visit_date ),
+                                      next_visit_date,
                                       row['mri_inspection___completed'],
                                       verbose=args.verbose)
 
