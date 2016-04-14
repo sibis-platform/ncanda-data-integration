@@ -255,7 +255,7 @@ def encode_session_and_scan( session_and_scan, type_list ):
 today = time.strftime(date_format_ymd)
 
 
-def get_xnat_data(redcap_key, xnat, sid, pid, visit_date, date_of_birth,
+def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_birth,
                   next_visit_date, mri_inspection_completed, verbose=None):
     subject = redcap_key[0]
     event = redcap_key[1]
@@ -306,8 +306,12 @@ def get_xnat_data(redcap_key, xnat, sid, pid, visit_date, date_of_birth,
         return result
 
     # Use default lookup
-    xnat_sid, xnat_pid = subject_project_dict[subject]
-
+    if defaultFlag:
+        xnat_sid, xnat_pid = subject_project_dict[subject]
+    else : 
+        xnat_sid = sid
+        xnat_pid = pid
+        
     # Get all experiments for this subject within the given range of the visit
     # date
     xnat_session_data = get_sessions_in_range(xnat,
@@ -316,17 +320,17 @@ def get_xnat_data(redcap_key, xnat, sid, pid, visit_date, date_of_birth,
                                               xnat_sid,
                                               visit_date,
                                               visit_date_plusNd)
-    # If no results are returned, try using sid and pid (e.g., this is used
-    # when subjects switch sites)
-    if not xnat_session_data:
-        xnat_sid = sid
-        xnat_pid = pid
-        xnat_session_data = get_sessions_in_range(xnat,
-                                                  subject,
-                                                  xnat_pid,
-                                                  xnat_sid,
-                                                  visit_date,
-                                                  visit_date_plusNd)
+    # # If no results are returned, try using sid and pid (e.g., this is used
+    # # when subjects switch sites)
+    # if not xnat_session_data:
+    #     xnat_sid = sid
+    #     xnat_pid = pid
+    #     xnat_session_data = get_sessions_in_range(xnat,
+    #                                               subject,
+    #                                               xnat_pid,
+    #                                               xnat_sid,
+    #                                               visit_date,
+    #                                               visit_date_plusNd)
     # If subject changed sites sid was passed in
     if sid:
         result['mri_xnat_sid'] = sid
@@ -576,16 +580,21 @@ for [key, row] in mr_sessions_redcap.iterrows():
             event = key[1]
             site_change = special_cases.get('site_change')
             export_measures = site_change.get('export_measures')
+            defaultFlag = True
             if subject_label in export_measures.iterkeys():
                 sub_map = export_measures.get(subject_label)
                 if event == 'baseline_visit_arm_1':
                     id_map = sub_map.get('baseline')
-                elif event == '1y_visit_arm_1':
+                    defaultFlag = False
+                elif event == '1y_visit_arm_1' and sub_map.get('followup_1y'):
                     id_map = sub_map.get('followup_1y')
-                elif event == '2y_visit_arm_1':
+                    defaultFlag = False
+                elif event == '2y_visit_arm_1' and sub_map.get('followup_2y'):
                     id_map = sub_map.get('followup_2y')
-                elif event == '3y_visit_arm_1':
+                    defaultFlag = False
+                elif event == '3y_visit_arm_1' and sub_map.get('followup_3y'):
                     id_map = sub_map.get('followup_3y')
+                    defaultFlag = False
                 if not id_map:
                     id_map = sub_map.get('default')
                 correct_sid = id_map.get('subject')
@@ -599,6 +608,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                                       xnat,
                                       sid,
                                       pid,
+                                      defaultFlag,
                                       visit_date,
                                       this_subject_data['dob'],
                                       next_visit_date,
