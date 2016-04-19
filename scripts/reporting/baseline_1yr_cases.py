@@ -47,11 +47,11 @@ def mri_filter_dataframe(dataframe):
     # Create filters for cases that are included
     case_included = dataframe.exclude != 1 # baseline has 'exclude' in demographics
     visit_included = dataframe.visit_ignore___yes != 1 # Not consistent with 'exclude'
-    mri_collected = dataframe.mri_missing == 1
+    mri_collected = dataframe.mri_missing != 1
 
     # Apply filters for results
     included = dataframe[case_included]
-    results = included[mri_collected]
+    results = included[visit_included & mri_collected]
     return results
 
 def np_filter_dataframe(dataframe):
@@ -84,7 +84,7 @@ def main(args=None):
         print("Writing results to {}...".format(args.outfile))
     # Write out results
     results.to_csv(os.path.join(args.csvdir, args.outfile),
-                   columns=['visit_ignore___yes', 'visit_ignore_why', 'visit_ignore_why_other', 'mri_missing', 'mri_missing_why', 'mri_xnat_sid', 'mri_xnat_eids','mri_notes'])
+                   columns=args.fieldsofinterest)
 
 if __name__ == '__main__':
     import argparse
@@ -98,6 +98,8 @@ if __name__ == '__main__':
                         help="Select only baseline events", action='store_true')
     parser.add_argument( '-c','--csvdir',  action="store", default = '',
                         help="Directory where CSV will be stored.")
+    parser.add_argument( '-i','--fieldsofinterest',  action="store", default = ['visit_ignore___yes','mri_xnat_sid','mri_xnat_eids'],
+                            help="The fields of interest for this report generator. Default is {}".format(default))
     parser.add_argument('-f', '--yearonefollowup', dest="yearonefollowup",
                         help="Select only 1y Follow-Up events", action='store_true')
     parser.add_argument('-o', '--outfile', dest="outfile",
