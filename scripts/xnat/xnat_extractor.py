@@ -232,6 +232,8 @@ def get_scans_info(experiment_xml_file):
         values.update(coil=scan.find('./xnat:coil', namespaces=ns))
         values.update(field_strength=scan.find('./xnat:fieldStrength',
                                                namespaces=ns))
+        values.update(scan_note=scan.find('./xnat:note', namespaces=ns))
+
         for k, v in values.iteritems():
             try:
                 values[k] = v.text
@@ -239,10 +241,12 @@ def get_scans_info(experiment_xml_file):
                 values[k] = None
                 if verbose:
                     print(e, "for attribute {0} in scan {1} of experiment {2}".format(k, scan_id, experiment_id))
+
         scan_dict = dict(experiment_id=experiment_id,
                          scan_id=scan_id,
                          scan_type=scan_type,
                          quality=values.get('quality'),
+                         scan_note=values.get('scan_note'),
                          series_description=values.get('series_description'),
                          coil=values.get('coil'),
                          field_strength=values.get('field_strength'))
@@ -253,6 +257,8 @@ def get_scans_info(experiment_xml_file):
 def get_reading_info(experiment_xml_file):
     """
     Get a dict of dicts for each reading from an XNAT experiment XML document
+    These are the visit specific information, e.g. DateToDVD, Subject ID , session notes, ....  
+    (no individual scan info) 
 
     :param experiment_xml_file: lxml.etree.Element
     :return: list

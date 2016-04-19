@@ -90,7 +90,9 @@ def main(args=None):
 
     # extract info from the experiment XML files
     experiment = xe.get_experiments_dir_info(args.experimentsdir)
+    # Scan specific information 
     scan = xe.get_experiments_dir_scan_info(args.experimentsdir)
+    # Session info 
     reading = xe.get_experiments_dir_reading_info(args.experimentsdir)
     df = xe.merge_experiments_scans_reading(experiment, scan, reading)
 
@@ -127,6 +129,7 @@ def main(args=None):
             followup_df = baseline_df
 
         # filter for specific scan types
+       
         scan_type_pairs = get_scan_type_pairs(args.modality)
         scan1 = scan_type_pairs.get('scan1')
         scan2 = scan_type_pairs.get('scan2')
@@ -142,15 +145,14 @@ def main(args=None):
             scan2_selected = scan2_df
 
         # report columns
-        columns = ['site_id', 'subject_id', 'experiment_id', 'scan_type',
-                   'experiment_date', 'quality', 'excludefromanalysis', 'note']
+        columns = ['site_id', 'subject_id', 'experiment_id', 'experiment_date', 'excludefromanalysis', 'note', 'scan_type', 'quality', 'scan_note']
         scan1_recs = scan1_selected.loc[:, columns].to_records(index=False)
         scan2_recs = scan2_selected.loc[:, columns].to_records(index=False)
 
         scan1_report = pd.DataFrame(scan1_recs, index=scan1_selected.experiment_id)
         scan2_report = pd.DataFrame(scan2_recs, index=scan2_selected.experiment_id)
 
-        scan1_scan2_report = scan1_report.join(scan2_report[['scan_type', 'quality']],
+        scan1_scan2_report = scan1_report.join(scan2_report[['scan_type', 'quality', 'scan_note']],
                                                lsuffix='_scan1',
                                                rsuffix='_scan2',
                                                how='inner')
@@ -185,11 +187,11 @@ if __name__ == "__main__":
     parser.add_argument('--min',
                         type=int,
                         default=180,
-                        help='Minimum days from baseline')
+                        help='Minimum days from baseline (to specify followup 1y - only impacts final report but not -u option)')
     parser.add_argument('--max',
                         type=int,
                         default=540,
-                        help='Maximum days from baseline')
+                        help='Maximum days from baseline (to specify followup 1y - only impacts final report but not -u option)')
     parser.add_argument('--usable',
                         action='store_true',
                         help='Only list scans with usable image quality')
