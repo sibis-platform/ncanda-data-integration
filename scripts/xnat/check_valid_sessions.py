@@ -13,18 +13,42 @@ that to create the XML file cache you need to run with --update
 
 Example
 =======
-- Update the cache and generate the baseline report
-  ./check_valid_sessions --update --baseline
+- When running for the first time run 
+  ./check_valid_sessions.py --update 
+  so that the cach (located at experimentsdir) is created 
+
+- Update the cache (stored in experimentsdir) and generate the baseline report
+  ./check_valid_sessions.py --update --baseline
 
 - Use the existing cache to extract 10 in the followup window
- ./check_valid_sessions --num_extract 10 --min 180 --max 540
+ ./check_valid_sessions.py --num_extract 10 --min 180 --max 540
+
+If you have problems running it log in as nicholsn and run 
+module load miniconda
+source activate ncanda-1.0.0
 """
 __author__ = "Nolan Nichols <http://orcid.org/0000-0003-1099-3328>"
 __modified__ = "2015-08-26"
 
 import os
 
+import re
+
+def cmpVersion(version1, version2):
+    def normalize(v):
+        return [int(x) for x in re.sub(r'(\.0+)*$','', v).split(".")]
+    return cmp(normalize(version1), normalize(version2))
+
 import pandas as pd
+
+# might also work for pandas version less than that . I just know it does for this one 
+# when run with update 
+minPandasVersion = "0.13.1"
+# but then crashes later - so then you have to run it with version 
+# minPandasVersion = "0.17.1"
+if cmpVersion(pd.__version__,minPandasVersion) < 0 : 
+    print "ERROR: pandas version too small (Current: %s; Required: %s)!" % (pd.__version__,minPandasVersion)
+    exit(1) 
 
 import xnat_extractor as xe
 
@@ -110,17 +134,21 @@ def main(args=None):
         scan2_df = followup_df[followup_df.scan_type.isin(scan2)]
 
         # Filter quality column
-        scan1_usable = scan1_df[scan1_df.quality == 'usable']
-        scan2_usable = scan2_df[scan2_df.quality == 'usable']
+        if args.usable : 
+            scan1_selected = scan1_df[scan1_df.quality == 'usable']
+            scan2_selected = scan2_df[scan2_df.quality == 'usable']
+        else : 
+            scan1_selected = scan1_df
+            scan2_selected = scan2_df
 
         # report columns
         columns = ['site_id', 'subject_id', 'experiment_id', 'scan_type',
                    'experiment_date', 'quality', 'excludefromanalysis', 'note']
-        scan1_recs = scan1_usable.loc[:, columns].to_records(index=False)
-        scan2_recs = scan2_usable.loc[:, columns].to_records(index=False)
+        scan1_recs = scan1_selected.loc[:, columns].to_records(index=False)
+        scan2_recs = scan2_selected.loc[:, columns].to_records(index=False)
 
-        scan1_report = pd.DataFrame(scan1_recs, index=scan1_usable.experiment_id)
-        scan2_report = pd.DataFrame(scan2_recs, index=scan2_usable.experiment_id)
+        scan1_report = pd.DataFrame(scan1_recs, index=scan1_selected.experiment_id)
+        scan2_report = pd.DataFrame(scan2_recs, index=scan2_selected.experiment_id)
 
         scan1_scan2_report = scan1_report.join(scan2_report[['scan_type', 'quality']],
                                                lsuffix='_scan1',
@@ -162,13 +190,17 @@ if __name__ == "__main__":
                         type=int,
                         default=540,
                         help='Maximum days from baseline')
+    parser.add_argument('--usable',
+                        action='store_true',
+                        help='Only list scans with usable image quality')
+
     parser.add_argument('-o', '--outfile',
                         type=str,
                         default='/tmp/usability_report.csv',
                         help='Name of csv file to write.')
     parser.add_argument('-n', '--num_extract',
                         type=int,
-                        help='Number of sessions to extract')
+                        help='Number of sessions to extract (only works in connection with -u)')
     parser.add_argument('-u', '--update',
                         action='store_true',
                         help='Update the cache of xml files')

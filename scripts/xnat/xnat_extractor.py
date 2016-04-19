@@ -169,18 +169,24 @@ def get_experiment_info(experiment_xml_file):
 
     project = root.attrib.get('project')
     experiment_id = root.attrib.get('ID')
-    experiment_date = root.find('./xnat:date', namespaces=ns).text
+    try : 
+        experiment_date = root.find('./xnat:date', namespaces=ns).text
+   
 
-    subject_id = root.find('./xnat:subject_ID', namespaces=ns).text
-    result = dict(site_id=site_id,
+        subject_id = root.find('./xnat:subject_ID', namespaces=ns).text
+        result = dict(site_id=site_id,
                   subject_id=subject_id,
                   site_experiment_id=site_experiment_id,
                   site_experiment_date=site_experiment_date,
                   project=project,
                   experiment_id=experiment_id,
                   experiment_date=experiment_date)
-    if verbose:
-        print("Parsed experiment info for: {0}".format(result))
+        if verbose:
+            print("Parsed experiment info for: {0}".format(result))
+    except : 
+        print "ERROR: %s does not have xnat:date or xnat:subject_ID defined !" % (experiment_xml_file)
+        result = ""
+
     return result
 
 
