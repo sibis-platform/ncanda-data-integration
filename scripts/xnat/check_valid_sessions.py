@@ -28,27 +28,9 @@ module load miniconda
 source activate ncanda-1.0.0
 """
 __author__ = "Nolan Nichols <http://orcid.org/0000-0003-1099-3328>"
-__modified__ = "2015-08-26"
+__modified__ = "2016-04-22"
 
 import os
-
-import re
-
-def cmpVersion(version1, version2):
-    def normalize(v):
-        return [int(x) for x in re.sub(r'(\.0+)*$','', v).split(".")]
-    return cmp(normalize(version1), normalize(version2))
-
-import pandas as pd
-
-# might also work for pandas version less than that . I just know it does for this one 
-# when run with update 
-minPandasVersion = "0.13.1"
-# but then crashes later - so then you have to run it with version 
-# minPandasVersion = "0.17.1"
-if cmpVersion(pd.__version__,minPandasVersion) < 0 : 
-    print "ERROR: pandas version too small (Current: %s; Required: %s)!" % (pd.__version__,minPandasVersion)
-    exit(1) 
 
 import xnat_extractor as xe
 
