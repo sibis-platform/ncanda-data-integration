@@ -26,7 +26,10 @@ def filecollector(mypath):
     return [join(mypath,f) for f in listdir(mypath) if isfile(join(mypath,f))]
 
 def main(args):
-    files = filecollector(args.releasedir)
+    clincal_files = filecollector(join(args.releasedir,'clincal'))
+    np_files = filecollector(join(args.releasedir,'np'))
+    mri_files = filecollector(join(args.releasedir,'mri'))
+    dd_files = filecollector(join(args.releasedir,'datadic'))
 
     ###Log In###
     syn = synapseclient.Synapse()
@@ -37,12 +40,36 @@ def main(args):
     project = syn.get('syn3565171')
 
     ###Creating Release Folder in Project###
-    data_folder = Folder(release_name, description = release_name, parent=project)
-    data_folder = syn.store(data_folder)
+    release_folder = Folder(release_name, description = release_name, parent=project)
+    release_folder = syn.store(release_folder)
 
-    ###Uploading File###
-    for f in files:
-        data_file = File(f, description = "Example CSV", parent = data_folder)
+    ###Uploading CSV Files###
+    #####Uploading Clincal Tables#####
+    clinical_folder = Folder('Clinical', description = 'This folder contains all clinical data points.', parent=release_folder)
+    clinical_folder = syn.store(clinical_folder)
+    for f in clinical_files:
+        data_file = File(f, description = "Clinical Data from {}".format(release_name), parent = clinical_folder)
+        data_file = syn.store(data_file)
+
+    #####Uploading Neuropsychological Tables#####
+    neuropsychological_folder = Folder('Neuropsychological', description = 'This folder contains all neuropsychological data points.', parent=release_folder)
+    neuropsychological_folder = syn.store(neuropsychological_folder)
+    for f in np_files:
+        data_file = File(f, description = "Neuropsychological Data from {}".format(release_name), parent = neuropsychological_folder)
+        data_file = syn.store(data_file)
+
+    #####Uploading Imaging Tables#####
+    imaging_folder = Folder('Imaging', description = 'This folder contains all data points collected from neuroimaging.', parent=release_folder)
+    imaging_folder = syn.store(imaging_folder)
+    for f in mri_files:
+        data_file = File(f, description = "Imaging Data {}".format(release_name), parent = imaging_folder)
+        data_file = syn.store(data_file)
+
+    #####Uploading Data Dictionary Tables#####
+    datadic_folder = Folder('Data Ditionay', description = 'This folder contains all data dictionaries', parent=release_folder)
+    datadic_folder = syn.store(datadic_folder)
+    for f in dd_files:
+        data_file = File(f, description = "Data Dictionary {}".format(release_name), parent = datadic_folder)
         data_file = syn.store(data_file)
 
 if __name__ == '__main__':
