@@ -20,15 +20,15 @@ import synapseclient
 from synapseclient import Project, Folder, File
 
 today =  datetime.date.today()
-release_name = "NCANDA Public Release {}".format(today)
+release_name = "NCANDA Public 00001"
 
 def filecollector(mypath):
     return [join(mypath,f) for f in listdir(mypath) if isfile(join(mypath,f))]
 
 def main(args):
-    clincal_files = filecollector(join(args.releasedir,'clincal'))
-    np_files = filecollector(join(args.releasedir,'np'))
-    mri_files = filecollector(join(args.releasedir,'mri'))
+    clinical_files = filecollector(join(args.releasedir,'clinical'))
+    #np_files = filecollector(join(args.releasedir,'np'))
+    #mri_files = filecollector(join(args.releasedir,'mri'))
     dd_files = filecollector(join(args.releasedir,'datadic'))
 
     ###Log In###
@@ -45,36 +45,38 @@ def main(args):
 
     ###Uploading CSV Files###
     #####Uploading Clincal Tables#####
-    clinical_folder = Folder('Clinical', description = 'This folder contains all clinical data points.', parent=release_folder)
+    clinical_folder = Folder('clinical', description = 'This folder contains all clinical data points.', parent=release_folder)
     clinical_folder = syn.store(clinical_folder)
     for f in clinical_files:
         data_file = File(f, description = "Clinical Data from {}".format(release_name), parent = clinical_folder)
         data_file = syn.store(data_file)
 
+    #####Uploading Data Dictionary Tables#####
+    datadic_folder = Folder('data ditionay', description = 'This folder contains all data dictionaries', parent=release_folder)
+    datadic_folder = syn.store(datadic_folder)
+    for f in dd_files:
+        data_file = File(f, description = "Data Dictionary {}".format(release_name), parent = datadic_folder)
+        data_file = syn.store(data_file)
+"""
     #####Uploading Neuropsychological Tables#####
-    neuropsychological_folder = Folder('Neuropsychological', description = 'This folder contains all neuropsychological data points.', parent=release_folder)
+    neuropsychological_folder = Folder('neuropsych', description = 'This folder contains all neuropsychological data points.', parent=release_folder)
     neuropsychological_folder = syn.store(neuropsychological_folder)
     for f in np_files:
         data_file = File(f, description = "Neuropsychological Data from {}".format(release_name), parent = neuropsychological_folder)
         data_file = syn.store(data_file)
 
     #####Uploading Imaging Tables#####
-    imaging_folder = Folder('Imaging', description = 'This folder contains all data points collected from neuroimaging.', parent=release_folder)
+    imaging_folder = Folder('imaging', description = 'This folder contains all data points collected from neuroimaging.', parent=release_folder)
     imaging_folder = syn.store(imaging_folder)
     for f in mri_files:
         data_file = File(f, description = "Imaging Data {}".format(release_name), parent = imaging_folder)
         data_file = syn.store(data_file)
-
-    #####Uploading Data Dictionary Tables#####
-    datadic_folder = Folder('Data Ditionay', description = 'This folder contains all data dictionaries', parent=release_folder)
-    datadic_folder = syn.store(datadic_folder)
-    for f in dd_files:
-        data_file = File(f, description = "Data Dictionary {}".format(release_name), parent = datadic_folder)
-        data_file = syn.store(data_file)
+"""
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument( "releasedir", help="Root directory of the public release.", action="store")
+    parser.add_argument( "releasename", help="Root directory of the public release.", action="store")
     argv = parser.parse_args()
     sys.exit(main(args=argv))
