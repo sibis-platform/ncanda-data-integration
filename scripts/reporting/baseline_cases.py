@@ -6,7 +6,7 @@
 """
 Baseline cases
 ==============
-This script generates a list of all subject that have a valid baseline and follow-up visit.
+This script generates a list of all subject that have a valid baseline.
 """
 import os
 
