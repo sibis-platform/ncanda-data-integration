@@ -6,9 +6,16 @@
 """
 Report: Baseline and Year 1 Cases with Scans
 ============================================
-Creates a csv files containing all cases that are included in the study, hanve
-not missed their 1 year followup, and have a scanning session that was not
-marked as missing
+Creates a csv files containing all cases that are included in the study. Using
+flags, one can select which datapoints they are interested in.
+
+Flags -b and -f allow for selecting between basline and 1y follow-up respectively.
+
+Flags -n and -m allow for selection of subjects with a valid visit or a valid
+visit with scan session, respectively.
+
+Flag -s creates a report from subset of subjects. The list of subjects should be
+entered in a txt file and contain their NCANDA subject ids.
 
 Usage:
 python baseline_1yr_cases.py
