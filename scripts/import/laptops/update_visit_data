@@ -153,9 +153,9 @@ def connect_to_redcap():
 try:
     rc_summary = connect_to_redcap()
 except Exception, error:
-    sibis.logging(hashlib.sha1('update_visit_date').hexdigest()[0:6],
-    "ERROR: Could not connect to redcap!",
-    script = 'update_visit_date')
+    sibis.logging(hashlib.sha1('update_visit_data').hexdigest()[0:6],
+                  "ERROR: Could not connect to redcap!",
+                  script='update_visit_data')
     sys.exit()
 
 # Get list of all field names in the summary project - this is to figure out which fields to copy

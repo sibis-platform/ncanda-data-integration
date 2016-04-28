@@ -301,10 +301,9 @@ def main(args):
         for e in error:
             if e == 'null':
                 error.remove(e)
-        with open(args.csvdir, 'wb+') as fi:
-            f = csv.writer(fi)
-            f.writerow(["subject_site_id", "visit_date", "event_name", "error"])
-            for x in error:
+        f = csv.writer(open(args.csvdir, "wb+"))
+        f.writerow(["subject_site_id", "visit_date", "event_name", "error"])
+        for x in error:
                f.writerow([x["subject_site_id"],
                            x["visit_date"],
                            x["event_name"],
