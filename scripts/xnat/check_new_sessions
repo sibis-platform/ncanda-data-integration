@@ -223,9 +223,9 @@ def incomplete_scan_check( eid, manufacturer, label):
                 missing_scans.append(scan_types)
     if missing_scans:
         return sibis.logging(eid, 'ERROR: Missing scans from Session',
-                            scan_session_label=label,
-                            manufacturer=manufacturer,
-                            missing_scans=missing_scans)
+                             scan_session_label=label,
+                             manufacturer=manufacturer,
+                             missing_scans=missing_scans)
 
 def voxelRes_get(eid, scan):
         scan_info = ifc.select.experiment( eid ).scan(scan).get()
@@ -260,18 +260,18 @@ def voxelRes_check(eid, manufacturer, label):
                 match = re.match(voxelRes_check_ge[v[0]], v[1], flags=re.DOTALL)
                 if match == None:
                     error.append({'field': 'Voxel Resolution',
-                    'scan_type': v[0],
-                    'voxel_res': v[1],
-                    'expected_voxel_res': voxelRes_check_siemens[v[0]]})
+                                  'scan_type': v[0],
+                                  'voxel_res': v[1],
+                                  'expected_voxel_res': voxelRes_check_siemens[v[0]]})
     elif manufacturer == 'SIEMENS':
         for v in voxel_res:
             if  v[0] in scan_type_dictionary['SIEMENS']:
                 match = re.match(voxelRes_check_siemens[v[0]], v[1], flags=re.DOTALL)
                 if match == None:
                     error.append({'field': 'Voxel Resolution',
-                    'scan_type': v[0],
-                    'voxel_res': v[1],
-                    'expected_voxel_res': voxelRes_check_siemens[v[0]]})
+                                  'scan_type': v[0],
+                                  'voxel_res': v[1],
+                                  'expected_voxel_res': voxelRes_check_siemens[v[0]]})
     return error
 
 frame_check_siemens = {'ncanda-mprage-v1' : '160',
@@ -299,9 +299,9 @@ def frame_check(eid, manufacturer, label):
             if  f[0] in scan_type_dictionary['GE MEDICAL SYSTEMS']:
                 if frame_check_ge[f[0]] != f[1]:
                     error.append({'field': 'Frames',
-                        'scan_type': f[0],
-                        'frames': f[1],
-                        'expected_frames': frame_check_ge[f[0]]})
+                                  'scan_type': f[0],
+                                  'frames': f[1],
+                                  'expected_frames': frame_check_ge[f[0]]})
     elif manufacturer == 'SIEMENS':
         for f in frames:
             if  f[0] in scan_type_dictionary['SIEMENS']:
@@ -310,15 +310,15 @@ def frame_check(eid, manufacturer, label):
                         f[1] = f[1]
                     else:
                         error.append({'field': 'Frames',
-                            'scan_type': f[0],
-                            'frames': f[1],
-                            'expected_frames': frame_check_ge[f[0]]})
+                                      'scan_type': f[0],
+                                      'frames': f[1],
+                                      'expected_frames': frame_check_ge[f[0]]})
                 else:
                     if frame_check_siemens[f[0]] != f[1]:
                         error.append({'field': 'Frames',
-                            'scan_type': f[0],
-                            'frames': f[1],
-                            'expected_frames': frame_check_ge[f[0]]})
+                                      'scan_type': f[0],
+                                      'frames': f[1],
+                                      'expected_frames': frame_check_ge[f[0]]})
     return error
 
 def mri_quality_check(eid,manufacturer,label):
@@ -331,8 +331,8 @@ def mri_quality_check(eid,manufacturer,label):
             errors.append(e)
     if errors:
         return sibis.logging(eid, 'ERROR: Scan violated expected parameters',
-                        scan_session_label=label,
-                        violations=errors)
+                             scan_session_label=label,
+                             violations=errors)
 #
 # Main loop
 #
