@@ -31,6 +31,8 @@ def get_project(args):
     # Get all the mri session reports for baseline and 1r
     if args.baseline:
         events = ['baseline_visit_arm_1']
+    elif args.yearonefollowup:
+        events = ['1y_visit_arm_1']
     else:
         events = ['baseline_visit_arm_1','1y_visit_arm_1']
     mri  = rc_summary.export_records(fields=['study_id', 'exclude',
@@ -45,11 +47,11 @@ def mri_filter_dataframe(dataframe):
     # Create filters for cases that are included
     case_included = dataframe.exclude != 1 # baseline has 'exclude' in demographics
     visit_included = dataframe.visit_ignore___yes != 1 # Not consistent with 'exclude'
-    mri_collected = dataframe.mri_missing != 1
+    mri_collected = dataframe.mri_missing == 1
 
     # Apply filters for results
     included = dataframe[case_included]
-    results = included[visit_included & mri_collected]
+    results = included[mri_collected]
     return results
 
 def np_filter_dataframe(dataframe):
@@ -82,7 +84,7 @@ def main(args=None):
         print("Writing results to {}...".format(args.outfile))
     # Write out results
     results.to_csv(os.path.join(args.csvdir, args.outfile),
-                   columns=['mri_xnat_sid', 'mri_xnat_eids','mri_datetodvd'])
+                   columns=['visit_ignore___yes', 'visit_ignore_why', 'visit_ignore_why_other', 'mri_missing', 'mri_missing_why', 'mri_xnat_sid', 'mri_xnat_eids','mri_notes'])
 
 if __name__ == '__main__':
     import argparse
