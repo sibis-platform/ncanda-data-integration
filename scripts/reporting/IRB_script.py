@@ -8,10 +8,12 @@
 Reprot: IRB_script
 ======================
 This script generates a report of the numbers needed for the IRB renewal.
+
+-y is the year
+
 """
 import os
 import sys
-import csv
 
 import redcap
 import pandas as pd
@@ -22,9 +24,6 @@ fields = ['study_id', 'redcap_event_name','exclude', 'visit_ignore',
           'visit_date'];
 
 forms=['visit_date', 'demographics']
-
-csv_dir="/fs/u00/alfonso/Desktop"
-csv_file="{}/bart_list.csv".format(csv_dir)
 
 def get_project_entry(args=None):
 	"""
