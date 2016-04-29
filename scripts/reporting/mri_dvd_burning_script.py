@@ -6,7 +6,8 @@
 """
 mri_dvd_burning_script
 ======================
-Generate a list of eids for a special subset of subjects. this list can be used in script/xnat/check_object_names
+Generate a list of eids for a special subset of subjects. this list can be used
+in script/xnat/check_object_names
 """
 import os
 import sys
@@ -27,27 +28,28 @@ csv_dir="/fs/u00/alfonso/Desktop"
 csv_file="{}/bart_list.csv".format(csv_dir)
 
 def get_project_entry(args=None):
-	"""
-	Pulls the data from REDCap
-	"""
-	# Get API key.
-	summary_key_file = open(os.path.join(os.path.expanduser("~"),
-	                                     '.server_config',
-	                                     'redcap-dataentry-token'), 'r')
-	summary_api_key = summary_key_file.read().strip()
+    """
+    Pulls the data from REDCap
+    """
+    # Get API key.
+    summary_key_file = open(os.path.join(os.path.expanduser("~"),
+                                         '.server_config',
+                                         'redcap-dataentry-token'), 'r')
+    summary_api_key = summary_key_file.read().strip()
 
-	# Connect to API.
-	project_entry = redcap.Project('https://ncanda.sri.com/redcap/api/',
-	                               summary_api_key, verify_ssl=False)
-	return project_entry
+    # Connect to API.
+    project_entry = redcap.Project('https://ncanda.sri.com/redcap/api/',
+                                   summary_api_key, verify_ssl=False)
+    return project_entry
 
 def data_entry_fields(fields,project,arm):
-	"""
-	Gets the dataframe containing a specific arm from REDCap
-	"""
-	# Get a dataframe of fields
-	data_entry_raw = project.export_records(fields=fields, forms = forms, format='df', events=arm)
-	return data_entry_rawg
+    """
+    Gets the dataframe containing a specific arm from REDCap
+    """
+    # Get a dataframe of fields
+    data_entry_raw = project.export_records(fields=fields, forms = forms,
+                                            format='df', events=arm)
+    return data_entry_rawg
 
 def get_session_scan(scan_field):
     session_scan = []
@@ -57,7 +59,8 @@ def get_session_scan(scan_field):
 
 def main(args):
     project_entry = get_project_entry()
-    project_df = data_entry_fields(fields,project_entry,['baseline_visit_arm_1','1y_visit_arm_1'])
+    project_df = data_entry_fields(fields,project_entry,['baseline_visit_arm_1',
+                                   '1y_visit_arm_1'])
 
     ## Generate Subject List from csv
     with open(csv_file, 'rb') as f:

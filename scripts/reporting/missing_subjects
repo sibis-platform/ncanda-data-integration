@@ -6,7 +6,8 @@
 """
 Report: Missing_subjects
 ============================================
-Checks whether a list of subjects have no data in redcap and have skipped the visit.
+Checks whether a list of subjects have no data in redcap and have skipped the
+visit.
 
 Usage:
 python missing_subjects.py subject.txt case.csv

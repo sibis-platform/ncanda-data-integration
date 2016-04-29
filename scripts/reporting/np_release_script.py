@@ -73,7 +73,8 @@ def replace_binge_groups_1(x):
 
 def replace_binge_groups_month(x):
     """
-     #3groups based on past month binge drinking (0 - is o or blank, but not missing)
+     #3groups based on past month binge drinking (0 - is o or blank, but not
+     missing)
     """
     if x == 0:
         result = 'None'

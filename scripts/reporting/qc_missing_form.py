@@ -22,13 +22,13 @@ import pandas as pd
 
 fields = ['study_id', 'redcap_event_name','exclude', 'visit_ignore',
           'visit_date','visit_notes','youthreport1_missing','youthreport1_date',
-          'youthreport1b_missing', 'youthreport1b_date','youthreport2_missing', 
+          'youthreport1b_missing', 'youthreport1b_date','youthreport2_missing',
           'youthreport2_date','parentreport_missing','parentreport_date',
           'ssage_youth_missing','ssage_youth_date', 'lssaga1_youth_missing',
           'lssaga1_youth_date','lssaga1_parent_missing','lssaga1_parent_date'];
 
 form_fields = [['youthreport1_missing','youthreport1_date'],
-          ['youthreport1b_missing', 'youthreport1b_date'],['youthreport2_missing', 
+          ['youthreport1b_missing', 'youthreport1b_date'],['youthreport2_missing',
           'youthreport2_date'],['parentreport_missing','parentreport_date'],
           ['ssage_youth_missing','ssage_youth_date'],['lssaga1_youth_missing',
           'lssaga1_youth_date'],['lssaga1_parent_missing','lssaga1_parent_date']];
@@ -54,7 +54,8 @@ def data_entry_fields(fields,project,arm):
 	Gets the dataframe containing a specific arm from REDCap
 	"""
 	# Get a dataframe of fields
-	data_entry_raw = project.export_records(fields=fields, format='df', events=[arm])
+	data_entry_raw = project.export_records(fields=fields, format='df',
+                                            events=[arm])
 	return data_entry_raw
 
 def value_check(idx,row,field_missing, field_value):
@@ -82,7 +83,7 @@ def main(args=None):
 	project_entry = get_project_entry()
 	project_df = data_entry_fields(fields,project_entry,'1y_visit_arm_1')
 	error = []
-	
+
 	for idx, row in project_df.iterrows():
 		for f in form_fields:
 			check = value_check(idx,row,f[0],f[1])
