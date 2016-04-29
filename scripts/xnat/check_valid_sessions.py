@@ -28,27 +28,11 @@ module load miniconda
 source activate ncanda-1.0.0
 """
 __author__ = "Nolan Nichols <http://orcid.org/0000-0003-1099-3328>"
-__modified__ = "2015-08-26"
+__modified__ = "2016-04-22"
 
 import os
 
-import re
-
-def cmpVersion(version1, version2):
-    def normalize(v):
-        return [int(x) for x in re.sub(r'(\.0+)*$','', v).split(".")]
-    return cmp(normalize(version1), normalize(version2))
-
 import pandas as pd
-
-# might also work for pandas version less than that . I just know it does for this one 
-# when run with update 
-minPandasVersion = "0.13.1"
-# but then crashes later - so then you have to run it with version 
-# minPandasVersion = "0.17.1"
-if cmpVersion(pd.__version__,minPandasVersion) < 0 : 
-    print "ERROR: pandas version too small (Current: %s; Required: %s)!" % (pd.__version__,minPandasVersion)
-    exit(1) 
 
 import xnat_extractor as xe
 
@@ -108,15 +92,19 @@ def main(args=None):
         subject_df = df[df.subject_id == subject_id]
 
         # find the earliest exam date for each given subject
-        baseline_date = subject_df.groupby('subject_id')['experiment_date'].nsmallest(1)
+        grouping = subject_df.groupby('subject_id')
+        baseline_date = grouping['experiment_date'].nsmallest(1)
         baseline_df = subject_df[subject_df.experiment_date == baseline_date[0]]
 
         # Find window for follow-up
-        followup_min = baseline_df.experiment_date + pd.datetools.Day(n=args.min)
-        followup_max = baseline_df.experiment_date + pd.datetools.Day(n=args.max)
+        day_min = pd.datetools.Day(n=args.min)
+        day_max = pd.datetools.Day(n=args.max)
+        followup_min = baseline_df.experiment_date + day_min
+        followup_max = baseline_df.experiment_date + day_max
 
-        followup_df = subject_df[(subject_df.experiment_date > followup_min[0]) &
-                                 (subject_df.experiment_date < followup_max[0])]
+        df_min = subject_df.experiment_date > followup_min[0]
+        df_max = subject_df.experiment_date < followup_max[0]
+        followup_df = subject_df[df_min & df_max]
 
         # Included followup sessions slightly outside window
         included = ['NCANDA_E02615', 'NCANDA_E02860']
@@ -145,14 +133,20 @@ def main(args=None):
             scan2_selected = scan2_df
 
         # report columns
-        columns = ['site_id', 'subject_id', 'experiment_id', 'experiment_date', 'excludefromanalysis', 'note', 'scan_type', 'quality', 'scan_note']
+        columns = ['site_id', 'subject_id', 'experiment_id', 'experiment_date',
+                   'excludefromanalysis', 'note', 'scan_type', 'quality',
+                   'scan_note']
         scan1_recs = scan1_selected.loc[:, columns].to_records(index=False)
         scan2_recs = scan2_selected.loc[:, columns].to_records(index=False)
 
-        scan1_report = pd.DataFrame(scan1_recs, index=scan1_selected.experiment_id)
-        scan2_report = pd.DataFrame(scan2_recs, index=scan2_selected.experiment_id)
+        scan1_report = pd.DataFrame(scan1_recs,
+                                    index=scan1_selected.experiment_id)
+        scan2_report = pd.DataFrame(scan2_recs,
+                                    index=scan2_selected.experiment_id)
 
-        scan1_scan2_report = scan1_report.join(scan2_report[['scan_type', 'quality', 'scan_note']],
+        scan1_scan2_report = scan1_report.join(scan2_report[['scan_type',
+                                                             'quality',
+                                                             'scan_note']],
                                                lsuffix='_scan1',
                                                rsuffix='_scan2',
                                                how='inner')
@@ -187,11 +181,13 @@ if __name__ == "__main__":
     parser.add_argument('--min',
                         type=int,
                         default=180,
-                        help='Minimum days from baseline (to specify followup 1y - only impacts final report but not -u option)')
+                        help='Minimum days from baseline (to specify followup '
+                             '1y, only impacts final report but not -u option)')
     parser.add_argument('--max',
                         type=int,
                         default=540,
-                        help='Maximum days from baseline (to specify followup 1y - only impacts final report but not -u option)')
+                        help='Maximum days from baseline (to specify followup '
+                             '1y, only impacts final report but not -u option)')
     parser.add_argument('--usable',
                         action='store_true',
                         help='Only list scans with usable image quality')
@@ -202,7 +198,8 @@ if __name__ == "__main__":
                         help='Name of csv file to write.')
     parser.add_argument('-n', '--num_extract',
                         type=int,
-                        help='Number of sessions to extract (only works in connection with -u)')
+                        help='Number of sessions to extract (only works in '
+                             'connection with -u)')
     parser.add_argument('-u', '--update',
                         action='store_true',
                         help='Update the cache of xml files')
