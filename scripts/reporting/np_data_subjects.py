@@ -6,7 +6,8 @@
 """
 mri_dvd_burning_script
 ======================
-Generate a list of eids for a special subset of subjects. this list can be used in script/xnat/check_object_names
+Generate a list of eids for a special subset of subjects. this list can be used
+in script/xnat/check_object_names
 """
 import os
 import sys
@@ -57,7 +58,8 @@ def data_entry_fields(forms,project,arm):
 	Gets the dataframe containing a specific arm from REDCap
 	"""
 	# Get a dataframe of fields
-	data_entry_raw = project.export_records(forms = forms, format='df', events=arm)
+	data_entry_raw = project.export_records(forms = forms, format='df',
+											events=arm)
 	return data_entry_raw
 
 def main(args):

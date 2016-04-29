@@ -18,7 +18,7 @@ Flag -s creates a report from subset of subjects. The list of subjects should be
 entered in a txt file and contain their NCANDA subject ids.
 
 Usage:
-python baseline_1yr_cases.py
+python baseline_1yr_cases.py -b -n
 """
 import os
 import sys
