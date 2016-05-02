@@ -99,12 +99,12 @@ def main(args=None):
         final_df[k] = race_filter.apply(lambda x: 1 if x == True else 0)
 
     for i in nps_file:
-        df = pd.read_csv(os.path.join(directory, i),
+        df = pd.read_csv(os.path.join(args.inputdir, i),
                     index_col=['subject','arm','visit'])
         final_df = pd.concat([final_df, df], axis=1)
 
-    #final_df = final_df.rename(columns={'cddr31':'cddr_past_month_binge',
-    #                                'cddr30':'cddr_past_year_binge'})
+    final_df = final_df.rename(columns={'cddr31':'cddr_past_month_binge',
+                                    'cddr30':'cddr_past_year_binge'})
 
     final_df['binge_groups_1'] = final_df['cddr_past_year_binge'].apply(replace_binge_groups_1)
     final_df['binge_groups_month'] = final_df['cddr_past_month_binge'].apply(replace_binge_groups_month)
