@@ -27,8 +27,8 @@ def filecollector(mypath):
 
 def main(args):
     clinical_files = filecollector(join(args.releasedir,'clinical'))
-    np_files = filecollector(join(args.releasedir,'np'))
-    mri_files = filecollector(join(args.releasedir,'mri'))
+    np_files = filecollector(join(args.releasedir,'neuropsych'))
+    mri_files = filecollector(join(args.releasedir,'imaging'))
     dd_files = filecollector(join(args.releasedir,'datadic'))
 
     ###Log In###
