@@ -308,10 +308,10 @@ def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_b
     # Use default lookup
     if defaultFlag:
         xnat_sid, xnat_pid = subject_project_dict[subject]
-    else : 
+    else :
         xnat_sid = sid
         xnat_pid = pid
-        
+
     # Get all experiments for this subject within the given range of the visit
     # date
     xnat_session_data = get_sessions_in_range(xnat,
@@ -595,7 +595,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                 elif event == '3y_visit_arm_1' and sub_map.get('followup_3y'):
                     id_map = sub_map.get('followup_3y')
                     defaultFlag = False
-                if not id_map:
+                else:
                     id_map = sub_map.get('default')
                 correct_sid = id_map.get('subject')
                 correct_pid = id_map.get('project')

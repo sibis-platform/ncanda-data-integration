@@ -121,10 +121,14 @@ def export_to_nifti( interface, project, subject, session, session_label, manufa
                             xml_file_list = glob.glob(os.path.join( temp_dir, '%s_%s' % (scan,scantype), 'image*.nii.xml' ))
                             case_gradients = check_gradient_tables.get_all_gradients(xml_file_list, decimals=3)
                             errors = list()
-                            for idx, frame in enumerate(case_gradients):
-                                # if there is a frame that doesn't match, report it.
-                                if not (gradients[idx]==frame).all():
-                                    errors.append(idx)
+                            if len(case_gradients) == len(gradients):
+                                for idx, frame in enumerate(case_gradients):
+                                    # if there is a frame that doesn't match, report it.
+                                    if not (gradients[idx]==frame).all():
+                                        errors.append(idx)
+                            else:
+                                sibis.logging(session_label,"ERROR: Incorrect number of frames.",
+                                              session=session)
                             if errors:
                                 #key = os.path.join(case, args.arm, args.event, 'diffusion/native/dti60b1000')
                                 key = session_label
@@ -147,10 +151,14 @@ def export_to_nifti( interface, project, subject, session, session_label, manufa
                             xml_file_list = glob.glob(os.path.join( temp_dir, '%s_%s' % (scan,scantype), 'image*.nii.xml' ))
                             case_gradients = check_gradient_tables.get_all_gradients(xml_file_list, decimals=3)
                             errors = list()
-                            for idx, frame in enumerate(case_gradients):
-                                # if there is a frame that doesn't match, report it.
-                                if not (gradients[idx]==frame).all():
-                                    errors.append(idx)
+                            if len(case_gradients) == len(gradients):
+                                for idx, frame in enumerate(case_gradients):
+                                    # if there is a frame that doesn't match, report it.
+                                    if not (gradients[idx]==frame).all():
+                                        errors.append(idx)
+                            else:
+                                sibis.logging(session_label,"ERROR: Incorrect number of frames.",
+                                              session=session)
                             if errors:
                                 #key = os.path.join(case, args.arm, args.event, 'diffusion/native/dti60b1000')
                                 key = session_label
