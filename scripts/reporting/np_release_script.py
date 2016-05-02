@@ -14,12 +14,6 @@ import datetime
 
 import pandas as pd
 
-directory = "/fs/ncanda-share/releases/NCANDA_DATA_00010/summaries"
-
-csv_dir = "/fs/u00/alfonso/Desktop/"
-
-today =  datetime.date.today()
-
 nps_file = ["ataxia.csv", "cddr.csv", "clinical.csv", "cnp.csv", "dd100.csv",
             "dd1000.csv", "grooved_pegboard.csv", "ishihara.csv",
             "landoltc.csv", "rey-o.csv", "wais4.csv", "wrat4.csv",
@@ -87,7 +81,9 @@ def replace_binge_groups_month(x):
     return result
 
 def main(args=None):
-    final_df = pd.read_csv(os.path.join(directory, "demographics.csv"),
+    today =  datetime.date.today()
+
+    final_df = pd.read_csv(os.path.join(args.inputdir, "demographics.csv"),
                                         index_col=['subject','arm','visit'])
 
     race_map = dict(native_american_american_indian=1,
@@ -107,8 +103,8 @@ def main(args=None):
                     index_col=['subject','arm','visit'])
         final_df = pd.concat([final_df, df], axis=1)
 
-    final_df = final_df.rename(columns={'cddr31':'cddr_past_month_binge',
-                                    'cddr30':'cddr_past_year_binge'})
+    #final_df = final_df.rename(columns={'cddr31':'cddr_past_month_binge',
+    #                                'cddr30':'cddr_past_year_binge'})
 
     final_df['binge_groups_1'] = final_df['cddr_past_year_binge'].apply(replace_binge_groups_1)
     final_df['binge_groups_month'] = final_df['cddr_past_month_binge'].apply(replace_binge_groups_month)
@@ -119,10 +115,14 @@ def main(args=None):
 
     final_df = final_df[fields]
 
-    final_df.to_csv('{}np_release_{}.csv'.format(csv_dir,today))
+    final_df.to_csv(os.path.join(args.outputdir,'np_release_{}.csv'.format(today)))
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--inputdir", action="store",
+                        help="The directory containing the snap shot files.")
+    parser.add_argument("-o", "--outputdir", action="store",
+                        help="The output directory")
     argv = parser.parse_args()
     sys.exit(main(args=argv))

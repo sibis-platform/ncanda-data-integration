@@ -4,9 +4,9 @@
 ##  See COPYING file distributed along with the package for the copyright and license terms.
 ##
 """
-mri_dvd_burning_script
+np_data_subjects.py
 ======================
-Generate a list of eids for a special subset of subjects. this list can be used
+Generate a list of eids for a special subset of subjects. This list can be used
 in script/xnat/check_object_names
 """
 import os
