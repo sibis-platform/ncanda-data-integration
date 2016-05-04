@@ -36,17 +36,11 @@ def get_project(args):
                                 verify_ssl=False)
 
     # Get all the mri session reports for baseline and 1r
-    if args.baseline:
-        events = ['baseline_visit_arm_1']
-    elif args.yearonefollowup:
-        events = ['1y_visit_arm_1']
-    else:
-        events = ['baseline_visit_arm_1','1y_visit_arm_1']
     mri  = rc_summary.export_records(fields=['study_id', 'exclude',
                                              'visit_ignore___yes', 'mri_missing'],
                                      forms=['mr_session_report', 'visit_date',
                                             'demographics'],
-                                     events=events,
+                                     events=args.event.split(", "),
                                      format='df')
     return mri
 
@@ -54,7 +48,7 @@ def mri_filter_dataframe(dataframe):
     # Create filters for cases that are included
     case_included = dataframe.exclude != 1 # baseline has 'exclude' in demographics
     visit_included = dataframe.visit_ignore___yes != 1 # Not consistent with 'exclude'
-    mri_collected = dataframe.mri_missing == 1
+    mri_collected = dataframe.mri_missing != 1
 
     # Apply filters for results
     included = dataframe[case_included]
@@ -91,7 +85,7 @@ def main(args=None):
         print("Writing results to {}...".format(args.outfile))
     # Write out results
     results.to_csv(os.path.join(args.csvdir, args.outfile),
-                   columns=['visit_ignore___yes', 'visit_ignore_why', 'visit_ignore_why_other', 'mri_missing', 'mri_missing_why', 'mri_xnat_sid', 'mri_xnat_eids','mri_notes'])
+                   columns=args.forms.split(", "))
 
 if __name__ == '__main__':
     import argparse
@@ -101,19 +95,22 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog="baseline_1yr_cases.py",
                                      description=__doc__,
                                      formatter_class=formatter)
-    parser.add_argument('-b', '--baseline', dest="baseline",
-                        help="Select only baseline events", action='store_true')
     parser.add_argument( '-c','--csvdir',  action="store", default = '',
                         help="Directory where CSV will be stored.")
-    parser.add_argument('-f', '--yearonefollowup', dest="yearonefollowup",
-                        help="Select only 1y Follow-Up events", action='store_true')
+    parser.add_argument('-e', '--event', dest="event", action='store',
+                        default="baseline_visit_arm_1, 1y_visit_arm_1",
+                        help="A list containg the events of interest. {}".format(default))
+    parser.add_argument('-f', '--forms', dest="forms",
+                        default="visit_ignore___yes, mri_missing, mri_xnat_sid, mri_xnat_eids",
+                        help="A list containing the forms of interest. {}".format(default),
+                        action='store')
+    parser.add_argument('-m', '--mri_cases', dest="mri_cases", action='store_true',
+                        help="Generate report for subjects with valid visit & MRI session")
+    parser.add_argument('-n', '--np_cases', dest="np_cases", action='store_true',
+                        help="Generate report for subjects with valid visit session")
     parser.add_argument('-o', '--outfile', dest="outfile",
                         help="File to write out. {}".format(default),
                         default='baseline_1yr_cases.csv')
-    parser.add_argument('-m', '--mri_cases', dest="mri_cases",
-                        help="Generate report for subjects with valid visit & MRI session", action='store_true')
-    parser.add_argument('-n', '--np_cases', dest="np_cases",
-                        help="Generate report for subjects with valid visit session", action='store_true')
     parser.add_argument('-s', '--subjectlist', dest="subjectlist",
                         help="Text file containing the SIDS for subjects of interest", action='store')
     parser.add_argument('-v', '--verbose', dest="verbose",
