@@ -29,7 +29,7 @@ import os
 
 import pandas as pd
 
-from scripts.reporting import xnat_extractor as xe
+import xnat_extractor as xe
 
 verbose = None
 
