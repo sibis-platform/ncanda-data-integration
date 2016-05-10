@@ -117,6 +117,21 @@ def generate_body(issue):
     return markdown
 
 
+def get_valid_title(title):
+    """
+    Ensure that the title isn't over 255 chars
+
+    Args:
+        title (str): title to be used in issue report
+
+    Returns:
+        str: less than 255 chars long
+    """
+    if len(title) >= 254:
+        title = title[:254]
+    return title
+
+
 def create_issues(repo, title, body, verbose=None):
     """
     Create a GitHub issue for the provided repository with a label
@@ -145,15 +160,15 @@ def create_issues(repo, title, body, verbose=None):
             print "Issue is a Traceback..."
         string = "".join(issues)
         sha = hashlib.sha1(string).hexdigest()[0:6]
-        error = dict(experiment_site_id = "Traceback:{}".format(sha),
-                    error = "Traceback",
-                    message = string)
+        error = dict(experiment_site_id="Traceback:{}".format(sha),
+                     error="Traceback",
+                     message=string)
         issues = [json.dumps(error, sort_keys=True)]
     for issue in issues:
         # Check for new format
         try:
             issue_dict = json.loads(issue)
-            issue_dict.update({'title': title})
+            issue_dict.update({'title': get_valid_title(title)})
             error_msg = issue_dict.get('error')
             experiment_site_id = issue_dict.get('experiment_site_id')
             subject = "{}, {}".format(experiment_site_id, error_msg)
