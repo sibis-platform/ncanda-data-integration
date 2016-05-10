@@ -110,7 +110,7 @@ def main(args=None):
     final_df['binge_groups_month'] = final_df['cddr_past_month_binge'].apply(replace_binge_groups_month)
 
     final_df['exceed_or_mrianomaly'] = pd.np.NaN
-    final_df['hi_ed'] = pd.np.NaN
+    final_df['hi_ed'] = pd.np.NaN  # Note that hi_ed comes from ses_parent_yoe
     final_df['mri_analysisanomalies'] = pd.np.NaN
 
     final_df = final_df[fields]
