@@ -5,7 +5,7 @@
 ##  See COPYING file distributed along with the package for the copyright and license terms.
 ##
 """
-Check Valid Sessions
+XNAT Sessions Report
 
 Check for valid scanning sessions and time windows by first caching all the
 XNAT session XML files and then parsing these files for necessary info. Note
@@ -14,21 +14,17 @@ that to create the XML file cache you need to run with --update
 Example
 =======
 - When running for the first time run 
-  ./check_valid_sessions.py --update 
+  ./xnat_sessions_report.py --update
   so that the cach (located at experimentsdir) is created 
 
 - Update the cache (stored in experimentsdir) and generate the baseline report
-  ./check_valid_sessions.py --update --baseline
+  ./xnat_sessions_report.py --update --baseline
 
 - Use the existing cache to extract 10 in the followup window
- ./check_valid_sessions.py --num_extract 10 --min 180 --max 540
-
-If you have problems running it log in as nicholsn and run 
-module load miniconda
-source activate ncanda-1.0.0
+ ./xnat_sessions_report.py --num_extract 10 --min 180 --max 540
 """
 __author__ = "Nolan Nichols <http://orcid.org/0000-0003-1099-3328>"
-__modified__ = "2016-04-22"
+__modified__ = "2016-05-09"
 
 import os
 
@@ -160,7 +156,7 @@ if __name__ == "__main__":
     import sys
     import argparse
 
-    parser = argparse.ArgumentParser(prog='check_valid_sessions.py',
+    parser = argparse.ArgumentParser(prog='xnat_sessions_report.py',
                                      description=__doc__)
     parser.add_argument('-c', '--config',
                         type=str,
