@@ -9,16 +9,15 @@ Post GitHub Issues
 ------------------
 
 Take the stdout and stderr passed to the catch_output_email and create an issue
-on GitHub that uses a tag corresponding to the script any error was detected with.
+on GitHub that uses a tag corresponding to the script any error was detected
+with.
 
 Example Usage:
 
 python post_github_issues.py -o sibis-platform -r ncanda-issues \
-                             -t "NCANDA: Laptop Data Import Stage 2 (update_visit_date)" \
+                             -t "NCANDA: Laptop Data (update_visit_date)" \
                              -b /tmp/test.txt -v
 """
-__author__ = 'Nolan Nichols <https://orcid.org/0000-0003-1099-3328>'
-
 import os
 import sys
 import json
@@ -30,11 +29,14 @@ from github.GithubException import UnknownObjectException
 
 
 def create_connection(cfg, verbose=None):
-    """
-    Get a connection to github api
+    """Get a connection to github api.
 
-    :param cfg: path to configuration file
-    :return: github.MainClass.Github
+    Args:
+        cfg (str): Path to configuration file.
+        verbose (bool): True turns on verbose.
+
+    Returns:
+        object: A github.MainClass.Github.
     """
     if verbose:
         print "Parsing config: {0}".format(cfg)
@@ -53,12 +55,16 @@ def create_connection(cfg, verbose=None):
 
 
 def get_label(repo, title, verbose=None):
-    """
-    Get a label object to tag the issue
+    """Get a label object to tag the issue.
 
-    :param repo: github.Repository
-    :param title: str
-    :return: github.Label
+    Args:
+        repo (object): A github.Repository object.
+        title (str): Title of posting.
+        verbose (bool): True turns on verbose.
+
+    Returns:
+        object: A github.Label.
+
     """
     if verbose:
         print "Checking for label..."
@@ -76,16 +82,21 @@ def get_label(repo, title, verbose=None):
             if verbose:
                 print "Found label: {0}".format(label)
         except UnknownObjectException, e:
-            print "Error: The label '{0}' does not exist on Github. {1}".format(label_text, e)
+            print "Error: The label '{0}' does not exist on " \
+                  "Github. {1}".format(label_text, e)
     return label
 
 
 def is_open_issue(repo, subject, verbose=None):
-    """
-    Verify if issue already exists, if the issue is closed, reopen it.
-    :param repo: github.Repository
-    :param subject: str
-    :return: bool
+    """Verify if issue already exists, if the issue is closed, reopen it.
+
+    Args:
+        repo (object): a github.Repository.
+        subject (str): Subject line.
+        verbose (bool): True turns on verbose.
+
+    Returns:
+        bool: True if issue is already open.
     """
     if verbose:
         print "Checking for open issue: {0}".format(subject)
@@ -96,7 +107,8 @@ def is_open_issue(repo, subject, verbose=None):
             return True
         if issue.title == subject and issue.state == 'closed':
             if verbose:
-                print "Closed issue already exists, reopening... See: {0}".format(issue.url)
+                print "Closed issue already exists, reopening... " \
+                      "See: {0}".format(issue.url)
             issue.edit(state='open')
             return True
     if verbose:
@@ -105,11 +117,13 @@ def is_open_issue(repo, subject, verbose=None):
 
 
 def generate_body(issue):
-    """
-    Generate Markdown for body of issue.
+    """Generate Markdown for body of issue.
 
-    :param issue:
-    :return: str
+    Args:
+        issue (dict): Keys for title and others.
+
+    Returns:
+        str: Markdown text.
     """
     markdown = "### {}\n".format(issue.pop('title'))
     for k, v in issue.iteritems():
@@ -118,14 +132,13 @@ def generate_body(issue):
 
 
 def get_valid_title(title):
-    """
-    Ensure that the title isn't over 255 chars
+    """Ensure that the title isn't over 255 chars.
 
     Args:
-        title (str): title to be used in issue report
+        title (str): Title to be used in issue report.
 
     Returns:
-        str: less than 255 chars long
+        str: Less than 255 chars long.
     """
     if len(title) >= 254:
         title = title[:254]
@@ -133,27 +146,30 @@ def get_valid_title(title):
 
 
 def create_issues(repo, title, body, verbose=None):
-    """
-    Create a GitHub issue for the provided repository with a label
+    """Create a GitHub issue for the provided repository with a label
 
-    :param repo: github.Repository
-    :param title: str
-    :param body: str
-    :return: None
+    Args:
+        repo: github.Repository
+        title (str): Contains label on github in parentheses.
+        body (str):
+        verbose (bool): True turns on verbose
+
+    Returns:
+        None
     """
     label = get_label(repo, title)
     if not label:
-        raise NotImplementedError("A label embedded in parentheses is currently required. "
-                                  "For example 'Title of Error (title_tag).' You provided:"
-                                  "{0}".format(title))
+        err = "A label embedded in parentheses is currently required. For " \
+              "example 'Title of Error (title_tag).' You provided: {0}"
+        raise NotImplementedError(err.format(title))
     # get stdout written to file
     with open(body) as fi:
         issues = fi.readlines()
         fi.close()
     # Handle empty body
     if not issues:
-        raise RuntimeWarning("The body text is empty and no issue will be created for "
-                             "file: {}.".format(body))
+        raise RuntimeWarning("The body text is empty and no issue will be "
+                             "created for file: {}.".format(body))
     # Handle multiline error messages.
     if 'Traceback' in ''.join(issues):
         if verbose:
@@ -209,8 +225,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="post_github_issues.py",
                                      description=__doc__,
                                      formatter_class=formatter)
+    default_cfg = '~/.server_config/github.cfg'
     parser.add_argument("-c", "--config", dest="config",
-                        default=os.path.expanduser('~/.server_config/github.cfg'),
+                        default=os.path.expanduser(default_cfg),
                         help="GitHub authentication info.".format(default))
     parser.add_argument("-o", "--org", dest="org", required=True,
                         help="GitHub organization.")
