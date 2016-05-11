@@ -82,7 +82,8 @@ def get_label(repo, title, verbose=None):
             if verbose:
                 print "Found label: {0}".format(label)
         except UnknownObjectException, e:
-            print "Error: The label '{0}' does not exist on Github. {1}".format(label_text, e)
+            print "Error: The label '{0}' does not exist on " \
+                  "Github. {1}".format(label_text, e)
     return label
 
 
@@ -106,7 +107,8 @@ def is_open_issue(repo, subject, verbose=None):
             return True
         if issue.title == subject and issue.state == 'closed':
             if verbose:
-                print "Closed issue already exists, reopening... See: {0}".format(issue.url)
+                print "Closed issue already exists, reopening... " \
+                      "See: {0}".format(issue.url)
             issue.edit(state='open')
             return True
     if verbose:
@@ -157,17 +159,17 @@ def create_issues(repo, title, body, verbose=None):
     """
     label = get_label(repo, title)
     if not label:
-        raise NotImplementedError("A label embedded in parentheses is currently required. "
-                                  "For example 'Title of Error (title_tag).' You provided:"
-                                  "{0}".format(title))
+        err = "A label embedded in parentheses is currently required. For " \
+              "example 'Title of Error (title_tag).' You provided: {0}"
+        raise NotImplementedError(err.format(title))
     # get stdout written to file
     with open(body) as fi:
         issues = fi.readlines()
         fi.close()
     # Handle empty body
     if not issues:
-        raise RuntimeWarning("The body text is empty and no issue will be created for "
-                             "file: {}.".format(body))
+        raise RuntimeWarning("The body text is empty and no issue will be "
+                             "created for file: {}.".format(body))
     # Handle multiline error messages.
     if 'Traceback' in ''.join(issues):
         if verbose:
@@ -223,8 +225,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="post_github_issues.py",
                                      description=__doc__,
                                      formatter_class=formatter)
+    default_cfg = '~/.server_config/github.cfg'
     parser.add_argument("-c", "--config", dest="config",
-                        default=os.path.expanduser('~/.server_config/github.cfg'),
+                        default=os.path.expanduser(default_cfg),
                         help="GitHub authentication info.".format(default))
     parser.add_argument("-o", "--org", dest="org", required=True,
                         help="GitHub organization.")
