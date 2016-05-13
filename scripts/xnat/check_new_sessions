@@ -298,13 +298,14 @@ def check_dti(ifc, eid, dti_scans):
 scan_type_dictionary = {'GE MEDICAL SYSTEMS': required_ge.keys(),
                         'SIEMENS': required_siemens.keys()}
 
+
 def label_check(label):
-    phantom = ['.-9999\d','.-00000']
-    match = re.match( phantom[0], label, flags=re.DOTALL )
+    phantom = ['.-9999\d', '.-00000']
+    match = re.match(phantom[0], label, flags=re.DOTALL)
     if match:
         return match
     else:
-        match = re.match( phantom[1], label, flags=re.DOTALL )
+        match = re.match(phantom[1], label, flags=re.DOTALL)
         if match:
             return match
 
