@@ -413,14 +413,17 @@ frame_check_ge = {'ncanda-t1spgr-v1': '146',
 
 
 def frame_check(eid, manufacturer, label):
-    scans = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/id')
+    scan_id = 'xnat:mrSessionData/scans/scan/id'
+    scans = ifc.select.experiment(eid).attrs.get(scan_id)
     frames = []
     error = []
     for scan in scans:
-        frames.append(ifc.select.experiment( eid ).scan(scan).attrs.mget(['type','frames']))
+        frame = ifc.select.experiment(eid).scan(scan).attrs.mget(['type',
+                                                                  'frames'])
+        frames.append(frame)
     if manufacturer == 'GE MEDICAL SYSTEMS':
         for f in frames:
-            if  f[0] in scan_type_dictionary['GE MEDICAL SYSTEMS']:
+            if f[0] in scan_type_dictionary['GE MEDICAL SYSTEMS']:
                 if frame_check_ge[f[0]] != f[1]:
                     error.append({'field': 'Frames',
                                   'scan_type': f[0],
@@ -428,7 +431,7 @@ def frame_check(eid, manufacturer, label):
                                   'expected_frames': frame_check_ge[f[0]]})
     elif manufacturer == 'SIEMENS':
         for f in frames:
-            if  f[0] in scan_type_dictionary['SIEMENS']:
+            if f[0] in scan_type_dictionary['SIEMENS']:
                 if f[0] == 'ncanda-grefieldmap-v1':
                     if f[1] in frame_check_siemens[f[0]]:
                         f[1] = f[1]
@@ -444,6 +447,7 @@ def frame_check(eid, manufacturer, label):
                                       'frames': f[1],
                                       'expected_frames': frame_check_ge[f[0]]})
     return error
+
 
 def mri_quality_check(eid,manufacturer,label):
     errors = []
