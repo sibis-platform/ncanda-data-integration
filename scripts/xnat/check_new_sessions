@@ -634,28 +634,45 @@ if len(new_session_links) > 0:
                              for session_link in new_session_links), '</ol>'])
 
 if len(htmlu) > 0:
-    html_summary += '<li>Sessions with Scans to Inspect: <a href="#toinspect">&nbsp;%d&nbsp;</a></li>\n' % len( htmlu )
-    html += ''.join(['<b><a id="toinspect">Sessions with Mandatory Scans to Inspect', '</a></b>\n<ol>',''.join(htmlu),'</ol>' ])
+    html_summary += '<li>Sessions with Scans to Inspect: ' \
+                    '<a href="#toinspect">&nbsp;%d&nbsp;</a>' \
+                    '</li>\n' % len(htmlu)
+    html += ''.join(['<b><a id="toinspect">Sessions with Mandatory '
+                     'Scans to Inspect',
+                     '</a></b>\n<ol>', ''.join(htmlu), '</ol>'])
 
-if len( htmlq ) > 0:
-    html_summary += '<li>Sessions with Questionable Scans: <a href="#questionable">&nbsp;%d&nbsp;</a></li>\n' % len( htmlq )
-    html += ''.join(['<b><a id="questionable">Sessions with Questionable Scans' ,'</a></b>\n<ol>',''.join(htmlq),'</ol>'])
+if len(htmlq) > 0:
+    html_summary += '<li>Sessions with Questionable Scans: ' \
+                    '<a href="#questionable">&nbsp;%d&nbsp;</a>' \
+                    '</li>\n' % len(htmlq)
+    html += ''.join(['<b><a id="questionable">Sessions with Questionable Scans',
+                     '</a></b>\n<ol>', ''.join(htmlq), '</ol>'])
 
-if len( htmld ) > 0:
-    html_summary += '<li>Sessions with Duplicated Scans: <a href="#dupes">&nbsp;%d&nbsp;</a></li>\n' % len( htmld )
-    html += ''.join(['<b><a id="dupes">Sessions with Duplicated Scans', '</a></b>\n<ol>',''.join(htmld),'</ol>'])
+if len(htmld) > 0:
+    html_summary += '<li>Sessions with Duplicated Scans: ' \
+                    '<a href="#dupes">&nbsp;%d&nbsp;</a></li>\n' % len(htmld)
+    html += ''.join(['<b><a id="dupes">Sessions with Duplicated Scans',
+                     '</a></b>\n<ol>', ''.join(htmld), '</ol>'])
 
-if len( htmln ) > 0:
-    html_summary += '<li>Unparsable Dicoms: <a href="#niftifailed">&nbsp;%d&nbsp;</a></li>\n' % len( htmln )
-    html += ''.join(['<b><a id="niftifailed">Sessions with Unparsable Dicoms ', '</a></b>\n<ol>',''.join(htmln),'</ol>' ])
+if len(htmln) > 0:
+    html_summary += '<li>Unparsable Dicoms: <a href="#niftifailed">' \
+                    '&nbsp;%d&nbsp;</a></li>\n' % len(htmln)
+    html += ''.join(['<b><a id="niftifailed">Sessions with Unparsable Dicoms ',
+                     '</a></b>\n<ol>', ''.join(htmln), '</ol>'])
 
-if len( htmldt ) > 0:
-    html_summary += '<li>Sessions with Mismatched DTI Parameters: <a href="#dtimismatch">&nbsp;%d&nbsp;</a></li>\n' % len( htmldt )
-    html += ''.join(['<b><a id="dtimismatch">Sessions with Mismatched DTI Parameters',  '</a></b>\n<ol>',''.join(htmldt),'</ol>'])
+if len(htmldt) > 0:
+    html_summary += '<li>Sessions with Mismatched DTI Parameters: <a href=' \
+                    '"#dtimismatch">&nbsp;%d&nbsp;</a></li>\n' % len(htmldt)
+    html += ''.join([
+        '<b><a id="dtimismatch">Sessions with Mismatched DTI Parameters',
+        '</a></b>\n<ol>', ''.join(htmldt), '</ol>'])
 
-if len( htmlphys ) > 0:
-    html_summary += '<li>Sessions with Missing Physiological Data: <a href="#physio">&nbsp;%d&nbsp;</a></li>\n' % len( htmlphys )
-    html += ''.join(['<b><a id="physio">Sessions with Missing Physiological Data',  '</a></b>\n<ol>',''.join(htmlphys),'</ol>'])
+if len(htmlphys) > 0:
+    html_summary += '<li>Sessions with Missing Physiological Data: <a ' \
+                    'href="#physio">&nbsp;%d&nbsp;</a></li>\n' % len(htmlphys)
+    html += ''.join([
+        '<b><a id="physio">Sessions with Missing Physiological Data',
+        '</a></b>\n<ol>', ''.join(htmlphys), '</ol>'])
 
 if html_summary != '':
     html = '<b>Summary</b>\n<ol>\n' + html_summary + '</ol>\n' + html
@@ -664,12 +681,20 @@ if html_summary != '':
 if args.send_mail_to:
     from xnat_email import XnatEmail
     email = XnatEmail( ifc )
-    email.send( 'NCANDA XNAT - MRI Session Report', email._admin_email, args.send_mail_to.split( ',' ), html )
+    email.send('NCANDA XNAT - MRI Session Report',
+               email._admin_email,
+               args.send_mail_to.split(','),
+               html)
 elif args.verbose:
     print html
 
-# Finally, update config stored on the server to have current date/time as the time that this script was last run
+# Finally, update config stored on the server to have current date/time as the
+# time that this script was last run
 if not args.no_update:
     if args.verbose:
-        print "Flagging %d series for re-inspection during next script run" % len( experiments_for_next_run )
-    content = ifc._exec( uri='%s?inbody=true' % config_uri, method='PUT', body=','.join( set( experiments_for_next_run ) ), headers={'content-type':'text/plain'} )
+        print "Flagging %d series for re-inspection during next script run" % \
+              len(experiments_for_next_run)
+    content = ifc._exec(uri='%s?inbody=true' % config_uri,
+                        method='PUT',
+                        body=','.join(set(experiments_for_next_run)),
+                        headers={'content-type': 'text/plain'})
