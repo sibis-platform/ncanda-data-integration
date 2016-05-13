@@ -349,59 +349,68 @@ def voxelres_get(eid, scan):
                           match.group(1),
                           flags=re.DOTALL)
 
-voxelRes_check_siemens = {'ncanda-mprage-v1': 'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"',
-                          'ncanda-t2fse-v1': 'x="0.46875\d*" y="0.46875\d*" z="1.2\d*"',
-                          'ncanda-dti6b500pepolar-v1': 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
-                          'ncanda-dti60b1000-v1': 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
-                          'ncanda-grefieldmap-v1': 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
-                          'ncanda-rsfmri-v1': 'x="3.75\d*" y="3.75\d*" z="5.0\d*"'}
+voxelres_siemens = {
+    'ncanda-mprage-v1': 'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"',
+    'ncanda-t2fse-v1': 'x="0.46875\d*" y="0.46875\d*" z="1.2\d*"',
+    'ncanda-dti6b500pepolar-v1': 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
+    'ncanda-dti60b1000-v1': 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
+    'ncanda-grefieldmap-v1': 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
+    'ncanda-rsfmri-v1': 'x="3.75\d*" y="3.75\d*" z="5.0\d*"'
+}
 
-voxelRes_check_ge = { 'ncanda-t1spgr-v1' : 'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"',
-                      'ncanda-t2fse-v1' : 'x="0.4688\d*" y="0.4688\d*" z="1.2\d*"',
-                      'ncanda-dti6b500pepolar-v1' : 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
-                      'ncanda-dti60b1000-v1' : 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
-                      'ncanda-grefieldmap-v1' : 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
-                      'ncanda-rsfmri-v1' : 'x="3.75\d*" y="3.75\d*" z="5.0\d*"' }
+voxelres_ge = {
+    'ncanda-t1spgr-v1': 'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"',
+    'ncanda-t2fse-v1': 'x="0.4688\d*" y="0.4688\d*" z="1.2\d*"',
+    'ncanda-dti6b500pepolar-v1': 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
+    'ncanda-dti60b1000-v1': 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
+    'ncanda-grefieldmap-v1': 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
+    'ncanda-rsfmri-v1': 'x="3.75\d*" y="3.75\d*" z="5.0\d*"'
+}
+
 
 def voxelRes_check(eid, manufacturer, label):
-    scans = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/id')
+    scan_id = 'xnat:mrSessionData/scans/scan/id'
+    scans = ifc.select.experiment(eid).attrs.get(scan_id)
     voxel_res = []
     error = []
     for scan in scans:
-        voxel_res.append([ifc.select.experiment( eid ).scan(scan).attrs.get('type'), voxelres_get(eid, scan)])
+        scan_res = [ifc.select.experiment(eid).scan(scan).attrs.get('type'),
+                    voxelres_get(eid, scan)]
+        voxel_res.append(scan_res)
     if manufacturer == 'GE MEDICAL SYSTEMS':
         for v in voxel_res:
-            if  v[0] in scan_type_dictionary['GE MEDICAL SYSTEMS']:
-                match = re.match(voxelRes_check_ge[v[0]], v[1], flags=re.DOTALL)
-                if match == None:
+            if v[0] in scan_type_dictionary['GE MEDICAL SYSTEMS']:
+                match = re.match(voxelres_ge[v[0]], v[1], flags=re.DOTALL)
+                if not match:
                     error.append({'field': 'Voxel Resolution',
                                   'scan_type': v[0],
                                   'voxel_res': v[1],
-                                  'expected_voxel_res': voxelRes_check_siemens[v[0]]})
+                                  'expected_voxel_res': voxelres_siemens[v[0]]})
     elif manufacturer == 'SIEMENS':
         for v in voxel_res:
-            if  v[0] in scan_type_dictionary['SIEMENS']:
-                match = re.match(voxelRes_check_siemens[v[0]], v[1], flags=re.DOTALL)
-                if match == None:
+            if v[0] in scan_type_dictionary['SIEMENS']:
+                match = re.match(voxelres_siemens[v[0]], v[1], flags=re.DOTALL)
+                if not match:
                     error.append({'field': 'Voxel Resolution',
                                   'scan_type': v[0],
                                   'voxel_res': v[1],
-                                  'expected_voxel_res': voxelRes_check_siemens[v[0]]})
+                                  'expected_voxel_res': voxelres_siemens[v[0]]})
     return error
 
-frame_check_siemens = {'ncanda-mprage-v1' : '160',
-                         'ncanda-t2fse-v1' : '160',
-                         'ncanda-dti6b500pepolar-v1' : '7',
-                         'ncanda-dti60b1000-v1' : '62',
-                         'ncanda-grefieldmap-v1' : ['128','64'],
-                         'ncanda-rsfmri-v1' : '275'}
+frame_check_siemens = {'ncanda-mprage-v1': '160',
+                       'ncanda-t2fse-v1': '160',
+                       'ncanda-dti6b500pepolar-v1': '7',
+                       'ncanda-dti60b1000-v1': '62',
+                       'ncanda-grefieldmap-v1': ['128', '64'],
+                       'ncanda-rsfmri-v1': '275'}
 
-frame_check_ge = { 'ncanda-t1spgr-v1' : '146',
-                   'ncanda-t2fse-v1' : '292',
-                   'ncanda-dti6b500pepolar-v1' : '512',
-                   'ncanda-dti60b1000-v1' : '3968',
-                   'ncanda-grefieldmap-v1' : '384',
-                   'ncanda-rsfmri-v1' : '8768' }
+frame_check_ge = {'ncanda-t1spgr-v1': '146',
+                  'ncanda-t2fse-v1': '292',
+                  'ncanda-dti6b500pepolar-v1': '512',
+                  'ncanda-dti60b1000-v1': '3968',
+                  'ncanda-grefieldmap-v1': '384',
+                  'ncanda-rsfmri-v1': '8768'}
+
 
 def frame_check(eid, manufacturer, label):
     scans = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/id')
