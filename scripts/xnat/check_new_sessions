@@ -241,18 +241,20 @@ physio = ['PPGData_epiRT', 'PPGTrig_epiRT','RESPData_epiRT', 'RESPTrig_epiRT',
           'RESPTrig_fmri_ucsd', '.ecg', '.ext', '.puls', '.res', '.txt',
           'RESPData_sprlio', 'PPGTrig_sprlio', 'PPGData_sprlio']
 
+
 # checking if the sites have sent physiology data
 def check_physio(ifc, eid):
-    experiment = ifc.select.experiment( eid )
-    if get_custom_variable( experiment, 'physioproblemoverride' ) == 'true':
+    experiment = ifc.select.experiment(eid)
+    if get_custom_variable(experiment, 'physioproblemoverride') == 'true':
         return True
 
     for resource in experiment.resources().get():
-        files = ifc._get_json( '/data/experiments/%s/resources/%s/files?format=json' % (eid, resource) )
+        json_path = '/data/experiments/%s/resources/%s/files?format=json'
+        files = ifc._get_json(json_path.format(eid, resource))
         for fl in files:
-              for ph in physio:
-                  if ph in fl['Name']:
-                     return True
+            for ph in physio:
+                if ph in fl['Name']:
+                    return True
     return False
 
 #checking if both dti scans have proper imaging parameters
