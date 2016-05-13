@@ -141,7 +141,7 @@ previous_sessions = []
 for eid in experiments_to_check:
     criteria = [('xnat:mrSessionData/ID', 'LIKE', eid.strip())]
     this_session = ifc.select('xnat:mrSessionData',
-                              fields_per_session).where().items()
+                              fields_per_session).where(criteria).items()
     if len(this_session):
         previous_sessions.append(this_session[0])
     else:
@@ -249,7 +249,7 @@ def check_physio(ifc, eid):
         return True
 
     for resource in experiment.resources().get():
-        json_path = '/data/experiments/%s/resources/%s/files?format=json'
+        json_path = '/data/experiments/{}/resources/{}/files?format=json'
         files = ifc._get_json(json_path.format(eid, resource))
         for fl in files:
             for ph in physio:
@@ -560,7 +560,7 @@ for (eid, project, subject, insert_date,
     scanner_label = 'xnat:mrSessionData/scanner/label'
     label = ifc.select.experiment(eid).attrs.get(scanner_label)
 
-    if label_check(label) == None:
+    if not label_check(label):
         error = incomplete_scan_check(eid, manufacturer, label)
         if error:
             print error
