@@ -187,11 +187,32 @@ adni_ids_search = ifc.select('xnat:subjectData',
                              ['xnat:subjectData/SUBJECT_ID']).where(criteria)
 adni_ids_search = adni_ids_search.get('subject_id')
 
+
 # Make a direct link to XNAT session
-def make_session_link( eid, project, label):
-    htmlLink=''.join([ '<li>', '<a href=', 'https://ncanda.sri.com/xnat/app/action/DisplayItemAction/search_value/',eid,'/search_element/xnat:mrSessionData/search_field/xnat:mrSessionData.ID/project/',project,'>',project,'/',eid,'/',label,'</a></li>\n'])
-    fileLink=''.join([ '/fs/ncanda-xnat/archive/',project,'/arc001/',label,'/RESOURCES/nifti<BR>\n'])
-    return (htmlLink,fileLink)
+def make_session_link(eid, project, label):
+    html_list = ['<li>',
+                 '<a href=',
+                 'https://ncanda.sri.com/xnat/app/action/DisplayItemAction/',
+                 'search_value/',
+                 eid,
+                 '/search_element/xnat:mrSessionData/search_field/',
+                 'xnat:mrSessionData.ID/project/',
+                 project,
+                 '>',
+                 project,
+                 '/',
+                 eid,
+                 '/',
+                 label,
+                 '</a></li>\n']
+    html_link = ''.join(html_list)
+    file_list = ['/fs/ncanda-xnat/archive/',
+                 project,
+                 '/arc001/',
+                 label,
+                 '/RESOURCES/nifti<BR>\n']
+    file_link = ''.join(file_list)
+    return html_link, file_link
 
 # Get a custom variable from XML representation of experiment
 def get_custom_variable( experiment, field_name ):
