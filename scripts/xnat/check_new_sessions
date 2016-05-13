@@ -257,29 +257,41 @@ def check_physio(ifc, eid):
                     return True
     return False
 
-#checking if both dti scans have proper imaging parameters
-def check_dti( ifc, eid, dti_scans ):
+
+# checking if both dti scans have proper imaging parameters
+def check_dti(ifc, eid, dti_scans):
     errors = []
 
-    experiment = ifc.select.experiment( eid )
-    if get_custom_variable( experiment, 'dtimismatchoverride' ) == 'true':
+    experiment = ifc.select.experiment(eid)
+    if get_custom_variable(experiment, 'dtimismatchoverride') == 'true':
         return errors
 
     parameters = []
-    for ( scan,scantype ) in dti_scans:
-        parameters += [experiment.scan( scan ).attrs.mget(['xnat:mrScanData/parameters/te','xnat:mrScanData/parameters/fov/x','xnat:mrScanData/parameters/fov/y','xnat:mrScanData/parameters/voxelRes/x','xnat:mrScanData/parameters/voxelRes/y'])]
+    for scan, scantype in dti_scans:
+        scan_attrs = ['xnat:mrScanData/parameters/te',
+                      'xnat:mrScanData/parameters/fov/x',
+                      'xnat:mrScanData/parameters/fov/y',
+                      'xnat:mrScanData/parameters/voxelRes/x',
+                      'xnat:mrScanData/parameters/voxelRes/y']
+        parameters += [experiment.scan(scan).attrs.mget(scan_attrs)]
 
-    if len( parameters ):
-        (te0,fovx0,fovy0,pixx0,pixy0) = parameters[0]
-        for (te,fovx,fovy,pixx,pixy) in parameters:
+    if len(parameters):
+        te0, fovx0, fovy0, pixx0, pixy0 = parameters[0]
+        for te, fovx, fovy, pixx, pixy in parameters:
             if te != te0:
-                errors.append('TE mismatch (%s/%s)' % (te0,te))
+                errors.append('TE mismatch (%s/%s)' % (te0, te))
 
             if fovx != fovx0 or fovy != fovy0:
-                errors.append('FOV mismatch (%s,%s/%s,%s)' % (fovx0,fovy0,fovx,fovy))
+                errors.append('FOV mismatch (%s,%s/%s,%s)' % (fovx0,
+                                                              fovy0,
+                                                              fovx,
+                                                              fovy))
 
             if pixx != pixx0 or pixy != pixy0:
-                errors.append('Pixel size mismatch (%s,%s/%s,%s)' % (pixx0,pixy0,pixx,pixy))
+                errors.append('Pixel size mismatch (%s,%s/%s,%s)' % (pixx0,
+                                                                     pixy0,
+                                                                     pixx,
+                                                                     pixy))
 
     return errors
 
