@@ -50,17 +50,19 @@ parser.add_argument("--no-update",
                     action="store_true")
 args = parser.parse_args()
 
-if args.eid :
-   args.no_update=True
+if args.eid:
+    args.no_update = True
 
 # Create interface using stored configuration
-ifc = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+ifc = pyxnat.Interface(config=os.path.join(os.path.expanduser("~"),
+                                           '.server_config/ncanda.cfg'))
 
 # Date format for XNAT dates
 xnat_date_format = '%Y-%m-%d %H:%M:%S'
-now_str = time.strftime( xnat_date_format )
+now_str = time.strftime(xnat_date_format)
 
-# Experiments to check from last run - these should be the ones we flagged last time and stored on the server for reconsideration
+# Experiments to check from last run - these should be the ones we flagged last
+# time and stored on the server for reconsideration
 experiments_to_check = []
 
 # Date (and time) when we last checked things
@@ -70,80 +72,120 @@ config_uri = '/data/config/pyxnat/check_new_sessions'
 if not args.check_all:
     try:
         # Retrieve script config from XNAT server
-        content = ifc._get_json( '%s' % config_uri )
+        content = ifc._get_json('%s' % config_uri)
 
         # Extract date this script was last run
         creation_date = content[0]['create_date']
-        date_last_checked = time.strptime( creation_date[0:19], xnat_date_format )
+        date_last_checked = time.strptime(creation_date[0:19], xnat_date_format)
         if args.verbose:
             print 'Script was last run %s' % creation_date
 
-        # Get list of previously flagged experiments that need to be checked again
-        if args.eid :
-            experiments_to_check = [ args.eid ]
-        else :
-            experiments_to_check = set( content[0]['contents'].split( ',' ) )
+        # Get list of previously flagged experiments that need to be checked
+        # again
+        if args.eid:
+            experiments_to_check = [args.eid]
+        else:
+            experiments_to_check = set(content[0]['contents'].split(','))
         if args.verbose:
-            print 'Re-checking %d previously flagged experiments' % len( experiments_to_check )
-
+            print 'Re-checking %d previously flagged experiments' % \
+                  len(experiments_to_check)
     except:
-        # If we cannot get last script run date from server, leave at epoch (Jan 1, 1970)
+        # If we cannot get last script run date from server, leave at epoch
+        # (Jan 1, 1970)
         if args.verbose:
-            print 'Unable to retrieve date of last script run and list of flagged projects from server.'
+            print 'Unable to retrieve date of last script run and list of ' \
+                  'flagged projects from server.'
 
-        ifc = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+        ifc = pyxnat.Interface(config=os.path.join(os.path.expanduser("~"),
+                                                   '.server_config/ncanda.cfg'))
         ifc._memtimeout = 0
 
 
 # If "last week" option is used, override last checked date
 if args.last_week:
-    date_last_checked = (datetime.datetime.now() - datetime.timedelta(7)).timetuple()
+    date_last_checked = (datetime.datetime.now() -
+                         datetime.timedelta(7)).timetuple()
 
 # If "last month" option is used, override last checked date
 if args.last_month:
-    date_last_checked = (datetime.datetime.now() - datetime.timedelta(31)).timetuple()
+    date_last_checked = (datetime.datetime.now() -
+                         datetime.timedelta(31)).timetuple()
 
 # For comparison - convert time of last check to string in XNAT date format
-str_date_last_checked = time.strftime( xnat_date_format, date_last_checked )
+str_date_last_checked = time.strftime(xnat_date_format, date_last_checked)
 if args.verbose:
-    print "Checking sessions modified after",str_date_last_checked
+    print "Checking sessions modified after", str_date_last_checked
 
 # Get list of all sessions after the chosen date
-fields_per_session = ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/PROJECT','xnat:mrSessionData/SUBJECT_ID','xnat:mrSessionData/INSERT_DATE','xnat:mrSessionData/LABEL','xnat:mrSessionData/LAST_MODIFIED' ]
+fields_per_session = ['xnat:mrSessionData/SESSION_ID',
+                      'xnat:mrSessionData/PROJECT',
+                      'xnat:mrSessionData/SUBJECT_ID',
+                      'xnat:mrSessionData/INSERT_DATE',
+                      'xnat:mrSessionData/LABEL',
+                      'xnat:mrSessionData/LAST_MODIFIED']
 
 new_sessions = []
-if not args.eid :
-   new_sessions = ifc.select( 'xnat:mrSessionData', fields_per_session ).where( [ ('xnat:mrSessionData/LAST_MODIFIED','>=',str_date_last_checked) ]  ).items()
-   if args.verbose:
-      print '%d experiments have been modified since last run' % len( new_sessions )
+if not args.eid:
+    criteria = [('xnat:mrSessionData/LAST_MODIFIED',
+                 '>=',
+                 str_date_last_checked)]
+    new_sessions = ifc.select('xnat:mrSessionData',
+                              fields_per_session).where(criteria).items()
+    if args.verbose:
+        print '%d experiments have been modified since last run' % \
+              len(new_sessions)
 
-# Also get necessary data for all sessions flagged during previous run of this script
+# Also get necessary data for all sessions flagged during previous run of this
+# script
 previous_sessions = []
 for eid in experiments_to_check:
-    this_session = ifc.select( 'xnat:mrSessionData', fields_per_session ).where( [ ('xnat:mrSessionData/ID','LIKE',eid.strip()) ]  ).items()
-    if len( this_session ):
-        previous_sessions.append( this_session[0] )
+    criteria = [('xnat:mrSessionData/ID', 'LIKE', eid.strip())]
+    this_session = ifc.select('xnat:mrSessionData',
+                              fields_per_session).where().items()
+    if len(this_session):
+        previous_sessions.append(this_session[0])
     else:
         error = 'WARNING: flagged session appears to have disappeared.'
-        sibis.logging(eid,error)
+        sibis.logging(eid, error)
 
 # All sessions to check - previously flagged plus updated
-sessions_to_check = sorted( list( set( new_sessions + previous_sessions ) ), key=lambda tuple: tuple[0] )
+sessions_to_check = sorted(list(set(new_sessions + previous_sessions)),
+                           key=lambda tupl: tupl[0])
 if args.verbose:
-    print 'Checking a total of %d experiments' % len( sessions_to_check )
+    print 'Checking a total of %d experiments' % len(sessions_to_check)
 
-# Dictionaries of required series (and counts) for Siemens and GE subject sessions
-required_siemens = { 'ncanda-mprage-v1' : 1, 'ncanda-t2fse-v1' : 1, 'ncanda-dti6b500pepolar-v1' : 1, 'ncanda-dti60b1000-v1' : 1, 'ncanda-grefieldmap-v1' : 2, 'ncanda-rsfmri-v1' : 1 }
-required_ge = { 'ncanda-t1spgr-v1' : 1, 'ncanda-t2fse-v1' : 1, 'ncanda-dti6b500pepolar-v1' : 1, 'ncanda-dti60b1000-v1' : 1, 'ncanda-grefieldmap-v1' : 1, 'ncanda-rsfmri-v1' : 1 }
+# Dictionaries of required series (and counts) for Siemens and GE subject
+# sessions
+required_siemens = {'ncanda-mprage-v1': 1,
+                    'ncanda-t2fse-v1': 1,
+                    'ncanda-dti6b500pepolar-v1': 1,
+                    'ncanda-dti60b1000-v1': 1,
+                    'ncanda-grefieldmap-v1': 2,
+                    'ncanda-rsfmri-v1': 1}
+required_ge = {'ncanda-t1spgr-v1': 1,
+               'ncanda-t2fse-v1': 1,
+               'ncanda-dti6b500pepolar-v1': 1,
+               'ncanda-dti60b1000-v1': 1,
+               'ncanda-grefieldmap-v1': 1,
+               'ncanda-rsfmri-v1': 1}
 
-# Dictionaries of required series for ADNI (separate for GE and Siemens) and fBIRN phantom sessions
-required_adni_siemens = { 'ncanda-mprage-v1' : 1 }
-required_adni_ge = { 'ncanda-t1spgr-v1' : 1 }
-required_fbirn = { 'ncanda-rsfmri-v1' : 1 }
+# Dictionaries of required series for ADNI (separate for GE and Siemens) and
+# fBIRN phantom sessions
+required_adni_siemens = {'ncanda-mprage-v1': 1}
+required_adni_ge = {'ncanda-t1spgr-v1': 1}
+required_fbirn = {'ncanda-rsfmri-v1': 1}
 
-# Get list of fBIRN and ADNI phantom subject IDs
-fbirn_ids = ifc.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID']).where([('xnat:subjectData/SUBJECT_LABEL','LIKE','%-00000-P-0')]).get( 'subject_id' )
-adni_ids = ifc.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID']).where([('xnat:subjectData/SUBJECT_LABEL','LIKE','%-99999-P-9')]).get( 'subject_id' )
+# Get list of fBIRN phantom subject IDs
+criteria = [('xnat:subjectData/SUBJECT_LABEL', 'LIKE', '%-00000-P-0')]
+fbirn_ids_search = ifc.select('xnat:subjectData',
+                              ['xnat:subjectData/SUBJECT_ID']).where(criteria)
+fbirn_ids = fbirn_ids_search.get('subject_id')
+
+# Get list of ADNI phantom subject IDs
+criteria = [('xnat:subjectData/SUBJECT_LABEL', 'LIKE', '%-99999-P-9')]
+adni_ids_search = ifc.select('xnat:subjectData',
+                             ['xnat:subjectData/SUBJECT_ID']).where(criteria)
+adni_ids_search = adni_ids_search.get('subject_id')
 
 # Make a direct link to XNAT session
 def make_session_link( eid, project, label):
