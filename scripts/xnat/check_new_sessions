@@ -338,19 +338,23 @@ def incomplete_scan_check(eid, manufacturer, label):
                              manufacturer=manufacturer,
                              missing_scans=missing_scans)
 
-def voxelRes_get(eid, scan):
-        scan_info = ifc.select.experiment( eid ).scan(scan).get()
-        field_regex = '.*<xnat:voxelRes (.*?)/>'
-        match = re.match( field_regex, scan_info, flags=re.DOTALL )
-        if match:
-            return re.sub( '\s*<!--.*?-->\s*', '', match.group( 1 ), flags=re.DOTALL )
 
-voxelRes_check_siemens ={'ncanda-mprage-v1' : 'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"',
-                         'ncanda-t2fse-v1' : 'x="0.46875\d*" y="0.46875\d*" z="1.2\d*"',
-                         'ncanda-dti6b500pepolar-v1' : 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
-                         'ncanda-dti60b1000-v1' : 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
-                         'ncanda-grefieldmap-v1' : 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
-                         'ncanda-rsfmri-v1' : 'x="3.75\d*" y="3.75\d*" z="5.0\d*"'};
+def voxelres_get(eid, scan):
+        scan_info = ifc.select.experiment(eid).scan(scan).get()
+        field_regex = '.*<xnat:voxelRes (.*?)/>'
+        match = re.match(field_regex, scan_info, flags=re.DOTALL)
+        if match:
+            return re.sub('\s*<!--.*?-->\s*',
+                          '',
+                          match.group(1),
+                          flags=re.DOTALL)
+
+voxelRes_check_siemens = {'ncanda-mprage-v1': 'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"',
+                          'ncanda-t2fse-v1': 'x="0.46875\d*" y="0.46875\d*" z="1.2\d*"',
+                          'ncanda-dti6b500pepolar-v1': 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
+                          'ncanda-dti60b1000-v1': 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
+                          'ncanda-grefieldmap-v1': 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
+                          'ncanda-rsfmri-v1': 'x="3.75\d*" y="3.75\d*" z="5.0\d*"'}
 
 voxelRes_check_ge = { 'ncanda-t1spgr-v1' : 'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"',
                       'ncanda-t2fse-v1' : 'x="0.4688\d*" y="0.4688\d*" z="1.2\d*"',
@@ -364,7 +368,7 @@ def voxelRes_check(eid, manufacturer, label):
     voxel_res = []
     error = []
     for scan in scans:
-        voxel_res.append([ifc.select.experiment( eid ).scan(scan).attrs.get('type'), voxelRes_get(eid,scan)])
+        voxel_res.append([ifc.select.experiment( eid ).scan(scan).attrs.get('type'), voxelres_get(eid, scan)])
     if manufacturer == 'GE MEDICAL SYSTEMS':
         for v in voxel_res:
             if  v[0] in scan_type_dictionary['GE MEDICAL SYSTEMS']:
