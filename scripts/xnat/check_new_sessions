@@ -449,16 +449,17 @@ def frame_check(eid, manufacturer, label):
     return error
 
 
-def mri_quality_check(eid,manufacturer,label):
+def mri_quality_check(eid, manufacturer, label):
     errors = []
-    for e in frame_check(eid,manufacturer,label):
+    for e in frame_check(eid, manufacturer, label):
         if e:
             errors.append(e)
-    for e in voxelRes_check(eid,manufacturer,label):
+    for e in voxelRes_check(eid, manufacturer, label):
         if e:
             errors.append(e)
     if errors:
-        return sibis.logging(eid, 'ERROR: Scan violated expected parameters',
+        return sibis.logging(eid,
+                             'ERROR: Scan violated expected parameters',
                              scan_session_label=label,
                              violations=errors)
 #
