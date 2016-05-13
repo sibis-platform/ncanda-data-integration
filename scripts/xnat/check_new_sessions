@@ -185,7 +185,7 @@ fbirn_ids = fbirn_ids_search.get('subject_id')
 criteria = [('xnat:subjectData/SUBJECT_LABEL', 'LIKE', '%-99999-P-9')]
 adni_ids_search = ifc.select('xnat:subjectData',
                              ['xnat:subjectData/SUBJECT_ID']).where(criteria)
-adni_ids_search = adni_ids_search.get('subject_id')
+adni_ids = adni_ids_search.get('subject_id')
 
 
 # Make a direct link to XNAT session
@@ -466,19 +466,26 @@ def mri_quality_check(eid, manufacturer, label):
 # Main loop
 #
 
-
-for (eid, project, subject, insert_date, session_label, last_modified ) in sessions_to_check:
+for (eid, project, subject, insert_date,
+     session_label, last_modified) in sessions_to_check:
     if args.verbose:
-        sys.stdout.write( "Checking experiment %s/%s SID:%s EID:%s, insert date %s, modified date %s..." % ( project, session_label, subject, eid, insert_date, last_modified ) )
+        sys.stdout.write("Checking experiment %s/%s SID:%s EID:%s, insert date "
+                         "%s, modified date %s..." % (project, session_label,
+                                                      subject, eid, insert_date,
+                                                      last_modified))
         sys.stdout.flush()
 
     # getting scanner platform
-    manufacturer = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scanner/manufacturer')
+    manufacturer = 'xnat:mrSessionData/scanner/manufacturer'
+    manufacturer = ifc.select.experiment(eid).attrs.get(manufacturer)
 
     # Link to the session
-    (session_html_link,session_file_link) = make_session_link( eid, project, session_label )
+    session_html_link, session_file_link = make_session_link(eid,
+                                                             project,
+                                                             session_label)
 
-    # figure out what scans are required for this subject (or phantom) on this platform
+    # figure out what scans are required for this subject (or phantom) on this
+    # platform
     isPhantom = False
     if subject in fbirn_ids:
         required_series = required_fbirn
@@ -497,32 +504,61 @@ for (eid, project, subject, insert_date, session_label, last_modified ) in sessi
             required_series = required_siemens
 
     # Get quality rating for each scan type
-    scantype_and_quality  = [ [ scan ] + ifc.select.experiment( eid ).scan(scan).attrs.mget(['type','quality']) for scan in ifc.select.experiment( eid ).scans('*').get() ]
-    final = [ scantype for (scan,scantype,quality) in scantype_and_quality if scantype in required_series.keys() and quality in ['usable', 'unusable'] ]
-    usable = [ scantype for (scan,scantype,quality) in scantype_and_quality if scantype in required_series.keys() and quality == 'usable' ]
-    questionable = [ scantype for (scan,scantype,quality) in scantype_and_quality if scantype in required_series.keys() and quality == 'questionable' ]
-    unseen_scans = [ scantype for (scan,scantype,quality) in scantype_and_quality if scantype in required_series.keys() and quality in [ 'unset', 'unknown' ] ]
+    scantype_and_quality = [
+        [scan] + ifc.select.experiment(eid).scan(scan).attrs.mget(['type',
+                                                                   'quality'])
+        for scan in ifc.select.experiment(eid).scans('*').get()]
+    final = [
+        scantype for (scan, scantype, quality) in scantype_and_quality
+        if scantype in required_series.keys() and quality in ['usable',
+                                                              'unusable']]
+    usable = [
+        scantype for (scan, scantype, quality) in scantype_and_quality
+        if scantype in required_series.keys() and quality == 'usable']
+    questionable = [
+        scantype for (scan, scantype, quality) in scantype_and_quality
+        if scantype in required_series.keys() and quality == 'questionable']
+    unseen_scans = [
+        scantype for (scan, scantype, quality) in scantype_and_quality
+        if scantype in required_series.keys() and quality in ['unset',
+                                                              'unknown']]
 
-    dti_scans = [ (scan,scantype) for (scan,scantype,quality) in scantype_and_quality if re.match( '^ncanda-dti.*-v1$', scantype ) and quality != 'unusable' ]
-    fmri_scans = [ (scan,scantype) for (scan,scantype,quality) in scantype_and_quality if re.match( '^ncanda-.*fmri.*-v1$', scantype ) and quality != 'unusable' ]
+    dti_scans = [
+        (scan, scantype) for (scan, scantype, quality) in scantype_and_quality
+        if re.match('^ncanda-dti.*-v1$', scantype) and quality != 'unusable']
+    fmri_scans = [
+        (scan, scantype) for (scan, scantype, quality) in scantype_and_quality
+        if re.match('^ncanda-.*fmri.*-v1$', scantype) and quality != 'unusable']
 
     # Export scans to NIFTI
     nifti_export_ok = True
-    for (scan,scantype,quality) in scantype_and_quality:
-        # New Code
-
-        if re.match( '^ncanda-.*-v[0-9]$', scantype ):
-             errorMSG=make_session_niftis.export_to_nifti( ifc, project, subject, eid, session_label, manufacturer, scan, scantype, dry_run=args.no_update, verbose=args.verbose )
-             if len(errorMSG):
+    for (scan, scantype, quality) in scantype_and_quality:
+        if re.match('^ncanda-.*-v[0-9]$', scantype):
+            error_msg = make_session_niftis.export_to_nifti(
+                ifc,
+                project,
+                subject,
+                eid,
+                session_label,
+                manufacturer,
+                scan,
+                scantype,
+                dry_run=args.no_update,
+                verbose=args.verbose)
+            if len(error_msg):
                 nifti_export_ok = False
-                htmln.append(''.join([session_html_link,session_file_link, ', '.join ([ scan, scantype, 'ERROR:']), ', ERROR:'.join(errorMSG) ]))
+                htmln.append(''.join([session_html_link,
+                                      session_file_link,
+                                      ', '.join([scan, scantype, 'ERROR:']),
+                                      ', ERROR:'.join(error_msg)]))
 
     # MRI Session Quality Checks
     if args.verbose:
-        sys.stdout.write( "Beginning QC..." )
+        sys.stdout.write("Beginning QC...")
         sys.stdout.flush()
 
-    label = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scanner/label')
+    scanner_label = 'xnat:mrSessionData/scanner/label'
+    label = ifc.select.experiment(eid).attrs.get(scanner_label)
 
     if label_check(label) == None:
         error = incomplete_scan_check(eid, manufacturer, label)
@@ -533,49 +569,71 @@ for (eid, project, subject, insert_date, session_label, last_modified ) in sessi
             print error
 
     # failed dti te comparison
-    failed_dti = check_dti( ifc, eid, dti_scans )
-    if len( failed_dti ):
-        htmldt.append(''.join([session_html_link,session_file_link, ', '.join( failed_dti )]))
+    failed_dti = check_dti(ifc, eid, dti_scans)
+    if len(failed_dti):
+        htmldt.append(''.join([session_html_link,
+                               session_file_link,
+                               ', '.join(failed_dti)]))
 
     # missing physio data
     physio_ok = True
-    if not isPhantom and len( fmri_scans ):
-        physio_ok = check_physio( ifc, eid )
+    if not isPhantom and len(fmri_scans):
+        physio_ok = check_physio(ifc, eid)
         if not physio_ok:
             htmlphys.append(session_html_link)
 
     # "unset" (i.e., uninspected) mandatory scantypes
-    unset = [ scantype for scantype in required_series.keys() if scantype in unseen_scans ]
-    if len( unset ):
-        htmlu.append(''.join([session_html_link,session_file_link,', '.join(unset)]))
+    unset = [scantype for scantype in required_series.keys()
+             if scantype in unseen_scans]
+    if len(unset):
+        htmlu.append(''.join([session_html_link,
+                              session_file_link,
+                              ', '.join(unset)]))
 
     # duplicated scantypes
-    dupl =[ scantype for scantype in usable if (scantype in required_series.keys()) and (usable.count(scantype) > required_series[scantype]) ]
-    if len( dupl ):
-        htmld.append(''.join([session_html_link,session_file_link,', '.join(dupl)]))
+    dupl =[scantype for scantype in usable
+           if (scantype in required_series.keys()) and
+           (usable.count(scantype) > required_series[scantype])]
+    if len(dupl):
+        htmld.append(''.join([session_html_link,
+                              session_file_link,
+                              ', '.join(dupl)]))
 
     # questionable scantypes
-    if len( questionable ):
-        htmlq.append(''.join([session_html_link,session_file_link,', '.join(questionable)]))
+    if len(questionable):
+        htmlq.append(''.join([session_html_link,
+                              session_file_link,
+                              ', '.join(questionable)]))
 
-    if (len( questionable ) + len( unset ) + len( dupl ) + len( failed_dti )) or (not physio_ok) or (not nifti_export_ok):
-        experiments_for_next_run.append( eid )
+    if (len(questionable) + len(unset) + len(dupl) + len(failed_dti)) \
+            or (not physio_ok) or (not nifti_export_ok):
+        experiments_for_next_run.append(eid)
         if args.verbose:
             print "RECHECK"
     else:
         if args.verbose:
             print "OK"
 
-# Make links for all "new" sessions, i.e., those inserted after the "last checked" date
-new_session_links= [ make_session_link( eid, project, label ) for ( eid, project, subject, insert_date, label, last_modified ) in new_sessions if insert_date >= str_date_last_checked ]
+# Make links for all "new" sessions, i.e., those inserted after the
+# "last checked" date
+new_session_links = [
+    make_session_link(eid, project, label)
+    for (eid, project, subject,
+         insert_date, label, last_modified) in new_sessions
+    if insert_date >= str_date_last_checked]
 
 html_summary = ''
 html = ''
-if len( new_session_links ) > 0:
-    html_summary += '<li>New Sessions: <a href="#newsessions">&nbsp;%d&nbsp;</a></li>\n' % len( new_session_links )
-    html += ''.join(['<b><a id="newsessions">New Sessions Since %s' % str_date_last_checked, '</a></b>\n<ol>',''.join("%s%s"%(session_link[0],session_link[1]) for session_link in new_session_links ),'</ol>' ])
+if len(new_session_links) > 0:
+    temp = '<li>New Sessions: <a href="#newsessions">&nbsp;%d&nbsp;</a></li>\n'
+    html_summary += temp % len(new_session_links)
+    html += ''.join(['<b><a id="newsessions">New Sessions Since %s' %
+                     str_date_last_checked,
+                     '</a></b>\n<ol>',
+                     ''.join("%s%s" % (session_link[0], session_link[1])
+                             for session_link in new_session_links), '</ol>'])
 
-if len( htmlu ) > 0:
+if len(htmlu) > 0:
     html_summary += '<li>Sessions with Scans to Inspect: <a href="#toinspect">&nbsp;%d&nbsp;</a></li>\n' % len( htmlu )
     html += ''.join(['<b><a id="toinspect">Sessions with Mandatory Scans to Inspect', '</a></b>\n<ol>',''.join(htmlu),'</ol>' ])
 
