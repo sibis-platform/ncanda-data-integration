@@ -214,25 +214,32 @@ def make_session_link(eid, project, label):
     file_link = ''.join(file_list)
     return html_link, file_link
 
+
 # Get a custom variable from XML representation of experiment
-def get_custom_variable( experiment, field_name ):
+def get_custom_variable(experiment, field_name):
     field_regex = '.*<xnat:field name="%s">(.*?)</xnat:field>' % field_name
-    match = re.match( field_regex, experiment.get(), flags=re.DOTALL )
+    match = re.match(field_regex, experiment.get(), flags=re.DOTALL)
     if match:
-        return re.sub( '\s*<!--.*?-->\s*', '', match.group( 1 ), flags=re.DOTALL )
+        return re.sub('\s*<!--.*?-->\s*',
+                      '',
+                      match.group(1),
+                      flags=re.DOTALL)
     else:
         return None
 
-#calculating unseen, duplicated, missing, and questionable scans
-htmln =[]
-htmlu =[]
-htmld =[]
-htmlq =[]
-htmldt=[]
+# calculating unseen, duplicated, missing, and questionable scans
+htmln = []
+htmlu = []
+htmld = []
+htmlq = []
+htmldt = []
 htmlphys = []
 
 experiments_for_next_run = []
-physio = ['PPGData_epiRT', 'PPGTrig_epiRT','RESPData_epiRT', 'RESPTrig_epiRT','PPGData_fmri_ucsd', 'PPGTrig_fmri_ucsd','RESPData_fmri_ucsd','RESPTrig_fmri_ucsd', '.ecg','.ext','.puls','.res','.txt', 'RESPData_sprlio','PPGTrig_sprlio','PPGData_sprlio']
+physio = ['PPGData_epiRT', 'PPGTrig_epiRT','RESPData_epiRT', 'RESPTrig_epiRT',
+          'PPGData_fmri_ucsd', 'PPGTrig_fmri_ucsd', 'RESPData_fmri_ucsd',
+          'RESPTrig_fmri_ucsd', '.ecg', '.ext', '.puls', '.res', '.txt',
+          'RESPData_sprlio', 'PPGTrig_sprlio', 'PPGData_sprlio']
 
 # checking if the sites have sent physiology data
 def check_physio(ifc, eid):
