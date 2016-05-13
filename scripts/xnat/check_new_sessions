@@ -18,14 +18,36 @@ import pyxnat
 import make_session_niftis
 
 # Setup command line parser
-parser = argparse.ArgumentParser(description="Find new MR sessions in XNAT, check for missing and duplicate scans, and list all sessions with questionable scans." )
-parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
-parser.add_argument( "-m", "--send-mail-to", help="Send results by email to the given address(es).", action="store")
-parser.add_argument( "-a", "--check-all", help="Check all MR sessions, regardless of date.", action="store_true")
-parser.add_argument( "-W", "--last-week", help="Check all MR sessions that were modified within the last week.", action="store_true")
-parser.add_argument( "-M", "--last-month", help="Check all MR sessions that were modified within the last month (more precisely: the last 31 days).", action="store_true")
-parser.add_argument( "-e", "--eid", help="Check all MR sessions that are associated with eid (only for debugging).", action="store")
-parser.add_argument( "--no-update", help="Do not update the persistent data stored on the XNAT server (e.g., last run date, list of flagged sessions).", action="store_true")
+parser = argparse.ArgumentParser(description="Find new MR sessions in XNAT, "
+                                             "check for missing and duplicate "
+                                             "scans, and list all sessions with"
+                                             " questionable scans.")
+parser.add_argument("-v", "--verbose",
+                    help="Verbose operation",
+                    action="store_true")
+parser.add_argument("-m", "--send-mail-to",
+                    help="Send results by email to the given address(es).",
+                    action="store")
+parser.add_argument("-a", "--check-all",
+                    help="Check all MR sessions, regardless of date.",
+                    action="store_true")
+parser.add_argument("-W", "--last-week",
+                    help="Check all MR sessions that were modified within the "
+                         "last week.",
+                    action="store_true")
+parser.add_argument("-M", "--last-month",
+                    help="Check all MR sessions that were modified within the "
+                         "last month (more precisely: the last 31 days).",
+                    action="store_true")
+parser.add_argument("-e", "--eid",
+                    help="Check all MR sessions that are associated with eid "
+                         "(only for debugging).",
+                    action="store")
+parser.add_argument("--no-update",
+                    help="Do not update the persistent data stored on the "
+                         "XNAT server (e.g., last run date, list of flagged "
+                         "sessions).",
+                    action="store_true")
 args = parser.parse_args()
 
 if args.eid :
