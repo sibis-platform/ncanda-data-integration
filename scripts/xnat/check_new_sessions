@@ -5,19 +5,20 @@
 ##  See COPYING file distributed along with the package for the copyright and license terms.
 ##
 
-import argparse
 import os
-import time
-import json
-import datetime
 import re
 import sys
-import pyxnat
-import make_session_niftis
+import time
+import argparse
+import datetime
+
 import sibis
+import pyxnat
+
+import make_session_niftis
 
 # Setup command line parser
-parser = argparse.ArgumentParser( description="Find new MR sessions in XNAT, check for missing and duplicate scans, and list all sessions with questionable scans." )
+parser = argparse.ArgumentParser(description="Find new MR sessions in XNAT, check for missing and duplicate scans, and list all sessions with questionable scans." )
 parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
 parser.add_argument( "-m", "--send-mail-to", help="Send results by email to the given address(es).", action="store")
 parser.add_argument( "-a", "--check-all", help="Check all MR sessions, regardless of date.", action="store_true")
