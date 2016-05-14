@@ -7,6 +7,7 @@
 
 import os
 import re
+import csv
 import sys
 import time
 import argparse
@@ -48,6 +49,9 @@ parser.add_argument("--no-update",
                          "XNAT server (e.g., last run date, list of flagged "
                          "sessions).",
                     action="store_true")
+parser.add_argument("--qc-csv",
+                    help="File path to write with scans to qc.",
+                    default="/tmp/scan_qc.csv")
 args = parser.parse_args()
 
 if args.eid:
@@ -234,6 +238,7 @@ htmld = []
 htmlq = []
 htmldt = []
 htmlphys = []
+scans_to_qc = []  # used to create a csv of scans to qc
 
 experiments_for_next_run = []
 physio = ['PPGData_epiRT', 'PPGTrig_epiRT','RESPData_epiRT', 'RESPTrig_epiRT',
@@ -589,6 +594,11 @@ for (eid, project, subject, insert_date,
         htmlu.append(''.join([session_html_link,
                               session_file_link,
                               ', '.join(unset)]))
+        # add to qc csv
+        unseen_scans.insert(0, session_file_link[:-5])
+        row = ','.join(unseen_scans)
+        row += '\n'
+        scans_to_qc.append(row)
 
     # duplicated scantypes
     dupl =[scantype for scantype in usable
@@ -687,6 +697,11 @@ if args.send_mail_to:
                html)
 elif args.verbose:
     print html
+
+# Write the scans to QC csv file.
+if scans_to_qc:
+    with open(args.qc_csv, 'wb') as fi:
+        fi.writelines(scans_to_qc)
 
 # Finally, update config stored on the server to have current date/time as the
 # time that this script was last run
