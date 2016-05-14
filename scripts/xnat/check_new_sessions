@@ -5,39 +5,68 @@
 ##  See COPYING file distributed along with the package for the copyright and license terms.
 ##
 
-import argparse
 import os
-import time
-import json
-import datetime
 import re
+import csv
 import sys
-import pyxnat
-import make_session_niftis
+import time
+import argparse
+import datetime
+
 import sibis
+import pyxnat
+
+import make_session_niftis
 
 # Setup command line parser
-parser = argparse.ArgumentParser( description="Find new MR sessions in XNAT, check for missing and duplicate scans, and list all sessions with questionable scans." )
-parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
-parser.add_argument( "-m", "--send-mail-to", help="Send results by email to the given address(es).", action="store")
-parser.add_argument( "-a", "--check-all", help="Check all MR sessions, regardless of date.", action="store_true")
-parser.add_argument( "-W", "--last-week", help="Check all MR sessions that were modified within the last week.", action="store_true")
-parser.add_argument( "-M", "--last-month", help="Check all MR sessions that were modified within the last month (more precisely: the last 31 days).", action="store_true")
-parser.add_argument( "-e", "--eid", help="Check all MR sessions that are associated with eid (only for debugging).", action="store")
-parser.add_argument( "--no-update", help="Do not update the persistent data stored on the XNAT server (e.g., last run date, list of flagged sessions).", action="store_true")
+parser = argparse.ArgumentParser(description="Find new MR sessions in XNAT, "
+                                             "check for missing and duplicate "
+                                             "scans, and list all sessions with"
+                                             " questionable scans.")
+parser.add_argument("-v", "--verbose",
+                    help="Verbose operation",
+                    action="store_true")
+parser.add_argument("-m", "--send-mail-to",
+                    help="Send results by email to the given address(es).",
+                    action="store")
+parser.add_argument("-a", "--check-all",
+                    help="Check all MR sessions, regardless of date.",
+                    action="store_true")
+parser.add_argument("-W", "--last-week",
+                    help="Check all MR sessions that were modified within the "
+                         "last week.",
+                    action="store_true")
+parser.add_argument("-M", "--last-month",
+                    help="Check all MR sessions that were modified within the "
+                         "last month (more precisely: the last 31 days).",
+                    action="store_true")
+parser.add_argument("-e", "--eid",
+                    help="Check all MR sessions that are associated with eid "
+                         "(only for debugging).",
+                    action="store")
+parser.add_argument("--no-update",
+                    help="Do not update the persistent data stored on the "
+                         "XNAT server (e.g., last run date, list of flagged "
+                         "sessions).",
+                    action="store_true")
+parser.add_argument("--qc-csv",
+                    help="File path to write with scans to qc.",
+                    default="/tmp/scan_qc.csv")
 args = parser.parse_args()
 
-if args.eid :
-   args.no_update=True
+if args.eid:
+    args.no_update = True
 
 # Create interface using stored configuration
-ifc = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+ifc = pyxnat.Interface(config=os.path.join(os.path.expanduser("~"),
+                                           '.server_config/ncanda.cfg'))
 
 # Date format for XNAT dates
 xnat_date_format = '%Y-%m-%d %H:%M:%S'
-now_str = time.strftime( xnat_date_format )
+now_str = time.strftime(xnat_date_format)
 
-# Experiments to check from last run - these should be the ones we flagged last time and stored on the server for reconsideration
+# Experiments to check from last run - these should be the ones we flagged last
+# time and stored on the server for reconsideration
 experiments_to_check = []
 
 # Date (and time) when we last checked things
@@ -47,163 +76,249 @@ config_uri = '/data/config/pyxnat/check_new_sessions'
 if not args.check_all:
     try:
         # Retrieve script config from XNAT server
-        content = ifc._get_json( '%s' % config_uri )
+        content = ifc._get_json('%s' % config_uri)
 
         # Extract date this script was last run
         creation_date = content[0]['create_date']
-        date_last_checked = time.strptime( creation_date[0:19], xnat_date_format )
+        date_last_checked = time.strptime(creation_date[0:19], xnat_date_format)
         if args.verbose:
             print 'Script was last run %s' % creation_date
 
-        # Get list of previously flagged experiments that need to be checked again
-        if args.eid :
-            experiments_to_check = [ args.eid ]
-        else :
-            experiments_to_check = set( content[0]['contents'].split( ',' ) )
+        # Get list of previously flagged experiments that need to be checked
+        # again
+        if args.eid:
+            experiments_to_check = [args.eid]
+        else:
+            experiments_to_check = set(content[0]['contents'].split(','))
         if args.verbose:
-            print 'Re-checking %d previously flagged experiments' % len( experiments_to_check )
-
+            print 'Re-checking %d previously flagged experiments' % \
+                  len(experiments_to_check)
     except:
-        # If we cannot get last script run date from server, leave at epoch (Jan 1, 1970)
+        # If we cannot get last script run date from server, leave at epoch
+        # (Jan 1, 1970)
         if args.verbose:
-            print 'Unable to retrieve date of last script run and list of flagged projects from server.'
+            print 'Unable to retrieve date of last script run and list of ' \
+                  'flagged projects from server.'
 
-        ifc = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+        ifc = pyxnat.Interface(config=os.path.join(os.path.expanduser("~"),
+                                                   '.server_config/ncanda.cfg'))
         ifc._memtimeout = 0
 
 
 # If "last week" option is used, override last checked date
 if args.last_week:
-    date_last_checked = (datetime.datetime.now() - datetime.timedelta(7)).timetuple()
+    date_last_checked = (datetime.datetime.now() -
+                         datetime.timedelta(7)).timetuple()
 
 # If "last month" option is used, override last checked date
 if args.last_month:
-    date_last_checked = (datetime.datetime.now() - datetime.timedelta(31)).timetuple()
+    date_last_checked = (datetime.datetime.now() -
+                         datetime.timedelta(31)).timetuple()
 
 # For comparison - convert time of last check to string in XNAT date format
-str_date_last_checked = time.strftime( xnat_date_format, date_last_checked )
+str_date_last_checked = time.strftime(xnat_date_format, date_last_checked)
 if args.verbose:
-    print "Checking sessions modified after",str_date_last_checked
+    print "Checking sessions modified after", str_date_last_checked
 
 # Get list of all sessions after the chosen date
-fields_per_session = ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/PROJECT','xnat:mrSessionData/SUBJECT_ID','xnat:mrSessionData/INSERT_DATE','xnat:mrSessionData/LABEL','xnat:mrSessionData/LAST_MODIFIED' ]
+fields_per_session = ['xnat:mrSessionData/SESSION_ID',
+                      'xnat:mrSessionData/PROJECT',
+                      'xnat:mrSessionData/SUBJECT_ID',
+                      'xnat:mrSessionData/INSERT_DATE',
+                      'xnat:mrSessionData/LABEL',
+                      'xnat:mrSessionData/LAST_MODIFIED']
 
 new_sessions = []
-if not args.eid :
-   new_sessions = ifc.select( 'xnat:mrSessionData', fields_per_session ).where( [ ('xnat:mrSessionData/LAST_MODIFIED','>=',str_date_last_checked) ]  ).items()
-   if args.verbose:
-      print '%d experiments have been modified since last run' % len( new_sessions )
+if not args.eid:
+    criteria = [('xnat:mrSessionData/LAST_MODIFIED',
+                 '>=',
+                 str_date_last_checked)]
+    new_sessions = ifc.select('xnat:mrSessionData',
+                              fields_per_session).where(criteria).items()
+    if args.verbose:
+        print '%d experiments have been modified since last run' % \
+              len(new_sessions)
 
-# Also get necessary data for all sessions flagged during previous run of this script
+# Also get necessary data for all sessions flagged during previous run of this
+# script
 previous_sessions = []
 for eid in experiments_to_check:
-    this_session = ifc.select( 'xnat:mrSessionData', fields_per_session ).where( [ ('xnat:mrSessionData/ID','LIKE',eid.strip()) ]  ).items()
-    if len( this_session ):
-        previous_sessions.append( this_session[0] )
+    criteria = [('xnat:mrSessionData/ID', 'LIKE', eid.strip())]
+    this_session = ifc.select('xnat:mrSessionData',
+                              fields_per_session).where(criteria).items()
+    if len(this_session):
+        previous_sessions.append(this_session[0])
     else:
         error = 'WARNING: flagged session appears to have disappeared.'
-        sibis.logging(eid,error)
+        sibis.logging(eid, error)
 
 # All sessions to check - previously flagged plus updated
-sessions_to_check = sorted( list( set( new_sessions + previous_sessions ) ), key=lambda tuple: tuple[0] )
+sessions_to_check = sorted(list(set(new_sessions + previous_sessions)),
+                           key=lambda tupl: tupl[0])
 if args.verbose:
-    print 'Checking a total of %d experiments' % len( sessions_to_check )
+    print 'Checking a total of %d experiments' % len(sessions_to_check)
 
-# Dictionaries of required series (and counts) for Siemens and GE subject sessions
-required_siemens = { 'ncanda-mprage-v1' : 1, 'ncanda-t2fse-v1' : 1, 'ncanda-dti6b500pepolar-v1' : 1, 'ncanda-dti60b1000-v1' : 1, 'ncanda-grefieldmap-v1' : 2, 'ncanda-rsfmri-v1' : 1 }
-required_ge = { 'ncanda-t1spgr-v1' : 1, 'ncanda-t2fse-v1' : 1, 'ncanda-dti6b500pepolar-v1' : 1, 'ncanda-dti60b1000-v1' : 1, 'ncanda-grefieldmap-v1' : 1, 'ncanda-rsfmri-v1' : 1 }
+# Dictionaries of required series (and counts) for Siemens and GE subject
+# sessions
+required_siemens = {'ncanda-mprage-v1': 1,
+                    'ncanda-t2fse-v1': 1,
+                    'ncanda-dti6b500pepolar-v1': 1,
+                    'ncanda-dti60b1000-v1': 1,
+                    'ncanda-grefieldmap-v1': 2,
+                    'ncanda-rsfmri-v1': 1}
+required_ge = {'ncanda-t1spgr-v1': 1,
+               'ncanda-t2fse-v1': 1,
+               'ncanda-dti6b500pepolar-v1': 1,
+               'ncanda-dti60b1000-v1': 1,
+               'ncanda-grefieldmap-v1': 1,
+               'ncanda-rsfmri-v1': 1}
 
-# Dictionaries of required series for ADNI (separate for GE and Siemens) and fBIRN phantom sessions
-required_adni_siemens = { 'ncanda-mprage-v1' : 1 }
-required_adni_ge = { 'ncanda-t1spgr-v1' : 1 }
-required_fbirn = { 'ncanda-rsfmri-v1' : 1 }
+# Dictionaries of required series for ADNI (separate for GE and Siemens) and
+# fBIRN phantom sessions
+required_adni_siemens = {'ncanda-mprage-v1': 1}
+required_adni_ge = {'ncanda-t1spgr-v1': 1}
+required_fbirn = {'ncanda-rsfmri-v1': 1}
 
-# Get list of fBIRN and ADNI phantom subject IDs
-fbirn_ids = ifc.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID']).where([('xnat:subjectData/SUBJECT_LABEL','LIKE','%-00000-P-0')]).get( 'subject_id' )
-adni_ids = ifc.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID']).where([('xnat:subjectData/SUBJECT_LABEL','LIKE','%-99999-P-9')]).get( 'subject_id' )
+# Get list of fBIRN phantom subject IDs
+criteria = [('xnat:subjectData/SUBJECT_LABEL', 'LIKE', '%-00000-P-0')]
+fbirn_ids_search = ifc.select('xnat:subjectData',
+                              ['xnat:subjectData/SUBJECT_ID']).where(criteria)
+fbirn_ids = fbirn_ids_search.get('subject_id')
+
+# Get list of ADNI phantom subject IDs
+criteria = [('xnat:subjectData/SUBJECT_LABEL', 'LIKE', '%-99999-P-9')]
+adni_ids_search = ifc.select('xnat:subjectData',
+                             ['xnat:subjectData/SUBJECT_ID']).where(criteria)
+adni_ids = adni_ids_search.get('subject_id')
+
 
 # Make a direct link to XNAT session
-def make_session_link( eid, project, label):
-    htmlLink=''.join([ '<li>', '<a href=', 'https://ncanda.sri.com/xnat/app/action/DisplayItemAction/search_value/',eid,'/search_element/xnat:mrSessionData/search_field/xnat:mrSessionData.ID/project/',project,'>',project,'/',eid,'/',label,'</a></li>\n'])
-    fileLink=''.join([ '/fs/ncanda-xnat/archive/',project,'/arc001/',label,'/RESOURCES/nifti<BR>\n'])
-    return (htmlLink,fileLink)
+def make_session_link(eid, project, label):
+    html_list = ['<li>',
+                 '<a href=',
+                 'https://ncanda.sri.com/xnat/app/action/DisplayItemAction/',
+                 'search_value/',
+                 eid,
+                 '/search_element/xnat:mrSessionData/search_field/',
+                 'xnat:mrSessionData.ID/project/',
+                 project,
+                 '>',
+                 project,
+                 '/',
+                 eid,
+                 '/',
+                 label,
+                 '</a></li>\n']
+    html_link = ''.join(html_list)
+    file_list = ['/fs/ncanda-xnat/archive/',
+                 project,
+                 '/arc001/',
+                 label,
+                 '/RESOURCES/nifti<BR>\n']
+    file_link = ''.join(file_list)
+    return html_link, file_link
+
 
 # Get a custom variable from XML representation of experiment
-def get_custom_variable( experiment, field_name ):
+def get_custom_variable(experiment, field_name):
     field_regex = '.*<xnat:field name="%s">(.*?)</xnat:field>' % field_name
-    match = re.match( field_regex, experiment.get(), flags=re.DOTALL )
+    match = re.match(field_regex, experiment.get(), flags=re.DOTALL)
     if match:
-        return re.sub( '\s*<!--.*?-->\s*', '', match.group( 1 ), flags=re.DOTALL )
+        return re.sub('\s*<!--.*?-->\s*',
+                      '',
+                      match.group(1),
+                      flags=re.DOTALL)
     else:
         return None
 
-#calculating unseen, duplicated, missing, and questionable scans
-htmln =[]
-htmlu =[]
-htmld =[]
-htmlq =[]
-htmldt=[]
+# calculating unseen, duplicated, missing, and questionable scans
+htmln = []
+htmlu = []
+htmld = []
+htmlq = []
+htmldt = []
 htmlphys = []
+scans_to_qc = []  # used to create a csv of scans to qc
 
 experiments_for_next_run = []
-physio = ['PPGData_epiRT', 'PPGTrig_epiRT','RESPData_epiRT', 'RESPTrig_epiRT','PPGData_fmri_ucsd', 'PPGTrig_fmri_ucsd','RESPData_fmri_ucsd','RESPTrig_fmri_ucsd', '.ecg','.ext','.puls','.res','.txt', 'RESPData_sprlio','PPGTrig_sprlio','PPGData_sprlio']
+physio = ['PPGData_epiRT', 'PPGTrig_epiRT','RESPData_epiRT', 'RESPTrig_epiRT',
+          'PPGData_fmri_ucsd', 'PPGTrig_fmri_ucsd', 'RESPData_fmri_ucsd',
+          'RESPTrig_fmri_ucsd', '.ecg', '.ext', '.puls', '.res', '.txt',
+          'RESPData_sprlio', 'PPGTrig_sprlio', 'PPGData_sprlio']
+
 
 # checking if the sites have sent physiology data
 def check_physio(ifc, eid):
-    experiment = ifc.select.experiment( eid )
-    if get_custom_variable( experiment, 'physioproblemoverride' ) == 'true':
+    experiment = ifc.select.experiment(eid)
+    if get_custom_variable(experiment, 'physioproblemoverride') == 'true':
         return True
 
     for resource in experiment.resources().get():
-        files = ifc._get_json( '/data/experiments/%s/resources/%s/files?format=json' % (eid, resource) )
+        json_path = '/data/experiments/{}/resources/{}/files?format=json'
+        files = ifc._get_json(json_path.format(eid, resource))
         for fl in files:
-              for ph in physio:
-                  if ph in fl['Name']:
-                     return True
+            for ph in physio:
+                if ph in fl['Name']:
+                    return True
     return False
 
-#checking if both dti scans have proper imaging parameters
-def check_dti( ifc, eid, dti_scans ):
+
+# checking if both dti scans have proper imaging parameters
+def check_dti(ifc, eid, dti_scans):
     errors = []
 
-    experiment = ifc.select.experiment( eid )
-    if get_custom_variable( experiment, 'dtimismatchoverride' ) == 'true':
+    experiment = ifc.select.experiment(eid)
+    if get_custom_variable(experiment, 'dtimismatchoverride') == 'true':
         return errors
 
     parameters = []
-    for ( scan,scantype ) in dti_scans:
-        parameters += [experiment.scan( scan ).attrs.mget(['xnat:mrScanData/parameters/te','xnat:mrScanData/parameters/fov/x','xnat:mrScanData/parameters/fov/y','xnat:mrScanData/parameters/voxelRes/x','xnat:mrScanData/parameters/voxelRes/y'])]
+    for scan, scantype in dti_scans:
+        scan_attrs = ['xnat:mrScanData/parameters/te',
+                      'xnat:mrScanData/parameters/fov/x',
+                      'xnat:mrScanData/parameters/fov/y',
+                      'xnat:mrScanData/parameters/voxelRes/x',
+                      'xnat:mrScanData/parameters/voxelRes/y']
+        parameters += [experiment.scan(scan).attrs.mget(scan_attrs)]
 
-    if len( parameters ):
-        (te0,fovx0,fovy0,pixx0,pixy0) = parameters[0]
-        for (te,fovx,fovy,pixx,pixy) in parameters:
+    if len(parameters):
+        te0, fovx0, fovy0, pixx0, pixy0 = parameters[0]
+        for te, fovx, fovy, pixx, pixy in parameters:
             if te != te0:
-                errors.append('TE mismatch (%s/%s)' % (te0,te))
+                errors.append('TE mismatch (%s/%s)' % (te0, te))
 
             if fovx != fovx0 or fovy != fovy0:
-                errors.append('FOV mismatch (%s,%s/%s,%s)' % (fovx0,fovy0,fovx,fovy))
+                errors.append('FOV mismatch (%s,%s/%s,%s)' % (fovx0,
+                                                              fovy0,
+                                                              fovx,
+                                                              fovy))
 
             if pixx != pixx0 or pixy != pixy0:
-                errors.append('Pixel size mismatch (%s,%s/%s,%s)' % (pixx0,pixy0,pixx,pixy))
+                errors.append('Pixel size mismatch (%s,%s/%s,%s)' % (pixx0,
+                                                                     pixy0,
+                                                                     pixx,
+                                                                     pixy))
 
     return errors
 
 scan_type_dictionary = {'GE MEDICAL SYSTEMS': required_ge.keys(),
                         'SIEMENS': required_siemens.keys()}
 
+
 def label_check(label):
-    phantom = ['.-9999\d','.-00000']
-    match = re.match( phantom[0], label, flags=re.DOTALL )
+    phantom = ['.-9999\d', '.-00000']
+    match = re.match(phantom[0], label, flags=re.DOTALL)
     if match:
         return match
     else:
-        match = re.match( phantom[1], label, flags=re.DOTALL )
+        match = re.match(phantom[1], label, flags=re.DOTALL)
         if match:
             return match
 
-def incomplete_scan_check( eid, manufacturer, label):
+
+def incomplete_scan_check(eid, manufacturer, label):
     missing_scans = []
-    scan_types = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/type')
+    sess_type = 'xnat:mrSessionData/scans/scan/type'
+    scan_types = ifc.select.experiment(eid).attrs.get(sess_type)
     if manufacturer == 'GE MEDICAL SYSTEMS':
         for scantype in set(scan_type_dictionary['GE MEDICAL SYSTEMS']):
             if scantype in set(scan_types):
@@ -222,81 +337,98 @@ def incomplete_scan_check( eid, manufacturer, label):
             else:
                 missing_scans.append(scan_types)
     if missing_scans:
-        return sibis.logging(eid, 'ERROR: Missing scans from Session',
+        return sibis.logging(eid,
+                             'ERROR: Missing scans from Session',
                              scan_session_label=label,
                              manufacturer=manufacturer,
                              missing_scans=missing_scans)
 
-def voxelRes_get(eid, scan):
-        scan_info = ifc.select.experiment( eid ).scan(scan).get()
+
+def voxelres_get(eid, scan):
+        scan_info = ifc.select.experiment(eid).scan(scan).get()
         field_regex = '.*<xnat:voxelRes (.*?)/>'
-        match = re.match( field_regex, scan_info, flags=re.DOTALL )
+        match = re.match(field_regex, scan_info, flags=re.DOTALL)
         if match:
-            return re.sub( '\s*<!--.*?-->\s*', '', match.group( 1 ), flags=re.DOTALL )
+            return re.sub('\s*<!--.*?-->\s*',
+                          '',
+                          match.group(1),
+                          flags=re.DOTALL)
 
-voxelRes_check_siemens ={'ncanda-mprage-v1' : 'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"',
-                         'ncanda-t2fse-v1' : 'x="0.46875\d*" y="0.46875\d*" z="1.2\d*"',
-                         'ncanda-dti6b500pepolar-v1' : 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
-                         'ncanda-dti60b1000-v1' : 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
-                         'ncanda-grefieldmap-v1' : 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
-                         'ncanda-rsfmri-v1' : 'x="3.75\d*" y="3.75\d*" z="5.0\d*"'};
+voxelres_siemens = {
+    'ncanda-mprage-v1': 'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"',
+    'ncanda-t2fse-v1': 'x="0.46875\d*" y="0.46875\d*" z="1.2\d*"',
+    'ncanda-dti6b500pepolar-v1': 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
+    'ncanda-dti60b1000-v1': 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
+    'ncanda-grefieldmap-v1': 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
+    'ncanda-rsfmri-v1': 'x="3.75\d*" y="3.75\d*" z="5.0\d*"'
+}
 
-voxelRes_check_ge = { 'ncanda-t1spgr-v1' : 'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"',
-                      'ncanda-t2fse-v1' : 'x="0.4688\d*" y="0.4688\d*" z="1.2\d*"',
-                      'ncanda-dti6b500pepolar-v1' : 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
-                      'ncanda-dti60b1000-v1' : 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
-                      'ncanda-grefieldmap-v1' : 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
-                      'ncanda-rsfmri-v1' : 'x="3.75\d*" y="3.75\d*" z="5.0\d*"' }
+voxelres_ge = {
+    'ncanda-t1spgr-v1': 'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"',
+    'ncanda-t2fse-v1': 'x="0.4688\d*" y="0.4688\d*" z="1.2\d*"',
+    'ncanda-dti6b500pepolar-v1': 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
+    'ncanda-dti60b1000-v1': 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
+    'ncanda-grefieldmap-v1': 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
+    'ncanda-rsfmri-v1': 'x="3.75\d*" y="3.75\d*" z="5.0\d*"'
+}
+
 
 def voxelRes_check(eid, manufacturer, label):
-    scans = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/id')
+    scan_id = 'xnat:mrSessionData/scans/scan/id'
+    scans = ifc.select.experiment(eid).attrs.get(scan_id)
     voxel_res = []
     error = []
     for scan in scans:
-        voxel_res.append([ifc.select.experiment( eid ).scan(scan).attrs.get('type'), voxelRes_get(eid,scan)])
+        scan_res = [ifc.select.experiment(eid).scan(scan).attrs.get('type'),
+                    voxelres_get(eid, scan)]
+        voxel_res.append(scan_res)
     if manufacturer == 'GE MEDICAL SYSTEMS':
         for v in voxel_res:
-            if  v[0] in scan_type_dictionary['GE MEDICAL SYSTEMS']:
-                match = re.match(voxelRes_check_ge[v[0]], v[1], flags=re.DOTALL)
-                if match == None:
+            if v[0] in scan_type_dictionary['GE MEDICAL SYSTEMS']:
+                match = re.match(voxelres_ge[v[0]], v[1], flags=re.DOTALL)
+                if not match:
                     error.append({'field': 'Voxel Resolution',
                                   'scan_type': v[0],
                                   'voxel_res': v[1],
-                                  'expected_voxel_res': voxelRes_check_siemens[v[0]]})
+                                  'expected_voxel_res': voxelres_siemens[v[0]]})
     elif manufacturer == 'SIEMENS':
         for v in voxel_res:
-            if  v[0] in scan_type_dictionary['SIEMENS']:
-                match = re.match(voxelRes_check_siemens[v[0]], v[1], flags=re.DOTALL)
-                if match == None:
+            if v[0] in scan_type_dictionary['SIEMENS']:
+                match = re.match(voxelres_siemens[v[0]], v[1], flags=re.DOTALL)
+                if not match:
                     error.append({'field': 'Voxel Resolution',
                                   'scan_type': v[0],
                                   'voxel_res': v[1],
-                                  'expected_voxel_res': voxelRes_check_siemens[v[0]]})
+                                  'expected_voxel_res': voxelres_siemens[v[0]]})
     return error
 
-frame_check_siemens = {'ncanda-mprage-v1' : '160',
-                         'ncanda-t2fse-v1' : '160',
-                         'ncanda-dti6b500pepolar-v1' : '7',
-                         'ncanda-dti60b1000-v1' : '62',
-                         'ncanda-grefieldmap-v1' : ['128','64'],
-                         'ncanda-rsfmri-v1' : '275'}
+frame_check_siemens = {'ncanda-mprage-v1': '160',
+                       'ncanda-t2fse-v1': '160',
+                       'ncanda-dti6b500pepolar-v1': '7',
+                       'ncanda-dti60b1000-v1': '62',
+                       'ncanda-grefieldmap-v1': ['128', '64'],
+                       'ncanda-rsfmri-v1': '275'}
 
-frame_check_ge = { 'ncanda-t1spgr-v1' : '146',
-                   'ncanda-t2fse-v1' : '292',
-                   'ncanda-dti6b500pepolar-v1' : '512',
-                   'ncanda-dti60b1000-v1' : '3968',
-                   'ncanda-grefieldmap-v1' : '384',
-                   'ncanda-rsfmri-v1' : '8768' }
+frame_check_ge = {'ncanda-t1spgr-v1': '146',
+                  'ncanda-t2fse-v1': '292',
+                  'ncanda-dti6b500pepolar-v1': '512',
+                  'ncanda-dti60b1000-v1': '3968',
+                  'ncanda-grefieldmap-v1': '384',
+                  'ncanda-rsfmri-v1': '8768'}
+
 
 def frame_check(eid, manufacturer, label):
-    scans = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scans/scan/id')
+    scan_id = 'xnat:mrSessionData/scans/scan/id'
+    scans = ifc.select.experiment(eid).attrs.get(scan_id)
     frames = []
     error = []
     for scan in scans:
-        frames.append(ifc.select.experiment( eid ).scan(scan).attrs.mget(['type','frames']))
+        frame = ifc.select.experiment(eid).scan(scan).attrs.mget(['type',
+                                                                  'frames'])
+        frames.append(frame)
     if manufacturer == 'GE MEDICAL SYSTEMS':
         for f in frames:
-            if  f[0] in scan_type_dictionary['GE MEDICAL SYSTEMS']:
+            if f[0] in scan_type_dictionary['GE MEDICAL SYSTEMS']:
                 if frame_check_ge[f[0]] != f[1]:
                     error.append({'field': 'Frames',
                                   'scan_type': f[0],
@@ -304,7 +436,7 @@ def frame_check(eid, manufacturer, label):
                                   'expected_frames': frame_check_ge[f[0]]})
     elif manufacturer == 'SIEMENS':
         for f in frames:
-            if  f[0] in scan_type_dictionary['SIEMENS']:
+            if f[0] in scan_type_dictionary['SIEMENS']:
                 if f[0] == 'ncanda-grefieldmap-v1':
                     if f[1] in frame_check_siemens[f[0]]:
                         f[1] = f[1]
@@ -321,35 +453,44 @@ def frame_check(eid, manufacturer, label):
                                       'expected_frames': frame_check_ge[f[0]]})
     return error
 
-def mri_quality_check(eid,manufacturer,label):
+
+def mri_quality_check(eid, manufacturer, label):
     errors = []
-    for e in frame_check(eid,manufacturer,label):
+    for e in frame_check(eid, manufacturer, label):
         if e:
             errors.append(e)
-    for e in voxelRes_check(eid,manufacturer,label):
+    for e in voxelRes_check(eid, manufacturer, label):
         if e:
             errors.append(e)
     if errors:
-        return sibis.logging(eid, 'ERROR: Scan violated expected parameters',
+        return sibis.logging(eid,
+                             'ERROR: Scan violated expected parameters',
                              scan_session_label=label,
                              violations=errors)
 #
 # Main loop
 #
 
-
-for (eid, project, subject, insert_date, session_label, last_modified ) in sessions_to_check:
+for (eid, project, subject, insert_date,
+     session_label, last_modified) in sessions_to_check:
     if args.verbose:
-        sys.stdout.write( "Checking experiment %s/%s SID:%s EID:%s, insert date %s, modified date %s..." % ( project, session_label, subject, eid, insert_date, last_modified ) )
+        sys.stdout.write("Checking experiment %s/%s SID:%s EID:%s, insert date "
+                         "%s, modified date %s..." % (project, session_label,
+                                                      subject, eid, insert_date,
+                                                      last_modified))
         sys.stdout.flush()
 
     # getting scanner platform
-    manufacturer = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scanner/manufacturer')
+    manufacturer = 'xnat:mrSessionData/scanner/manufacturer'
+    manufacturer = ifc.select.experiment(eid).attrs.get(manufacturer)
 
     # Link to the session
-    (session_html_link,session_file_link) = make_session_link( eid, project, session_label )
+    session_html_link, session_file_link = make_session_link(eid,
+                                                             project,
+                                                             session_label)
 
-    # figure out what scans are required for this subject (or phantom) on this platform
+    # figure out what scans are required for this subject (or phantom) on this
+    # platform
     isPhantom = False
     if subject in fbirn_ids:
         required_series = required_fbirn
@@ -368,34 +509,63 @@ for (eid, project, subject, insert_date, session_label, last_modified ) in sessi
             required_series = required_siemens
 
     # Get quality rating for each scan type
-    scantype_and_quality  = [ [ scan ] + ifc.select.experiment( eid ).scan(scan).attrs.mget(['type','quality']) for scan in ifc.select.experiment( eid ).scans('*').get() ]
-    final = [ scantype for (scan,scantype,quality) in scantype_and_quality if scantype in required_series.keys() and quality in ['usable', 'unusable'] ]
-    usable = [ scantype for (scan,scantype,quality) in scantype_and_quality if scantype in required_series.keys() and quality == 'usable' ]
-    questionable = [ scantype for (scan,scantype,quality) in scantype_and_quality if scantype in required_series.keys() and quality == 'questionable' ]
-    unseen_scans = [ scantype for (scan,scantype,quality) in scantype_and_quality if scantype in required_series.keys() and quality in [ 'unset', 'unknown' ] ]
+    scantype_and_quality = [
+        [scan] + ifc.select.experiment(eid).scan(scan).attrs.mget(['type',
+                                                                   'quality'])
+        for scan in ifc.select.experiment(eid).scans('*').get()]
+    final = [
+        scantype for (scan, scantype, quality) in scantype_and_quality
+        if scantype in required_series.keys() and quality in ['usable',
+                                                              'unusable']]
+    usable = [
+        scantype for (scan, scantype, quality) in scantype_and_quality
+        if scantype in required_series.keys() and quality == 'usable']
+    questionable = [
+        scantype for (scan, scantype, quality) in scantype_and_quality
+        if scantype in required_series.keys() and quality == 'questionable']
+    unseen_scans = [
+        scantype for (scan, scantype, quality) in scantype_and_quality
+        if scantype in required_series.keys() and quality in ['unset',
+                                                              'unknown']]
 
-    dti_scans = [ (scan,scantype) for (scan,scantype,quality) in scantype_and_quality if re.match( '^ncanda-dti.*-v1$', scantype ) and quality != 'unusable' ]
-    fmri_scans = [ (scan,scantype) for (scan,scantype,quality) in scantype_and_quality if re.match( '^ncanda-.*fmri.*-v1$', scantype ) and quality != 'unusable' ]
+    dti_scans = [
+        (scan, scantype) for (scan, scantype, quality) in scantype_and_quality
+        if re.match('^ncanda-dti.*-v1$', scantype) and quality != 'unusable']
+    fmri_scans = [
+        (scan, scantype) for (scan, scantype, quality) in scantype_and_quality
+        if re.match('^ncanda-.*fmri.*-v1$', scantype) and quality != 'unusable']
 
     # Export scans to NIFTI
     nifti_export_ok = True
-    for (scan,scantype,quality) in scantype_and_quality:
-        # New Code
-
-        if re.match( '^ncanda-.*-v[0-9]$', scantype ):
-             errorMSG=make_session_niftis.export_to_nifti( ifc, project, subject, eid, session_label, manufacturer, scan, scantype, dry_run=args.no_update, verbose=args.verbose )
-             if len(errorMSG):
+    for (scan, scantype, quality) in scantype_and_quality:
+        if re.match('^ncanda-.*-v[0-9]$', scantype):
+            error_msg = make_session_niftis.export_to_nifti(
+                ifc,
+                project,
+                subject,
+                eid,
+                session_label,
+                manufacturer,
+                scan,
+                scantype,
+                dry_run=args.no_update,
+                verbose=args.verbose)
+            if len(error_msg):
                 nifti_export_ok = False
-                htmln.append(''.join([session_html_link,session_file_link, ', '.join ([ scan, scantype, 'ERROR:']), ', ERROR:'.join(errorMSG) ]))
+                htmln.append(''.join([session_html_link,
+                                      session_file_link,
+                                      ', '.join([scan, scantype, 'ERROR:']),
+                                      ', ERROR:'.join(error_msg)]))
 
     # MRI Session Quality Checks
     if args.verbose:
-        sys.stdout.write( "Beginning QC..." )
+        sys.stdout.write("Beginning QC...")
         sys.stdout.flush()
 
-    label = ifc.select.experiment( eid ).attrs.get('xnat:mrSessionData/scanner/label')
+    scanner_label = 'xnat:mrSessionData/scanner/label'
+    label = ifc.select.experiment(eid).attrs.get(scanner_label)
 
-    if label_check(label) == None:
+    if not label_check(label):
         error = incomplete_scan_check(eid, manufacturer, label)
         if error:
             print error
@@ -404,71 +574,115 @@ for (eid, project, subject, insert_date, session_label, last_modified ) in sessi
             print error
 
     # failed dti te comparison
-    failed_dti = check_dti( ifc, eid, dti_scans )
-    if len( failed_dti ):
-        htmldt.append(''.join([session_html_link,session_file_link, ', '.join( failed_dti )]))
+    failed_dti = check_dti(ifc, eid, dti_scans)
+    if len(failed_dti):
+        htmldt.append(''.join([session_html_link,
+                               session_file_link,
+                               ', '.join(failed_dti)]))
 
     # missing physio data
     physio_ok = True
-    if not isPhantom and len( fmri_scans ):
-        physio_ok = check_physio( ifc, eid )
+    if not isPhantom and len(fmri_scans):
+        physio_ok = check_physio(ifc, eid)
         if not physio_ok:
             htmlphys.append(session_html_link)
 
     # "unset" (i.e., uninspected) mandatory scantypes
-    unset = [ scantype for scantype in required_series.keys() if scantype in unseen_scans ]
-    if len( unset ):
-        htmlu.append(''.join([session_html_link,session_file_link,', '.join(unset)]))
+    unset = [scantype for scantype in required_series.keys()
+             if scantype in unseen_scans]
+    if len(unset):
+        htmlu.append(''.join([session_html_link,
+                              session_file_link,
+                              ', '.join(unset)]))
+        # add to qc csv
+        unseen_scans.insert(0, session_file_link[:-5])
+        row = ','.join(unseen_scans)
+        row += '\n'
+        scans_to_qc.append(row)
 
     # duplicated scantypes
-    dupl =[ scantype for scantype in usable if (scantype in required_series.keys()) and (usable.count(scantype) > required_series[scantype]) ]
-    if len( dupl ):
-        htmld.append(''.join([session_html_link,session_file_link,', '.join(dupl)]))
+    dupl =[scantype for scantype in usable
+           if (scantype in required_series.keys()) and
+           (usable.count(scantype) > required_series[scantype])]
+    if len(dupl):
+        htmld.append(''.join([session_html_link,
+                              session_file_link,
+                              ', '.join(dupl)]))
 
     # questionable scantypes
-    if len( questionable ):
-        htmlq.append(''.join([session_html_link,session_file_link,', '.join(questionable)]))
+    if len(questionable):
+        htmlq.append(''.join([session_html_link,
+                              session_file_link,
+                              ', '.join(questionable)]))
 
-    if (len( questionable ) + len( unset ) + len( dupl ) + len( failed_dti )) or (not physio_ok) or (not nifti_export_ok):
-        experiments_for_next_run.append( eid )
+    if (len(questionable) + len(unset) + len(dupl) + len(failed_dti)) \
+            or (not physio_ok) or (not nifti_export_ok):
+        experiments_for_next_run.append(eid)
         if args.verbose:
             print "RECHECK"
     else:
         if args.verbose:
             print "OK"
 
-# Make links for all "new" sessions, i.e., those inserted after the "last checked" date
-new_session_links= [ make_session_link( eid, project, label ) for ( eid, project, subject, insert_date, label, last_modified ) in new_sessions if insert_date >= str_date_last_checked ]
+# Make links for all "new" sessions, i.e., those inserted after the
+# "last checked" date
+new_session_links = [
+    make_session_link(eid, project, label)
+    for (eid, project, subject,
+         insert_date, label, last_modified) in new_sessions
+    if insert_date >= str_date_last_checked]
 
 html_summary = ''
 html = ''
-if len( new_session_links ) > 0:
-    html_summary += '<li>New Sessions: <a href="#newsessions">&nbsp;%d&nbsp;</a></li>\n' % len( new_session_links )
-    html += ''.join(['<b><a id="newsessions">New Sessions Since %s' % str_date_last_checked, '</a></b>\n<ol>',''.join("%s%s"%(session_link[0],session_link[1]) for session_link in new_session_links ),'</ol>' ])
+if len(new_session_links) > 0:
+    temp = '<li>New Sessions: <a href="#newsessions">&nbsp;%d&nbsp;</a></li>\n'
+    html_summary += temp % len(new_session_links)
+    html += ''.join(['<b><a id="newsessions">New Sessions Since %s' %
+                     str_date_last_checked,
+                     '</a></b>\n<ol>',
+                     ''.join("%s%s" % (session_link[0], session_link[1])
+                             for session_link in new_session_links), '</ol>'])
 
-if len( htmlu ) > 0:
-    html_summary += '<li>Sessions with Scans to Inspect: <a href="#toinspect">&nbsp;%d&nbsp;</a></li>\n' % len( htmlu )
-    html += ''.join(['<b><a id="toinspect">Sessions with Mandatory Scans to Inspect', '</a></b>\n<ol>',''.join(htmlu),'</ol>' ])
+if len(htmlu) > 0:
+    html_summary += '<li>Sessions with Scans to Inspect: ' \
+                    '<a href="#toinspect">&nbsp;%d&nbsp;</a>' \
+                    '</li>\n' % len(htmlu)
+    html += ''.join(['<b><a id="toinspect">Sessions with Mandatory '
+                     'Scans to Inspect',
+                     '</a></b>\n<ol>', ''.join(htmlu), '</ol>'])
 
-if len( htmlq ) > 0:
-    html_summary += '<li>Sessions with Questionable Scans: <a href="#questionable">&nbsp;%d&nbsp;</a></li>\n' % len( htmlq )
-    html += ''.join(['<b><a id="questionable">Sessions with Questionable Scans' ,'</a></b>\n<ol>',''.join(htmlq),'</ol>'])
+if len(htmlq) > 0:
+    html_summary += '<li>Sessions with Questionable Scans: ' \
+                    '<a href="#questionable">&nbsp;%d&nbsp;</a>' \
+                    '</li>\n' % len(htmlq)
+    html += ''.join(['<b><a id="questionable">Sessions with Questionable Scans',
+                     '</a></b>\n<ol>', ''.join(htmlq), '</ol>'])
 
-if len( htmld ) > 0:
-    html_summary += '<li>Sessions with Duplicated Scans: <a href="#dupes">&nbsp;%d&nbsp;</a></li>\n' % len( htmld )
-    html += ''.join(['<b><a id="dupes">Sessions with Duplicated Scans', '</a></b>\n<ol>',''.join(htmld),'</ol>'])
+if len(htmld) > 0:
+    html_summary += '<li>Sessions with Duplicated Scans: ' \
+                    '<a href="#dupes">&nbsp;%d&nbsp;</a></li>\n' % len(htmld)
+    html += ''.join(['<b><a id="dupes">Sessions with Duplicated Scans',
+                     '</a></b>\n<ol>', ''.join(htmld), '</ol>'])
 
-if len( htmln ) > 0:
-    html_summary += '<li>Unparsable Dicoms: <a href="#niftifailed">&nbsp;%d&nbsp;</a></li>\n' % len( htmln )
-    html += ''.join(['<b><a id="niftifailed">Sessions with Unparsable Dicoms ', '</a></b>\n<ol>',''.join(htmln),'</ol>' ])
+if len(htmln) > 0:
+    html_summary += '<li>Unparsable Dicoms: <a href="#niftifailed">' \
+                    '&nbsp;%d&nbsp;</a></li>\n' % len(htmln)
+    html += ''.join(['<b><a id="niftifailed">Sessions with Unparsable Dicoms ',
+                     '</a></b>\n<ol>', ''.join(htmln), '</ol>'])
 
-if len( htmldt ) > 0:
-    html_summary += '<li>Sessions with Mismatched DTI Parameters: <a href="#dtimismatch">&nbsp;%d&nbsp;</a></li>\n' % len( htmldt )
-    html += ''.join(['<b><a id="dtimismatch">Sessions with Mismatched DTI Parameters',  '</a></b>\n<ol>',''.join(htmldt),'</ol>'])
+if len(htmldt) > 0:
+    html_summary += '<li>Sessions with Mismatched DTI Parameters: <a href=' \
+                    '"#dtimismatch">&nbsp;%d&nbsp;</a></li>\n' % len(htmldt)
+    html += ''.join([
+        '<b><a id="dtimismatch">Sessions with Mismatched DTI Parameters',
+        '</a></b>\n<ol>', ''.join(htmldt), '</ol>'])
 
-if len( htmlphys ) > 0:
-    html_summary += '<li>Sessions with Missing Physiological Data: <a href="#physio">&nbsp;%d&nbsp;</a></li>\n' % len( htmlphys )
-    html += ''.join(['<b><a id="physio">Sessions with Missing Physiological Data',  '</a></b>\n<ol>',''.join(htmlphys),'</ol>'])
+if len(htmlphys) > 0:
+    html_summary += '<li>Sessions with Missing Physiological Data: <a ' \
+                    'href="#physio">&nbsp;%d&nbsp;</a></li>\n' % len(htmlphys)
+    html += ''.join([
+        '<b><a id="physio">Sessions with Missing Physiological Data',
+        '</a></b>\n<ol>', ''.join(htmlphys), '</ol>'])
 
 if html_summary != '':
     html = '<b>Summary</b>\n<ol>\n' + html_summary + '</ol>\n' + html
@@ -477,12 +691,25 @@ if html_summary != '':
 if args.send_mail_to:
     from xnat_email import XnatEmail
     email = XnatEmail( ifc )
-    email.send( 'NCANDA XNAT - MRI Session Report', email._admin_email, args.send_mail_to.split( ',' ), html )
+    email.send('NCANDA XNAT - MRI Session Report',
+               email._admin_email,
+               args.send_mail_to.split(','),
+               html)
 elif args.verbose:
     print html
 
-# Finally, update config stored on the server to have current date/time as the time that this script was last run
+# Write the scans to QC csv file.
+if scans_to_qc:
+    with open(args.qc_csv, 'wb') as fi:
+        fi.writelines(scans_to_qc)
+
+# Finally, update config stored on the server to have current date/time as the
+# time that this script was last run
 if not args.no_update:
     if args.verbose:
-        print "Flagging %d series for re-inspection during next script run" % len( experiments_for_next_run )
-    content = ifc._exec( uri='%s?inbody=true' % config_uri, method='PUT', body=','.join( set( experiments_for_next_run ) ), headers={'content-type':'text/plain'} )
+        print "Flagging %d series for re-inspection during next script run" % \
+              len(experiments_for_next_run)
+    content = ifc._exec(uri='%s?inbody=true' % config_uri,
+                        method='PUT',
+                        body=','.join(set(experiments_for_next_run)),
+                        headers={'content-type': 'text/plain'})
