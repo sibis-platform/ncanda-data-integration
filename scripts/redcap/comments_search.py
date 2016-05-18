@@ -2,8 +2,8 @@
 #!/usr/bin/env python
 
 ##
-##  Copyright 2016 SRI International
-##  See COPYING file distributed along with the package for the copyright and license terms.
+##  See COPYING file distributed along with the ncanda-data-integration package
+##  for the copyright and license terms
 ####  $Revision: 2110 $
 ##  $LastChangedBy: nicholsn $
 ##  $LastChangedDate: 2015-08-07 09:10:29 -0700 (Fri, 07 Aug 2015) $

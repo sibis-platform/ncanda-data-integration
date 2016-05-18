@@ -1,88 +1,107 @@
 #!/usr/bin/env python
 
 ##
-##  Copyright 2016 SRI International
-##  See COPYING file distributed along with the package for the copyright and license terms.
+##  See COPYING file distributed along with the ncanda-data-integration package
+##  for the copyright and license terms
 ##
 
-# Setup command line parser
-import argparse
 import os
 import re
-import string
-import pandas
 import sys
+import string
 import hashlib
+import argparse
 
+import sibis
 import redcap
+import pandas as pd
 
-parser = argparse.ArgumentParser( description="Import contents of CSV file into non-longitudinal REDCap project" )
-parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
-parser.add_argument( "-f", "--force-update", help="Force updates even when records are already marked 'Complete'", action="store_true")
-parser.add_argument( "--api-key-file", help="File containing API Key for REDCap project", default=os.path.join( os.path.expanduser("~"), '.server_config/redcap-laptopimport-token' ) )
-parser.add_argument( "--data-access-group", help="REDCap project data access group that the imported data should be assigned to.", default=None )
-parser.add_argument( "csvfile", nargs='+', help="Input .csv file.")
+parser = argparse.ArgumentParser(description="Import contents of CSV file into "
+                                             "non-longitudinal REDCap project")
+parser.add_argument("-v", "--verbose",
+                    help="Verbose operation",
+                    action="store_true")
+parser.add_argument("-f", "--force-update",
+                    help="Force updates even when records are already marked "
+                         "'Complete'",
+                    action="store_true")
+parser.add_argument("--api-key-file",
+                    help="File containing API Key for REDCap project",
+                    default=os.path.join(
+                        os.path.expanduser("~"),
+                        '.server_config/redcap-laptopimport-token'))
+parser.add_argument("--data-access-group",
+                    help="REDCap project data access group that the imported "
+                         "data should be assigned to.",
+                    default=None)
+parser.add_argument("csvfile",
+                    nargs='+',
+                    help="Input .csv file.")
 args = parser.parse_args()
 
 # Open connection to REDCap server
-key_file = open( args.api_key_file, 'r' )
+key_file = open(args.api_key_file, 'r')
 api_key = key_file.read().strip()
 try:
-    project = redcap.Project( 'https://ncanda.sri.com/redcap/api/', api_key, verify_ssl=False)
+    project = redcap.Project('https://ncanda.sri.com/redcap/api/',
+                             api_key,
+                             verify_ssl=False)
 except Exception, error:
     sibis.logging(hashlib.sha1('csv2redcap').hexdigest()[0:6],
-    "ERROR: Could not connect to redcap!",
-    script = 'csv2redcap')
+                  "ERROR: Could not connect to redcap!",
+                  script='csv2redcap',
+                  message=error)
     sys.exit()
 
 # List of failed files
 failed = []
 
+
 # Process one file.
-def process_file( fname ):
+def process_file(fname):
     # Read input file
-    data = pandas.io.parsers.read_csv( fname, dtype=object )
+    data = pd.read_csv(fname, dtype=object)
 
     # Replace periods in column labels with underscores
-    data.rename( columns = lambda s: string.lower( s.replace( '.', '_' ) ), inplace=True )
+    data.rename(columns=lambda s: string.lower(s.replace('.', '_')),
+                inplace=True)
 
-    # Bring original "siteid" column back to assign each record to the correct data access group
-    if not args.data_access_group == None:
+    # Bring original "siteid" column back to assign each record to the correct
+    # data access group
+    if args.data_access_group:
         data['redcap_data_access_group'] = args.data_access_group
 
-    # Get "complete" field of existing records so we can protect "Complete" records from overwriting
+    # Get "complete" field of existing records so we can protect "Complete"
+    # records from overwriting
     complete_field = None
     for var in data.columns:
-        if re.match( '.*_completed$', var ) and not var == 'visit_information_complete':
+        if re.match('.*_completed$', var) and \
+                not var == 'visit_information_complete':
             complete_field = var
-     #       print complete_field
-     #   else:
-#	    if re.match( '.*_complete$', var ) and not var == 'visit_information_complete' and complete_field == None:
-#		complete_field = var
-#               print complete_field
 
-
-    # Is there a "complete" field? Then get existing records and ditch all records from new data that are "Complete"
+    # Is there a "complete" field? Then get existing records and ditch all
+    # records from new data that are "Complete"
     if complete_field:
-        existing_data = project.export_records( fields=[complete_field], format='df' )
+        existing_data = project.export_records(fields=[complete_field],
+                                               format='df')
 
     # Make list of dicts for REDCap import
     record_list = []
-    for [key,row] in data.iterrows():
-        row['record_id'] = re.sub( '(#|&|\+|\')', '?', row['record_id'] )
-	record_id = row['record_id']
+    for key, row in data.iterrows():
+        row['record_id'] = re.sub('(#|&|\+|\')', '?', row['record_id'])
+        record_id = row['record_id']
         if complete_field:
             if record_id in existing_data.index.tolist():
                 if existing_data[complete_field][record_id] == 2:
                     if args.force_update:
-                        print "Forcing update of 'Complete' record",record_id
+                        print "Forcing update of 'Complete' record", record_id
                     else:
                         continue
-        record = dict( row.dropna().apply( lambda s: re.sub( '&quot;', '""', s ) ) )
-        record_list.append( record )
+        record = dict(row.dropna().apply(lambda s: re.sub('&quot;', '""', s)))
+        record_list.append(record)
 
     # Upload new data to REDCap
-    import_response = project.import_records( record_list, overwrite='overwrite' )
+    import_response = project.import_records(record_list, overwrite='overwrite')
 
     # If there were any errors, try to print them as well as possible
     if 'error' in import_response.keys():
@@ -99,14 +118,15 @@ def process_file( fname ):
     # Finally, print upload status if so desired
     if 'count' in import_response.keys():
         if args.verbose:
-            print "Successfully uploaded %d/%d records to REDCap." % ( import_response['count'], len( data ) )
+            print "Successfully uploaded %d/%d records to REDCap." % \
+                  (import_response['count'], len(data))
     else:
-        failed.append( f )
+        failed.append(f)
 
 # Process all files from the command line
 for f in args.csvfile:
-    process_file( f )
+    process_file(f)
 
 # Print failures
-if len( failed ) > 0:
-    sys.exit( 'ERROR uploading file(s):\n%s' % '\n'.join( failed ) )
+if len(failed) > 0:
+    sys.exit('ERROR uploading file(s):\n%s' % '\n'.join(failed))
