@@ -49,7 +49,8 @@ try:
 except Exception, error:
     sibis.logging(hashlib.sha1('csv2redcap').hexdigest()[0:6],
                   "ERROR: Could not connect to redcap!",
-                  script='csv2redcap')
+                  script='csv2redcap',
+                  message=error)
     sys.exit()
 
 # List of failed files
