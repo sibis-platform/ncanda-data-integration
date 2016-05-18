@@ -59,7 +59,7 @@ failed = []
 # Process one file.
 def process_file(fname):
     # Read input file
-    data = pd.io.parsers.read_csv(fname, dtype=object )
+    data = pd.read_csv(fname, dtype=object )
 
     # Replace periods in column labels with underscores
     data.rename(columns=lambda s: string.lower(s.replace('.', '_')),
