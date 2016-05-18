@@ -14,6 +14,7 @@ import pandas
 import sys
 import hashlib
 
+import sibis
 import redcap
 
 parser = argparse.ArgumentParser( description="Import contents of CSV file into non-longitudinal REDCap project" )
