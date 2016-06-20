@@ -153,6 +153,8 @@ def export_to_nifti(interface, project, subject, session, session_label,
                                 sibis.logging(
                                     session_label,
                                     "ERROR: Incorrect number of frames.",
+                                    case_gradients=case_gradients,
+                                    expected=gradients,
                                     session=session)
                             if errors:
                                 key = session_label
@@ -181,7 +183,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
                                 error_msg.append(
                                     "Cannot read XML sidecar file for scan %s "
                                     "of session %s" % (
-                                    scan, session_label))
+                                        scan, session_label))
 
                             finally:
                                 xml_file.close()
@@ -189,8 +191,8 @@ def export_to_nifti(interface, project, subject, session, session_label,
                             xml_file_list = glob.glob(
                                 os.path.join(temp_dir,
                                              '%s_%s' % (
-                                                scan,
-                                                scantype), 'image*.nii.xml'))
+                                                 scan,
+                                                 scantype), 'image*.nii.xml'))
                             case_gradients = cgt.get_all_gradients(
                                 xml_file_list, decimals=3)
                             errors = list()
@@ -204,6 +206,8 @@ def export_to_nifti(interface, project, subject, session, session_label,
                                 sibis.logging(
                                     session_label,
                                     "ERROR: Incorrect number of frames.",
+                                    case_gradients=case_gradients,
+                                    expected=gradients,
                                     session=session)
                             if errors:
                                 # key = os.path.join(case, args.arm, args.event,
