@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from lxml import objectify
 
+
 def read_xml_sidecar(filepath):
     """
     Read a CMTK xml sidecar file.
@@ -23,9 +24,10 @@ def read_xml_sidecar(filepath):
         lines.append('</root>')
     string = ''.join(lines)
     strip_ge = string.replace('dicom:GE:', '')
-    strip_dicom = strip_ge.replace('dicom:','')
+    strip_dicom = strip_ge.replace('dicom:', '')
     result = objectify.fromstring(strip_dicom)
     return result
+
 
 def get_array(array_string):
     """
@@ -37,6 +39,7 @@ def get_array(array_string):
     """
     l = array_string.text.split(' ')
     return np.fromiter(l, np.float)
+
 
 def get_gradient_table(parsed_sidecar, decimals=None):
     """
@@ -52,9 +55,10 @@ def get_gradient_table(parsed_sidecar, decimals=None):
     if not decimals:
         decimals = 1
     return np.around([b_vector,
-                     b_vector_image,
-                     b_vector_standard],
+                      b_vector_image,
+                      b_vector_standard],
                      decimals=decimals)
+
 
 def get_cases(cases_root, case=None):
     """
@@ -65,18 +69,20 @@ def get_cases(cases_root, case=None):
         match = case
     return glob.glob(os.path.join(cases_root, match))
 
+
 def get_dti_stack(case, arm=None, event=None):
     if arm:
         path = os.path.join(case, arm)
     else:
-            path = os.path.join(case, '*')
+        path = os.path.join(case, '*')
     if event:
         path = os.path.join(path, event)
     else:
-        path = os.path.join(path,'*')
+        path = os.path.join(path, '*')
 
     path = os.path.join(path, 'diffusion/native/dti60b1000/*.xml')
     return glob.glob(path)
+
 
 def get_all_gradients(dti_stack, decimals=None):
     """
@@ -93,6 +99,7 @@ def get_all_gradients(dti_stack, decimals=None):
                                                      decimals=decimals))
     return gradiets_per_frame
 
+
 def get_site_scanner(site):
     """
     Returns the "ground truth" case for gradients.
@@ -103,6 +110,7 @@ def get_site_scanner(site):
                         D='Siemens',
                         E='GE')
     return site_scanner.get(site)
+
 
 def get_ground_truth_gradients(args=None):
     """
@@ -133,8 +141,8 @@ def get_ground_truth_gradients(args=None):
     ge_gradients = get_all_gradients(ge_stack, decimals=3)
     return dict(Siemens=siemens_gradients, GE=ge_gradients)
 
-def main(args=None):
 
+def main(args=None):
     # Get the gradient tables for all cases and compare to ground truth
     cases = get_cases(args.base_dir, case=args.case)
 
@@ -160,14 +168,16 @@ def main(args=None):
         errors = list()
         for idx, frame in enumerate(case_gradients):
             # if there is a frame that doesn't match, report it.
-            if not (gradients[idx]==frame).all():
+            if not (gradients[idx] == frame).all():
                 errors.append(idx)
         if errors:
-            key = os.path.join(case, args.arm, args.event, 'diffusion/native/dti60b1000')
+            key = os.path.join(case, args.arm, args.event,
+                               'diffusion/native/dti60b1000')
             result = dict(subject_site_id=key,
                           frames=errors,
                           error="Gradient tables do not match for frames.")
             print(json.dumps(result, sort_keys=True))
+
 
 if __name__ == '__main__':
     import argparse
