@@ -548,7 +548,6 @@ for (eid, project, subject, insert_date,
                 manufacturer,
                 scan,
                 scantype,
-                dry_run=args.no_update,
                 verbose=args.verbose)
             if len(error_msg):
                 nifti_export_ok = False
