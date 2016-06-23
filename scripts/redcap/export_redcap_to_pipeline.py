@@ -262,7 +262,14 @@ def make_code_label_dict(redcap_metadata):
     for field in redcap_metadata:
         if field['field_type'] in ['radio', 'dropdown']:
             field_dict = {'': ''}
-            for choice in field['select_choices_or_calculations'].split('|'):
+            # Handle using sex from record id rather than datadict.
+            if field['field_name'] == 'sex':
+                choices = field['select_choices_or_calculations']
+                choices.replace('0', 'F')
+                choices.replace('1', 'M')
+            else:
+                choices = field['select_choices_or_calculations']
+            for choice in choices.split('|'):
                 code_label = [c.strip() for c in choice.split(',')]
                 field_dict[code_label[0]] = ', '.join(code_label[1:])
             code_to_label_dict[field['field_name']] = field_dict
