@@ -293,6 +293,21 @@ def create_datadicts_general(datadict_dir, datadict_base_file,
                                "Question Number (surveys only)",
                                "Matrix Group Name", "Matrix Ranking?"]
 
+    # Insert standard set of data elements into each datadict.
+    for i in range(3):
+        elements = ['subject', 'arm', 'visit']
+        export_forms_list.insert(i, export_forms_list[0])
+        variable_list.insert(i, elements[i])
+    elements = dict(subject=('text', '', 'Subject', '', '', ''),
+                    arm=('dropdown', '', 'Study Arm', '', '',
+                         'standard, Standard Arm'),
+                    visit=('dropdown', '', 'Visit', '', '',
+                           'baseline, Baseline | '
+                           'followup_1y, Followup Year 1 |'
+                           'followup_2y, Followup Year 2 |'
+                           'followup_3y, Followup Year 3'))
+    metadata_dict.update(elements)
+
     if not os.path.exists(datadict_dir):
         os.makedirs(datadict_dir)
 
@@ -350,16 +365,56 @@ def create_datadicts(datadict_dir):
                               'mri_diffusion_age', 'mri_restingstate_age',
                               'exceeds_bl_drinking', 'siblings_enrolled_yn',
                               'siblings_id_first', 'hispanic', 'race',
-                              'race_label', 'participant_id', 'scanner']
+                              'participant_id', 'scanner']
 
     # First two entries are extracted from SubjectID
-    export_form_list = ['basic_demographics', 'basic_demographics',
-                        'basic_demographics', 'mri_report', 'mri_report',
-                        'mri_report', 'basic_demographics',
-                        'basic_demographics', 'basic_demographics',
-                        'basic_demographics', 'basic_demographics',
-                        'basic_demographics', 'basic_demographics',
-                        'basic_demographics']
+    export_form_list = ['demographics', 'demographics',
+                        'demographics', 'demographics',
+                        'demographics', 'demographics',
+                        'demographics', 'demographics',
+                        'demographics', 'demographics',
+                        'demographics', 'demographics',
+                        'demographics']
+
+    # Define the data dictionary for demographics data elements.
+    elements = dict(
+        site=('dropdown', '', 'Study Site', '', '',
+              'A, A | B, B | C, C | D, D | E, E'),
+        sex=('dropdown', '', 'Subject Sex', '', '', 'F, Female | M, Male'),
+        visit_age=(
+            'text', 'number', 'Visit Age', '10', '30', ''),
+        mri_structural_age=(
+            'text', 'number', 'MRI Structural Age', '10', '30', ''),
+        mri_diffusion_age=(
+            'text', 'number', 'MRI Diffusion Age', '10', '30', ''),
+        mri_restingstate_age=(
+            'text', 'number', 'MRI Resting State fMRI Age', '10', '30', ''),
+        exceeds_bl_drinking=(
+            'yesno', '',
+            'Did the subject exceed baseline drinking levels?', '', '',
+            'N, No | Y, Yes'),
+        siblings_enrolled_yn=(
+            'yesno', '', 'Are siblings of the subject also enrolled?', '', '',
+            'N, No | Y, Yes'),
+        siblings_id_first=(
+            'text', 'ID of First Born Sibling', 'Subject', '', '', ''),
+        hispanic=(
+            'yesno', '', 'Is the subject hispanic?', '', '',
+            'N, No | Y, Yes'),
+        race=('dropdown', '', 'Race', '', '',
+              '1, Native American/American Indian | '
+              '2, Asian | '
+              '3, Pacific Islander | '
+              '4, African-American/Black | '
+              '5, Caucasian/White | '
+              '6, Other (Specify) | '
+              '8, Invalid Entry | '
+              '9, No Response'),
+        participant_id=('text', '', 'Participant ID', '', '', ''),
+        scanner=('dropdown', '', 'MRI Scanner Manufacturer', '', '',
+                 'ge, General Electric | siemens, Siemens'))
+    metadata_dict.update(elements)
+
     create_datadicts_general(datadict_dir, 'demographics', export_form_list,
                              export_form_entry_list)
 
@@ -394,3 +449,15 @@ for f in exports_files:
         match = re.match('^(.+)\[(.+)\]$', field)
         if match:
             export_rename[export_name][match.group(1)] = match.group(2)
+
+# Open connection with REDCap server for testing
+# import redcap
+# redcap_token_path = os.path.join(os.path.expanduser("~"),
+#                                  '.server_config/redcap-dataentry-token')
+# redcap_token_file = open(redcap_token_path, 'r')
+# redcap_token = redcap_token_file.read().strip()
+#
+# redcap_project = redcap.Project('https://ncanda.sri.com/redcap/api/',
+#                                 redcap_token, verify_ssl=False)
+# organize_metadata(redcap_project.metadata)
+# create_datadicts('/Users/nicholsn/Downloads/datadicts')
