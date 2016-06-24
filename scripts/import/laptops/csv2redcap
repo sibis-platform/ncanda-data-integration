@@ -46,11 +46,11 @@ try:
     project = redcap.Project('https://ncanda.sri.com/redcap/api/',
                              api_key,
                              verify_ssl=False)
-except Exception, error:
+except Exception as error:
     sibis.logging(hashlib.sha1('csv2redcap').hexdigest()[0:6],
                   "ERROR: Could not connect to redcap!",
                   script='csv2redcap',
-                  msg=error)
+                  msg=str(error))
     sys.exit()
 
 # List of failed files

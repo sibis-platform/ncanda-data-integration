@@ -153,8 +153,8 @@ def export_to_nifti(interface, project, subject, session, session_label,
                                 sibis.logging(
                                     session_label,
                                     "ERROR: Incorrect number of frames.",
-                                    case_gradients=case_gradients,
-                                    expected=gradients,
+                                    case_gradients=str(case_gradients),
+                                    expected=str(gradients),
                                     session=session)
                             if errors:
                                 key = session_label
