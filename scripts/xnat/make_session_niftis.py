@@ -207,11 +207,11 @@ def export_to_nifti(interface, project, subject, session, session_label,
                                     session_label,
                                     "ERROR: Incorrect number of frames.",
                                     case_gradients=case_gradients,
-                                    expected=gradients,
-                                    session=session)
+                                    expected=str(gradients),
+                                    session=str(session))
                             if errors:
-                                # key = os.path.join(case, args.arm, args.event,
-                                # 'diffusion/native/dti60b1000')
+                                # key = os.path.join(case, args.arm, args.event
+                                # , 'diffusion/native/dti60b1000')
                                 key = session_label
                                 sibis.logging(
                                     key,
