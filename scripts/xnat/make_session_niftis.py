@@ -217,7 +217,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
                                     key,
                                     "ERROR: Gradient tables do not match for "
                                     "frames.",
-                                    frames=errors,
+                                    frames=str(errors),
                                     session=session)
                             xml_file = open(xml_file_list[0], 'r')
                             try:
