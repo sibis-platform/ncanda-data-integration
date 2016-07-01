@@ -16,18 +16,18 @@ import pandas
 
 # Truncate age to 2 digits for increased identity protection
 def truncate_age(age_in):
-    match = re.match('([0-9]*\.[0-9]*)', str(age_in))
-    if match:
-        return round(float(match.group(1)), 2)
+    matched = re.match('([0-9]*\.[0-9]*)', str(age_in))
+    if matched:
+        return round(float(matched.group(1)), 2)
     else:
         return age_in
 
 
 # "Safe" CSV export - this will catch IO errors from trying to write to a file
-# that is currently being read and will retry a number of times before giving up
-# This function will also confirm whether the newly created file is different
-# from an already existing file of the same name. Only changed files will be
-# updated.
+# that is currently being read and will retry a number of times before giving
+# up. This function will also confirm whether the newly created file is
+# different from an already existing file of the same name. Only changed files
+# will be updated.
 def safe_csv_export(df, fname, verbose=False):
     success = False
     retries = 10
@@ -72,14 +72,16 @@ def export(redcap_project, site, subject, event, subject_data, visit_age,
             if not os.path.exists(qafile_path):
                 qafile = open(qafile_path, 'w')
                 qafile.close()
-        except:
-            print "ERROR: unable to open QA marker file in", subject_datadir
+        except IOError as error:
+            print("ERROR: unable to open QA marker file in {}. {}".format(
+                subject_datadir, error))
     else:
         try:
             if os.path.exists(qafile_path):
                 os.remove(qafile_path)
-        except:
-            print "ERROR: unable to remove QA marker file", qafile_path
+        except OSError as error:
+            print("ERROR: unable to remove QA marker file {}. {}".format(
+                qafile_path, error))
 
     # Check if the "measures" subdirectory already exists - this is where all
     # the csv files go. Create it if necessary.
@@ -137,8 +139,8 @@ def export(redcap_project, site, subject, event, subject_data, visit_age,
                         os.path.join(measures_dir, 'demographics.csv'),
                         verbose=verbose)
 
-    # First get data for all fields across all forms in this event - this speeds
-    # up transfers over getting each form separately
+    # First get data for all fields across all forms in this event - this
+    # speeds up transfers over getting each form separately
     all_fields = ['study_id']
     export_list = []
     for export_name in export_forms.keys():
@@ -162,6 +164,7 @@ def export(redcap_project, site, subject, event, subject_data, visit_age,
 
         # Select data for this form - "reindex_axis" is necessary to put
         # fields in listed order - REDCap returns them lexicographically sorted
+        fields = [i for i in fields if i not in ['subject', 'arm', 'visit']]
         record = all_records[fields].reindex_axis(fields, axis=1)
 
         if len(record) == 1:
