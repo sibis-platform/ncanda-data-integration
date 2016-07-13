@@ -28,9 +28,9 @@ def compute_scores( data, demographics ):
     data.dropna( axis=1, subset=['youth_report_2_complete'] )
     data = data[ data['youth_report_2_complete'] > 0 ]
 
-    data['upps_nug'] = (5-data['youthreport2_upps_sec2_upps17']+5-data['youthreport2_upps_sec2_upps22']+data['youthreport2_upps_sec3_upps29']+data['youthreport2_upps_sec3_upps34'])/4     # Negative Urgency
+    data['upps_nug'] = (5-data['youthreport2_upps_sec2_upps17']+5-data['youthreport2_upps_sec2_upps22']+5-data['youthreport2_upps_sec3_upps29']+5-data['youthreport2_upps_sec3_upps34'])/4     # Negative Urgency
     data['upps_psv'] = (data['youthreport2_upps_sec1_upps4']+data['youthreport2_upps_sec1_upps14']+data['youthreport2_upps_sec2_upps19']+data['youthreport2_upps_sec3_upps27'])/4          # Perseverance
-    data['upps_pmt'] = (data['youthreport2_upps_sec1_upps5']+5-data['youthreport2_upps_sec1_upps16']+data['youthreport2_upps_sec3_upps28']+data['youthreport2_upps_sec4_upps48'])/4        # Premeditation
+    data['upps_pmt'] = (data['youthreport2_upps_sec1_upps5']+data['youthreport2_upps_sec1_upps16']+data['youthreport2_upps_sec3_upps28']+data['youthreport2_upps_sec4_upps48'])/4        # Premeditation
     data['upps_sss'] = (5-data['youthreport2_upps_sec2_upps23']+5-data['youthreport2_upps_sec3_upps31']+5-data['youthreport2_upps_sec4_upps36']+5-data['youthreport2_upps_sec4_upps46'])/4 # Sensation Seeking
     data['upps_pug'] = (5-data['youthreport2_upps_sec1_upps10']+5-data['youthreport2_upps_sec2_upps20']+5-data['youthreport2_upps_sec4_upps35']+5-data['youthreport2_upps_sec4_upps52'])/4 # Positive Urgency
 
