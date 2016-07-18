@@ -227,9 +227,11 @@ def get_scans_by_type( usable_scans_list, visit_date ):
         scans = sorted( [ (eid, scan, days_between_dates(visit_date,xnat_sessions_dict[eid][0])) for (scan_type,eid,scan) in usable_scans_list if re.match( '^ncanda-%s-v1$' % type, scan_type ) ], key=lambda x: abs(x[2]) )
         if (len( scans ) == 1) or (len( scans ) > 1 and scans[0][2] < scans[1][2]): # either only one usable scan, or unique usable scan with lowest number of days after "visit_date"
             result[type] = scans[0]
-        elif len( scans ) > 1:
-            print "ERROR: more than one scan of type",type,"on the same date\n\t",scans
-
+        elif len(scans) > 1:
+            sibis.logging(scans[0][0],
+                          "ERROR: more than one scan of type {} on the same "
+                          "date".format(type),
+                          scans=str(scans))
     return result
 
 #
