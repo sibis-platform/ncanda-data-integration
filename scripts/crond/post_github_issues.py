@@ -25,7 +25,7 @@ import hashlib
 import ConfigParser
 
 import github
-from github.GithubException import UnknownObjectException
+from github.GithubException import UnknownObjectException, GithubException
 
 
 def create_connection(cfg, verbose=None):
@@ -109,7 +109,11 @@ def is_open_issue(repo, subject, verbose=None):
             if verbose:
                 print "Closed issue already exists, reopening... " \
                       "See: {0}".format(issue.url)
-            issue.edit(state='open')
+            try:
+                issue.edit(state='open')
+            except GithubException as error:
+                print("Edit open issue failed for subject ({}), title ({}). "
+                      "Error: {}".format(subject, issue.title, error))
             return True
     if verbose:
         print "Issue does not already exist... Creating.".format(subject)
