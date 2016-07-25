@@ -263,4 +263,4 @@ for [key,row] in visit_log_redcap.iterrows():
                             filename = os.path.join(os.path.abspath(subject_datadir), 'measures', 'locked_forms.csv')
                             rcpipeline.safe_csv_export(locked_forms, filename, verbose=args.verbose)
                             if args.verbose:
-                                print "Writing a report of locked forms to: {0}".format(filename)
+                                print "If locked form report changed from existing version than updated: {0}".format(filename)
