@@ -115,7 +115,9 @@ def get_item(criteria,all_record):
 def samplestd(data):
     try:
         mean=data.mean()
-        samplestd=math.sqrt(sum((data-mean)**2)/(len(data)-1))
+        samplestd = np.nan
+        if len(data) > 1 :
+            samplestd=math.sqrt(sum((data-mean)**2)/(len(data)-1))
     except RuntimeWarning, e:
         error = dict(record_id = args.record,
                      data_contained = data,
