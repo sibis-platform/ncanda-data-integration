@@ -86,7 +86,10 @@ except:
 # Get a custom variable from XML representation of experiment
 def get_custom_variable( experiment, field_name ):
     field_regex = '.*<xnat:field name="%s">(.*?)</xnat:field>' % field_name
-    match = re.match(field_regex, experiment.get(), flags=re.DOTALL)
+    try:
+        match = re.match(field_regex, experiment.get(), flags=re.DOTALL)
+    except Exception as e:
+        print("ERROR: cannot match regex for custom_variable %s" % e)
     if match:
         return re.sub('\s*<!--.*?-->\s*', '', match.group(1), flags=re.DOTALL)
     else:

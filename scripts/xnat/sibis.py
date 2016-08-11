@@ -7,4 +7,8 @@ def logging(id, message, **kwargs):
     log = dict(experiment_site_id=id,
                error=message)
     log.update(kwargs)
-    print(json.dumps(log, sort_keys=True))
+    try:
+        print(json.dumps(log, sort_keys=True))
+    except Exception as e:
+        print("ERROR: Failed to serialize to JSON: %s" % e)
+        print("Original log message: %s" % log)
