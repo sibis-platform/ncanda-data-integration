@@ -145,7 +145,7 @@ def check_experiment(experiment):
         prj, sid, seid, experiment_label, edate, etime, scanner = experiment.attrs.mget(['project', 'subject_ID', 'ID', 'label', 'date', 'time', 'scanner'])
     except:
         error = "ERROR: failed to get data for experiment"
-        sibis.logging(experiment, error)
+        sibis.logging(str(experiment), error)
         return
 
     subject_label_match = re.match(subject_id_pattern_nophantom, ifc.select.project(prj).subject(sid).label())
