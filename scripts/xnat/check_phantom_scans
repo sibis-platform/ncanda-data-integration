@@ -86,10 +86,7 @@ except:
 # Get a custom variable from XML representation of experiment
 def get_custom_variable( experiment, field_name ):
     field_regex = '.*<xnat:field name="%s">(.*?)</xnat:field>' % field_name
-    try:
-        match = re.match(field_regex, experiment.get(), flags=re.DOTALL)
-    except Exception as e:
-        print("ERROR: cannot match regex for custom_variable %s" % e)
+    match = re.match(field_regex, experiment.get(), flags=re.DOTALL)
     if match:
         return re.sub('\s*<!--.*?-->\s*', '', match.group(1), flags=re.DOTALL)
     else:
@@ -148,7 +145,7 @@ def check_experiment(experiment):
         prj, sid, seid, experiment_label, edate, etime, scanner = experiment.attrs.mget(['project', 'subject_ID', 'ID', 'label', 'date', 'time', 'scanner'])
     except:
         error = "ERROR: failed to get data for experiment"
-        sibis.logging(experiment, error)
+        sibis.logging(str(experiment), error)
         return
 
     subject_label_match = re.match(subject_id_pattern_nophantom, ifc.select.project(prj).subject(sid).label())
