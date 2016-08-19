@@ -33,8 +33,8 @@ try:
 except redcap.RedcapError as e:
     error = "ERROR: failed creating the redcap.Project() object"
     sibis.logging(hashlib.sha1('csv2redcap').hexigest()[0:6], error,
-                    script='csv2redcap',
-                    msg=str(e))
+                  script='csv2redcap',
+                  msg=str(e))
     sys.exit()
 
 # Read input file

@@ -70,8 +70,8 @@ try:
 except redcap.RedcapError as e:
     error = "Error creating object redcap.Project()"
     sibis.logging(hashlib.sha1('eprime2redcap').hexdigest()[0:6], error,
-                    script='eprime2redcap',
-                    msg=str(e))
+                  script='eprime2redcap',
+                  msg=str(e))
     sys.exit()
 
 # Upload given file to REDCap
