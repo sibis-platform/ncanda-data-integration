@@ -9,10 +9,12 @@ import os
 import argparse
 import re
 import sys
+import hashlib
 
 import pandas
 
 import redcap
+import sibis
 
 # Setup command line parser
 parser = argparse.ArgumentParser( description="Upload e-Prime Stroop log file to file upload file in REDCap data entry form" )
@@ -63,7 +65,14 @@ if not api_key:
     key_file = open( args.api_key_file, 'r' )
     api_key = key_file.read().strip()
 
-project = redcap.Project( 'https://ncanda.sri.com/redcap/api/', api_key, verify_ssl=False)
+try:
+    project = redcap.Project( 'https://ncanda.sri.com/redcap/api/', api_key, verify_ssl=False)
+except redcap.RedcapError as e:
+    error = "Error creating object redcap.Project()"
+    sibis.logging(hashlib.sha1('eprime2redcap').hexdigest()[0:6], error,
+                    script='eprime2redcap',
+                    msg=str(e))
+    sys.exit()
 
 # Upload given file to REDCap
 file = open( args.infile, 'rb')

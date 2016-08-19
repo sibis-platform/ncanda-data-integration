@@ -8,6 +8,7 @@
 import argparse
 import string
 import os
+import hashlib
 
 import pandas
 
@@ -27,7 +28,14 @@ args = parser.parse_args()
 # Open connection with REDCap server
 key_file = open( os.path.join( os.path.expanduser("~"), '.server_config/redcap-penncnp-token' ), 'r' )
 api_key = key_file.read().strip()
-redcap = redcap.Project( 'https://ncanda.sri.com/redcap/api/', api_key, verify_ssl=False)
+try:
+    redcap = redcap.Project( 'https://ncanda.sri.com/redcap/api/', api_key, verify_ssl=False)
+except redcap.RedcapError as e:
+    error = "ERROR: failed creating the redcap.Project() object"
+    sibis.logging(hashlib.sha1('csv2redcap').hexigest()[0:6], error,
+                    script='csv2redcap',
+                    msg=str(e))
+    sys.exit()
 
 # Read input file
 data = pandas.io.parsers.read_csv( args.infile )
