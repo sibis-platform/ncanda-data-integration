@@ -90,7 +90,7 @@ redcap_token_file = open( redcap_token_path, 'r' )
 redcap_token = redcap_token_file.read().strip()
 
 try:
-    redcap_project = redcap.Project( 'https://ncanda.sri.com/redcap/api/',
+    redcap_project = redcap.Project('https://ncanda.sri.com/redcap/api/',
                                       redcap_token, verify_ssl=False)
 except redcap.RedcapError as e:
     error = "Error creating object redcap.Project()"
