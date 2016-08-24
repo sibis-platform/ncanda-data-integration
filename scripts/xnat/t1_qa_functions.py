@@ -11,6 +11,9 @@ import json
 import shutil
 import tempfile
 import subprocess
+import hashlib
+
+import sibis
 
 # Check the phantom XML file for various thresholds
 def check_xml_file( xml_file, project, session, label ):
@@ -154,4 +157,7 @@ def process_phantom_session( interface, project, subject, session, label, force_
             run_phantom_qa( interface, project, subject, session, label, dicom_path )
         else:
             # If there was no matching scan in the session, print a warning
-            print "WARNING: ADNI phantom session %s/%s does not have a usable T1-weighted scan" % (session,label)
+            warning = "WARNING: ADNI phantom session: %s, experiment: %s, subject: %s does not have \
+                       a usable T1-weighted scan" % (session, experiment, subject)
+            sibis.logging(hashlib.sha1('t1_qa_functions').hexigest()[0:6], warning,
+                          script='t1_qa_functions')
