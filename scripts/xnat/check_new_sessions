@@ -319,30 +319,36 @@ def incomplete_scan_check(eid, manufacturer, label):
     missing_scans = []
     sess_type = 'xnat:mrSessionData/scans/scan/type'
     scan_types = ifc.select.experiment(eid).attrs.get(sess_type)
+    scan_types_set = set(scan_types)
+    ge_scan_types = set(scan_type_dictionary['GE MEDICAL SYSTEMS'])
+    siemens_scan_types = set(scan_type_dictionary['SIEMENS'])
+
     if manufacturer == 'GE MEDICAL SYSTEMS':
-        for scantype in set(scan_type_dictionary['GE MEDICAL SYSTEMS']):
-            if scantype in set(scan_types):
-                scantype = scantype
-            else:
-                missing_scans.append(scan_types)
+        if ge_scan_types.issubset(scan_types_set):
+            return
+        else:
+            missing_scans = ge_scan_types.difference(scan_types_set)
     elif manufacturer == 'SIEMENS':
-        for scantype in set(scan_type_dictionary['SIEMENS']):
-            if scantype in set(scan_types):
-                if scan_types.count('ncanda-grefieldmap-v1') < 2:
-                    if scan_types.count('ncanda-grefieldmap-v1') == 1:
-                        missing_scans.append(scan_types)
-                    elif scan_types.count('ncanda-grefieldmap-v1') == 0:
-                        missing_scans.append(scan_types)
-                        missing_scans.append(scan_types)
-            else:
-                missing_scans.append(scan_types)
+        if siemens_scan_types.issubset(scan_types_set) \
+                and scan_types.count('ncanda-grefieldmap-v1') == 2:
+            return
+        else: 
+            missing_scans = list(siemens_scan_types.difference(scan_types_set))
+            if scan_types.count('ncanda-grefieldmap-v1') < 2:
+               # If field was present 0 times, it's already included once in
+               # missing_scans, and we want it to appear twice.
+               # if field was present 1 time, we want to mark it as one more
+               # field with same name is missing
+               missing_scans.append('ncanda-grefieldmap-v1')
+    else:
+        return sibis.logging(eid,
+                             'Do not support manufacturer {}'.format(manufacturer))
     if missing_scans:
         return sibis.logging(eid,
                              'ERROR: Missing scans from Session',
                              scan_session_label=label,
                              manufacturer=manufacturer,
-                             missing_scans=missing_scans)
-
+                             missing_scans=', '.join(missing_scans))
 
 def voxelres_get(eid, scan):
         scan_info = ifc.select.experiment(eid).scan(scan).get()
