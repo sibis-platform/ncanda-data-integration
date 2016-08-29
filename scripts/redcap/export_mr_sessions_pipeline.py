@@ -58,7 +58,7 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
     dicom_path_list = []
     for session_and_scan in session_and_scan_list.split( ' ' ):
         [ session, scan ] = session_and_scan.split( '/' )
-        match = re.match( '.*(/fs/ncanda-xnat/.*)scan_.*_catalog.xml.*', xnat.select.experiment( session ).scan( scan ).get(), re.DOTALL )
+        match = re.match( '.*(/fs/storage/XNAT/.*)scan_.*_catalog.xml.*', xnat.select.experiment( session ).scan( scan ).get(), re.DOTALL )
         if match:
             dicom_path = match.group(1)
             if not os.path.exists( dicom_path ):

@@ -134,7 +134,7 @@ def process_phantom_session( interface, project, subject, session, label, force_
             [scan_type,quality] = experiment.scan( scan ).attrs.mget( ['type', 'quality'] )
             if re.match( '.*-rsfmri-.*', scan_type ):
                 # Extract the DICOM file directory from the XML representation
-                match = re.match( '.*(/fs/ncanda-xnat/.*)scan_.*_catalog.xml.*', experiment.scan( scan ).get(), re.DOTALL )
+                match = re.match( '.*(/fs/storage/XNAT/.*)scan_.*_catalog.xml.*', experiment.scan( scan ).get(), re.DOTALL )
                 if match:
                     dicom_path = match.group(1)
 
@@ -198,7 +198,7 @@ def process_subject_session( interface, project, subject, session, force_updates
         [scan_type,quality] = experiment.scan( scan ).attrs.mget( ['type', 'quality'] )
         if re.match( '.*fmri.*', scan_type ):
             # Extract the DICOM file directory from the XML representation
-            match = re.match( '.*(/fs/ncanda-xnat/.*)scan_.*_catalog.xml.*', experiment.scan( scan ).get(), re.DOTALL )
+            match = re.match( '.*(/fs/storage/XNAT/.*)scan_.*_catalog.xml.*', experiment.scan( scan ).get(), re.DOTALL )
             if match:
                 # If we found a matching scan, run the QA
                 run_subject_qa( interface, project, subject, session, scan, match.group(1) )
