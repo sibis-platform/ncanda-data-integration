@@ -66,7 +66,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
     xnat_log = interface.select.project(project).subject(subject).experiment(
         session).resource('nifti').file(logfile_resource)
     if not xnat_log.exists():
-        match = re.match('.*(/fs/storage/XNAT/.*)scan_.*_catalog.xml.*',
+        match = re.match('.*(/fs/ncanda-xnat/.*)scan_.*_catalog.xml.*',
                          interface.select.experiment(session).scan(scan).get(),
                          re.DOTALL)
         if match:

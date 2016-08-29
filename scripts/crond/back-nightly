@@ -16,7 +16,7 @@ export SIBIS=${HOME}/ncanda-data-integration
 . $(dirname $0)/crontools.sh
 
 #
-# Previously front-hourly after harvester runs
+# Previously front-hourly (all code after harvester runs)
 #
 
 # At midnight PST, run full update; otherwise, add only previously-missing data
@@ -47,10 +47,10 @@ catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Update Form Status (upda
 ######################################
 
 # Check MR session names etc. in XNAT
-catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Check Object Names Messgae (check_object_names)" ${SIBIS}/scripts/xnat/check_object_names --send-mail --zip-root /fs/storage/share/burn2dvd
+catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Check Object Names Messgae (check_object_names)" ${SIBIS}/scripts/xnat/check_object_names --send-mail --zip-root /fs/ncanda-share/burn2dvd
 
 # Check for new or updated sessions and
-catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Check New Sessions Message (check_new_sessions)" ${SIBIS}/scripts/xnat/check_new_sessions --send-mail-to ncanda-image-qc@sri.com --qc-csv /fs/storage/share/beta/image-qc/scan_qc.csv
+catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Check New Sessions Message (check_new_sessions)" ${SIBIS}/scripts/xnat/check_new_sessions --send-mail-to ncanda-image-qc@sri.com --qc-csv /fs/ncanda-share/beta/image-qc/scan_qc.csv
 
 # Check whether any MR sessions are missing corresponding phantom scans
 catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Phantom Scan Messages (check_phantom_scans)" ${SIBIS}/scripts/xnat/check_phantom_scans --check-all
