@@ -5,16 +5,17 @@
 ##  for the copyright and license terms
 ##
 
-import pyxnat
-import os.path
 import os
-import time
 import re
-import subprocess
 import stat
-import sibis
-
+import time
 import argparse
+import subprocess
+
+import sibis
+import pyxnat
+import datetime
+
 parser = argparse.ArgumentParser( description="Find new MR sessions in XNAT, check for missing and duplicate scans, and list all sessions with questionable scans." )
 parser.add_argument("-v", "--verbose", action="store_true", default=False, help="Verbose operation.")
 parser.add_argument("-m", "--send-mail", action="store_true", default=False, help="Send emails with problem reports to users and site admin.")
