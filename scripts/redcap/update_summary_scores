@@ -143,12 +143,15 @@ for instrument in instrument_list:
             scored_records.to_csv(args.no_upload)
         else:
             try:
-                uploaded = rc_summary.import_records(scored_records, overwrite='overwrite')
+                uploaded = rc_summary.import_records(scored_records,
+                                                     overwrite='overwrite')
             except:
-                sibis.logging(hashlib.sha1('update_summary_scores').hexdigest()[0:6],
-                "ERROR: Field is located on a form that is locked",
-                script = 'update_summary_scores')
-                sys.exit()
+                sibis.logging(
+                    instrument,
+                    "ERROR: Field is located on a form that is locked",
+                    instrument=instrument,
+                    script='update_summary_scores')
+                continue
 
             if args.verbose:
                 if 'count' in uploaded.keys() and uploaded['count'] > 0:
