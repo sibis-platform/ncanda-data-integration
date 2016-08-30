@@ -5,16 +5,17 @@
 ##  for the copyright and license terms
 ##
 
-import pyxnat
-import os.path
 import os
-import time
 import re
-import subprocess
 import stat
-import sibis
-
+import time
 import argparse
+import subprocess
+
+import sibis
+import pyxnat
+import datetime
+
 parser = argparse.ArgumentParser( description="Find new MR sessions in XNAT, check for missing and duplicate scans, and list all sessions with questionable scans." )
 parser.add_argument("-v", "--verbose", action="store_true", default=False, help="Verbose operation.")
 parser.add_argument("-m", "--send-mail", action="store_true", default=False, help="Send emails with problem reports to users and site admin.")
@@ -50,9 +51,12 @@ def export_t1t2_to_zip( experiment, experiment_label ):
     for scan in experiment.scans().get():
         scan_type = experiment.scan( scan ).attrs.get( 'type' )
         if ('t1spgr' in scan_type) or ('mprage' in scan_type) or ('t2fse' in scan_type):
-            match = re.match( '.*(/fs/storage/XNAT/.*)scan_.*_catalog.xml.*', experiment.scan( scan ).get(), re.DOTALL )
+            match = re.match('.*(/fs/storage/XNAT/.*)scan_.*_catalog.xml.*', experiment.scan(scan).get(), re.DOTALL)
             if match:
-                scan_dirs.append( match.group(1) )
+                # Replace the path stored in XNAT with the NFS mount path.
+                xnat_path = match.group(1).replace('storage/XNAT',
+                                                   'ncanda-xnat')
+                scan_dirs.append(xnat_path)
 
     if len( scan_dirs ) > 0:
         if args.verbose:
@@ -77,21 +81,21 @@ def export_t1t2_to_zip( experiment, experiment_label ):
 
         # Create ZIP file
         zipfile = os.path.join( outdir, experiment_label+'.zip' )
-	zip_command = 'cd %s; /usr/bin/zip -rqu %s %s' % ( basedir, zipfile, ' '.join( scan_dirs_rel  ))
+        zip_command = 'cd %s; /usr/bin/zip -rqu %s %s' % (basedir, zipfile, ' '.join(scan_dirs_rel))
         try:
             subprocess.check_call( zip_command, shell=True )
         except:
-           error = 'ERROR: unable to create ZIP file from these directories'
-           sibis.logging(zipfile, error,
+            error = 'ERROR: unable to create ZIP file from these directories'
+            sibis.logging(zipfile, error,
                          scan_dirs = ' '.join( scan_dirs ))
-           print zip_command
-           try:
-               os.remove( zipfile )
-           except:
-               pass
+            print zip_command
+        try:
+           os.remove(zipfile)
+        except:
+            pass
 
-	if os.path.exists( zipfile ):
-	    os.chmod( zipfile, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO )
+        if os.path.exists( zipfile ):
+            os.chmod( zipfile, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO )
             if args.verbose:
                 print "Successfully created T1/T2 DICOM archive",zipfile
             try:
@@ -115,7 +119,7 @@ experiment_label_pattern = '^[A-FX]-[0-9]{5}-[MFPT]-[0-9]-20[0-9]{2}[01][0-9][0-
 #
 def validate_experiment( ifc, project, sid, slabel, eid, elabel, edate, einsert ):
     if args.verbose:
-	print "INFO: checking experiment %s (%s)" % (elabel,eid)
+        print "INFO: checking experiment %s (%s)" % (elabel,eid)
 
     global email
 
@@ -162,7 +166,7 @@ def validate_experiment( ifc, project, sid, slabel, eid, elabel, edate, einsert 
 #
 def validate_subject( ifc, sid, slabel, sinsert ):
     if args.verbose:
-	print "INFO: checking subject %s (%s)" % ( slabel, sid )
+        print "INFO: checking subject %s (%s)" % ( slabel, sid )
 
     global email
 
@@ -206,15 +210,17 @@ def validate_new_and_outstanding( ifc, project, objects_to_check, date_last_chec
                         print 'Subject name "%s" (%s) does not have any MR sessions' % (slabel, sid)
 
         # Second check each experiment
-        if len( experiment_list ) > 0:
-            for ( eid,elabel,sid,edate,einsert,emodified ) in experiment_list.items():
+        if len(experiment_list) > 0:
+            for eid, elabel, sid, edate, einsert, emodified in experiment_list.items():
                 if (eid in objects_to_check) or (emodified > date_last_checked):
                     if sid in subject_lookup.keys():
-                        check_again += validate_experiment( ifc, project, sid, subject_lookup[sid], eid, elabel, edate, einsert )
+                        check_again += validate_experiment(ifc, project, sid, subject_lookup[sid], eid, elabel, edate, einsert)
                     else:
                         error = 'ERROR: cannot determine (unique) label'
-                        sibis.logging(subject,error,
-                                      eid = experiment)
+                        sibis.logging(eid, error,
+                                      subject=sid,
+                                      project=project,
+                                      date=edate)
 
     return check_again
 
