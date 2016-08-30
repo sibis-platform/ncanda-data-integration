@@ -84,14 +84,14 @@ def export_t1t2_to_zip( experiment, experiment_label ):
         try:
             subprocess.check_call( zip_command, shell=True )
         except:
-           error = 'ERROR: unable to create ZIP file from these directories'
-           sibis.logging(zipfile, error,
+            error = 'ERROR: unable to create ZIP file from these directories'
+            sibis.logging(zipfile, error,
                          scan_dirs = ' '.join( scan_dirs ))
-           print zip_command
-           try:
-               os.remove( zipfile )
-           except:
-               pass
+            print zip_command
+        try:
+           os.remove(zipfile)
+        except:
+            pass
 
         if os.path.exists( zipfile ):
             os.chmod( zipfile, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO )
@@ -209,15 +209,17 @@ def validate_new_and_outstanding( ifc, project, objects_to_check, date_last_chec
                         print 'Subject name "%s" (%s) does not have any MR sessions' % (slabel, sid)
 
         # Second check each experiment
-        if len( experiment_list ) > 0:
-            for ( eid,elabel,sid,edate,einsert,emodified ) in experiment_list.items():
+        if len(experiment_list) > 0:
+            for eid, elabel, sid, edate, einsert, emodified in experiment_list.items():
                 if (eid in objects_to_check) or (emodified > date_last_checked):
                     if sid in subject_lookup.keys():
-                        check_again += validate_experiment( ifc, project, sid, subject_lookup[sid], eid, elabel, edate, einsert )
+                        check_again += validate_experiment(ifc, project, sid, subject_lookup[sid], eid, elabel, edate, einsert)
                     else:
                         error = 'ERROR: cannot determine (unique) label'
-                        sibis.logging(subject,error,
-                                      eid = experiment)
+                        sibis.logging(eid, error,
+                                      subject=sid,
+                                      project=project,
+                                      date=edate)
 
     return check_again
 
