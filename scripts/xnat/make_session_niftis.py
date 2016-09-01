@@ -135,59 +135,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
 
                     if manufacturer_u == 'SIEMENS':
                         gradients = gradient_map.get('Siemens')
-                        if 'dti6b500pepolar' in scantype:
-                            xml_file_list = glob.glob(os.path.join(
-                                temp_dir, '%s_%s' % (scan,
-                                                     scantype),
-                                'image*.nii.xml'))
-                            case_gradients = cgt.get_all_gradients(
-                                xml_file_list, decimals=3)
-                            errors = list()
-                            if len(case_gradients) == len(gradients):
-                                for idx, frame in enumerate(case_gradients):
-                                    # if there is a frame that doesn't match,
-                                    # report it.
-                                    if not (gradients[idx] == frame).all():
-                                        errors.append(idx)
-                            else:
-                                sibis.logging(
-                                    session_label,
-                                    "ERROR: Incorrect number of frames.",
-                                    case_gradients=str(case_gradients),
-                                    expected=str(gradients),
-                                    session=session)
-                            if errors:
-                                key = session_label
-                                sibis.logging(key,
-                                              "ERROR: Gradient tables do not "
-                                              "match for frames.",
-                                              frames=errors,
-                                              session=session)
-                            xml_file = open(xml_file_list[0], 'r')
-                            try:
-                                for line in xml_file:
-                                    match = re.match(
-                                        '.*<phaseEncodeDirectionSign>(.+)'
-                                        '</phaseEncodeDirectionSign>.*',
-                                        line)
-                                    if match and match.group(
-                                            1).upper() != 'POS':
-                                        error_msg.append(
-                                            "Scan %s of type %s in session %s "
-                                            "has wrong PE sign %s (expected "
-                                            "POS)" % (
-                                                scan, scantype, session_label,
-                                                match.group(1).upper()))
-
-                            except:
-                                error_msg.append(
-                                    "Cannot read XML sidecar file for scan %s "
-                                    "of session %s" % (
-                                        scan, session_label))
-
-                            finally:
-                                xml_file.close()
-                        elif 'dti60b1000' in scantype:
+                        if 'dti60b1000' in scantype:
                             xml_file_list = glob.glob(
                                 os.path.join(temp_dir,
                                              '%s_%s' % (
