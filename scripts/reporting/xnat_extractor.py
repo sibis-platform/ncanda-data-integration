@@ -225,11 +225,6 @@ def get_scans_info(experiment_xml_file):
         values = dict()
         scan_id = scan.attrib.get('ID')
         scan_type = scan.attrib.get('type')
-        # Get the DICOM file counts
-        file_counts = scan.findall('./xnat:file[@label="DICOM"]',
-                                   namespaces=ns)
-        if file_counts:
-            file_count = file_counts[0].attrib.get('file_count')
         # handle null finds
         values.update(quality=scan.find('./xnat:quality', namespaces=ns))
         values.update(series_description=scan.find(
@@ -254,8 +249,7 @@ def get_scans_info(experiment_xml_file):
                          scan_note=values.get('scan_note'),
                          series_description=values.get('series_description'),
                          coil=values.get('coil'),
-                         field_strength=values.get('field_strength'),
-                         file_count=file_count)
+                         field_strength=values.get('field_strength'))
         result.append(scan_dict)
     return result
 
