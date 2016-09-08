@@ -13,6 +13,14 @@ export SIBIS=${HOME}/ncanda-data-integration
 # Import some useful functions
 . $(dirname $0)/crontools.sh
 
+# REDCap updates
+update_args=""
+hour=$(date +%H)
+if [ ${hour} -eq 0 ]; then
+    update_args+="--update-all"
+fi
+catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Update Scores (update_summary_scores)" ${SIBIS}/scripts/redcap/update_summary_scores ${update_args}
+
 # Run QA on fBIRN and ADNI phantom scans
 catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Phantom QA Messages (phantom_qa)" ${SIBIS}/scripts/xnat/phantom_qa
 
