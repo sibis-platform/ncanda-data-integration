@@ -436,27 +436,24 @@ def frame_check(eid, manufacturer, label):
         for f in frames:
             if f[0] in scan_type_dictionary['GE MEDICAL SYSTEMS']:
                 if frame_check_ge[f[0]] != f[1]:
-                    error.append({'field': 'Frames',
-                                  'scan_type': f[0],
+                    error.append({'scan_type': f[0],
                                   'frames': f[1],
                                   'expected_frames': frame_check_ge[f[0]]})
     elif manufacturer == 'SIEMENS':
         for f in frames:
-            if f[0] in scan_type_dictionary['SIEMENS']:
-                if f[0] == 'ncanda-grefieldmap-v1':
-                    if f[1] in frame_check_siemens[f[0]]:
-                        f[1] = f[1]
-                    else:
-                        error.append({'field': 'Frames',
-                                      'scan_type': f[0],
-                                      'frames': f[1],
-                                      'expected_frames': frame_check_ge[f[0]]})
-                else:
-                    if frame_check_siemens[f[0]] != f[1]:
-                        error.append({'field': 'Frames',
-                                      'scan_type': f[0],
-                                      'frames': f[1],
-                                      'expected_frames': frame_check_ge[f[0]]})
+            if f[0] not in scan_type_dictionary['SIEMENS']:
+                continue 
+            if f[0] == 'ncanda-dti6b500pepolar-v1':
+                # Special case, this frame can contain either '7' or '8' values
+                if not f[1] in ('7', '8'):
+                    error.append({'scan_type': f[0],
+                                  'frames': f[1],
+                                  'expected_frames': frame_check_siemens[f[0]]})
+            elif f[1] != frame_check_siemens[f[0]]:
+                # Some of the required frames are missing
+                error.append({'scan_type': f[0],
+                              'frames': f[1],
+                              'expected_frames': frame_check_siemens[f[0]]})
     return error
 
 
@@ -470,7 +467,7 @@ def mri_quality_check(eid, manufacturer, label):
             errors.append(e)
     if errors:
         return sibis.logging(eid,
-                             'ERROR: Scan violated expected parameters',
+                             'ERROR: Failed to match standard frames',
                              scan_session_label=label,
                              violations=errors)
 #
