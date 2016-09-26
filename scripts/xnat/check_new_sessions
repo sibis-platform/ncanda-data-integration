@@ -412,7 +412,7 @@ frame_check_siemens = {'ncanda-mprage-v1': '160',
                        'ncanda-t2fse-v1': '160',
                        'ncanda-dti6b500pepolar-v1': '7',
                        'ncanda-dti60b1000-v1': '62',
-                       'ncanda-grefieldmap-v1': ['128', '64'],
+                       'ncanda-grefieldmap-v1': ['64', '128'],
                        'ncanda-rsfmri-v1': '275'}
 
 frame_check_ge = {'ncanda-t1spgr-v1': '146',
@@ -421,7 +421,6 @@ frame_check_ge = {'ncanda-t1spgr-v1': '146',
                   'ncanda-dti60b1000-v1': '3968',
                   'ncanda-grefieldmap-v1': '384',
                   'ncanda-rsfmri-v1': '8768'}
-
 
 def frame_check(eid, manufacturer, label):
     scan_id = 'xnat:mrSessionData/scans/scan/id'
@@ -443,7 +442,8 @@ def frame_check(eid, manufacturer, label):
         # Variable frames has two grefieldmap keys, change to one key and list of values.
         # Extract values list -> ['64', '128']
         grefieldmap_list = ['ncanda-grefieldmap-v1', [v for (k, v) in frames if k == 'ncanda-grefieldmap-v1']]
-
+        # Sort number of frames for later comparison
+        grefieldmap_list[1].sort(lambda x, y: int(x) - int(y))
         # Change all frames with fixed grefieldmap
         frames = filter(lambda x: x[0] != 'ncanda-grefieldmap-v1', frames) + [grefieldmap_list]
 
