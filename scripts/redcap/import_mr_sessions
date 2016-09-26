@@ -533,7 +533,7 @@ if args.site:
 
 # Limit export by site id (e.g., A-00000-F-1)
 if args.site_id:
-    visit_log_redcap = visit_log_redcap.loc[args.site_id]
+    visit_log_redcap = visit_log_redcap.xs(args.site_id)
     visit_log_redcap.reset_index(inplace=True)
     visit_log_redcap['study_id'] = args.site_id
     visit_log_redcap.set_index(['study_id', 'redcap_event_name'],
