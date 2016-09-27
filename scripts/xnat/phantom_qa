@@ -24,7 +24,7 @@ parser.add_option("-f", "--force-updates", action="store_true", dest="force_upda
 parser.add_option("-a", "--check-all", action="store_true", dest="check_all", default=False, help="Check all phantom sessions, regardless of date.")
 parser.add_option("--exclude-adni", action="store_true", dest="exclude_adni", default=False, help="Exclude all (structural) ADNI phantom scans.")
 parser.add_option("--exclude-fbirn", action="store_true", dest="exclude_fbirn", default=False, help="Exclude all (functional) fBIRN phantom scans.")
-parser.add_option("--subj-id", action="store", dest="subj_id", default=None, help="Limit processing by subject_id")
+parser.add_option("--subj-label", action="store", dest="subj_label", default=None, help="Limit processing by subject_label, e.g., C-70019-F-2-20160513")
 (options, args) = parser.parse_args()
 
 # Create interface using stored configuration
@@ -56,51 +56,45 @@ str_date_last_checked = time.strftime( xnat_date_format, date_last_checked )
 
 
 def process_fbirn(phantom_subjects_IDs):
-
     for [phantom, project, label] in phantom_subject_IDs:
         # For each phantom subject (one per project), get the IDs and last_modified dates of all its imaging sessions
         phantom_sessions = interface.select('xnat:mrSessionData',
                                             ['xnat:mrSessionData/SESSION_ID', 'xnat:mrSessionData/LABEL',
                                              'xnat:mrSessionData/LAST_MODIFIED']) \
-            .where([('xnat:mrSessionData/SUBJECT_ID', 'LIKE', phantom)]).items()
-        print 'phantom_sessions: {}'.format(phantom_sessions)
+            .where([('xnat:mrSessionData/LABEL', '=', label)]).items()
         # Iterate over all imaging sessions
         for [session, label, last_modified] in phantom_sessions:
             if (last_modified > str_date_last_checked) or options.force_updates \
-                    or options.check_all or options.subj_id:
+                    or options.check_all or options.subj_label:
                 if options.verbose:
                     print 'Running fBIRN phantom QA for session {0} in project {1}'.format(session, project)
                 qa.process_phantom_session(interface, project, phantom, session,
                                            label, force_updates=options.force_updates)
 
 def process_adni(phantom_subjects_IDs):
-
     for [phantom, project, label] in phantom_subject_IDs:
-        print 'phantom: {}'.format(phantom)
         # For each phantom subject (one per project), get the IDs and last_modified dates of all its imaging sessions
         phantom_sessions = interface.select('xnat:mrSessionData',
                                             ['xnat:mrSessionData/SESSION_ID', 'xnat:mrSessionData/LABEL',
                                              'xnat:mrSessionData/LAST_MODIFIED']) \
-            .where([('xnat:mrSessionData/SUBJECT_ID', 'LIKE', phantom)]).items()
-        print 'phantom_sessions: {}'.format(phantom_sessions)
+            .where([('xnat:mrSessionData/LABEL', '=', label)]).items()
         # Iterate over all imaging sessions
         for [session, label, last_modified] in phantom_sessions:
             if (last_modified > str_date_last_checked) or options.force_updates \
-                    or options.check_all or options.subj_id:
+                    or options.check_all or options.subj_label:
                 if options.verbose:
                     print 'Running ADNI phantom QA for session {0} in project {1}'.format(session, project)
                 t1qa.process_phantom_session(interface, project, phantom, session, label,
                                              force_updates=options.force_updates)
 
-if options.subj_id:
+if options.subj_label:
     # Adjust the constraints for one subject id
-    constraints = [('xnat:subjectData/SUBJECT_ID', '=', options.subj_id)]
+    constraints = [('xnat:mrSessionData/LABEL', '=', options.subj_label)]
     # Search XNAT database for all Subjects that have the fBIRN with constraints from parameter
-    phantom_subject_IDs = interface.select('xnat:subjectData',
-                                           ['xnat:subjectData/SUBJECT_ID', 'xnat:subjectData/PROJECT',
-                                           'xnat:subjectData/SUBJECT_LABEL']) \
+    phantom_subject_IDs = interface.select('xnat:mrSessionData',
+                                           ['xnat:mrSessionData/SUBJECT_ID', 'xnat:mrSessionData/PROJECT',
+                                           'xnat:mrSessionData/LABEL']) \
                                            .where(constraints).items()
-    print 'phantom_subjects_IDs: {}'.format(phantom_subject_IDs)
     for subject_id, project, label in phantom_subject_IDs:
         if re.match('^[A-Z]-00000-P-0', label):
             process_fbirn(phantom_subject_IDs)
@@ -113,24 +107,22 @@ if options.subj_id:
 
 if options.exclude_adni:
     # General constraints to get all fBIRN phantoms
-    constraints = [('xnat:subjectData/SUBJECT_LABEL', 'LIKE','%-00000-P-0')]
+    constraints = [('xnat:mrSessionData/LABEL', 'LIKE','%-00000-P-0-%')]
     # Search XNAT database for all Subjects that have the fBIRN with constraints from parameter
-    phantom_subject_IDs = interface.select('xnat:subjectData',
-                                           ['xnat:subjectData/SUBJECT_ID', 'xnat:subjectData/PROJECT',
-                                            'xnat:subjectData/SUBJECT_LABEL']) \
+    phantom_subject_IDs = interface.select('xnat:mrSessionData',
+                                           ['xnat:mrSessionData/SUBJECT_ID', 'xnat:mrSessionData/PROJECT',
+                                            'xnat:mrSessionData/LABEL']) \
                                            .where(constraints).items()
-    print 'pahntom_subkect_ID: {}'.format(phantom_subject_IDs)
     process_fbirn(phantom_subject_IDs)
 
 if options.exclude_fbirn:
     # General constraints to get all adni phantoms
-    constraints = [('xnat:subjectData/SUBJECT_LABEL', 'LIKE', '%-99999-P-9')]
+    constraints = [('xnat:mrSessionData/LABEL', 'LIKE', '%-99999-P-9-%')]
     # Search XNAT database for all Subjects that have the fBIRN with constraints from parameter
-    phantom_subject_IDs = interface.select('xnat:subjectData',
-                                           ['xnat:subjectData/SUBJECT_ID', 'xnat:subjectData/PROJECT',
-                                            'xnat:subjectData/SUBJECT_LABEL']) \
-        .where(constraints).items()
-    print 'pahntom_subject_ID: {}'.format(phantom_subject_IDs)
+    phantom_subject_IDs = interface.select('xnat:mrSessionData',
+                                           ['xnat:mrSessionData/SUBJECT_ID', 'xnat:subjectData/PROJECT',
+                                            'xnat:mrSessionData/LABEL']) \
+                                           .where(constraints).items()
     process_adni(phantom_subject_IDs)
 
 # Finally, update config stored on the server to have current date/time as the time that this script was last run
