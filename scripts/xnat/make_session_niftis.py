@@ -145,11 +145,13 @@ def export_to_nifti(interface, project, subject, session, session_label,
                                 case_gradients = cgt.get_all_gradients(
                                     xml_file_list, decimals=3)
                             except AttributeError as error:
+                                print 'DEBUG: make_session_niftis, error: {0}, xml_file_list: {1}, session: {2}, session_label: {3}'.format(error, xml_file_list, session, session_label)
                                 sibis.logging(
                                     session_label,
                                     "Error: parsing XML files failed.",
-                                    xml_file_list=xml_file_list,
-                                    error=error)
+                                    xml_file_list=str(xml_file_list),
+                                    error=error,
+                                    session=session)
                             errors = list()
                             if len(case_gradients) == len(gradients):
                                 for idx, frame in enumerate(case_gradients):
