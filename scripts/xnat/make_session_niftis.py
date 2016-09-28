@@ -150,7 +150,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
                                     session_label,
                                     "Error: parsing XML files failed.",
                                     xml_file_list=str(xml_file_list),
-                                    error=error,
+                                    error=str(error),
                                     session=session)
                             errors = list()
                             if len(case_gradients) == len(gradients):
