@@ -5,6 +5,17 @@
 ##  for the copyright and license terms
 ##
 
+import os
+import re
+import sys
+import json
+import time
+
+import pyxnat
+
+import fmri_qa_functions as qa
+import t1_qa_functions as t1qa
+
 # Define command line options for this script
 from optparse import OptionParser
 parser = OptionParser()
@@ -13,21 +24,18 @@ parser.add_option("-f", "--force-updates", action="store_true", dest="force_upda
 parser.add_option("-a", "--check-all", action="store_true", dest="check_all", default=False, help="Check all phantom sessions, regardless of date.")
 parser.add_option("--exclude-adni", action="store_true", dest="exclude_adni", default=False, help="Exclude all (structural) ADNI phantom scans.")
 parser.add_option("--exclude-fbirn", action="store_true", dest="exclude_fbirn", default=False, help="Exclude all (functional) fBIRN phantom scans.")
+parser.add_option("--subj-label", action="store", dest="subj_label", default=None, help="Limit processing by subject_label, e.g., C-70019-F-2-20160513")
 (options, args) = parser.parse_args()
 
 # Create interface using stored configuration
-import os
-import pyxnat
 interface = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
 interface._memtimeout = 0
 
 # Date format for XNAT dates
-import time
 xnat_date_format = '%Y-%m-%d %H:%M:%S'
 now_str = time.strftime( xnat_date_format )
 
 # Date (and time) when we last checked things
-import json
 date_last_checked = time.localtime(0)
 config_uri = '/data/config/pyxnat/fmri_qa_phantom'
 try:
@@ -46,37 +54,76 @@ except:
 # For comparison - convert time of last check to string in XNAT date format
 str_date_last_checked = time.strftime( xnat_date_format, date_last_checked )
 
-if not options.exclude_fbirn:
-    # Now find all fBIRN phantom sessions and see which ones need to have QA done
-    import fmri_qa_functions as qa
-    # Search XNAT database for all Subjects that have the fBIRN phantom ID (%-00000-P-0)
-    phantom_subject_IDs = interface.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID','xnat:subjectData/PROJECT']).where([('xnat:subjectData/SUBJECT_LABEL','LIKE','%-00000-P-0')]).items()
-    for [phantom,project] in phantom_subject_IDs:
+
+def process_fbirn(phantom_subjects_IDs):
+    for [phantom, project, label] in phantom_subject_IDs:
         # For each phantom subject (one per project), get the IDs and last_modified dates of all its imaging sessions
-        phantom_sessions = interface.select( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SESSION_LABEL','xnat:mrSessionData/LAST_MODIFIED'] ).where([('xnat:mrSessionData/SUBJECT_ID','LIKE',phantom)]).items()
-
+        phantom_sessions = interface.select('xnat:mrSessionData',
+                                            ['xnat:mrSessionData/SESSION_ID', 'xnat:mrSessionData/LABEL',
+                                             'xnat:mrSessionData/LAST_MODIFIED']) \
+            .where([('xnat:mrSessionData/LABEL', '=', label)]).items()
         # Iterate over all imaging sessions
-        for [session,label,last_modified] in phantom_sessions:
-            if (last_modified > str_date_last_checked) or options.force_updates or options.check_all:
+        for [session, label, last_modified] in phantom_sessions:
+            if (last_modified > str_date_last_checked) or options.force_updates \
+                    or options.check_all or options.subj_label:
                 if options.verbose:
-                    print 'Running fBIRN phantom QA for session %s in project %s' % ( session,project )
-                qa.process_phantom_session( interface, project, phantom, session, label, force_updates=options.force_updates )
+                    print 'Running fBIRN phantom QA for session {0} in project {1}'.format(session, project)
+                qa.process_phantom_session(interface, project, phantom, session,
+                                           label, force_updates=options.force_updates)
 
-if not options.exclude_adni:
-    # Now find all ADNI phantom sessions and see which ones need to have QA done
-    import t1_qa_functions as t1qa
-    # Search XNAT database for all Subjects that have the ADNI phantom ID (%-99999-P-9)
-    phantom_subject_IDs = interface.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID','xnat:subjectData/PROJECT']).where([('xnat:subjectData/SUBJECT_LABEL','LIKE','%-99999-P-9')]).items()
-    for [phantom,project] in phantom_subject_IDs:
+def process_adni(phantom_subjects_IDs):
+    for [phantom, project, label] in phantom_subject_IDs:
         # For each phantom subject (one per project), get the IDs and last_modified dates of all its imaging sessions
-        phantom_sessions = interface.select( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SESSION_LABEL','xnat:mrSessionData/LAST_MODIFIED'] ).where([('xnat:mrSessionData/SUBJECT_ID','LIKE',phantom)]).items()
-
+        phantom_sessions = interface.select('xnat:mrSessionData',
+                                            ['xnat:mrSessionData/SESSION_ID', 'xnat:mrSessionData/LABEL',
+                                             'xnat:mrSessionData/LAST_MODIFIED']) \
+            .where([('xnat:mrSessionData/LABEL', '=', label)]).items()
         # Iterate over all imaging sessions
-        for [session,label,last_modified] in phantom_sessions:
-            if (last_modified > str_date_last_checked) or options.force_updates or options.check_all:
+        for [session, label, last_modified] in phantom_sessions:
+            if (last_modified > str_date_last_checked) or options.force_updates \
+                    or options.check_all or options.subj_label:
                 if options.verbose:
-                    print 'Running ADNI phantom QA for session %s in project %s' % ( session,project )
-                t1qa.process_phantom_session( interface, project, phantom, session, label, force_updates=options.force_updates )
+                    print 'Running ADNI phantom QA for session {0} in project {1}'.format(session, project)
+                t1qa.process_phantom_session(interface, project, phantom, session, label,
+                                             force_updates=options.force_updates)
+
+if options.subj_label:
+    # Adjust the constraints for one subject id
+    constraints = [('xnat:mrSessionData/LABEL', '=', options.subj_label)]
+    # Search XNAT database for all Subjects that have the fBIRN with constraints from parameter
+    phantom_subject_IDs = interface.select('xnat:mrSessionData',
+                                           ['xnat:mrSessionData/SUBJECT_ID', 'xnat:mrSessionData/PROJECT',
+                                           'xnat:mrSessionData/LABEL']) \
+                                           .where(constraints).items()
+    for subject_id, project, label in phantom_subject_IDs:
+        if re.match('^[A-Z]-00000-P-0', label):
+            process_fbirn(phantom_subject_IDs)
+        elif re.match('^[A-Z]-99999-P-9',label):
+            process_adni(phantom_subject_IDs)
+        else:
+            print "subject_label did not match re for phantom label '^[A-Z]-00000-P-0' or '^[A-Z]-99999-P-9'"
+            sys.exit(1)
+
+
+if options.exclude_adni:
+    # General constraints to get all fBIRN phantoms
+    constraints = [('xnat:mrSessionData/LABEL', 'LIKE','%-00000-P-0-%')]
+    # Search XNAT database for all Subjects that have the fBIRN with constraints from parameter
+    phantom_subject_IDs = interface.select('xnat:mrSessionData',
+                                           ['xnat:mrSessionData/SUBJECT_ID', 'xnat:mrSessionData/PROJECT',
+                                            'xnat:mrSessionData/LABEL']) \
+                                           .where(constraints).items()
+    process_fbirn(phantom_subject_IDs)
+
+if options.exclude_fbirn:
+    # General constraints to get all adni phantoms
+    constraints = [('xnat:mrSessionData/LABEL', 'LIKE', '%-99999-P-9-%')]
+    # Search XNAT database for all Subjects that have the fBIRN with constraints from parameter
+    phantom_subject_IDs = interface.select('xnat:mrSessionData',
+                                           ['xnat:mrSessionData/SUBJECT_ID', 'xnat:subjectData/PROJECT',
+                                            'xnat:mrSessionData/LABEL']) \
+                                           .where(constraints).items()
+    process_adni(phantom_subject_IDs)
 
 # Finally, update config stored on the server to have current date/time as the time that this script was last run
 # (but don't update config if we excluded either ADNI of fBIRN phantom scans this time around)
