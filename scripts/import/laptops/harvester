@@ -8,6 +8,8 @@ import re
 import os
 import argparse
 import subprocess
+import sibis
+import hashlib
 
 # Setup command line parser
 parser = argparse.ArgumentParser(description="Harvest incoming data files from "
@@ -92,7 +94,11 @@ def handle_file( path, site, filename):
         try:
             subprocess.check_output([os.path.join(bindir, "eprime2redcap"), path, 'stroop_log_file'])
         except:
-            print "ERROR: could not upload Stroop file", path
+            sibis.logging(hashlib.sha1('harvester').hexdigest()[0:6],
+                          "ERROR: could not upload Stroop file",
+                          subject_label=path.split('/')[-2],
+                          filename=filename,
+                          script='harvester')
     # Is this a Delayed Discounting file?
     elif re.match( '.*V12\.txt$', filename ):
         run_converter( site, [ os.path.join( bindir, "dd2csv" ) ] + overwrite + [ path, os.path.join( args.outdir, site, "deldisc" ) ] )
