@@ -147,7 +147,7 @@ for instrument in instrument_list:
                                                      overwrite='overwrite')
             except redcap.RedcapError as e:
                 sibis.logging(
-                    instrument,
+                    'not defined',
                     "ERROR: Field is located on a form that is locked",
                     instrument=instrument,
                     script='update_summary_scores',
