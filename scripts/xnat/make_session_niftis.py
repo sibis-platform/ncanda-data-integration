@@ -141,29 +141,29 @@ def export_to_nifti(interface, project, subject, session, session_label,
                                              '%s_%s' % (
                                                  scan,
                                                  scantype), 'image*.nii.xml'))
+                            errors = list()
                             try:
                                 case_gradients = cgt.get_all_gradients(
                                     xml_file_list, decimals=3)
+                                if len(case_gradients) == len(gradients):
+                                    for idx, frame in enumerate(case_gradients):
+                                        # if there is a frame that doesn't match,
+                                        # report it.
+                                        if not (gradients[idx] == frame).all():
+                                            errors.append(idx)
+                                else:
+                                    sibis.logging(
+                                        session_label,
+                                        "ERROR: Incorrect number of frames.",
+                                        case_gradients=str(case_gradients),
+                                        expected=str(gradients),
+                                        session=session)
                             except AttributeError as error:
                                 sibis.logging(
                                     session_label,
                                     "Error: parsing XML files failed.",
                                     xml_file_list=str(xml_file_list),
                                     error=str(error),
-                                    session=session)
-                            errors = list()
-                            if len(case_gradients) == len(gradients):
-                                for idx, frame in enumerate(case_gradients):
-                                    # if there is a frame that doesn't match,
-                                    # report it.
-                                    if not (gradients[idx] == frame).all():
-                                        errors.append(idx)
-                            else:
-                                sibis.logging(
-                                    session_label,
-                                    "ERROR: Incorrect number of frames.",
-                                    case_gradients=str(case_gradients),
-                                    expected=str(gradients),
                                     session=session)
                             if errors:
                                 # key = os.path.join(case, args.arm, args.event
