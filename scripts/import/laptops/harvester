@@ -8,6 +8,9 @@ import re
 import os
 import argparse
 import subprocess
+
+import sys
+
 import sibis
 import hashlib
 
@@ -143,9 +146,16 @@ def notify( event_dict ):
             updated_files.append( event_dict['path'] )
 
 # Main function: perform svn update and catch all resulting events
-client = pysvn.Client()
-client.callback_notify = notify
-client.update( args.svndir )
+try:
+    client = pysvn.Client()
+    client.callback_notify = notify
+    client.update( args.svndir )
+except pysvn._pysvn.ClientError as e:
+    sibis.logging(hashlib.sha1('harvester').hexdigest()[0:6],
+                  "ERROR: Failed to create a Client for pysvn",
+                  script='harvester',
+                  msg=str(e))
+    sys.exit(1)
 
 # Append single file to upload
 if args.file_to_upload:
