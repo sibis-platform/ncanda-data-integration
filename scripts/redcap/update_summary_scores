@@ -146,10 +146,8 @@ for instrument in instrument_list:
                 uploaded = rc_summary.import_records(scored_records,
                                                      overwrite='overwrite')
             except redcap.RedcapError as e:
-                sibis.logging(
-                    'not defined',
+                sibis.logging(instrument,
                     "ERROR: Field is located on a form that is locked",
-                    instrument=instrument,
                     script='update_summary_scores',
                     msg=str(e))
                 continue
