@@ -11,7 +11,7 @@ import os
 import hashlib
 
 import pandas
-
+import sys
 import redcap
 
 import cnp
@@ -72,7 +72,8 @@ data['test_sessions_subid'] = data['test_sessions_subid'].map( lambda s: '%s-%s-
 # Create column with record ID
 data['record_id'] = data['test_sessions_subid']
 for [ index, row ] in data.iterrows():
-    data['record_id'][index] = "%s-%s-%d" % (row['test_sessions_subid'], row['test_sessions_dotest'][0:10], row['test_sessions_datasetid'] )
+    new_value = "%s-%s-%d" % (row['test_sessions_subid'], row['test_sessions_dotest'][0:10], row['test_sessions_datasetid'] )
+    data.set_value(index, 'record_id', new_value)
 
 # Drop the separate subject ID and test date columns so as to not overwrite corrected ones.
 data = data.drop( ['test_sessions_subid', 'test_sessions_dotest'], axis=1 )
