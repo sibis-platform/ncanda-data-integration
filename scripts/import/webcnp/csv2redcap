@@ -30,12 +30,18 @@ key_file = open( os.path.join( os.path.expanduser("~"), '.server_config/redcap-p
 api_key = key_file.read().strip()
 try:
     redcap = redcap.Project( 'https://ncanda.sri.com/redcap/api/', api_key, verify_ssl=False)
-except redcap.RedcapError as e:
-    error = "ERROR: failed creating the redcap.Project() object"
+except redcap.KeyError as e:
+    error = "ERROR: failed creating the metadata for Project"
     sibis.logging(hashlib.sha1('csv2redcap').hexigest()[0:6], error,
                   script='csv2redcap',
                   msg=str(e))
-    sys.exit()
+    sys.exit(1)
+except:
+    error = "ERROR: failed creating Project object"
+    sibis.logging(hashlib.sha1('csv2redcap').hexigest()[0:6], error,
+                  script='csv2redcap')
+    sys.exit(1)
+
 
 # Read input file
 data = pandas.io.parsers.read_csv( args.infile )
