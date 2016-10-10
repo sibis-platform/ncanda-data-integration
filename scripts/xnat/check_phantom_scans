@@ -86,7 +86,13 @@ except:
 # Get a custom variable from XML representation of experiment
 def get_custom_variable( experiment, field_name ):
     field_regex = '.*<xnat:field name="%s">(.*?)</xnat:field>' % field_name
-    match = re.match(field_regex, experiment.get(), flags=re.DOTALL)
+    try:
+        match = re.match(field_regex, experiment.get(), flags=re.DOTALL)
+    except Exception as e:
+        sibis.logging(experiment,
+                      'ERROR: failed to create xml document from experiment obj',
+                      field_name=field_name,
+                      error=str(e))
     if match:
         return re.sub('\s*<!--.*?-->\s*', '', match.group(1), flags=re.DOTALL)
     else:
