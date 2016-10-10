@@ -143,7 +143,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
                                                  scantype), 'image*.nii.xml'))
                             errors = list()
                             try:
-                                case_gradients = cgt.get_all_gradients(
+                                case_gradients = cgt.get_all_gradients(session_label,
                                     xml_file_list, decimals=3)
                                 if len(case_gradients) == len(gradients):
                                     for idx, frame in enumerate(case_gradients):
