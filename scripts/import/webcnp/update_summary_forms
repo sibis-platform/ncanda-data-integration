@@ -123,16 +123,17 @@ for key, row in summary_records.iterrows():
 
             # Unique record - copy data from imported project to summary form
             cnp_data = records_this_visit.ix[ len( records_this_visit ) - 1 ]
-            summary_records['cnp_datasetid'][key] = cnp_data.name
+            summary_records.set_value(key, 'cnp_datasetid', cnp_data.name)
 
             date_of_birth = subject_dates_of_birth[key[0]]
             date_format_ymd = '%Y-%m-%d'
             age_in_years = (datetime.datetime.strptime( cnp_data['test_sessions_dotest'], date_format_ymd ) - datetime.datetime.strptime( date_of_birth, date_format_ymd )).days / 365.242
-            summary_records[ 'cnp_age' ][key] = str( age_in_years )
+            summary_records.set_value(key, 'cnp_age', str( age_in_years ))
 
             # Copy all variables that we want in the summary
             for cnpvar in cnp_copy_variables:
-                summary_records['cnp_%s' % cnpvar][key] = cnp_data[cnpvar]
+                column_name = 'cnp_%s' % cnpvar
+                summary_records.set_value(key, column_name, cnp_data[cnpvar])
 
             # Compute all z scores (only between 8 and 21 years)
             if age_in_years >= 8 and age_in_years < 22:
@@ -142,18 +143,22 @@ for key, row in summary_records.iterrows():
                         mean_sdev_col_label = cnp.mean_sdev_by_field_dict[cnpvar]
                         age_mean = cnp.mean_sdev_byage_table['%s_mean' % mean_sdev_col_label][age_group]
                         age_sdev = cnp.mean_sdev_byage_table['%s_sd' % mean_sdev_col_label][age_group]
-                        summary_records['cnp_%s_zscore' % cnpvar][key] = ( float( cnp_data[cnpvar] ) - age_mean ) / age_sdev
+                        age_normalization = ( float( cnp_data[cnpvar] ) - age_mean ) / age_sdev
+                        column_name = 'cnp_%s_zscore' % cnpvar
+                        summary_records.set_value(key, column_name, age_normalization)
 
             # Check completion status of the CNP instruments
             for [k,v] in cnp.instruments.iteritems():
                 summary_complete = 1
                 if cnp_data['%s_complete' % v] > 0:
-                    summary_records['cnp_instruments___%s' % k.replace('_','') ][key] = '1'
+                    column_name = 'cnp_instruments___%s' % k.replace('_','')
+                    summary_records.set_value(key, column_name, '1')
                 else:
-                    summary_records['cnp_instruments___%s' % k.replace('_','') ][key] = '0'
+                    column_name = 'cnp_instruments___%s' % k.replace('_','')
+                    summary_records.set_value(key, column_name, '0')
                     summary_complete = 0
 
-            summary_records['cnp_summary_complete'][key] = summary_complete
+            summary_records.set_value(key, 'cnp_summary_complete', summary_complete)
         elif summary_records['cnp_summary_complete'][key] != '' and float( summary_records['cnp_summary_complete'][key] ) > 0 and ( summary_records['cnp_missing'][key] != 1 ):
             print "WARNING: Previously assigned WebCNP data for subject",key[0],"event",key[1],"appears to have disappeared."
 
