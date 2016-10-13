@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 from lxml import objectify
 
+import sibis
+
 
 def read_xml_sidecar(filepath):
     """
@@ -84,7 +86,7 @@ def get_dti_stack(case, arm=None, event=None):
     return glob.glob(path)
 
 
-def get_all_gradients(dti_stack, decimals=None):
+def get_all_gradients(session_label, dti_stack, decimals=None):
     """
     Parses a list of dti sidecar files for subject.
 
@@ -92,12 +94,20 @@ def get_all_gradients(dti_stack, decimals=None):
     =======
     list of np.array
     """
-    gradiets_per_frame = list()
-    for xml in dti_stack:
-        sidecar = read_xml_sidecar(xml)
-        gradiets_per_frame.append(get_gradient_table(sidecar,
+    gradients_per_frame = list()
+    for xml_path in dti_stack:
+        xml_sidecar = read_xml_sidecar(xml_path)
+        try:
+            gradients_per_frame.append(get_gradient_table(xml_sidecar,
                                                      decimals=decimals))
-    return gradiets_per_frame
+        except Exception as e:
+            sibis.logging(session_label,
+                          'ERROR: Could not get gradient table from xml sidecar',
+                          script='xnat/check_gradient_tables.py',
+                          sidecar=str(xml_sidecar),
+                          xml_path=xml_path,
+                          error=str(e))
+    return gradients_per_frame
 
 
 def get_site_scanner(site):
