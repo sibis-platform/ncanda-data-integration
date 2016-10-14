@@ -131,7 +131,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
                     manufacturer_u = manufacturer.upper()
                     verify_image_count(session, session_label, scan, scantype,
                                        manufacturer_u, images_created)
-                    gradient_map = cgt.get_ground_truth_gradients()
+                    gradient_map = cgt.get_ground_truth_gradients(session_label)
 
                     if manufacturer_u == 'SIEMENS':
                         gradients = gradient_map.get('Siemens')
