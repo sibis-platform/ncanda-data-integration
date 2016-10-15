@@ -122,7 +122,7 @@ def get_site_scanner(site):
     return site_scanner.get(site)
 
 
-def get_ground_truth_gradients(args=None):
+def get_ground_truth_gradients(session_label):
     """
     Return a dictionary for scanner:gratient
     """
@@ -147,8 +147,8 @@ def get_ground_truth_gradients(args=None):
     ge_stack.sort()
 
     # Parse the xml files to get scanner specific gradients per frame
-    siemens_gradients = get_all_gradients(siemens_stack, decimals=3)
-    ge_gradients = get_all_gradients(ge_stack, decimals=3)
+    siemens_gradients = get_all_gradients(session_label, siemens_stack, decimals=3)
+    ge_gradients = get_all_gradients(session_label, ge_stack, decimals=3)
     return dict(Siemens=siemens_gradients, GE=ge_gradients)
 
 
