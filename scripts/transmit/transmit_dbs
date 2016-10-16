@@ -21,7 +21,7 @@ upload_to_s3()
 }
 
 # MySQL first - this can be run as root
-mysqldump --all-databases --events | xz |  aespipe -P ${HOME}/aes/keys -e aes256 > /var/tmp/mysql.sql.xz.aes
+mysqldump --single-transaction --routines --triggers --all-databases --events | xz |  aespipe -P ${HOME}/aes/keys -e aes256 > /var/tmp/mysql.sql.xz.aes
 upload_to_s3 /var/tmp/mysql.sql.xz.aes
 
 # PostgreSQL need to be run as user "postgres", at least the DB dump part of it
