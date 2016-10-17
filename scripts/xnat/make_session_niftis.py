@@ -11,9 +11,11 @@ import shutil
 import zipfile
 import tempfile
 import subprocess
+import numpy
 
 import sibis
 import check_gradient_tables as cgt
+
 
 #
 # Verify image count in temp directory created by dcm2image
@@ -131,32 +133,38 @@ def export_to_nifti(interface, project, subject, session, session_label,
                     manufacturer_u = manufacturer.upper()
                     verify_image_count(session, session_label, scan, scantype,
                                        manufacturer_u, images_created)
-                    gradient_map = cgt.get_ground_truth_gradients(session_label)
+                    truth_gradient_map = cgt.get_ground_truth_gradients(session_label)
 
                     if manufacturer_u == 'SIEMENS':
-                        gradients = gradient_map.get('Siemens')
+                        truth_gradients_siemens = truth_gradient_map.get('Siemens')
+                        numpy.array(truth_gradients_siemens)
                         if 'dti60b1000' in scantype:
                             xml_file_list = glob.glob(
                                 os.path.join(temp_dir,
                                              '%s_%s' % (
                                                  scan,
                                                  scantype), 'image*.nii.xml'))
-                            errors = list()
+                            xml_file_list.sort()
+                            errorsFrame = list()
+                            errorsExpected = list()
+                            errorsActual = list()
                             try:
-                                case_gradients = cgt.get_all_gradients(session_label,
-                                    xml_file_list, decimals=3)
-                                if len(case_gradients) == len(gradients):
-                                    for idx, frame in enumerate(case_gradients):
+                                evaluated_gradients = cgt.get_all_gradients(session_label,
+                                                                            xml_file_list, decimals=3)
+                                if len(evaluated_gradients) == len(truth_gradients_siemens):
+                                    for idx, frame in enumerate(evaluated_gradients):
                                         # if there is a frame that doesn't match,
                                         # report it.
-                                        if not (gradients[idx] == frame).all():
-                                            errors.append(idx)
+                                        if not (truth_gradients_siemens[idx] == frame).all():
+                                            errorsFrame.append(idx)
+                                            errorsActual.append(frame)
+                                            errorsExpected.append(truth_gradients_siemens[idx])
                                 else:
                                     sibis.logging(
                                         session_label,
                                         "ERROR: Incorrect number of frames.",
-                                        case_gradients=str(case_gradients),
-                                        expected=str(gradients),
+                                        case_gradients=str(evaluated_gradients),
+                                        expected=str(truth_gradients_siemens),
                                         session=session)
                             except AttributeError as error:
                                 sibis.logging(
@@ -165,16 +173,17 @@ def export_to_nifti(interface, project, subject, session, session_label,
                                     xml_file_list=str(xml_file_list),
                                     error=str(error),
                                     session=session)
-                            if errors:
+                            if errorsFrame:
                                 # key = os.path.join(case, args.arm, args.event
                                 # , 'diffusion/native/dti60b1000')
                                 key = session_label
                                 sibis.logging(
                                     key,
-                                    "ERROR: Gradient tables do not match for "
-                                    "frames.",
-                                    frames=str(errors),
-                                    session=session)
+                                    frames=errorsFrame,
+                                    actualGradients=errorsActual,
+                                    expectedGradients=errorsExpected,
+                                    error="Errors in dti601000 gradients for new sessions after comparing with ground_truth.")
+
                             xml_file = open(xml_file_list[0], 'r')
                             try:
                                 for line in xml_file:

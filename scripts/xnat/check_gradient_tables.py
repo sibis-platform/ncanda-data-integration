@@ -100,6 +100,7 @@ def get_all_gradients(session_label, dti_stack, decimals=None):
         try:
             gradients_per_frame.append(get_gradient_table(xml_sidecar,
                                                      decimals=decimals))
+            gradients_as_array = np.asanyarray(gradients_per_frame)
         except Exception as e:
             sibis.logging(session_label,
                           'ERROR: Could not get gradient table from xml sidecar',
@@ -107,7 +108,7 @@ def get_all_gradients(session_label, dti_stack, decimals=None):
                           sidecar=str(xml_sidecar),
                           xml_path=xml_path,
                           error=str(e))
-    return gradients_per_frame
+    return gradients_as_array
 
 
 def get_site_scanner(site):
