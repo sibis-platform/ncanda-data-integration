@@ -32,13 +32,13 @@ try:
     redcap = redcap.Project( 'https://ncanda.sri.com/redcap/api/', api_key, verify_ssl=False)
 except KeyError as e:
     error = "ERROR: failed creating the metadata for Project"
-    sibis.logging(hashlib.sha1('csv2redcap').hexigest()[0:6], error,
+    sibis.logging(hashlib.sha1('csv2redcap').hexdigest()[0:6], error,
                   script='csv2redcap',
                   msg=str(e))
     sys.exit(1)
 except Exception as e:
     error = "ERROR: failed creating Project object"
-    sibis.logging(hashlib.sha1('csv2redcap').hexigest()[0:6], error,
+    sibis.logging(hashlib.sha1('csv2redcap').hexdigest()[0:6], error,
                   script='csv2redcap',
                   msg=str(e))
     sys.exit(1)
