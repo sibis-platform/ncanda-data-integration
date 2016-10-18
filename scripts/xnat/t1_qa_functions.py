@@ -159,5 +159,5 @@ def process_phantom_session( interface, project, subject, session, label, force_
             # If there was no matching scan in the session, print a warning
             warning = "WARNING: ADNI phantom session: {}, experiment: {}, subject: {} does not have \
                        a usable T1-weighted scan".format(session, experiment, subject)
-            sibis.logging(hashlib.sha1('t1_qa_functions').hexigest()[0:6], warning,
+            sibis.logging(hashlib.sha1('t1_qa_functions').hexdigest()[0:6], warning,
                           script='t1_qa_functions')
