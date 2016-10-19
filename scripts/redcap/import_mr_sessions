@@ -649,9 +649,12 @@ for [key, row] in mr_sessions_redcap.iterrows():
                 try:
                    import_response = redcap_project.import_records( [record], overwrite='overwrite' )
 
-                except requests.exceptions.RequestException, error:
-                   print error
-                   continue
+                except requests.exceptions.RequestException as e:
+                    error = 'Failed to import xnat data into redcap. Dictionary with xnat_data: ', record
+                    sibis.logging(key[0], error,
+                                  visit_id=key[1],
+                                  requestError=str(e))
+                    continue
 
                 if 'count' in import_response.keys():
                     records_uploaded += import_response['count']
