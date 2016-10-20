@@ -19,6 +19,7 @@ python post_github_issues.py -o sibis-platform -r ncanda-issues \
                              -b /tmp/test.txt -v
 """
 import os
+import re
 import sys
 import json
 import hashlib
@@ -27,6 +28,7 @@ import ConfigParser
 import github
 from github.GithubException import UnknownObjectException, GithubException
 
+import sibis
 
 def create_connection(cfg, verbose=None):
     """Get a connection to github api.
@@ -54,7 +56,7 @@ def create_connection(cfg, verbose=None):
     return g
 
 
-def get_label(repo, title, verbose=None):
+def get_label(repo, raw_title, verbose=None):
     """Get a label object to tag the issue.
 
     Args:
@@ -69,21 +71,16 @@ def get_label(repo, title, verbose=None):
     if verbose:
         print "Checking for label..."
     label = None
-    label_text = None
     try:
-        label_start = 1 + title.index('(')
-        label_end = title.index(')')
-        label_text = title[label_start:label_end]
-    except ValueError, e:
-        print "Warning: This tile has no embeded label. {0}".format(e)
-    if label_text:
-        try:
-            label = [repo.get_label(label_text)]
-            if verbose:
-                print "Found label: {0}".format(label)
-        except UnknownObjectException, e:
-            print "Error: The label '{0}' does not exist on " \
-                  "Github. {1}".format(label_text, e)
+        label = [repo.get_label(raw_title)]
+        if verbose:
+            print "Found label: {0}".format(label)
+    except UnknownObjectException as e:
+        error = 'Not found label in github for string ', raw_title
+        sibis.logging('80_post_github_issues',
+                        error,
+                        function='get_label()',
+                        error=str(e))
     return label
 
 
@@ -112,8 +109,12 @@ def is_open_issue(repo, subject, verbose=None):
             try:
                 issue.edit(state='open')
             except GithubException as error:
-                print("Edit open issue failed for subject ({}), title ({}). "
-                      "Error: {}".format(subject, issue.title, error))
+                error = 'Failed editing Issue state from closed to open after comparing issue.title and subject'
+                sibis.logging('113_post_github_issues',
+                              error,
+                              issue_title=issue.title,
+                              subject=subject)
+                return False
             return True
     if verbose:
         print "Issue does not already exist... Creating.".format(subject)
@@ -161,11 +162,19 @@ def create_issues(repo, title, body, verbose=None):
     Returns:
         None
     """
-    label = get_label(repo, title)
-    if not label:
-        err = "A label embedded in parentheses is currently required. For " \
-              "example 'Title of Error (title_tag).' You provided: {0}"
-        raise NotImplementedError(err.format(title))
+    #Look for first match of string between parentheses in title.
+    re_title = re.match('[^\(]*\(([^\)]+)\).*', title)
+    if re_title:
+        title = re_title.group(1)
+        label = get_label(repo, title)
+    else:
+        error = 'Not able to create label from title, probably miss parentheses'
+        sibis.logging('172_post_github_issues',
+                      error,
+                      repo=repo,
+                      title=title,
+                      function='create_issues')
+        raise NotImplementedError(error.format(title))
     # get stdout written to file
     with open(body) as fi:
         issues = fi.readlines()
@@ -180,10 +189,10 @@ def create_issues(repo, title, body, verbose=None):
             print "Issue is a Traceback..."
         string = "".join(issues)
         sha = hashlib.sha1(string).hexdigest()[0:6]
-        error = dict(experiment_site_id="Traceback:{}".format(sha),
-                     error="Traceback",
-                     message=string)
-        issues = [json.dumps(error, sort_keys=True)]
+        error = 'Unhandled Error in code. More information in the Traceback'
+        sibis.logging('Traceback: 193_post_github_issues: {}'.format(sha),
+                      error,
+                      issue_stack=string)
     for issue in issues:
         # Check for new format
         try:
