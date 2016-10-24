@@ -5,16 +5,14 @@
 ##  for the copyright and license terms
 ##
 
+import argparse
+import hashlib
 import os
 import re
 import sys
-import hashlib
-import requests
-import argparse
-
-import sibis
 import pandas
 import redcap
+import sibis
 
 # Setup command line parser
 parser = argparse.ArgumentParser(description="Update completion status of forms that contain more than one instrument",
@@ -103,8 +101,7 @@ for form in forms_list:
         if args.no_upload:
             form_status.to_csv( args.no_upload )
         else:
-            import_response = rc_summary.import_records( form_status, overwrite='overwrite' )
-
+            import_response = sibis.sri_import_records(rc_summary, form_status, 'overwrite')
             if 'count' in import_response.keys():
                 if args.verbose:
                     print "Uploaded",import_response['count'],"records to REDCap."
