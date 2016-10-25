@@ -651,8 +651,8 @@ for [key, row] in mr_sessions_redcap.iterrows():
 
                 except requests.exceptions.RequestException as e:
                     error = 'Failed to import xnat data into redcap. Dictionary with xnat_data: ', record
-                    sibis.logging(key[0], error,
-                                  visit_id=key[1],
+                    sibis.logging(record["mri_xnat_eids"], error,
+                                  mri_xnat_sid=record["mri_xnat_sid"],
                                   requestError=str(e))
                     continue
 
