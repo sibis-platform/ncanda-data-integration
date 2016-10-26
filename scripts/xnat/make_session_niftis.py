@@ -176,13 +176,11 @@ def export_to_nifti(interface, project, subject, session, session_label,
                             if errorsFrame:
                                 # key = os.path.join(case, args.arm, args.event
                                 # , 'diffusion/native/dti60b1000')
-                                key = session_label
-                                sibis.logging(
-                                    key,
+                                sibis.logging(session_label,
+                                    "Errors in dti601000 gradients for new sessions after comparing with ground_truth."
                                     frames=errorsFrame,
                                     actualGradients=errorsActual,
-                                    expectedGradients=errorsExpected,
-                                    error="Errors in dti601000 gradients for new sessions after comparing with ground_truth.")
+                                    expectedGradients=errorsExpected)
 
                             xml_file = open(xml_file_list[0], 'r')
                             try:
