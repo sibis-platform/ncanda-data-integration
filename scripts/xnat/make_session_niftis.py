@@ -177,7 +177,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
                                 # key = os.path.join(case, args.arm, args.event
                                 # , 'diffusion/native/dti60b1000')
                                 sibis.logging(session_label,
-                                    "Errors in dti601000 gradients for new sessions after comparing with ground_truth."
+                                    "Errors in dti601000 gradients for new sessions after comparing with ground_truth.",
                                     frames=errorsFrame,
                                     actualGradients=errorsActual,
                                     expectedGradients=errorsExpected)
