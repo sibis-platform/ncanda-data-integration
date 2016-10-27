@@ -19,7 +19,6 @@ python post_github_issues.py -o sibis-platform -r ncanda-issues \
                              -b /tmp/test.txt -v
 """
 import os
-import re
 import sys
 import json
 import hashlib
@@ -28,7 +27,6 @@ import ConfigParser
 import github
 from github.GithubException import UnknownObjectException, GithubException
 
-import sibis
 
 def create_connection(cfg, verbose=None):
     """Get a connection to github api.
@@ -56,7 +54,7 @@ def create_connection(cfg, verbose=None):
     return g
 
 
-def get_label(repo, raw_title, verbose=None):
+def get_label(repo, title, verbose=None):
     """Get a label object to tag the issue.
 
     Args:
@@ -71,17 +69,21 @@ def get_label(repo, raw_title, verbose=None):
     if verbose:
         print "Checking for label..."
     label = None
+    label_text = None
     try:
-        label = [repo.get_label(raw_title)]
-        if verbose:
-            print "Found label: {0}".format(label)
-    except UnknownObjectException as e:
-        exc_type, exc_obj, exc_tb = sys.exc_info()
-        error = 'Not found label in github for string ', raw_title
-        sibis.logging('{0} post_github_issues at line {1}'.format(hashlib.sha1(error).hexdigest()[0:6], exc_tb.tb_lineno),
-                        error,
-                        function='get_label()',
-                        exception=str(e))
+        label_start = 1 + title.index('(')
+        label_end = title.index(')')
+        label_text = title[label_start:label_end]
+    except ValueError, e:
+        print "Warning: This tile has no embeded label. {0}".format(e)
+    if label_text:
+        try:
+            label = [repo.get_label(label_text)]
+            if verbose:
+                print "Found label: {0}".format(label)
+        except UnknownObjectException, e:
+            print "Error: The label '{0}' does not exist on " \
+                  "Github. {1}".format(label_text, e)
     return label
 
 
@@ -109,15 +111,9 @@ def is_open_issue(repo, subject, verbose=None):
                       "See: {0}".format(issue.url)
             try:
                 issue.edit(state='open')
-            except GithubException as e:
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                error = 'Failed editing Issue state from closed to open after comparing issue.title and subject'
-                sibis.logging('{0} post_github_issues at line {1}'.format(hashlib.sha1(str(e)).hexdigest()[0:6], exc_tb.tb_lineno),
-                              error,
-                              issue_title=issue.title,
-                              subject=subject,
-                              exception=str(e))
-                return False
+            except GithubException as error:
+                print("Edit open issue failed for subject ({}), title ({}). "
+                      "Error: {}".format(subject, issue.title, error))
             return True
     if verbose:
         print "Issue does not already exist... Creating.".format(subject)
@@ -139,6 +135,20 @@ def generate_body(issue):
     return markdown
 
 
+def get_valid_title(title):
+    """Ensure that the title isn't over 255 chars.
+
+    Args:
+        title (str): Title to be used in issue report.
+
+    Returns:
+        str: Less than 255 chars long.
+    """
+    if len(title) >= 254:
+        title = title[:254]
+    return title
+
+
 def create_issues(repo, title, body, verbose=None):
     """Create a GitHub issue for the provided repository with a label
 
@@ -151,19 +161,11 @@ def create_issues(repo, title, body, verbose=None):
     Returns:
         None
     """
-    #Look for first match of string between parentheses in title.
-    re_title = re.match('[^\(]*\(([^\)]+)\).*', title)
-    if re_title:
-        raw_title = re_title.group(1)
-        label = get_label(repo, raw_title)
-    else:
-        error = 'Not able to create label from title, probably miss parentheses'
-        sibis.logging('{} post_github_issues'.format((hashlib.sha1(error).hexdigest()[0:6])),
-                      error,
-                      repo=repo,
-                      title=title,
-                      function='create_issues')
-        raise NotImplementedError(error.format(title))
+    label = get_label(repo, title)
+    if not label:
+        err = "A label embedded in parentheses is currently required. For " \
+              "example 'Title of Error (title_tag).' You provided: {0}"
+        raise NotImplementedError(err.format(title))
     # get stdout written to file
     with open(body) as fi:
         issues = fi.readlines()
@@ -178,19 +180,18 @@ def create_issues(repo, title, body, verbose=None):
             print "Issue is a Traceback..."
         string = "".join(issues)
         sha = hashlib.sha1(string).hexdigest()[0:6]
-        error = 'Unhandled Error in code. More information in the Traceback'
-        sibis.logging('Traceback: {} post_github_issues'.format(sha),
-                      error,
-                      issue_stack=string)
+        error = dict(experiment_site_id="Traceback:{}".format(sha),
+                     error="Traceback",
+                     message=string)
+        issues = [json.dumps(error, sort_keys=True)]
     for issue in issues:
         # Check for new format
         try:
             issue_dict = json.loads(issue)
-            #Get only the first 256 characters for Guthub validation
-            issue_dict.update({'title': title[:255]})
+            issue_dict.update({'title': get_valid_title(title)})
             error_msg = issue_dict.get('error')
             experiment_site_id = issue_dict.get('experiment_site_id')
-            subject = "{}, {}".format(experiment_site_id, error_msg)[:255]
+            subject = "{}, {}".format(experiment_site_id, error_msg)
             body = generate_body(issue_dict)
         except:
             if verbose:
@@ -239,7 +240,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--title", dest="title", required=True,
                         help="GitHub issue title with label in parentheses.")
     parser.add_argument("-b", "--body", dest="body", required=True,
-                        help="GitHub issue body. It needs to be a text file")
+                        help="GitHub issue body.")
     parser.add_argument("-v", "--verbose", dest="verbose", action='store_true',
                         help="Turn on verbose.")
     argv = parser.parse_args()
