@@ -40,7 +40,7 @@ def connect_to_redcap():
 try:
     rc_summary = connect_to_redcap()
 except Exception, error:
-    sibis.logging(hashlib.sha1('update_summary_scores').hexdigest()[0:6],
+    sibis.logging(hashlib.sha1('update_bulk_forms').hexdigest()[0:6],
     "ERROR: Could not connect to redcap!",
     script = 'update_bulk_forms')
     sys.exit()
@@ -103,8 +103,15 @@ for form in forms_list:
         if args.no_upload:
             form_status.to_csv( args.no_upload )
         else:
-            import_response = rc_summary.import_records( form_status, overwrite='overwrite' )
-
+            try:
+                import_response = rc_summary.import_records( form_status, overwrite='overwrite' )
+            except Exception as e:
+                log_id = hashlib.sha1(str(e)).hexdigest()[0:6]
+                error = 'Exception while importing records into Redcap'
+                sibis.logging(log_id,
+                              error,
+                              form_status=form_status,
+                              exception=str(e))
             if 'count' in import_response.keys():
                 if args.verbose:
                     print "Uploaded",import_response['count'],"records to REDCap."
