@@ -110,8 +110,7 @@ for form in forms_list:
                 error = 'Exception while importing records into Redcap'
                 sibis.logging(log_id,
                               error,
-                              form_status=form_status,
-                              exception=str(e))
+                              form_status=form_status)
             if 'count' in import_response.keys():
                 if args.verbose:
                     print "Uploaded",import_response['count'],"records to REDCap."
