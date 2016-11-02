@@ -42,7 +42,8 @@ try:
 except Exception, error:
     sibis.logging(hashlib.sha1('update_bulk_forms').hexdigest()[0:6],
     "ERROR: Could not connect to redcap!",
-    script = 'update_bulk_forms')
+    script = 'update_bulk_forms',
+    msg=str(error))
     sys.exit()
 
 form_event_mapping = rc_summary.export_fem(format='df')
