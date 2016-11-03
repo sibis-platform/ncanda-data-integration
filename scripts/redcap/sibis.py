@@ -7,4 +7,9 @@ def logging(id, message, **kwargs):
     log = dict(experiment_site_id=id,
                error=message)
     log.update(kwargs)
-    print(json.dumps(log, sort_keys=True))
+    try:  
+      print(json.dumps(log, sort_keys=True))
+
+    except e: 
+      print "ERROR: redcap/sibis.py: logging: " + id + "  ===== message: " + message + " ====== kwargs" + str(kwargs)   
+
