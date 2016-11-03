@@ -10,6 +10,6 @@ def logging(id, message, **kwargs):
     try:  
       print(json.dumps(log, sort_keys=True))
 
-    except e: 
+    except Exception as e: 
       print "ERROR: redcap/sibis.py: logging: " + id + "  ===== message: " + message + " ====== kwargs" + str(kwargs)   
 
