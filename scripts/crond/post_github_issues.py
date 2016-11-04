@@ -208,10 +208,14 @@ def create_issues(repo, title, body, verbose=None):
             try:
                 github_issue = repo.create_issue(subject, body=body, labels=label)
             except Exception as e:
-                print 'Failed to create_issue with title:{0}, body:{1} and label:{2}, \
-                       exception: {3}'.format(subject, body, label, str(e))
-            if verbose:
-                print "Created issue... See: {0}".format(github_issue.url)
+                print '====================================='
+                print 'Error:post_github_issues: Failed to post the following issue on github'
+                print 'Title: ', subject
+                print 'Body: ', body
+                print 'Exception: ', str(e)
+            else:
+                if verbose:
+                    print "Created issue... See: {0}".format(github_issue.url)
     return None
 
 
