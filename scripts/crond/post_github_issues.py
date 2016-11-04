@@ -213,8 +213,9 @@ def create_issues(repo, title, body, verbose=None):
                 print 'Title: ', subject
                 print 'Body: ', body
                 print 'Exception: ', str(e)
-            if verbose:
-                print "Created issue... See: {0}".format(github_issue.url)
+            else:
+                if verbose:
+                    print "Created issue... See: {0}".format(github_issue.url)
     return None
 
 
