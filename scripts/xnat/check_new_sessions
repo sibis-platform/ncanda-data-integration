@@ -494,6 +494,9 @@ for (eid, project, subject, insert_date,
     manufacturer = 'xnat:mrSessionData/scanner/manufacturer'
     manufacturer = ifc.select.experiment(eid).attrs.get(manufacturer)
 
+    scanner_model_str = 'xnat:mrSessionData/scanner/model'
+    scanner_model = ifc.select.experiment(eid).attrs.get(scanner_model_str)
+ 
     # Link to the session
     session_html_link, session_file_link = make_session_link(eid,
                                                              project,
@@ -556,6 +559,7 @@ for (eid, project, subject, insert_date,
                 eid,
                 session_label,
                 manufacturer,
+                scanner_model,
                 scan,
                 scantype,
                 verbose=args.verbose)

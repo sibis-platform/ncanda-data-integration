@@ -58,7 +58,7 @@ def verify_image_count(session, session_label, scan, scantype, manufacturer,
 # Export experiment files to NIFTI
 #
 def export_to_nifti(interface, project, subject, session, session_label,
-                    manufacturer, scan, scantype, verbose=False):
+                    manufacturer, scanner_model, scan, scantype, verbose=False):
     if verbose:
         print("Starting export of nifti files...")
     error_msg = []
@@ -66,6 +66,8 @@ def export_to_nifti(interface, project, subject, session, session_label,
     logfile_resource = '%s_%s/dcm2image.log' % (scan, scantype)
     xnat_log = interface.select.project(project).subject(subject).experiment(
         session).resource('nifti').file(logfile_resource)
+    # To test gradient directions without having to delete nifti files in xnat just uncomment this line 
+    # and comment out the proceeding one 
     # if not xnat_log.exists() or 'dti60b1000' in scantype:
     if not xnat_log.exists():
         match = re.match('.*(/fs/storage/XNAT/.*)scan_.*_catalog.xml.*',
@@ -138,7 +140,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
                     if 'dti60b1000' in scantype:
                             xml_search_string = os.path.join(temp_dir,'%s_%s' % (scan,scantype), 'image*.nii.xml')
                             xml_file_list = glob.glob(xml_search_string)
-                            cgt.check_diffusion(session_label,session,xml_file_list,manufacturer_u,decimals=3)
+                            cgt.check_diffusion(session_label,session,xml_file_list,manufacturer_u,scanner_model,decimals=2)
 
                 # Clean up - remove temp directory
                 shutil.rmtree(temp_dir)

@@ -130,20 +130,24 @@ def get_site_scanner(site):
     return site_scanner.get(site)
 
 
-def get_ground_truth_gradients(scanner,decimals):
+def get_ground_truth_gradients(scanner,scanner_model,decimals):
     """
     Return a dictionary for scanner:gratient
     """
     # Choose arbitrary cases for ground truth
     test_path = '/fs/ncanda-share/pipeline/cases'
+    # Get ground truth for standard baseline
+    test_arm = 'standard'
+    test_event = 'baseline'
 
     scanner_u = scanner.upper()
     if scanner == 'SIEMENS': 
-        scanner_subject = 'NCANDA_S00061'
+        if scanner_model.split('_',1)[0].upper() == "PRISMA" :
+            scanner_subject = 'NCANDA_S00689'
+            test_event = 'followup_2y'
+        else :
+            scanner_subject = 'NCANDA_S00061'
 
-    elif scanner == 'PRISMA': 
-        scanner_subject = 'NCANDA_S00061'
-    
     elif scanner == 'GE': 
         scanner_subject = 'NCANDA_S00033'
 
@@ -151,10 +155,6 @@ def get_ground_truth_gradients(scanner,decimals):
       return []     
 
     subject_path = os.path.join(test_path, scanner_subject)
-
-    # Get ground truth for standard baseline
-    test_arm = 'standard'
-    test_event = 'baseline'
 
     # Gets files for each scanner
     dti_stack = get_dti_stack(subject_path, arm=test_arm, event=test_event)
@@ -165,14 +165,14 @@ def get_ground_truth_gradients(scanner,decimals):
     return get_all_gradients(scanner_subject + "_" + test_arm + "_" + test_event, dti_stack, decimals)
     # dict(Siemens=siemens_gradients, GE=ge_gradients)
 
-def check_diffusion(session_label,session,xml_file_list,manufacturer,decimals):
+def check_diffusion(session_label,session,xml_file_list,manufacturer,scanner_model,decimals):
     if len(xml_file_list) == 0 : 
         sibis.logging(session_label,
                       "Error: check_diffusion : xml_file_list is empty ",
                       session=session)
         return 
 
-    truth_gradient = np.array(get_ground_truth_gradients(manufacturer,decimals))
+    truth_gradient = np.array(get_ground_truth_gradients(manufacturer,scanner_model,decimals))
     if len(truth_gradient) == 0 :
         sibis.logging(session_label,
                     'ERROR: check_diffusion: scanner is unknown',
@@ -268,7 +268,7 @@ def main(args=None):
         scanner = get_site_scanner(site)
         key = os.path.join(case, args.arm, args.event,'diffusion/native/dti60b1000')
         xml_file_list = get_dti_stack(case, arm=args.arm, event=args.event)
-        check_diffusion(key,"",xml_file_list,scanner,args.decimals)
+        check_diffusion(key,"",xml_file_list,scanner,"",args.decimals)
 
 if __name__ == '__main__':
     import argparse
