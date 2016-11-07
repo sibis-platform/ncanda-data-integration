@@ -45,14 +45,14 @@ def verify_image_count(session, session_label, scan, scantype, manufacturer,
         if scantype in expected_images[manufacturer].keys():
             imgrange = expected_images[manufacturer][scantype]
             if not images_created in imgrange:
-                error = 'WARNING: Number of niftis in archive differ from the standard'
+                error = 'WARNING: Number of frames in archive differ from the standard'
                 sibis.logging(session_label, error,
                               session=session,
                               scan_number=scan,
                               scan_type=scantype,
-                              niftis_checked=images_created,
+                              actual_frame_number=images_created,
                               manufacturer=manufacturer,
-                              expected_number_niftis=str(expected_images[manufacturer][scantype]))
+                              expected_frame_number=str(expected_images[manufacturer][scantype]))
 
 
 #
