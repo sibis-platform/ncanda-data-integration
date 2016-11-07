@@ -5,14 +5,13 @@
 ##  for the copyright and license terms
 ##
 import os
-import re
 import glob
 import shutil
 import zipfile
 import tempfile
 import subprocess
 import numpy
-
+import re
 import sibis
 import check_gradient_tables as cgt
 
@@ -67,6 +66,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
     logfile_resource = '%s_%s/dcm2image.log' % (scan, scantype)
     xnat_log = interface.select.project(project).subject(subject).experiment(
         session).resource('nifti').file(logfile_resource)
+    # if not xnat_log.exists() or 'dti60b1000' in scantype:
     if not xnat_log.exists():
         match = re.match('.*(/fs/storage/XNAT/.*)scan_.*_catalog.xml.*',
                          interface.select.experiment(session).scan(scan).get(),
@@ -130,83 +130,15 @@ def export_to_nifti(interface, project, subject, session, session_label,
                 images_created = len(glob.glob('%s/*/*.nii.gz' % temp_dir))
 
                 if images_created > 0:
-                    manufacturer_u = manufacturer.upper()
+                    # only use first part of string so GE Manufacturer is turned into GE
+                    manufacturer_u = manufacturer.split(' ',1)[0].upper()
                     verify_image_count(session, session_label, scan, scantype,
                                        manufacturer_u, images_created)
-                    truth_gradient_map = cgt.get_ground_truth_gradients(session_label)
 
-                    if manufacturer_u == 'SIEMENS':
-                        truth_gradients_siemens = truth_gradient_map.get('Siemens')
-                        numpy.array(truth_gradients_siemens)
-                        if 'dti60b1000' in scantype:
-                            xml_file_list = glob.glob(
-                                os.path.join(temp_dir,
-                                             '%s_%s' % (
-                                                 scan,
-                                                 scantype), 'image*.nii.xml'))
-                            xml_file_list.sort()
-                            errorsFrame = list()
-                            errorsExpected = list()
-                            errorsActual = list()
-                            try:
-                                evaluated_gradients = cgt.get_all_gradients(session_label,
-                                                                            xml_file_list, decimals=3)
-                                if len(evaluated_gradients) == len(truth_gradients_siemens):
-                                    for idx, frame in enumerate(evaluated_gradients):
-                                        # if there is a frame that doesn't match,
-                                        # report it.
-                                        if not (truth_gradients_siemens[idx] == frame).all():
-                                            errorsFrame.append(idx)
-                                            errorsActual.append(frame)
-                                            errorsExpected.append(truth_gradients_siemens[idx])
-                                else:
-                                    sibis.logging(
-                                        session_label,
-                                        "ERROR: Incorrect number of frames.",
-                                        case_gradients=str(evaluated_gradients),
-                                        expected=str(truth_gradients_siemens),
-                                        session=session)
-                            except AttributeError as error:
-                                sibis.logging(
-                                    session_label,
-                                    "Error: parsing XML files failed.",
-                                    xml_file_list=str(xml_file_list),
-                                    error=str(error),
-                                    session=session)
-                            if errorsFrame:
-                                # key = os.path.join(case, args.arm, args.event
-                                # , 'diffusion/native/dti60b1000')
-                                sibis.logging(session_label,
-                                    "Errors in dti601000 gradients for new sessions after comparing with ground_truth.",
-                                    frames=str(errorsFrame),
-                                    actualGradients=str(errorsActual),
-                                    expectedGradients=str(errorsExpected))
-
-
-                            xml_file = open(xml_file_list[0], 'r')
-                            try:
-                                for line in xml_file:
-                                    match = re.match(
-                                        '.*<phaseEncodeDirectionSign>(.+)'
-                                        '</phaseEncodeDirectionSign>.*',
-                                        line)
-                                    if match and match.group(
-                                            1).upper() != 'NEG':
-                                        error_msg.append(
-                                            "Scan %s of type %s in session %s "
-                                            "has wrong PE sign %s (expected "
-                                            "NEG)" % (scan,
-                                                      scantype,
-                                                      session_label,
-                                                      match.group(1).upper()))
-
-                            except:
-                                error_msg.append(
-                                    "Cannot read XML sidecar file for scan %s "
-                                    "of session %s" % (scan, session_label))
-
-                            finally:
-                                xml_file.close()
+                    if 'dti60b1000' in scantype:
+                            xml_search_string = os.path.join(temp_dir,'%s_%s' % (scan,scantype), 'image*.nii.xml')
+                            xml_file_list = glob.glob(xml_search_string)
+                            cgt.check_diffusion(session_label,session,xml_file_list,manufacturer_u,decimals=3)
 
                 # Clean up - remove temp directory
                 shutil.rmtree(temp_dir)
