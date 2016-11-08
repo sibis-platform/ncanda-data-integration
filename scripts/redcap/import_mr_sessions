@@ -403,7 +403,7 @@ def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_b
     scanner_model_str = 'xnat:mrSessionData/scanner/model'
     scanner_model = xnat.select.experiment(xnat_eid).attrs.get(scanner_model_str)
     scanner_mfc_str = 'xnat:mrSessionData/scanner/manufacturer'
-    scanner_mfc = xnat.select.experiment(xnat_eid).attrs.get(scanner_model_str)
+    scanner_mfc = xnat.select.experiment(xnat_eid).attrs.get(scanner_mfc_str)
     result['mri_scanner'] = scanner_mfc + " " +  scanner_model + " " + xnat.select.experiment(xnat_eid).attrs.get('scanner') 
 
     # Get date and age for DTI scan (use DTI60 because DTI6 may be bad or missing, and fieldmap used instead)
