@@ -295,6 +295,7 @@ def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_b
     result['mri_series_dti_fieldmap'] = ''
     result['mri_series_rsfmri'] = ''
     result['mri_series_rsfmri_fieldmap'] = ''
+    result['mri_scanner'] = ''
 
     # First, see if this subject is in the XNAT database and has a scan session
     # for the given date or later
@@ -397,6 +398,13 @@ def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_b
     # Take off extra spaces
     result['mri_xnat_eids'] = result['mri_xnat_eids'].strip()
     result['mri_notes'] = result['mri_notes'].strip()
+
+    # Add New Variables 
+    scanner_model_str = 'xnat:mrSessionData/scanner/model'
+    scanner_model = xnat.select.experiment(xnat_eid).attrs.get(scanner_model_str)
+    scanner_mfc_str = 'xnat:mrSessionData/scanner/manufacturer'
+    scanner_mfc = xnat.select.experiment(xnat_eid).attrs.get(scanner_model_str)
+    result['mri_scanner'] = scanner_mfc + " " +  scanner_model + " " + xnat.select.experiment(xnat_eid).attrs.get('scanner') 
 
     # Get date and age for DTI scan (use DTI60 because DTI6 may be bad or missing, and fieldmap used instead)
     if 'dti60b1000' in scans_by_type.keys():
@@ -604,6 +612,9 @@ for [key, row] in mr_sessions_redcap.iterrows():
                     id_map = sub_map.get('followup_2y')
                     defaultFlag = False
                 elif event == '3y_visit_arm_1' and sub_map.get('followup_3y'):
+                    id_map = sub_map.get('followup_3y')
+                    defaultFlag = False
+                elif event == '4y_visit_arm_1' and sub_map.get('followup_4y'):
                     id_map = sub_map.get('followup_3y')
                     defaultFlag = False
                 else:
