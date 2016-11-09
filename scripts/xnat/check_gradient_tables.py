@@ -102,6 +102,10 @@ def get_all_gradients(session_label, dti_stack, decimals=None):
     """
     gradients_per_frame = list()
     gradients_as_array = np.asanyarray([])
+
+    error_xml_path_list=[] 
+    error_msg=""
+
     for xml_path in dti_stack:
         xml_sidecar = read_xml_sidecar(xml_path)
         try:
@@ -109,14 +113,17 @@ def get_all_gradients(session_label, dti_stack, decimals=None):
                                                      decimals=decimals))
             gradients_as_array = np.asanyarray(gradients_per_frame)
         except Exception as e:
-            sibis.logging(session_label,
-                          'ERROR: Could not get gradient table from xml sidecar',
-                          script='xnat/check_gradient_tables.py',
-                          sidecar=str(xml_sidecar),
-                          xml_path=xml_path,
-                          error=str(e))
-    return gradients_as_array
+            error_xml_path_list.append(xml_path)
+            error_msg=str(e)
 
+    if error_xml_path_list != [] :
+        sibis.logging(session_label,
+                      'ERROR: Could not get gradient table from xml sidecar',
+                      script='xnat/check_gradient_tables.py',
+                      sidecar=str(xml_sidecar),
+                      error_xml_path_list=str(error_xml_path_list),
+                      error_msg=error_msg)
+    return gradients_as_array
 
 def get_site_scanner(site):
     """
@@ -205,7 +212,7 @@ def check_diffusion(session_label,session,xml_file_list,manufacturer,scanner_mod
     except AttributeError as error:
         sibis.logging(session_label, "Error: parsing XML files failed.",
                       xml_file_list=str(xml_file_list),
-                      error=str(error),
+                      error_msg=str(error),
                       session=session)
         return
 

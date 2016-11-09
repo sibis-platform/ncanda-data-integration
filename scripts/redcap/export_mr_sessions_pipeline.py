@@ -7,6 +7,7 @@
 
 import re
 import os
+import glob
 import subprocess
 import shutil
 import sys
@@ -39,7 +40,7 @@ def check_eid_file( eid_file_path, session_and_scan_string ):
 def check_file_date(pipeline_file,xnat_file):
     # File content still current?
     try:
-        if os.path.getmtime(pipeline_file) > os.path.getmtime(xnat_file): 
+        if os.path.getmtime(pipeline_file) > os.path.getmtime(xnat_file):
             return True
     except:
         # Something went wrong with open and/or read, so say file doesn't exist
@@ -62,20 +63,24 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
     to_path_pattern = os.path.join( to_directory, filename_pattern )
 
     # If filename is a pattern with substitution, check whether entire directory exists
-    pipeline_file="" 
+
+    pipeline_file = "" 
     if '%' in filename_pattern:
         eid_file_path = os.path.join( to_directory, 'eid' )
         if os.path.exists( to_directory ):
-            if check_eid_file( eid_file_path, session_and_scan_list ):
-                return False
+              if check_eid_file( eid_file_path, session_and_scan_list ):
+                pipeline_file_pattern = re.sub('%T%N','*',re.sub( '%n', '*', to_path_pattern)) + ".xml"
+                pipeline_file_list= glob.glob(pipeline_file_pattern)
+                if pipeline_file_list != [] :
+                    pipeline_file = pipeline_file_list[0]
     else:
         eid_file_path = re.sub( '\.[^/]*', '.eid', to_path_pattern )
         if os.path.exists( to_path_pattern ) or os.path.exists( to_path_pattern + '.gz' ):
             if check_eid_file( eid_file_path, session_and_scan_list ):
                 pipeline_file=to_path_pattern + ".xml"
-                # return False
 
     dicom_path_list = []
+    CreateDicomFlag=False
     for session_and_scan in session_and_scan_list.split( ' ' ):
         [ session, scan ] = session_and_scan.split( '/' )
         match = re.match( '.*(/fs/storage/XNAT/.*)scan_.*_catalog.xml.*', xnat.select.experiment( session ).scan( scan ).get(), re.DOTALL )
@@ -84,15 +89,32 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
             if not os.path.exists( dicom_path ):
                 dicom_path = re.sub( 'storage/XNAT', 'ncanda-xnat', dicom_path )
 
-            if pipeline_file != "" :
-                xnat_file = re.sub( 'SCANS', 'RESOURCES/nifti/', dicom_path )
-                print  xnat_file
-                return False
+            # If pipeline file does not exist then create dicom - otherwise check date to xnat file - assumes that check_new_sessions is always run before this script otherwise pipeline is run twice !
+            if pipeline_file == "" :
+                CreateDicomFlag=True
+            else :
+                # Look for xnat file 
+                xnat_file_pattern = re.sub('/DICOM/','_*/image*.nii.xml',re.sub( '/SCANS/', '/RESOURCES/nifti/', dicom_path))
+                xnat_file_search  = glob.glob(xnat_file_pattern)
+
+                # If date of xnat file is newer than in pipeline then update  
+                if  xnat_file_search != [] and not check_file_date(pipeline_file,xnat_file_search[0]):
+                    CreateDicomFlag=True
 
             dicom_path_list.append( dicom_path )
 
+    if CreateDicomFlag == False :
+        return False
+
+    if pipeline_file != "" :
+        [ session, scan ] = session_and_scan_list.split( ' ' )[0].split('/')
+        sibis.logging(session + "_" + scan,"Warning: existing MR images of the pipeline are updated", 
+                      file = to_path_pattern,
+                      session_scan_list = session_and_scan_list )
+    
     dcm2image_output = None
     if len( dicom_path_list ):
+
         try:
             dcm2image_command = 'cmtk dcm2image --tolerance 1e-3 --write-single-slices --no-progress -rxO %s %s 2>&1' % ( to_path_pattern, ' '.join( dicom_path_list ) )
 
@@ -100,6 +122,7 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
                 print dcm2image_command
 
             dcm2image_output = subprocess.check_output( dcm2image_command, shell=True )
+
         except:
             if dcm2image_output:
                 output_file = open( to_path_pattern + '.log' , 'w' )
@@ -109,6 +132,10 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
                     print dcm2image_output
                 finally:
                     output_file.close()
+
+            sibis.logging(session + "_" + scan,"Error: Unable to create dicom file",
+                          cmd=dcm2image_command,
+                          output=dcm2image_output)
             return False
 
         try:
