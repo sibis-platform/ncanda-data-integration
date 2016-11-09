@@ -30,6 +30,24 @@ def check_eid_file( eid_file_path, session_and_scan_string ):
 
     return False
 
+
+#
+# Checker whether date of file is newer than in xnat 
+#
+# Returns - True is file is newer 
+#
+def check_file_date(pipeline_file,xnat_file):
+    # File content still current?
+    try:
+        if os.path.getmtime(pipeline_file) > os.path.getmtime(xnat_file): 
+            return True
+    except:
+        # Something went wrong with open and/or read, so say file doesn't exist
+        pass
+
+    return False
+
+
 #
 # Export one series to pipeline tree, unless it already exists there
 #
@@ -44,6 +62,7 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
     to_path_pattern = os.path.join( to_directory, filename_pattern )
 
     # If filename is a pattern with substitution, check whether entire directory exists
+    pipeline_file="" 
     if '%' in filename_pattern:
         eid_file_path = os.path.join( to_directory, 'eid' )
         if os.path.exists( to_directory ):
@@ -53,7 +72,8 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
         eid_file_path = re.sub( '\.[^/]*', '.eid', to_path_pattern )
         if os.path.exists( to_path_pattern ) or os.path.exists( to_path_pattern + '.gz' ):
             if check_eid_file( eid_file_path, session_and_scan_list ):
-                return False
+                pipeline_file=to_path_pattern + ".xml"
+                # return False
 
     dicom_path_list = []
     for session_and_scan in session_and_scan_list.split( ' ' ):
@@ -63,6 +83,11 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
             dicom_path = match.group(1)
             if not os.path.exists( dicom_path ):
                 dicom_path = re.sub( 'storage/XNAT', 'ncanda-xnat', dicom_path )
+
+            if pipeline_file != "" :
+                xnat_file = re.sub( 'SCANS', 'RESOURCES/nifti/', dicom_path )
+                print  xnat_file
+                return False
 
             dicom_path_list.append( dicom_path )
 
