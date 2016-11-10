@@ -133,7 +133,7 @@ subject_data['siblings_id1'] = subject_data['siblings_id1'].map( lambda x: subje
 
 visit_log_fields = ['study_id', 'redcap_data_access_group', 'visit_date',
                     'mri_qa_completed', 'mri_t1_age', 'mri_dti_age',
-                    'mri_rsfmri_age']
+                    'mri_rsfmri_age','mri_scanner']
 visit_log_redcap = redcap_project.export_records(fields=visit_log_fields,
                                                  event_name='unique',
                                                  export_data_access_groups=True,

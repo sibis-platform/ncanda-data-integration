@@ -10,6 +10,7 @@ import re
 import glob
 import time
 import filecmp
+import sibis
 
 import pandas
 
@@ -102,6 +103,28 @@ def export(redcap_project, site, subject, event, subject_data, visit_age,
 
         # scanner manufacturer map
         mfg = dict(A='siemens', B='ge', C='ge', D='siemens', E='ge')
+        scanner_mfg = mfg[site] 
+        scanner_model = ''
+        mri_scanner = str(visit_data['mri_scanner'])
+        if mri_scanner != 'nan' :
+            mri_scanner= mri_scanner.upper()
+
+            if 'DISCOVERY MR750' in mri_scanner :
+                scanner_mfg = 'ge' 
+                scanner_model = 'MR750'
+            elif 'PRISMA_FIT' in mri_scanner :
+                scanner_mfg = 'siemens' 
+                scanner_model = 'Prisma_Fit'
+            elif 'TRIOTRIM' in mri_scanner or 'TRIOTIM' in mri_scanner:
+                scanner_mfg = 'siemens' 
+                scanner_model = 'TrioTrim'
+            else :
+                sibis.logging(subject, "Error: Do not know scanner type",
+                              script='export_redcap_to_pipeline.py',
+                              mri_scanner = visit_data['mri_scanner'],
+                              subject = subject_code,
+                              arm = arm_code,
+                              visit = visit_code)
 
         demographics = [
             ['subject', subject_code],
@@ -123,7 +146,8 @@ def export(redcap_project, site, subject, event, subject_data, visit_age,
             ['race', race_code],
             ['race_label', code_to_label_dict['race'][race_code]],
             ['participant_id', subject],
-            ['scanner', mfg[site]],
+            ['scanner', scanner_mfg], 
+            ['scanner_model', scanner_model],
         ]
 
         if race_code == '6':
