@@ -161,20 +161,24 @@ def unlock_form(project_name, arm_name, event_descrip, form_name, engine):
     locked_forms = locked_records[(locked_records.project_id == project_id) &
                                   (locked_records.event_id == event_id) &
                                   (locked_records.form_name == form_name)]
+
     # generate the list of ids to drop and remove from db table
     locked_list = ', '.join([str(i) for i in locked_forms.ld_id.values.tolist()])
     if locked_list:
         sql = 'DELETE FROM redcap_locking_data ' \
               'WHERE redcap_locking_data.ld_id IN ({0});'.format(locked_list)
         execute(sql, engine)
-
+        return True
+    else : 
+        print "Warning: Nothing to unlock or form '{0}' does not exist".format(form_name)
+        return False
 
 def lock_form(project_name, arm_name, event_descrip, form_name, username, outfile, engine):
     """
     Lock all records for a given form for a project and event
 
     :param project_name: str
-    :param arm_name: str
+    :param arm: str
     :param event_descrip: str
     :param form_name: str
     :param username: str (must have locking permissions)
@@ -198,10 +202,12 @@ def lock_form(project_name, arm_name, event_descrip, form_name, username, outfil
                            form_name=form_name_series,
                            username=username_series,
                            timestamp=datetime.datetime.now())
+
     dataframe = pd.DataFrame(data=locking_records)
     # first make sure all these forms are unlocked before locking
     unlock_form(project_name, arm_name, event_descrip, form_name, engine)
     # lock all the records for this form by appending entries to locking table
+    # Kilian: Problem this table is created regardless if the form really exists in redcap or not 
     dataframe.to_sql('redcap_locking_data', engine, if_exists='append', index=False)
     dataframe.record.to_csv(outfile, index=False)
 
@@ -255,8 +261,7 @@ def main(args=None):
         if args.unlock and not args.lock:
             if args.verbose:
                 print "Attempting to unlock form: {0}".format(args.form)
-            unlock_form(args.project, args.arm, args.event, args.form, engine)
-            if args.verbose:
+            if unlock_form(args.project, args.arm, args.event, args.form, engine) and args.verbose:
                 print "The {0} form has been unlocked".format(args.form)
         if args.verbose:
             print "Done!"
