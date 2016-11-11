@@ -71,7 +71,11 @@ def check_xml_file( xml_file, project, session, label ):
 
     # Print warnings if there were any
     if len( warnings ) > 0:
-        print "WARNINGS for %s/%s/%s:\n\t" % (project, session,label), '\n\t'.join( warnings )
+        warning = " ".join(warnings)
+        sibis.logging(label, warning,
+                      session_id=session,
+                      project=project,
+                      script='t1_qa_functions')
 
 
 # Run ADNI Phantom QA procedure on a single scan series
@@ -100,7 +104,7 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
         file = interface.select.project( project ).subject( subject ).experiment( session ).resource('QA').file( nii_file )
         file.insert( nii_file, format='nifti_gz', tags='qa,adni,nifti_gz', content='ADNI Phantom QA File', overwrite=True )
     except:
-        print "Something bad happened uploading file %s to Experiment %s/%s/%s" % (fname,project,session,label)
+        print "Something bad happened uploading file %s to Experiment %s/%s/%s" % (nii_file,project,session,label)
 
     # Run the PERL QA script and capture its output
     xml_file = 'phantom.xml'
@@ -135,7 +139,6 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
 def process_phantom_session( interface, project, subject, session, label, force_updates=False ):
     # Get the experiment object
     experiment = interface.select.experiment( session )
-
     # First, see if the QA files are already there
     files = experiment.resources().files().get()
     if force_updates or not (('t1.nii.gz' in files) and ('phantom.xml' in files) and ('phantom.nii.gz' in files)):
