@@ -4,6 +4,7 @@ import sys
 import glob
 import json
 import re
+import math 
 
 import numpy as np
 import pandas as pd
@@ -148,14 +149,14 @@ def get_ground_truth_gradients(scanner,scanner_model,decimals):
     test_event = 'baseline'
 
     scanner_u = scanner.upper()
-    if scanner == 'SIEMENS': 
+    if scanner_u == 'SIEMENS': 
         if scanner_model.split('_',1)[0].upper() == "PRISMA" :
             scanner_subject = 'NCANDA_S00689'
             test_event = 'followup_2y'
         else :
             scanner_subject = 'NCANDA_S00061'
 
-    elif scanner == 'GE': 
+    elif scanner_u == 'GE': 
         scanner_subject = 'NCANDA_S00033'
 
     else : 
@@ -255,8 +256,13 @@ def main(args=None):
     cases = get_cases(args.base_dir, arm=args.arm, event=args.event, case=args.case)
 
     if cases == [] : 
-      print "Error: Did not find any cases matching :" + args.base_dir + "/" + args.case + "/" + args.arm + "/" + args.event
-      sys.exit(1)
+        if args.case :
+            case=  args.case
+        else :
+            case = "*"
+
+        print "Error: Did not find any cases matching :" + "/".join([args.base_dir,case,args.arm,args.event])
+        sys.exit(1)
 
     # Demographics from pipeline to grab case to scanner mapping
     demo_path = '/fs/ncanda-share/pipeline/summaries/redcap/demographics.csv'
@@ -268,14 +274,30 @@ def main(args=None):
 
     for case in cases:
         # Get the case's site
+        dti_path = os.path.join(case, args.arm, args.event,'diffusion/native/dti60b1000')
+        if not os.path.exists(dti_path) :
+            if args.verbose:
+                print "Warning: " + dti_path + " does not exist!"
+
+            continue 
+
         if args.verbose:
-          print "Processing: " + case 
+            print "Processing: " + "/".join([case,args.arm, args.event])
+
         sid = os.path.basename(case)
-        site = demographics.xs([sid, args.arm, args.event])['site']
-        scanner = get_site_scanner(site)
-        key = os.path.join(case, args.arm, args.event,'diffusion/native/dti60b1000')
+        try:
+            scanner = demographics.xs([sid, args.arm, args.event])['scanner']
+            scanner_model = demographics.xs([sid, args.arm, args.event])['scanner_model']
+        except :
+            print "Error: case " + case + "," +  args.arm + "," + args.event +" not in " + demo_path +"!"
+            continue
+
+        if (isinstance(scanner, float) and math.isnan(scanner)) or (isinstance(scanner_model, float) and math.isnan(scanner_model)) :
+            print "Error: Did not find scanner or model for " + sid + "/" +  args.arm + "/" + args.event +" so cannot check gradient for that scan!"
+            continue
+
         xml_file_list = get_dti_stack(case, arm=args.arm, event=args.event)
-        check_diffusion(key,"",xml_file_list,scanner,"",args.decimals)
+        check_diffusion(dti_path,"",xml_file_list,scanner, scanner_model,args.decimals)
 
 if __name__ == '__main__':
     import argparse
@@ -293,7 +315,7 @@ if __name__ == '__main__':
                         default='/fs/ncanda-share/pipeline/cases')
     parser.add_argument('-d', '--decimals', dest="decimals",
                         help="Number of decimals. {}".format(default),
-                        default=3)
+                        default=2)
     parser.add_argument('-e', '--event', dest="event",
                         help="Study event. {}".format(default),
                         default='baseline')
