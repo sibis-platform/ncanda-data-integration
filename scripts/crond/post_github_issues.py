@@ -202,20 +202,29 @@ def create_issues(repo, title, body, verbose=None):
             subject_base = title[0:title.index(' (')]
             subject = subject_base + ": {0}".format(sha1)
             body = issue
-        if is_open_issue(repo, subject, verbose=verbose):
+        try:
+            open_issue = is_open_issue(repo, subject, verbose=verbose)
+        except Exception as e:
+            print '====================================='
+            print 'Error:post_github_issues: Failed to check for open issue on github'
+            print 'Title: ', subject
+            print 'Exception: ', str(e)
             pass
         else:
-            try:
-                github_issue = repo.create_issue(subject, body=body, labels=label)
-            except Exception as e:
-                print '====================================='
-                print 'Error:post_github_issues: Failed to post the following issue on github'
-                print 'Title: ', subject
-                print 'Body: ', body
-                print 'Exception: ', str(e)
+            if open_issue:
+                pass
             else:
-                if verbose:
-                    print "Created issue... See: {0}".format(github_issue.url)
+                try:
+                    github_issue = repo.create_issue(subject, body=body, labels=label)
+                except Exception as e:
+                    print '====================================='
+                    print 'Error:post_github_issues: Failed to post the following issue on github'
+                    print 'Title: ', subject
+                    print 'Body: ', body
+                    print 'Exception: ', str(e)
+                else:
+                    if verbose:
+                        print "Created issue... See: {0}".format(github_issue.url)
     return None
 
 
