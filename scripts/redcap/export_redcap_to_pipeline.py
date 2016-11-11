@@ -103,7 +103,7 @@ def export(redcap_project, site, subject, event, subject_data, visit_age,
 
         # scanner manufacturer map
         mfg = dict(A='siemens', B='ge', C='ge', D='siemens', E='ge')
-        scanner_mfg = mfg[site] 
+        scanner_mfg = ''
         scanner_model = ''
         mri_scanner = str(visit_data['mri_scanner'])
         if mri_scanner != 'nan' :
@@ -439,7 +439,11 @@ def create_datadicts(datadict_dir):
               '9, No Response'),
         participant_id=('text', '', 'Participant ID', '', '', ''),
         scanner=('dropdown', '', 'MRI Scanner Manufacturer', '', '',
-                 'ge, General Electric | siemens, Siemens'))
+                 'ge, General Electric | siemens, Siemens'),
+        scanner_model=('dropdown', '', 'MRI Scanner Model', '', '',
+                 'MR750, Discovery MR750 | Prisma_Fit, Prisma Fit | TrioTrim, TrioTrim'),
+    )
+    
     metadata_dict.update(elements)
 
     create_datadicts_general(datadict_dir, 'demographics', export_form_list,
