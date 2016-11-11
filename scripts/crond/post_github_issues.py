@@ -209,9 +209,9 @@ def create_issues(repo, title, body, verbose=None):
             print 'Error:post_github_issues: Failed to check for open issue on github'
             print 'Title: ', subject
             print 'Exception: ', str(e)
+            pass
         else:
             if open_issue:
-                print "already open"
                 pass
             else:
                 try:
