@@ -145,16 +145,7 @@ def get_sessions_in_range(xnat, subject_label, project_id, subject_id, date_rang
             for session_id, session_subject_id, projects, date, scanner in xnat_sessions_list:
                 if subject_id == session_subject_id and session_id in exceptions.itervalues():
                     sessions_in_range.append((session_id, projects, date))
-        elif today >= date_range_to:
-            error='No MR session for Subject {} between {} and {}'.format(subject_label,
-                                                                          date_range_from,
-                                                                          date_range_to)
-            sibis.logging(subject_label, error,
-                          project_id=project_id,
-                          subject_id=subject_id,
-                          experiment_site_id=subject_label,
-                          date_range_from=date_range_from,
-                          date_range_to=date_range_to)
+
     return sessions_in_range
 
 
@@ -332,18 +323,7 @@ def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_b
                                               xnat_sid,
                                               visit_date,
                                               visit_date_plusNd)
-    # # If no results are returned, try using sid and pid (e.g., this is used
-    # # when subjects switch sites)
-    # if not xnat_session_data:
-    #     xnat_sid = sid
-    #     xnat_pid = pid
-    #     xnat_session_data = get_sessions_in_range(xnat,
-    #                                               subject,
-    #                                               xnat_pid,
-    #                                               xnat_sid,
-    #                                               visit_date,
-    #                                               visit_date_plusNd)
-    # If subject changed sites sid was passed in
+
     if sid:
         result['mri_xnat_sid'] = sid
     else:
@@ -351,8 +331,10 @@ def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_b
 
     if verbose:
         print "XNAT Session Data:", xnat_session_data
+
     if not xnat_session_data:
         if today > visit_date_plusNd:
+            
             error='Missing MRI for Subject with visit date.'
             sibis.logging(xnat_sid,error,
                           project_id=xnat_pid,
@@ -534,7 +516,8 @@ visit_log_redcap = redcap_project.export_records(
             'mr_session_report_complete',
             'mri_xnat_sid',
             'mri_stroop_complete',
-            'mri_inspection'],
+            'mri_inspection',
+            'mri_missing'],
     event_name='unique',
     export_data_access_groups=True,
     format='df')
@@ -557,7 +540,7 @@ mri_events_list = form_event_mapping[form_event_mapping['form_name'] == 'mr_sess
 get_events = lambda x: x[1] in mri_events_list
 events_filter = visit_log_redcap.index.map(get_events)
 columns = ['visit_date', 'visit_ignore___yes', 'mr_session_report_complete',
-           'mri_xnat_sid', 'mri_inspection___completed']
+           'mri_xnat_sid', 'mri_inspection___completed', 'mri_missing']
 mr_sessions_redcap = visit_log_redcap[events_filter][columns]
 
 forms_by_event_dict = dict()
@@ -579,19 +562,24 @@ if args.missing_only:
 # Filter out all excluded subjects
 mr_sessions_redcap = mr_sessions_redcap[ mr_sessions_redcap.index.map( lambda key: False if subject_data['exclude'][key[0]] == 1 else True ) ]
 
+# Filter out all visits where the MR Session report is permanenetly missing 
+mr_sessions_redcap = mr_sessions_redcap[ ~(mr_sessions_redcap['mri_missing'] > 0) ]
+
 if args.verbose:
     print "Checking %d REDCap records." % len( mr_sessions_redcap )
 
 # Iterate over all remaining rows
 records_uploaded = 0
 for [key, row] in mr_sessions_redcap.iterrows():
+    # Need to drop it otherwise upload to redcap fails 
+    row = row.drop('mri_missing')
+
     visit_date = str(visit_log_redcap['visit_date'][key])
     if visit_date == 'nan':
         if float(row['visit_ignore___yes']) != 1:
             error = 'Missing visit date for subject with visit data.'
             sibis.logging(key[0], error,
-                          visit_id=key[1],
-                          visit_date=visit_date)
+                          visit_id=key[1])
     else:
         this_subject_data = subject_data.ix[key[0]]
         if str( this_subject_data['dob'] ) == 'nan':
