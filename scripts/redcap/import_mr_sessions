@@ -387,11 +387,12 @@ def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_b
     # scanner_model = xnat.select.experiment(xnat_eid).attrs.get(scanner_model_str)
     # scanner_mfc_str = 'xnat:mrSessionData/scanner/manufacturer'
     # scanner_mfc = xnat.select.experiment(xnat_eid).attrs.get(scanner_mfc_str)
-    # xnat.select.experiment(xnat_eid).attrs.get('scanner') 
-    field_regex = '.*<xnat:scanner manufacturer="(.*?)" model="(.*?)">(.*?)</xnat:scanner>'
+    # Does not work if the scanner label is actually not defined  
+    # field_regex = '.*<xnat:scanner manufacturer="(.*?)" model="(.*?)">(.*?)</xnat:scanner>'
+    field_regex = '.*<xnat:scanner manufacturer="(.*?)" model="(.*?)"'
     match = re.match(field_regex, xnat.select.experiment(xnat_eid).get(), flags=re.DOTALL)
     if match:
-       result['mri_scanner'] = match.group(1) + " " + match.group(2) + " " + match.group(3)
+        result['mri_scanner'] = match.group(1) + " " + match.group(2) + " " + str(xnat.select.experiment(xnat_eid).attrs.get('scanner'))
  
     # Get date and age for DTI scan (use DTI60 because DTI6 may be bad or missing, and fieldmap used instead)
     if 'dti60b1000' in scans_by_type.keys():
