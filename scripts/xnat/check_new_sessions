@@ -12,6 +12,7 @@ import sys
 import time
 import argparse
 import datetime
+import yaml
 
 import sibis
 import pyxnat
@@ -57,9 +58,17 @@ args = parser.parse_args()
 if args.eid:
     args.no_update = True
 
+
 # Create interface using stored configuration
 ifc = pyxnat.Interface(config=os.path.join(os.path.expanduser("~"),
                                            '.server_config/ncanda.cfg'))
+
+# Get sibis config 
+yml = os.path.join(os.path.expanduser("~"), '.server_config/config.yml')
+with open(yml, 'r') as fi:
+    sibis_config = yaml.load(fi).get('operations')
+if not sibis_config:
+    raise IOError("Please ensure config.yml file exists at: {}".format(yml))
 
 # Date format for XNAT dates
 xnat_date_format = '%Y-%m-%d %H:%M:%S'
@@ -322,6 +331,7 @@ def incomplete_scan_check(eid, manufacturer, label):
     scan_types_set = set(scan_types)
     ge_scan_types = set(scan_type_dictionary['GE MEDICAL SYSTEMS'])
     siemens_scan_types = set(scan_type_dictionary['SIEMENS'])
+    siemens_gradient_flag = False
 
     if manufacturer == 'GE MEDICAL SYSTEMS':
         if ge_scan_types.issubset(scan_types_set):
@@ -340,12 +350,30 @@ def incomplete_scan_check(eid, manufacturer, label):
                # if field was present 1 time, we want to mark it as one more
                # field with same name is missing
                missing_scans.append('ncanda-grefieldmap-v1')
+               siemens_gradient_flag = True
     else:
         return sibis.logging(eid,
                              'Do not support manufacturer {}'.format(manufacturer))
     if missing_scans:
+        # Lets see if missing_scans are part of exception 
+        with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
+            missing_scan_map = yaml.load(fi).get('incomplete_sessions')
+            missing_scans_exception = missing_scan_map.get(label)
+            if missing_scans_exception:
+                missing_scans_exception_list = missing_scans_exception.split(',')
+                missing_scans = list(set(missing_scans).difference(missing_scans_exception_list))
+                print missing_scans
+                if missing_scans == [] : 
+                    if args.verbose:
+                        print label, ": All sissing scans are excepted!" 
+                    return 
+ 
+        err_msg = 'ERROR: Missing scans from Session!'
+        if siemens_gradient_flag :
+            err_msg += "Note, Siemens scans require two 'ncanda-grefieldmap-v1'" 
+
         return sibis.logging(eid,
-                             'ERROR: Missing scans from Session',
+                             err_msg,
                              scan_session_label=label,
                              manufacturer=manufacturer,
                              missing_scans=', '.join(missing_scans))
