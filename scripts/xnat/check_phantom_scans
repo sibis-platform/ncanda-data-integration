@@ -160,12 +160,17 @@ def check_experiment(experiment):
         with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
             site_change_map = yaml.load(fi).get('site_change')
             phantom_scan_map = site_change_map.get('check_phantom_scans')
+
         changed_sites_phantom = phantom_scan_map.get(experiment_label)
         try:
-            phantom_label = "%s-99999-P-9" % subject_label_match.group(1)
+            # If the subject changed sites, then use the correct site phantom ID.
             if changed_sites_phantom:
-                # If the subject changed sites, then use the correct site phantom ID.
                 phantom_label = changed_sites_phantom
+                if args.verbose:
+                    print "Phantom switched sites - checking ", phantom_label
+            else : 
+                phantom_label = "%s-99999-P-9" % subject_label_match.group(1)
+
             phantom_id = ifc.select.project(prj).subject( phantom_label ).attrs.get('ID')
             phantom_scans = ifc.array.experiments(experiment_type='xnat:mrSessionData', constraints={ 'xnat:mrSessionData/subject_id':phantom_id, 'date': edate})
             # handle check for phantoms on the same day but wrong scanner
@@ -184,11 +189,13 @@ def check_experiment(experiment):
             elif len(phantom_scans) == 0:
                 find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified, phantom_id, edate, etime, scanner)
         except IndexError, e:
-            error="ERROR: Subject likely switched sites. {}".format(e)
+            error="ERROR: Subject likely switched sites if site_id > NCANDA_S01010 and changed_sites_phantom = None"
             sibis.logging(experiment_label,error,
-                         site_id=sid,
-                         project=prj,
-                         subject_experiment_id=seid)
+                          site_id=sid,
+                          project=prj,
+                          changed_sites_phantom = str(changed_sites_phantom),
+                          subject_experiment_id=seid,
+                          error_msg = str(e) )
 
 experiment_ids = list()
 if args.eid:
