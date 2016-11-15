@@ -564,6 +564,11 @@ if args.missing_only:
 mr_sessions_redcap = mr_sessions_redcap[ mr_sessions_redcap.index.map( lambda key: False if subject_data['exclude'][key[0]] == 1 else True ) ]
 
 # Filter out all visits where the MR Session report is permanenetly missing 
+if mr_sessions_redcap.empty : 
+    if args.verbose:
+        print "Warning: Nothing to import !" 
+    sys.exit()
+
 mr_sessions_redcap = mr_sessions_redcap[ ~(mr_sessions_redcap['mri_missing'] > 0) ]
 
 if args.verbose:
