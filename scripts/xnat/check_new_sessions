@@ -365,7 +365,7 @@ def incomplete_scan_check(eid, manufacturer, label):
                 print missing_scans
                 if missing_scans == [] : 
                     if args.verbose:
-                        print label, ": All sissing scans are excepted!" 
+                        print label, ": All missing scans are excepted!" 
                     return 
  
         err_msg = 'ERROR: Missing scans from Session!'
