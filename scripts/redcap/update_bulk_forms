@@ -12,7 +12,7 @@ import hashlib
 import requests
 import argparse
 
-from sibisBeta import logger
+from sibisBeta import sibislogger
 import pandas
 import redcap
 
@@ -28,7 +28,7 @@ args = parser.parse_args()
 # this should be defined centrally not hard coded
 redcap_server='https://ncanda.sri.com/redcap/api/'
 # Object class Logging from sibisBeta
-log = logger.Logging()
+log = sibislogger.sibisLogging()
 
 # First REDCap connection for the Summary project (this is where we put data)
 def connect_to_redcap():
