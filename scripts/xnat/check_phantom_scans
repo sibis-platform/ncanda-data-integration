@@ -180,11 +180,10 @@ def check_experiment(experiment):
                 print "Phantom scans: {0}".format(phantom_scans)
             if scanner not in phantom_scanners and len(phantom_scans) != 0:
 
-                err = "Error: {0} - scanner mismatch for session {1} and phantom {2};".format(prj, experiment_label, eids)
-                err += "Session scanner: {0};".format(scanner)
-                err += "Phantom scanner(s): {0}".format(phantom_scanners)
+                err = "Error: {0} - scanner mismatch for session {1} (scanner: {2}) and phantom {3} (scanner: {4}).".format(prj, experiment_label, scanner, eids, phantom_scanners)
                 sibis.logging(experiment_label,err,
-                              experiment_id = eids,
+                              phantom_experiment_id = eids,
+                              
                               project = prj)
             elif len(phantom_scans) == 0:
                 find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified, phantom_id, edate, etime, scanner)
