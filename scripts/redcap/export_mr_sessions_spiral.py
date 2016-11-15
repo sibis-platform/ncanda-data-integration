@@ -53,6 +53,8 @@ def export_spiral_files(xnat, resource_location, to_directory, stroop=(None, Non
 def do_export_spiral_files(xnat, resource_location, to_directory, spiral_nifti_out, tmpdir, verbose=None):
     # Do the actual export using a temporary directory that is managed by the caller
     # (simplifies its removal regardless of exit taken)
+    # print "do_export_spiral_files" , str(xnat), str(resource_location), str(to_directory), str(spiral_nifti_out), xnat_eid, str(resource_id), str(resource_file_bname)
+
     [xnat_eid, resource_id, resource_file_bname] = resource_location.split('/')
     tmp_file_path = xnat.select.experiment(xnat_eid).resource(resource_id).file(resource_file_bname).get_copy(os.path.join(tmpdir, "pfiles.tar.gz"))
 
@@ -76,10 +78,11 @@ def do_export_spiral_files(xnat, resource_location, to_directory, spiral_nifti_o
 
     physio_files = glob_for_files_recursive(tmpdir, pattern="P*.physio")
     if len(physio_files) > 1:
-        error = 'More than one physio file found.'
+        error = 'More than one physio file found in spiral tar file.'
         sibis.logging(xnat_eid,error,
-                     tmp_file_path=tmp_file_path,
-                     physio_files=physio_files)
+                      tmp_file_path=tmp_file_path,
+                      physio_files=physio_files,
+                      spiral_tar_file=resource_location)
         return False
 
     if len(spiral_E_files) == 1:
