@@ -116,8 +116,8 @@ def export_to_nifti(interface, project, subject, session, session_label,
                               subject=subject,
                               scan_number=scan,
                               scan_type=scantype,
-                              timestamp_dicom = dicom_time
-                              timestamp_nifti = nifti_time
+                              timestamp_dicom = dicom_time,
+                              timestamp_nifti = nifti_time,
                               dicom_log_file=nifti_log_search[0])
             
 

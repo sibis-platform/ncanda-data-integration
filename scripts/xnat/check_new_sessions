@@ -79,6 +79,7 @@ now_str = time.strftime(xnat_date_format)
 experiments_to_check = []
 
 # Date (and time) when we last checked things
+# By default 1969 
 date_last_checked = time.localtime(0)
 
 config_uri = '/data/config/pyxnat/check_new_sessions'
