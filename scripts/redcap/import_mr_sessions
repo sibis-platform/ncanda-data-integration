@@ -42,8 +42,8 @@ parser.add_argument("--site",
                     help="Limit processing by site (SRI, UCSD, OHSU, UPMC, DUKE). Multiple sites can be listed, separated by comma (',')",
                     action="store",
                     default=None )
-parser.add_argument("--site-id",
-                    help="Limit processing by site id (e.g., A-00000-F-1)",
+parser.add_argument("--study-id",
+                    help="Limit processing to subject id (e.g., A-00000-F-1)",
                     action="store",
                     default=None)
 parser.add_argument("--pipeline-root-dir",
@@ -551,10 +551,10 @@ if args.site:
     visit_log_redcap = visit_log_redcap[ visit_log_redcap['redcap_data_access_group'].map( lambda dag: dag in sites ) ]
 
 # Limit export by site id (e.g., A-00000-F-1)
-if args.site_id:
-    visit_log_redcap = visit_log_redcap.xs(args.site_id)
+if args.study_id:
+    visit_log_redcap = visit_log_redcap.xs(args.study_id)
     visit_log_redcap.reset_index(inplace=True)
-    visit_log_redcap['study_id'] = args.site_id
+    visit_log_redcap['study_id'] = args.study_id
     visit_log_redcap.set_index(['study_id', 'redcap_event_name'],
                                inplace=True)
 
