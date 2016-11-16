@@ -362,7 +362,6 @@ def incomplete_scan_check(eid, manufacturer, label):
             if missing_scans_exception:
                 missing_scans_exception_list = missing_scans_exception.split(',')
                 missing_scans = list(set(missing_scans).difference(missing_scans_exception_list))
-                print missing_scans
                 if missing_scans == [] : 
                     if args.verbose:
                         print label, ": All missing scans are excepted!" 
