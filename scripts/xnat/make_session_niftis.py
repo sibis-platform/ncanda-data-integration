@@ -14,7 +14,7 @@ import numpy
 import re
 import sibis
 import check_gradient_tables as cgt
-
+import time 
 
 #
 # Verify image count in temp directory created by dcm2image
@@ -102,18 +102,22 @@ def export_to_nifti(interface, project, subject, session, session_label,
                                   dicom_log_file=dicom_file_pattern)
                     return error_msg
 
-                # check time stamp - if newer than there is nothing to do 
-                if os.path.getmtime(nifti_log_search[0]) > os.path.getmtime(dicom_file[0]) :
+                # check time stamp - if newer than there is nothing to do
+                nifti_time = time.strftime('%Y-%m-%d %H:%m:%S',time.gmtime(os.path.getmtime(nifti_log_search[0])))
+                dicom_time = time.strftime('%Y-%m-%d %H:%m:%S',time.gmtime(os.path.getmtime(dicom_file[0])))
+                if nifti_time > dicom_time  :
                     if verbose:
                         print("... nothing to do as nifti files are up to date")
                     return error_msg
 
 
-                sibis.logging(session_label, "Warning: nifti and corresponding xml files seem outdated so they are recreated",
+                sibis.logging(session_label + "_" + scan, "Warning: nifti and corresponding xml files seem outdated so they are recreated (dicom > nifti time)",
                               session=session,
                               subject=subject,
                               scan_number=scan,
                               scan_type=scantype,
+                              timestamp_dicom = dicom_time
+                              timestamp_nifti = nifti_time
                               dicom_log_file=nifti_log_search[0])
             
 
