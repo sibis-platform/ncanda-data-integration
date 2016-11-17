@@ -15,6 +15,7 @@ import re
 import sibis
 import check_gradient_tables as cgt
 import time 
+import sys 
 
 #
 # Verify image count in temp directory created by dcm2image
@@ -89,12 +90,14 @@ def export_to_nifti(interface, project, subject, session, session_label,
             # if nifti files were created make sure that they are newer than dicom file otherwise recreate them  
             nifti_log_search = glob.glob(re.sub('/DICOM/','_%s/dcm2image.log' % (scantype),re.sub( '/SCANS/', '/RESOURCES/nifti/', dicom_path)))
             if  nifti_log_search != [] :
-                dicom_file_pattern = dicom_path + 'scan_' + scan + '_catalog.xml'
-                dicom_file = glob.glob(dicom_file_pattern)
+                dicom_file_pattern = dicom_path + '*.*'
+                dicom_file_list = glob.glob(dicom_file_pattern)
+                # ommit xml file - so that only dicom  files are left - xml file is updated every time somebody changes something in the gui for that session - which has no meaning for xml file 
+                dicom_file_list =  [x for x in dicom_file_list if '.xml' not in x ]
 
                 # if dicom file is not there something odd is going on
-                if dicom_file == [] :
-                    sibis.logging(session_label, "Error: could not find xnat's scan catalog.xml file ",
+                if dicom_file_list == [] :
+                    sibis.logging(session_label, "Error: could not find dicom files ",
                                   session=session,
                                   subject=subject,
                                   scan_number=scan,
@@ -104,7 +107,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
 
                 # check time stamp - if newer than there is nothing to do
                 nifti_time = time.strftime('%Y-%m-%d %H:%m:%S',time.gmtime(os.path.getmtime(nifti_log_search[0])))
-                dicom_time = time.strftime('%Y-%m-%d %H:%m:%S',time.gmtime(os.path.getmtime(dicom_file[0])))
+                dicom_time = time.strftime('%Y-%m-%d %H:%m:%S',time.gmtime(os.path.getmtime(dicom_file_list[0])))
                 if nifti_time > dicom_time  :
                     if verbose:
                         print("... nothing to do as nifti files are up to date")
@@ -119,7 +122,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
                               timestamp_dicom = dicom_time,
                               timestamp_nifti = nifti_time,
                               dicom_log_file=nifti_log_search[0])
-            
+                sys.exit(0)
 
             temp_dir = tempfile.mkdtemp()
             zip_path = '%s/%s_%s.zip' % (temp_dir, scan, scantype)
