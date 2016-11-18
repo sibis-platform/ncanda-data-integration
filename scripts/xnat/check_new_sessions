@@ -414,7 +414,7 @@ def voxelRes_check(eid, manufacturer, label):
     error = []
     for scan in scans:
         scan_res = [ifc.select.experiment(eid).scan(scan).attrs.get('type'),
-                    voxelres_get(eid, scan)]
+                    voxelres_get(eid, scan),scan]
         voxel_res.append(scan_res)
     if manufacturer == 'GE MEDICAL SYSTEMS':
         for v in voxel_res:
@@ -424,7 +424,8 @@ def voxelRes_check(eid, manufacturer, label):
                     error.append({'field': 'Voxel Resolution',
                                   'scan_type': v[0],
                                   'voxel_res': v[1],
-                                  'expected_voxel_res': voxelres_ge[v[0]]})
+                                  'expected_voxel_res': voxelres_ge[v[0]],
+                                  'scan_id': v[2]})
     elif manufacturer == 'SIEMENS':
         for v in voxel_res:
             if v[0] in scan_type_dictionary['SIEMENS']:
@@ -433,7 +434,8 @@ def voxelRes_check(eid, manufacturer, label):
                     error.append({'field': 'Voxel Resolution',
                                   'scan_type': v[0],
                                   'voxel_res': v[1],
-                                  'expected_voxel_res': voxelres_siemens[v[0]]})
+                                  'expected_voxel_res': voxelres_siemens[v[0]],
+                                  'scan_id': v[2]})
     return error
 
 frame_check_siemens = {'ncanda-mprage-v1': '160',
@@ -465,7 +467,8 @@ def frame_check(eid, manufacturer, label):
                 if frame_check_ge[f[0]] != f[1]:
                     error.append({'scan_type': f[0],
                                   'frames': f[1],
-                                  'expected_frames': frame_check_ge[f[0]]})
+                                  'expected_frames': frame_check_ge[f[0]],
+                                  'scan_id': scan})
     elif manufacturer == 'SIEMENS':
         # Variable frames has two grefieldmap keys, change to one key and list of values.
         # Extract values list -> ['64', '128']
@@ -483,12 +486,14 @@ def frame_check(eid, manufacturer, label):
                 if not f[1] in ('7', '8'):
                     error.append({'scan_type': f[0],
                                   'frames': f[1],
-                                  'expected_frames': frame_check_siemens[f[0]]})
+                                  'expected_frames': frame_check_siemens[f[0]],
+                                  'scan_id': scan})
             elif f[1] != frame_check_siemens[f[0]]:
                 # Some of the required frames are missing
                 error.append({'scan_type': f[0],
                               'frames': f[1],
-                              'expected_frames': frame_check_siemens[f[0]]})
+                              'expected_frames': frame_check_siemens[f[0]],
+                              'scan_id': scan})
     return error
 
 

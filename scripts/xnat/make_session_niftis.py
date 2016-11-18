@@ -114,15 +114,12 @@ def export_to_nifti(interface, project, subject, session, session_label,
                     return error_msg
 
 
-                sibis.logging(session_label + "_" + scan, "Warning: nifti and corresponding xml files seem outdated so they are recreated (dicom > nifti time)",
+                sibis.logging(session_label + "_" + scan, "Warning: nifti and corresponding xml files seem outdated so they are recreated (dicom > nifti time). If the issue reappears then simply open up the session in  XNAT, go to 'Manage Files', delete the directory 'Resources/nifti/" + scantype + "', and run the script again. If it still reappears then repeat the previous procedure and afterwards delete the directory that the log file in check_nifti is located!",
                               session=session,
                               subject=subject,
-                              scan_number=scan,
-                              scan_type=scantype,
-                              timestamp_dicom = dicom_time,
-                              timestamp_nifti = nifti_time,
-                              dicom_log_file=nifti_log_search[0])
-                sys.exit(0)
+                              check_nifti = str(nifti_time) + " " +  str(nifti_log_search[0]),
+                              check_dicom = str(dicom_time) + " " + str(dicom_file_list[0])
+                )
 
             temp_dir = tempfile.mkdtemp()
             zip_path = '%s/%s_%s.zip' % (temp_dir, scan, scantype)
@@ -134,12 +131,11 @@ def export_to_nifti(interface, project, subject, session, session_label,
                                 '-rvxO %s/%s_%s/image%%n.nii %s 2>&1' % (
                                     temp_dir, scan, scantype, dicom_path)
 
+            output = ""
             try:
                 output = subprocess.check_output(dcm2image_command,
                                                      shell=True)
             except:
-                if not output :
-                    output = ""
                 error_msg.append(
                     "The following command failed %s with the following output %s" % dcm2image_command,output)
 

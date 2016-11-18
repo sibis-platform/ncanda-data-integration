@@ -343,6 +343,52 @@ def batch(iterable, n=1):
         l = len(iterable)
         for ndx in range(0, l, n):
             yield iterable[ndx:min(ndx + n, l)]
+
+#
+# Check why form is missing
+#
+def MissingFormChecks(vdate):
+    import_subject_list=imported_records[map(lambda match: key[0] in match, imported_records.index.tolist())]
+    mismatch_list = []
+    for session_id,subject_id in zip(import_subject_list.index.tolist(),import_subject_list[subject_label]):  
+        if session_id[0:-11].upper() !=  subject_id.upper() :
+            mismatch_list.append([session_id.upper(), subject_id])
+            
+    if mismatch_list != [] :
+        sibis.logging("{}-{}".format(key[0], vdate), 'Error: Mismatch between session ids and subject ids for specific form !',
+                      form = form_name,
+                      session_and_subject_id = "\n".join(str(v) for v in mismatch_list))
+        return 
+
+    session_id = "{}-{}".format(key[0], vdate)
+    if session_id in original_complete_records.index : 
+        if not original_complete_records[complete_label][session_id]:
+            sibis.logging(session_id, 'Error: The status of a form in the Input project is incomplete while it is unverified or complete in the Entry project!',
+                  entry_subject_id=key[0],
+                  form_name=form_name,
+                  event_id=key[1],
+                  import_visit_dates=records_this_subject[date_label].to_string(),
+                  target_visit_date=vdate)
+            return 
+
+        if not original_complete_records[exclude_label][session_id] :
+            sibis.logging(session_id, 'Error: The form in the Input project is excluded while it is not in the entry project!',
+                  entry_subject_id=key[0],
+                  form_name=form_name,
+                  event_id=key[1],
+                  import_visit_dates=records_this_subject[date_label].to_string(),
+                  target_visit_date=vdate)
+            return 
+
+            
+    sibis.logging(session_id, 'WARNING: Previously assigned form seems to have disappered. Not sure what happened - most likely the visit date is wrongly defined!',
+                  entry_subject_id=key[0],
+                  form_name=form_name,
+                  event_id=key[1],
+                  import_visit_dates=records_this_subject[date_label].to_string(),
+                  target_visit_date=vdate)
+
+
 #
 # MAIN LOOP
 #
@@ -363,15 +409,15 @@ for form_prefix, form_name in forms.iteritems():
     #
     # First, get "complete" and "exclude" fields for this form for all records to
     # find which ones actually have data and are not excluded.
-    complete_records = rc_import.export_records( fields = [ complete_label, exclude_label ], format='df' )
+    original_complete_records = rc_import.export_records( fields = [ complete_label, exclude_label ], format='df' )
     # Drop all empty form records
-    complete_records = complete_records[ complete_records[complete_label] > 0 ]
+    complete_records = original_complete_records[ original_complete_records[complete_label] > 0 ]
     # Also drop "excluded" records for speed
     complete_records = complete_records[ complete_records[exclude_label] != 1 ]
     if args.study_id :
         complete_records = complete_records[map(lambda match: args.study_id in match, complete_records.index.tolist())]
         if args.verbose:
-            print "Record List", str(complete_records.index.tolist())
+            print "Record list from Import project:", str(complete_records.index.tolist())
 
     if len( complete_records ) == 0:
         if args.verbose:
@@ -397,7 +443,7 @@ for form_prefix, form_name in forms.iteritems():
 
     imported_records = pandas.concat(returned_records)
     if args.verbose:
-        print "Form {} has {} records.".format(forms, len(imported_records))
+        print "Form {} has {} records in import project.".format(forms, len(imported_records))
 
     # From the index, extract the original subject ID and date from each imported
     # record IO and use these wherever not overridden by manually-entered values
@@ -435,13 +481,12 @@ for form_prefix, form_name in forms.iteritems():
     elif not args.update_all:
         existing_form_data = existing_form_data[ ~(existing_form_data[complete_label] > 1)]
 
-    # Go over all summary records (i.e., the visit log) and find corresponding imported records
+    # Go over all summary records (i.e., the visit log) from entry project and find corresponding imported records
     for key, row in existing_form_data.iterrows():
         if args.verbose :
             print "Processing", key
         # Select imported records for this subject
         records_this_subject = imported_records[ imported_records[subject_label] == key[0] ].drop( [subject_label], axis=1 )
-
         # Arms 1/3 - Get the visit date for this record
         visit_date = str(row['visit_date'])
         subject_age = get_subject_age( key[0], visit_date )
@@ -474,10 +519,10 @@ for form_prefix, form_name in forms.iteritems():
                 if records_this_visit.ix[0]['days_from_visit'] == records_this_visit.ix[1]['days_from_visit']:
                     error ='ERROR: more than one closest record'
                     sibis.logging("{}-{}".format(key[0], visit_date), error,
-                                    subject_id = key[0],
-                                    form_name = form_name,
-                                    event_id = key[1],
-                                    visit_date = visit_date)
+                                  subject_id = key[0],
+                                  form_name = form_name,
+                                  event_id = key[1],
+                                  visit_date = visit_date)
                 else:
                     # Unique by proximity to visit_date - upload record that is closest
                     records_this_visit.drop( ['days_from_visit'], axis=1 )
@@ -494,12 +539,8 @@ for form_prefix, form_name in forms.iteritems():
             # We absolutely have no records to assign - check now if one had been assigned
             # previously and somehow disappeared
             elif (existing_form_data[complete_label][key] > 0) and (existing_form_data[missing_label][key] != 1):
-                error = 'WARNING: Previously assigned form appears to have disappered.'
-                sibis.logging("{}-{}".format(key[0], visit_date), error,
-                                 subject_id=key[0],
-                                 form_name=form_name,
-                                 event_id=key[1],
-                                 visit_date=visit_date)
+                MissingFormChecks(visit_date)
+
                 if args.reset_disappeared:
                     total_uploaded += add_empty_to_upload( form_prefix, form_name, key[0], key[1] )
 
@@ -527,12 +568,7 @@ for form_prefix, form_name in forms.iteritems():
                 elif len(records_this_visit) == 1:
                     total_uploaded += add_to_upload(form_prefix, form_name, key[0], key[1], records_this_visit.ix[0], subject_age)
                 elif (existing_form_data[complete_label][key] > 0) and (existing_form_data[missing_label][key] != 1):
-                    error = 'WARNING: Previously assigned form has disappered.'
-                    sibis.logging("{}-{}".format(key[0], form_target_date), error,
-                                 subject_id=key[0],
-                                 form_name=form_name,
-                                 event_id=key[1],
-                                 visit_date=form_target_date)
+                    MissingFormChecks(form_target_date)
 
                     if args.reset_disappeared:
                         total_uploaded += add_empty_to_upload(form_prefix, form_name, key[0], key[1])
