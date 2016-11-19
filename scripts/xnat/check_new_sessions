@@ -353,8 +353,9 @@ def incomplete_scan_check(eid, manufacturer, label):
                missing_scans.append('ncanda-grefieldmap-v1')
                siemens_gradient_flag = True
     else:
-        return sibis.logging(eid,
-                             'Do not support manufacturer {}'.format(manufacturer))
+        sibis.logging(eid,'Do not support manufacturer {}'.format(manufacturer))
+        return 
+
     if missing_scans:
         # Lets see if missing_scans are part of exception 
         with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
@@ -372,11 +373,12 @@ def incomplete_scan_check(eid, manufacturer, label):
         if siemens_gradient_flag :
             err_msg += "Note, Siemens scans require two 'ncanda-grefieldmap-v1'" 
 
-        return sibis.logging(eid,
-                             err_msg,
-                             scan_session_label=label,
-                             manufacturer=manufacturer,
-                             missing_scans=', '.join(missing_scans))
+        sibis.logging(eid,
+                      err_msg,
+                      scan_session_label=label,
+                      manufacturer=manufacturer,
+                      missing_scans=', '.join(missing_scans))
+        return False
 
 def voxelres_get(eid, scan):
         scan_info = ifc.select.experiment(eid).scan(scan).get()
@@ -499,21 +501,37 @@ def frame_check(eid, manufacturer, label):
 
 def mri_quality_check(eid, manufacturer, label):
     errors = []
-    for e in frame_check(eid, manufacturer, label):
-        if e:
-            errors.append(e)
-    for e in voxelRes_check(eid, manufacturer, label):
-        if e:
-            errors.append(e)
+
+    try: 
+        for e in frame_check(eid, manufacturer, label):
+            if e:
+                errors.append(e)
+        
+        for e in voxelRes_check(eid, manufacturer, label):
+            if e:
+                errors.append(e)
+
+    except e: 
+        sibis.logging(eid,
+                      'ERROR: mri_quality_check failed with the following message:',
+                      manufacturer = str(manufacturer), 
+                      scan_session_label=str(label),
+                      err_msg=str(e))
+        return False
+
     if errors:
-        return sibis.logging(eid,
-                             'ERROR: Failed to match standard frames',
-                             scan_session_label=label,
-                             violations=errors)
+        sibis.logging(eid,
+                      'ERROR: Failed to match standard frames',
+                      scan_session_label=label,
+                      violations=errors)
+        return False
+
+    return True
+    
 #
 # Main loop
 #
-
+print "All sessions:",  str(sessions_to_check)
 for (eid, project, subject, insert_date,
      session_label, last_modified) in sessions_to_check:
     if args.verbose:
@@ -612,12 +630,8 @@ for (eid, project, subject, insert_date,
     label = ifc.select.experiment(eid).attrs.get(scanner_label)
 
     if not label_check(label):
-        error = incomplete_scan_check(eid, manufacturer, label)
-        if error:
-            print error
-        error = mri_quality_check(eid, manufacturer, label)
-        if error:
-            print error
+        incomplete_scan_check(eid, manufacturer, label)
+        mri_quality_check(eid, manufacturer, label)
 
     # failed dti te comparison
     failed_dti = check_dti(ifc, eid, dti_scans)
