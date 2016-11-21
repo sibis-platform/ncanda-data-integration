@@ -421,23 +421,41 @@ def voxelRes_check(eid, manufacturer, label):
     if manufacturer == 'GE MEDICAL SYSTEMS':
         for v in voxel_res:
             if v[0] in scan_type_dictionary['GE MEDICAL SYSTEMS']:
-                match = re.match(voxelres_ge[v[0]], v[1], flags=re.DOTALL)
-                if not match:
-                    error.append({'field': 'Voxel Resolution',
-                                  'scan_type': v[0],
-                                  'voxel_res': v[1],
+                try: 
+                    match = re.match(voxelres_ge[v[0]], v[1], flags=re.DOTALL)
+                    if not match:
+                        error.append({'field': 'Voxel Resolution',
+                                      'scan_type': v[0],
+                                      'voxel_res': v[1],
+                                      'expected_voxel_res': voxelres_ge[v[0]],
+                                      'scan_id': v[2]})
+                except Exception as err_msg: 
+                    error.append({'field': 'Could not check voxel resolution',
+                                  'scan_type': str(v[0]),
+                                  'voxel_res': str(v[1]),
                                   'expected_voxel_res': voxelres_ge[v[0]],
-                                  'scan_id': v[2]})
+                                  'scan_id': str(v[2]),
+                                  'err_msg' : str(err_msg)})
+
     elif manufacturer == 'SIEMENS':
         for v in voxel_res:
             if v[0] in scan_type_dictionary['SIEMENS']:
-                match = re.match(voxelres_siemens[v[0]], v[1], flags=re.DOTALL)
-                if not match:
-                    error.append({'field': 'Voxel Resolution',
-                                  'scan_type': v[0],
-                                  'voxel_res': v[1],
-                                  'expected_voxel_res': voxelres_siemens[v[0]],
-                                  'scan_id': v[2]})
+                try :
+                    match = re.match(voxelres_siemens[v[0]], v[1], flags=re.DOTALL)
+                    if not match:
+                        error.append({'field': 'Voxel Resolution',
+                                      'scan_type': v[0],
+                                      'voxel_res': v[1],
+                                      'expected_voxel_res': voxelres_siemens[v[0]],
+                                      'scan_id': v[2]})
+                except Exception as err_msg: 
+                    error.append({'field': 'Could not check voxel resolution',
+                                  'scan_type': str(v[0]),
+                                  'voxel_res': str(v[1]),
+                                  'expected_voxel_res': voxelres_ge[v[0]],
+                                  'scan_id': str(v[2]),
+                                  'err_msg' : str(err_msg)})
+
     return error
 
 frame_check_siemens = {'ncanda-mprage-v1': '160',
@@ -502,28 +520,19 @@ def frame_check(eid, manufacturer, label):
 def mri_quality_check(eid, manufacturer, label):
     errors = []
 
-    try: 
-        for e in frame_check(eid, manufacturer, label):
-            if e:
-                errors.append(e)
+    for e in frame_check(eid, manufacturer, label):
+        if e:
+            errors.append(e)
         
-        for e in voxelRes_check(eid, manufacturer, label):
-            if e:
-                errors.append(e)
-
-    except e: 
-        sibis.logging(eid,
-                      'ERROR: mri_quality_check failed with the following message:',
-                      manufacturer = str(manufacturer), 
-                      scan_session_label=str(label),
-                      err_msg=str(e))
-        return False
+    for e in voxelRes_check(eid, manufacturer, label):
+        if e:
+            errors.append(e)
 
     if errors:
         sibis.logging(eid,
                       'ERROR: Failed to match standard frames',
                       scan_session_label=label,
-                      violations=errors)
+                      violations=str(errors))
         return False
 
     return True
@@ -531,7 +540,15 @@ def mri_quality_check(eid, manufacturer, label):
 #
 # Main loop
 #
-print "All sessions:",  str(sessions_to_check)
+
+# Start from where session last broke down 
+# index = 0 
+# for session  in sessions_to_check:
+#    if session[0] == 'NCANDA_E02627' :
+#        break
+#    index += 1
+# sessions_to_check = sessions_to_check[index+1:]
+
 for (eid, project, subject, insert_date,
      session_label, last_modified) in sessions_to_check:
     if args.verbose:
