@@ -15,7 +15,7 @@ with.
 Example Usage:
 
 python post_github_issues.py -o sibis-platform -r ncanda-issues \
-                             -t "NCANDA: Laptop Data (update_visit_date)" \
+                             -t "NCANDA: Laptop Data (update_visit_data)" \
                              -b /tmp/test.txt -v
 """
 import os
