@@ -490,14 +490,6 @@ def frame_check(eid, manufacturer, label):
                                   'expected_frames': frame_check_ge[f[0]],
                                   'scan_id': scan})
     elif manufacturer == 'SIEMENS':
-        # Variable frames has two grefieldmap keys, change to one key and list of values.
-        # Extract values list -> ['64', '128']
-        grefieldmap_list = ['ncanda-grefieldmap-v1', [v for (k, v) in frames if k == 'ncanda-grefieldmap-v1']]
-        # Sort number of frames for later comparison
-        grefieldmap_list[1].sort(lambda x, y: int(x) - int(y))
-        # Change all frames with fixed grefieldmap
-        frames = filter(lambda x: x[0] != 'ncanda-grefieldmap-v1', frames) + [grefieldmap_list]
-
         for f in frames:
             if f[0] not in scan_type_dictionary['SIEMENS']:
                 continue 
@@ -508,6 +500,14 @@ def frame_check(eid, manufacturer, label):
                                   'frames': f[1],
                                   'expected_frames': frame_check_siemens[f[0]],
                                   'scan_id': scan})
+            elif f[0] == 'ncanda-grefieldmap-v1':
+                # Variable frames has two grefieldmap keys, change to one key and list of values.
+                # Extract values list -> ['64', '128']
+                grefieldmap_list = ['ncanda-grefieldmap-v1', [v for (k, v) in frames if k == 'ncanda-grefieldmap-v1']]
+                # Sort number of frames for later comparison
+                grefieldmap_list[1].sort(lambda x, y: int(x) - int(y))
+                # Change all frames with fixed grefieldmap
+                frames = filter(lambda x: x[0] != 'ncanda-grefieldmap-v1', frames) + [grefieldmap_list]
             elif f[1] != frame_check_siemens[f[0]]:
                 # Some of the required frames are missing
                 error.append({'scan_type': f[0],
