@@ -70,6 +70,19 @@ with open(yml, 'r') as fi:
 if not sibis_config:
     raise IOError("Please ensure config.yml file exists at: {}".format(yml))
 
+if not os.path.exists(sibis_config, 'special_cases.yml'): 
+    raise IOError("Please ensure special_cases.yml file exists at: {}".format(sibis_config))
+
+with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
+    missing_scan_map = yaml.load(fi).get('incomplete_sessions')
+    incorrect_formatting_map = yaml.load(fi).get('incorrect_format')
+    fi.close()
+
+
+
+
+
+
 # Date format for XNAT dates
 xnat_date_format = '%Y-%m-%d %H:%M:%S'
 now_str = time.strftime(xnat_date_format)
@@ -325,7 +338,7 @@ def label_check(label):
             return match
 
 
-def incomplete_scan_check(eid, manufacturer, label):
+def incomplete_scan_check(eid, manufacturer, label, missing_scan_map):
     missing_scans = []
     sess_type = 'xnat:mrSessionData/scans/scan/type'
     scan_types = ifc.select.experiment(eid).attrs.get(sess_type)
@@ -357,17 +370,15 @@ def incomplete_scan_check(eid, manufacturer, label):
         return 
 
     if missing_scans:
-        # Lets see if missing_scans are part of exception 
-        with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
-            missing_scan_map = yaml.load(fi).get('incomplete_sessions')
-            missing_scans_exception = missing_scan_map.get(label)
-            if missing_scans_exception:
-                missing_scans_exception_list = missing_scans_exception.split(',')
-                missing_scans = list(set(missing_scans).difference(missing_scans_exception_list))
-                if missing_scans == [] : 
-                    if args.verbose:
-                        print label, ": All missing scans are excepted!" 
-                    return 
+        # Lets see if missing_scans are part of exception  
+        missing_scans_exception = missing_scan_map.get(label)
+        if missing_scans_exception:
+            missing_scans_exception_list = missing_scans_exception.split(',')
+            missing_scans = list(set(missing_scans).difference(missing_scans_exception_list))
+            if missing_scans == [] : 
+                if args.verbose:
+                    print label, ": All missing scans are excepted!" 
+                return 
  
         err_msg = 'ERROR: Missing scans from Session!'
         if siemens_gradient_flag :
@@ -409,15 +420,14 @@ voxelres_ge = {
 }
 
 
-def voxelRes_check(eid, manufacturer, label):
-    scan_id = 'xnat:mrSessionData/scans/scan/id'
-    scans = ifc.select.experiment(eid).attrs.get(scan_id)
+def voxelRes_check(eid, manufacturer, scan_list):
     voxel_res = []
     error = []
-    for scan in scans:
+    for scan in scan_list:
         scan_res = [ifc.select.experiment(eid).scan(scan).attrs.get('type'),
                     voxelres_get(eid, scan),scan]
         voxel_res.append(scan_res)
+
     if manufacturer == 'GE MEDICAL SYSTEMS':
         for v in voxel_res:
             if v[0] in scan_type_dictionary['GE MEDICAL SYSTEMS']:
@@ -472,15 +482,14 @@ frame_check_ge = {'ncanda-t1spgr-v1': '146',
                   'ncanda-grefieldmap-v1': '384',
                   'ncanda-rsfmri-v1': '8768'}
 
-def frame_check(eid, manufacturer, label):
-    scan_id = 'xnat:mrSessionData/scans/scan/id'
-    scans = ifc.select.experiment(eid).attrs.get(scan_id)
+def frame_check(eid, manufacturer, scan_list):
     frames = []
     error = []
-    for scan in scans:
-        frame = ifc.select.experiment(eid).scan(scan).attrs.mget(['type',
-                                                                  'frames'])
+
+    for scan in scan_list:
+        frame = ifc.select.experiment(eid).scan(scan).attrs.mget(['type','frames'])
         frames.append(frame)
+
     if manufacturer == 'GE MEDICAL SYSTEMS':
         for f in frames:
             if f[0] in scan_type_dictionary['GE MEDICAL SYSTEMS']:
@@ -492,11 +501,13 @@ def frame_check(eid, manufacturer, label):
     elif manufacturer == 'SIEMENS':
         # Variable frames has two grefieldmap keys, change to one key and list of values.
         # Extract values list -> ['64', '128']
+
         grefieldmap_list = ['ncanda-grefieldmap-v1', [v for (k, v) in frames if k == 'ncanda-grefieldmap-v1']]
-        # Sort number of frames for later comparison
-        grefieldmap_list[1].sort(lambda x, y: int(x) - int(y))
-        # Change all frames with fixed grefieldmap
-        frames = filter(lambda x: x[0] != 'ncanda-grefieldmap-v1', frames) + [grefieldmap_list]
+        if grefieldmap_list[1] : 
+            # Sort number of frames for later comparison
+            grefieldmap_list[1].sort(lambda x, y: int(x) - int(y))
+            # Change all frames with fixed grefieldmap
+            frames = filter(lambda x: x[0] != 'ncanda-grefieldmap-v1', frames) + [grefieldmap_list]
 
         for f in frames:
             if f[0] not in scan_type_dictionary['SIEMENS']:
@@ -517,14 +528,30 @@ def frame_check(eid, manufacturer, label):
     return error
 
 
-def mri_quality_check(eid, manufacturer, label):
+# Check dimension of each MRI scan potentially ported to the pipeline folder:  
+def mri_quality_check(eid, manufacturer, label, incorrect_formatting_map):
     errors = []
 
-    for e in frame_check(eid, manufacturer, label):
+    # get scan list
+    scan_id = 'xnat:mrSessionData/scans/scan/id'
+    scan_list = ifc.select.experiment(eid).attrs.get(scan_id)
+
+    # filter out all files that have an exception
+    incorrect_formatting_exception = incorrect_formatting_map.get(label)
+    if incorrect_formatting_exception:
+        incorrect_formatting_list = incorrect_formatting_exception.split(',')
+        if args.verbose:
+            print label, ": The following scans will not be checked : ", str(incorrect_formatting_list) 
+
+        no_exception_list = list(set(scan_list).difference(incorrect_formatting_list))
+    else :
+        no_exception_list = scan_list
+
+    for e in frame_check(eid, manufacturer, no_exception_list):
         if e:
             errors.append(e)
         
-    for e in voxelRes_check(eid, manufacturer, label):
+    for e in voxelRes_check(eid, manufacturer,  no_exception_list):
         if e:
             errors.append(e)
 
@@ -550,6 +577,7 @@ if False:
             index += 1
     sessions_to_check = sessions_to_check[index+1:]
     print "Checking " + str(len(sessions_to_check)) + " sessions." 
+
 
 for (eid, project, subject, insert_date,
      session_label, last_modified) in sessions_to_check:
@@ -649,8 +677,8 @@ for (eid, project, subject, insert_date,
     label = ifc.select.experiment(eid).attrs.get(scanner_label)
 
     if not label_check(label):
-        incomplete_scan_check(eid, manufacturer, label)
-        mri_quality_check(eid, manufacturer, label)
+        incomplete_scan_check(eid, manufacturer, label, missing_scan_map)
+        mri_quality_check(eid, manufacturer, label, incorrect_formatting_map)
 
     # failed dti te comparison
     failed_dti = check_dti(ifc, eid, dti_scans)
