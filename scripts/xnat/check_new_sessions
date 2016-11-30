@@ -70,18 +70,15 @@ with open(yml, 'r') as fi:
 if not sibis_config:
     raise IOError("Please ensure config.yml file exists at: {}".format(yml))
 
-if not os.path.exists(sibis_config, 'special_cases.yml'): 
+if not os.path.exists(os.path.join(sibis_config, 'special_cases.yml')): 
     raise IOError("Please ensure special_cases.yml file exists at: {}".format(sibis_config))
 
+# load exceptions for QC check 
 with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
-    missing_scan_map = yaml.load(fi).get('incomplete_sessions')
-    incorrect_formatting_map = yaml.load(fi).get('incorrect_format')
+    complete_file = yaml.load(fi)
+    incorrect_formatting_map = complete_file.get('incorrect_format')
+    missing_scan_map = complete_file.get('incomplete_sessions')
     fi.close()
-
-
-
-
-
 
 # Date format for XNAT dates
 xnat_date_format = '%Y-%m-%d %H:%M:%S'
@@ -488,6 +485,7 @@ def frame_check(eid, manufacturer, scan_list):
 
     for scan in scan_list:
         frame = ifc.select.experiment(eid).scan(scan).attrs.mget(['type','frames'])
+        frame.append(scan)
         frames.append(frame)
 
     if manufacturer == 'GE MEDICAL SYSTEMS':
@@ -497,12 +495,12 @@ def frame_check(eid, manufacturer, scan_list):
                     error.append({'scan_type': f[0],
                                   'frames': f[1],
                                   'expected_frames': frame_check_ge[f[0]],
-                                  'scan_id': scan})
+                                  'scan_id': f[2]})
     elif manufacturer == 'SIEMENS':
         # Variable frames has two grefieldmap keys, change to one key and list of values.
         # Extract values list -> ['64', '128']
 
-        grefieldmap_list = ['ncanda-grefieldmap-v1', [v for (k, v) in frames if k == 'ncanda-grefieldmap-v1']]
+        grefieldmap_list = ['ncanda-grefieldmap-v1', [v for (k, v, z) in frames if k == 'ncanda-grefieldmap-v1']]
         if grefieldmap_list[1] : 
             # Sort number of frames for later comparison
             grefieldmap_list[1].sort(lambda x, y: int(x) - int(y))
@@ -513,18 +511,18 @@ def frame_check(eid, manufacturer, scan_list):
             if f[0] not in scan_type_dictionary['SIEMENS']:
                 continue 
             if f[0] == 'ncanda-dti6b500pepolar-v1':
-                # Special case, this frame can contain either '7' or '8' values
+                # Tim Trio contains '7' and prisma '8' frames 
                 if not f[1] in ('7', '8'):
                     error.append({'scan_type': f[0],
                                   'frames': f[1],
                                   'expected_frames': frame_check_siemens[f[0]],
-                                  'scan_id': scan})
+                                  'scan_id': f[2]})
             elif f[1] != frame_check_siemens[f[0]]:
                 # Some of the required frames are missing
                 error.append({'scan_type': f[0],
                               'frames': f[1],
                               'expected_frames': frame_check_siemens[f[0]],
-                              'scan_id': scan})
+                              'scan_id': f[2]})
     return error
 
 
@@ -537,9 +535,13 @@ def mri_quality_check(eid, manufacturer, label, incorrect_formatting_map):
     scan_list = ifc.select.experiment(eid).attrs.get(scan_id)
 
     # filter out all files that have an exception
-    incorrect_formatting_exception = incorrect_formatting_map.get(label)
+    if incorrect_formatting_map:
+        incorrect_formatting_exception = incorrect_formatting_map.get(label)
+    else : 
+        incorrect_formatting_exception = None
+
     if incorrect_formatting_exception:
-        incorrect_formatting_list = incorrect_formatting_exception.split(',')
+        incorrect_formatting_list = str(incorrect_formatting_exception).split(',')
         if args.verbose:
             print label, ": The following scans will not be checked : ", str(incorrect_formatting_list) 
 
@@ -583,7 +585,7 @@ for (eid, project, subject, insert_date,
      session_label, last_modified) in sessions_to_check:
     if args.verbose:
         sys.stdout.write("Checking experiment %s/%s SID:%s EID:%s, insert date "
-                         "%s, modified date %s..." % (project, session_label,
+                         "%s, modified date %s...\n" % (project, session_label,
                                                       subject, eid, insert_date,
                                                       last_modified))
         sys.stdout.flush()
