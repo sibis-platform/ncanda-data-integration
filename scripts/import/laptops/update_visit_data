@@ -361,7 +361,7 @@ def MissingFormChecks(vdate):
         return 
 
     session_id = "{}-{}".format(key[0], vdate)
-    if session_id in original_complete_records.index : 
+    if session_id in original_complete_records.index :
         if not original_complete_records[complete_label][session_id]:
             sibis.logging(session_id, 'Error: The status of a form in the Input project is incomplete while it is unverified or complete in the Entry project!',
                   entry_subject_id=key[0],
