@@ -600,7 +600,7 @@ if args.verbose:
 records_uploaded = 0
 for [key, row] in mr_sessions_redcap.iterrows():
     # Need to drop it otherwise upload to redcap fails 
-    row = row.drop('mri_missing')
+    row = row.drop('mri_missing') 
 
     visit_date = str(visit_log_redcap['visit_date'][key])
     if visit_date == 'nan':
