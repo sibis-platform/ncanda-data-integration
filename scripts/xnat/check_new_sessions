@@ -570,16 +570,16 @@ def mri_quality_check(eid, manufacturer, label, incorrect_formatting_map):
 # Main loop
 #
 
+# For debugging
 # Start from where session last broke down 
 if False: 
     index = 0 
     for session  in sessions_to_check:
         if session[0] == 'NCANDA_E01715' :
             break
-            index += 1
+        index += 1
     sessions_to_check = sessions_to_check[index+1:]
-    print "Checking " + str(len(sessions_to_check)) + " sessions." 
-
+    print "DEBUG: Checking " + str(len(sessions_to_check)) + " sessions." 
 
 for (eid, project, subject, insert_date,
      session_label, last_modified) in sessions_to_check:
