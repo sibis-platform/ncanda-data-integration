@@ -72,14 +72,15 @@ browser.find_element_by_name("pwd").send_keys( password )
 browser.find_element_by_name("Login").click()
 
 # Wait for export form and fill appropriately
-wait = WebDriverWait(browser, 20)
+wait = WebDriverWait(browser, 30)
 
 try:
     export = wait.until(EC.element_to_be_clickable((By.NAME,'Export Report')))
 except Exception as e:
-    error = 'Timeout, could not find Export Report element'
+    error = 'Timeout, could not find Export Report'
     sibis.logging(hashlib.sha1('get_results_selenium').hexdigest()[0:6], error,
                   script='get_results_selenium',
+                  info = "Try increasing wait time at WebDriverWait", 
                   msg=str(e))
     sys.exit(1)
 
