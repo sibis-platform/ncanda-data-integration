@@ -75,7 +75,7 @@ catch_output_email ncanda-admin@sri.com "NCANDA Pipeline Feeder Messages (import
 catch_output_email ncanda-admin@sri.com "NCANDA Pipeline REDCap Exporter Messages (export_measures)" ${SIBIS}/scripts/redcap/export_measures --datadict-dir /fs/ncanda-share/pipeline/datadict/redcap --locked_form_report /fs/ncanda-share/pipeline/cases
 
 # Update CSV summary files for the working pipeline
-catch_output_email ncanda-admin@sri.com "NCANDA Pipeline Summaries (update_csv_summaries)" /fs/ncanda-share/pipeline/scripts/utils/update_csv_summaries /fs/ncanda-share/pipeline/cases/ /fs/ncanda-share/pipeline/summaries/
+catch_output_email ncanda-admin@sri.com "NCANDA Pipeline Summaries (update_csv_summaries)" /fs/ncanda-share/pipeline/scripts/utils/update_csv_summaries /fs/ncanda-share/pipeline/cases/ /fs/ncanda-share/pipeline/summaries
 
 # Remove pyxnat cache directory to conserve space
 catch_output_email ncanda-admin@sri.com "NCANDA Drop pyXNAT Cache Directory" rm -rf /tmp/RestAPI@localhost_8080.xnat /tmp/cache
