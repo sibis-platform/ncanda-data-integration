@@ -53,6 +53,9 @@ parser.add_argument("--no-update",
 parser.add_argument("--qc-csv",
                     help="File path to write with scans to qc.",
                     default="/tmp/scan_qc.csv")
+parser.add_argument("--force-qc-check",
+                    help="Always perform quality check regardless if it was done before.",
+                    action="store_true")
 args = parser.parse_args()
 
 if args.eid:
@@ -66,9 +69,16 @@ ifc = pyxnat.Interface(config=os.path.join(os.path.expanduser("~"),
 # Get sibis config 
 yml = os.path.join(os.path.expanduser("~"), '.server_config/config.yml')
 with open(yml, 'r') as fi:
-    sibis_config = yaml.load(fi).get('operations')
+    fi_data = yaml.load(fi)
+    sibis_config = fi_data.get('operations')
+    log_dir = os.path.join(fi_data.get('logdir'),'check_new_sessions')
+
 if not sibis_config:
     raise IOError("Please ensure config.yml file exists at: {}".format(yml))
+
+
+if not os.path.exists(log_dir):
+    raise IOError("Please ensure {} exists!".format(log_dir))
 
 if not os.path.exists(os.path.join(sibis_config, 'special_cases.yml')): 
     raise IOError("Please ensure special_cases.yml file exists at: {}".format(sibis_config))
@@ -346,13 +356,14 @@ def incomplete_scan_check(eid, manufacturer, label, missing_scan_map):
 
     if manufacturer == 'GE MEDICAL SYSTEMS':
         if ge_scan_types.issubset(scan_types_set):
-            return
+            return False
         else:
             missing_scans = ge_scan_types.difference(scan_types_set)
+
     elif manufacturer == 'SIEMENS':
         if siemens_scan_types.issubset(scan_types_set) \
                 and scan_types.count('ncanda-grefieldmap-v1') == 2:
-            return
+            return False
         else: 
             missing_scans = list(siemens_scan_types.difference(scan_types_set))
             if scan_types.count('ncanda-grefieldmap-v1') < 2:
@@ -364,7 +375,7 @@ def incomplete_scan_check(eid, manufacturer, label, missing_scan_map):
                siemens_gradient_flag = True
     else:
         sibis.logging(eid,'Do not support manufacturer {}'.format(manufacturer))
-        return 
+        return True
 
     if missing_scans:
         # Lets see if missing_scans are part of exception  
@@ -375,7 +386,7 @@ def incomplete_scan_check(eid, manufacturer, label, missing_scan_map):
             if missing_scans == [] : 
                 if args.verbose:
                     print label, ": All missing scans are excepted!" 
-                return 
+                return False
  
         err_msg = 'ERROR: Missing scans from Session!'
         if siemens_gradient_flag :
@@ -386,7 +397,7 @@ def incomplete_scan_check(eid, manufacturer, label, missing_scan_map):
                       scan_session_label=label,
                       manufacturer=manufacturer,
                       missing_scans=', '.join(missing_scans))
-        return False
+        return True
 
 def voxelres_get(eid, scan):
         scan_info = ifc.select.experiment(eid).scan(scan).get()
@@ -583,6 +594,7 @@ if False:
 
 for (eid, project, subject, insert_date,
      session_label, last_modified) in sessions_to_check:
+    
     if args.verbose:
         sys.stdout.write("Checking experiment %s/%s SID:%s EID:%s, insert date "
                          "%s, modified date %s...\n" % (project, session_label,
@@ -648,11 +660,16 @@ for (eid, project, subject, insert_date,
         (scan, scantype) for (scan, scantype, quality) in scantype_and_quality
         if re.match('^ncanda-.*fmri.*-v1$', scantype) and quality != 'unusable']
 
+    # define QC tag so that scans that passed qc are not checked again 
+    # this is done to speed up execution of the script - decided to do 
+    # it this way instead of writing file to xnat so that multiple scripts of the session can exist
+    qc_file = os.path.join(log_dir,eid + "_passed_qc")
+
     # Export scans to NIFTI
     nifti_export_ok = True
     for (scan, scantype, quality) in scantype_and_quality:
         if re.match('^ncanda-.*-v[0-9]$', scantype):
-            error_msg = make_session_niftis.export_to_nifti(
+            error_msg, niftisWereCreatedFlag = make_session_niftis.export_to_nifti(
                 ifc,
                 project,
                 subject,
@@ -663,9 +680,13 @@ for (eid, project, subject, insert_date,
                 scan,
                 scantype,
                 verbose=args.verbose)
-            if len(error_msg):
-                nifti_export_ok = False
-                htmln.append(''.join([session_html_link,
+            if len(error_msg) or niftisWereCreatedFlag:
+                if os.path.isfile(qc_file):
+                    os.remove(qc_file)
+
+                if len(error_msg) :
+                    nifti_export_ok = False
+                    htmln.append(''.join([session_html_link,
                                       session_file_link,
                                       ', '.join([scan, scantype, 'ERROR:']),
                                       ', ERROR:'.join(error_msg)]))
@@ -678,23 +699,42 @@ for (eid, project, subject, insert_date,
     scanner_label = 'xnat:mrSessionData/scanner/label'
     label = ifc.select.experiment(eid).attrs.get(scanner_label)
 
-    if not label_check(label):
-        incomplete_scan_check(eid, manufacturer, label, missing_scan_map)
-        mri_quality_check(eid, manufacturer, label, incorrect_formatting_map)
+    # ignore phantom Scans 
+    # ncanda-rsfmri-v1 for adni phantom has 8800 frames on GE instead of 8768
+    # ncanda-t1spgr-v1 of phantom has 186 instead of 146 frames
 
-    # failed dti te comparison
-    failed_dti = check_dti(ifc, eid, dti_scans)
-    if len(failed_dti):
-        htmldt.append(''.join([session_html_link,
-                               session_file_link,
-                               ', '.join(failed_dti)]))
+    errorFlag = False
+    if args.force_qc_check or not os.path.isfile(qc_file): 
+        if not label_check(label):
+            errorFlag = incomplete_scan_check(eid, manufacturer, label, missing_scan_map)
+            errorFlag = errorFlag or not mri_quality_check(eid, manufacturer, label, incorrect_formatting_map)
 
-    # missing physio data
-    physio_ok = True
-    if not isPhantom and len(fmri_scans):
-        physio_ok = check_physio(ifc, eid)
-        if not physio_ok:
-            htmlphys.append(session_html_link)
+        # failed dti te comparison
+        failed_dti = check_dti(ifc, eid, dti_scans)
+        if len(failed_dti):
+            errorFlag = True
+            htmldt.append(''.join([session_html_link,
+                                   session_file_link,
+                                   ', '.join(failed_dti)]))
+        
+        # missing physio data
+        physio_ok = True
+        if not isPhantom and len(fmri_scans):
+            physio_ok = check_physio(ifc, eid)
+            if not physio_ok:
+                errorFlag = True
+                htmlphys.append(session_html_link)
+            
+        # If no error is detected write flag to data drive
+        if not errorFlag:
+            with open(qc_file, 'a'):
+                os.utime(qc_file, None)
+
+    elif args.verbose:
+        sys.stdout.write("Skipping QC...")
+        sys.stdout.flush()
+        failed_dti = ""
+        physio_ok = True
 
     # "unset" (i.e., uninspected) mandatory scantypes
     unset = [scantype for scantype in required_series.keys()
@@ -724,7 +764,7 @@ for (eid, project, subject, insert_date,
                               session_file_link,
                               ', '.join(questionable)]))
 
-    if (len(questionable) + len(unset) + len(dupl) + len(failed_dti)) \
+    if (errorFlag + len(questionable) + len(unset) + len(dupl) + len(failed_dti)) \
             or (not physio_ok) or (not nifti_export_ok):
         experiments_for_next_run.append(eid)
         if args.verbose:

@@ -85,7 +85,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
                     "Path %s does not exist - export_to_nifti failed for SID:"
                     "%s EID:%s Label: %s!" % (dicom_path, subject, session,
                                               session_label))
-                return error_msg
+                return error_msg,0
 
             # if nifti files were created make sure that they are newer than dicom file otherwise recreate them  
             nifti_log_search = glob.glob(re.sub('/DICOM/','_%s/dcm2image.log' % (scantype),re.sub( '/SCANS/', '/RESOURCES/nifti/', dicom_path)))
@@ -103,7 +103,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
                                   scan_number=scan,
                                   scan_type=scantype,
                                   dicom_log_file=dicom_file_pattern)
-                    return error_msg
+                    return error_msg,0
 
                 # check time stamp - if newer than there is nothing to do
                 nifti_time = time.strftime('%Y-%m-%d %H:%m:%S',time.gmtime(os.path.getmtime(nifti_log_search[0])))
@@ -111,7 +111,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
                 if nifti_time > dicom_time  :
                     if verbose:
                         print("... nothing to do as nifti files are up to date")
-                    return error_msg
+                    return error_msg,0
 
 
                 sibis.logging(session_label + "_" + scan, "Warning: nifti seem outdated (dicom > nifti time) so they are recreated!", 
@@ -182,4 +182,4 @@ def export_to_nifti(interface, project, subject, session, session_label,
             # Clean up - remove temp directory
             shutil.rmtree(temp_dir)
 
-    return error_msg
+    return error_msg,1
