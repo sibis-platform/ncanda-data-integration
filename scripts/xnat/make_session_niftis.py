@@ -90,7 +90,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
             # if nifti files were created make sure that they are newer than dicom file otherwise recreate them  
             nifti_log_search = glob.glob(re.sub('/DICOM/','_%s/dcm2image.log' % (scantype),re.sub( '/SCANS/', '/RESOURCES/nifti/', dicom_path)))
             if  nifti_log_search != [] :
-                # we changed code here from . to avoid getting errors of not finding dicom files for sessions such as
+                # we changed code here from *.* to avoid getting errors of not finding dicom files for sessions such as
                 # NCANDA_E01386 / B-00454-M-9-20140214 - scan 1 /ncanda-localizer-v1
                 dicom_file_pattern = dicom_path + '*'
                 dicom_file_list = glob.glob(dicom_file_pattern)
