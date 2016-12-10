@@ -730,11 +730,12 @@ for (eid, project, subject, insert_date,
             with open(qc_file, 'a'):
                 os.utime(qc_file, None)
 
-    elif args.verbose:
-        sys.stdout.write("Skipping QC...")
-        sys.stdout.flush()
+    else:
         failed_dti = ""
         physio_ok = True
+        if args.verbose:
+            sys.stdout.write("Skipping QC...")
+            sys.stdout.flush()
 
     # "unset" (i.e., uninspected) mandatory scantypes
     unset = [scantype for scantype in required_series.keys()
