@@ -192,7 +192,6 @@ def validate_new_and_outstanding( ifc, project, objects_to_check, date_last_chec
     experiment_list = ifc.select( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/LABEL','xnat:mrSessionData/SUBJECT_ID','xnat:mrSessionData/DATE','xnat:mrSessionData/INSERT_USER','xnat:mrSessionData/LAST_MODIFIED'] ).where( [ ('xnat:mrSessionData/PROJECT','LIKE', '%'+project+'%') ] )
 
     check_again = []
-
     if len( subject_list ) > 0:
         subject_lookup = dict()
         # First, check each subject
@@ -253,8 +252,18 @@ if not args.check_all:
         if args.verbose:
             print 'Script was last run %s' % creation_date
 
-        # Get list of previously flagged experiments that need to be checked again
-        objects_to_check = set( content[0]['contents'].split( ',' ) )
+        if args.eidlist:
+            with open(args.eidlist,'r') as f:
+                eidlist = f.read().split()
+            objects_to_check = eidlist
+        else :
+            # Get list of previously flagged experiments that need to be checked again
+            # Remove new line at the last element as otherwise dropped from list 
+            objects_to_check_list =  content[0]['contents'][0:-1]
+            # Only check if not NONE
+            if objects_to_check_list != "NONE": 
+                objects_to_check = set( objects_to_check_list.split( ',' ) )
+
         if args.verbose:
             print 'Re-checking %d previously flagged objects' % len( objects_to_check )
 
@@ -278,12 +287,8 @@ if args.last_month:
 str_date_last_checked = time.strftime( xnat_date_format, date_last_checked )
 
 # Get a list of all MR imaging sessions
-check_again = []
 project_ids = ifc.select.projects().get()
-if args.eidlist:
-    with open(args.eidlist,'r') as f:
-        eidlist = f.read().split()
-    objects_to_check = eidlist
+check_again = []
 for pid in project_ids:
     check_again += validate_new_and_outstanding( ifc, pid, objects_to_check, str_date_last_checked )
 
@@ -294,7 +299,10 @@ if args.send_mail:
 if not args.no_update:
     if args.verbose:
         print "Flagging %d objects for re-inspection during next script run" % len( check_again )
-    check_again_str = 'NONE'
+
     if len( check_again ) > 0:
         check_again_str = ','.join( set( check_again ) )
+    else :
+        check_again_str = 'NONE'
+
     content = ifc._exec( uri='%s?inbody=true' % config_uri, method='PUT', body=check_again_str, headers={'content-type':'text/plain'} )
