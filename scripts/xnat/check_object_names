@@ -139,6 +139,8 @@ def validate_experiment( ifc, project, sid, slabel, eid, elabel, edate, einsert 
                     if not args.zip_none:
                         # Export T1/T2 DICOM files; returns "True" if any exist
                         if export_t1t2_to_zip( experiment, elabel ):
+                            # so check again until DatetoDVD is filled in with a date 
+                            # not sure this is the best logic
                             check_again.append( eid )
                     else:
                         check_again.append( eid )
