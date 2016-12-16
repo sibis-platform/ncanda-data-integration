@@ -133,7 +133,7 @@ subject_data['siblings_id1'] = subject_data['siblings_id1'].map( lambda x: subje
 
 visit_log_fields = ['study_id', 'redcap_data_access_group', 'visit_date',
                     'mri_qa_completed', 'mri_t1_age', 'mri_dti_age',
-                    'mri_rsfmri_age','mri_scanner']
+                    'mri_rsfmri_age','mri_scanner', 'visit_ignore']
 visit_log_redcap = redcap_project.export_records(fields=visit_log_fields,
                                                  event_name='unique',
                                                  export_data_access_groups=True,
@@ -180,13 +180,17 @@ for [key,row] in visit_log_redcap.iterrows():
     if key[0] not in subject_label_to_sid_dict.keys():
         if args.verbose:
             print "Missing XNAT ID for subject",key[0]
+        continue 
+    # only do sessions that are not ignored 
+    if row['visit_ignore___yes'] :
+        continue 
+
+    subject_xnat_id = subject_label_to_sid_dict[key[0]]
+    visit_date = str(row['visit_date'])
+    if visit_date == 'nan':
+        if args.verbose:
+            print "Missing '%s' visit date for subject %s" % ( key[1], key[0] )
     else:
-        subject_xnat_id = subject_label_to_sid_dict[key[0]]
-        visit_date = str(row['visit_date'])
-        if visit_date == 'nan':
-            if args.verbose:
-                print "Missing '%s' visit date for subject %s" % ( key[1], key[0] )
-        else:
             this_subject_data = subject_data.ix[key[0]]
             subject_dob_str = str( this_subject_data['dob'] )
             if not re.match( '[0-9]{4}-[0-9]{2}-[0-9]{2}', subject_dob_str ):
