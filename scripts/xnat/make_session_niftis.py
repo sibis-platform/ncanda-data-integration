@@ -12,7 +12,7 @@ import tempfile
 import subprocess
 import numpy
 import re
-import sibis
+from sibisBeta import sibislogger as slog
 import check_gradient_tables as cgt
 import time 
 import sys 
@@ -47,7 +47,7 @@ def verify_image_count(session, session_label, scan, scantype, manufacturer,
             imgrange = expected_images[manufacturer][scantype]
             if not images_created in imgrange:
                 error = 'WARNING: Number of frames in archive differ from the standard'
-                sibis.logging(session_label, error,
+                slog.info(session_label, error,
                               session=session,
                               scan_number=scan,
                               scan_type=scantype,
@@ -99,7 +99,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
 
                 # if dicom file is not there something odd is going on
                 if dicom_file_list == [] :
-                    sibis.logging(session_label, "Error: could not find dicom files ",
+                    slog.info(session_label, "Error: could not find dicom files ",
                                   session=session,
                                   subject=subject,
                                   scan_number=scan,
@@ -116,7 +116,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
                     return error_msg,0
 
 
-                sibis.logging(session_label + "_" + scan, "Warning: nifti seem outdated (dicom > nifti time) so they are recreated!", 
+                slog.info(session_label + "_" + scan, "Warning: nifti seem outdated (dicom > nifti time) so they are recreated!", 
                               session=session,
                               subject=subject,
                               check_nifti = str(nifti_time) + " " +  str(nifti_log_search[0]),

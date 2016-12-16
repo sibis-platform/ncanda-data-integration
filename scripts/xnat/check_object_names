@@ -11,8 +11,7 @@ import stat
 import time
 import argparse
 import subprocess
-
-import sibis
+from sibisBeta import sibislogger as slog
 import pyxnat
 import datetime
 
@@ -27,7 +26,11 @@ parser.add_argument( "--no-update", help="Do not update the persistent data stor
 parser.add_argument("--zip-root", default='/var/tmp/burn2dvd', help="Root directory to create ZIP archives with T1w and T2w DICOM files for clinical reading.")
 parser.add_argument("--zip-none", action="store_true", default=False, help="Do not create any ZIP archives (T1w and T2w DICOM files for clinical reading).")
 parser.add_argument("--zip-all", action="store_true", default=False, help="Create ZIP archives (T1w and T2w DICOM files for clinical reading) for all sessions, regardless of whether or not they have been processed before.")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
 args = parser.parse_args()
+
+# Setup logging 
+slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: Check Object Names Message', 'check_object_names')
 
 # Get one or more custom variables from XML representation of experiment
 def get_custom_variables( experiment, field_names, default_value=None ):
@@ -86,7 +89,7 @@ def export_t1t2_to_zip( experiment, experiment_label ):
             subprocess.check_call( zip_command, shell=True )
         except:
             error = 'ERROR: unable to create ZIP file from these directories'
-            sibis.logging(zipfile, error,
+            slog.info(zipfile, error,
                          scan_dirs = ' '.join( scan_dirs ))
             print zip_command
         try:
@@ -102,7 +105,7 @@ def export_t1t2_to_zip( experiment, experiment_label ):
                 experiment.attrs.set( 'xnat:mrSessionData/fields/field[name=datetodvd]/field', date_today )
             except:
                 error = "ERROR: failed to set DateToDVD field on experiment - removing archive file"
-                sibis.logging(experiment_label,error,
+                slog.info(experiment_label,error,
                               zipfile = zipfile)
                 os.remove( zipfile )
 
@@ -218,7 +221,7 @@ def validate_new_and_outstanding( ifc, project, objects_to_check, date_last_chec
                         check_again += validate_experiment(ifc, project, sid, subject_lookup[sid], eid, elabel, edate, einsert)
                     else:
                         error = 'ERROR: cannot determine (unique) label'
-                        sibis.logging(eid, error,
+                        slog.info(eid, error,
                                       subject=sid,
                                       project=project,
                                       date=edate)

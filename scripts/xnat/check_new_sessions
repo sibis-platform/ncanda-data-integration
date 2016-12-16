@@ -14,9 +14,8 @@ import argparse
 import datetime
 import yaml
 
-import sibis
 import pyxnat
-
+from sibisBeta import sibislogger as slog
 import make_session_niftis
 
 # Setup command line parser
@@ -53,14 +52,17 @@ parser.add_argument("--no-update",
 parser.add_argument("--qc-csv",
                     help="File path to write with scans to qc.",
                     default="/tmp/scan_qc.csv")
-parser.add_argument("--force-qc-check",
+parser.add_argument("-f", "--force-qc-check",
                     help="Always perform quality check regardless if it was done before.",
                     action="store_true")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
 args = parser.parse_args()
 
 if args.eid:
     args.no_update = True
 
+# Setup logging 
+slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: Check New Sessions Message', 'check_new_sessions')
 
 # Create interface using stored configuration
 ifc = pyxnat.Interface(config=os.path.join(os.path.expanduser("~"),
@@ -180,7 +182,7 @@ for eid in experiments_to_check:
         previous_sessions.append(this_session[0])
     else:
         error = 'WARNING: flagged session appears to have disappeared.'
-        sibis.logging(eid, error)
+        slog.info(eid, error)
 
 # All sessions to check - previously flagged plus updated
 sessions_to_check = sorted(list(set(new_sessions + previous_sessions)),
@@ -374,7 +376,7 @@ def incomplete_scan_check(eid, manufacturer, label, missing_scan_map):
                missing_scans.append('ncanda-grefieldmap-v1')
                siemens_gradient_flag = True
     else:
-        sibis.logging(eid,'Do not support manufacturer {}'.format(manufacturer))
+        slog.info(eid,'Do not support manufacturer {}'.format(manufacturer))
         return True
 
     if missing_scans:
@@ -392,7 +394,7 @@ def incomplete_scan_check(eid, manufacturer, label, missing_scan_map):
         if siemens_gradient_flag :
             err_msg += "Note, Siemens scans require two 'ncanda-grefieldmap-v1'" 
 
-        sibis.logging(eid,
+        slog.info(eid,
                       err_msg,
                       scan_session_label=label,
                       manufacturer=manufacturer,
@@ -569,7 +571,7 @@ def mri_quality_check(eid, manufacturer, label, incorrect_formatting_map):
             errors.append(e)
 
     if errors:
-        sibis.logging(eid,
+        slog.info(eid,
                       'ERROR: Failed to match standard frames',
                       scan_session_label=label,
                       violations=str(errors))
@@ -726,9 +728,13 @@ for (eid, project, subject, insert_date,
                 htmlphys.append(session_html_link)
             
         # If no error is detected write flag to data drive
-        if not errorFlag:
+        if errorFlag:
+            if os.path.isfile(qc_file): 
+                os.remove(qc_file)
+        else:
             with open(qc_file, 'a'):
                 os.utime(qc_file, None)
+
 
     else:
         failed_dti = ""

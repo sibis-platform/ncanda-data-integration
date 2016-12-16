@@ -10,8 +10,7 @@ import numpy as np
 import pandas as pd
 from lxml import objectify
 
-import sibis
-
+from sibisBeta import sibislogger as slog
 
 def read_xml_sidecar(filepath):
     """
@@ -118,7 +117,7 @@ def get_all_gradients(session_label, dti_stack, decimals=None):
             error_msg=str(e)
 
     if error_xml_path_list != [] :
-        sibis.logging(session_label,
+        slog.info(session_label,
                       'ERROR: Could not get gradient table from xml sidecar',
                       script='xnat/check_gradient_tables.py',
                       sidecar=str(xml_sidecar),
@@ -175,14 +174,14 @@ def get_ground_truth_gradients(scanner,scanner_model,decimals):
 
 def check_diffusion(session_label,session,xml_file_list,manufacturer,scanner_model,decimals):
     if len(xml_file_list) == 0 : 
-        sibis.logging(session_label,
+        slog.info(session_label,
                       "Error: check_diffusion : xml_file_list is empty ",
                       session=session)
         return 
 
     truth_gradient = np.array(get_ground_truth_gradients(manufacturer,scanner_model,decimals))
     if len(truth_gradient) == 0 :
-        sibis.logging(session_label,
+        slog.info(session_label,
                     'ERROR: check_diffusion: scanner is unknown',
                      session=session,
                      scanner=manufacturer)
@@ -205,20 +204,20 @@ def check_diffusion(session_label,session,xml_file_list,manufacturer,scanner_mod
                     errorsActual.append(frame)
                     errorsExpected.append(truth_gradient[idx])
         else:
-            sibis.logging(session_label,"ERROR: Incorrect number of frames.",
+            slog.info(session_label,"ERROR: Incorrect number of frames.",
                           case_gradients=str(evaluated_gradients),
                           expected=str(truth_gradient),
                           session=session)
 
     except AttributeError as error:
-        sibis.logging(session_label, "Error: parsing XML files failed.",
+        slog.info(session_label, "Error: parsing XML files failed.",
                       xml_file_list=str(xml_file_list),
                       error_msg=str(error),
                       session=session)
         return
 
     if errorsFrame:
-        sibis.logging(session_label,
+        slog.info(session_label,
                       "Errors in dti601000 gradients for new sessions after comparing with ground_truth.",
                       frames=str(errorsFrame),
                       actualGradients=str(errorsActual),
@@ -232,13 +231,13 @@ def check_diffusion(session_label,session,xml_file_list,manufacturer,scanner_mod
                              '</phaseEncodeDirectionSign>.*',
                              line)
             if match and match.group(1).upper() != 'NEG':
-                sibis.logging(session_label,
+                slog.info(session_label,
                               "dti601000 has wrong PE sign (expected NEG).",
                               actual_sign=str(match.group(1).upper()),
                               session=session)
 
     except AttributeError as error:
-        sibis.logging(session_label, "Error: parsing XML files failed.",
+        slog.info(session_label, "Error: parsing XML files failed.",
                       xml_file=xml_file_list[0],
                       error=str(error),
                       session=session)
@@ -250,6 +249,7 @@ def check_diffusion(session_label,session,xml_file_list,manufacturer,scanner_mod
                      
 def main(args=None):
     # Get the gradient tables for all cases and compare to ground truth
+
     if args.verbose:
       print "Checking cases in " + args.base_dir 
 
@@ -324,4 +324,8 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbose', dest="verbose",
                         help="Turn on verbose", action='store_true')
     argv = parser.parse_args()
+
+    # Setting up logging 
+    slog.init_log(args.verbose) 
+
     sys.exit(main(argv))
