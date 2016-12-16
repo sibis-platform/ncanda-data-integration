@@ -117,7 +117,7 @@ def export(redcap_project, site, subject, event, subject_data, visit_age,
                 scanner_model = 'Prisma_Fit'
             elif 'TRIOTRIM' in mri_scanner or 'TRIOTIM' in mri_scanner:
                 scanner_mfg = 'siemens' 
-                scanner_model = 'TrioTrim'
+                scanner_model = 'TrioTim'
             else :
                 sibis.logging(subject, "Error: Do not know scanner type",
                               script='export_redcap_to_pipeline.py',
@@ -441,7 +441,7 @@ def create_datadicts(datadict_dir):
         scanner=('dropdown', '', 'MRI Scanner Manufacturer', '', '',
                  'ge, General Electric | siemens, Siemens'),
         scanner_model=('dropdown', '', 'MRI Scanner Model', '', '',
-                 'MR750, Discovery MR750 | Prisma_Fit, Prisma Fit | TrioTrim, TrioTrim'),
+                 'MR750, Discovery MR750 | Prisma_Fit, Prisma Fit | TrioTim, TrioTim'),
     )
     
     metadata_dict.update(elements)
