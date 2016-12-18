@@ -10,7 +10,7 @@ import re
 import glob
 import time
 import filecmp
-import sibis
+from sibisBeta import sibislogger as slog
 
 import pandas
 
@@ -59,6 +59,24 @@ def safe_csv_export(df, fname, verbose=False):
             if verbose:
                 print "Updated", fname
 
+def get_scanner_mfg_and_model(mri_scanner, subject):
+        if mri_scanner == 'nan' :
+            return "",""
+
+        mri_scanner= mri_scanner.upper()
+        if 'DISCOVERY MR750' in mri_scanner :
+            return 'ge', 'MR750'
+        elif 'PRISMA_FIT' in mri_scanner :
+            return 'siemens', 'Prisma_Fit'
+        elif 'TRIOTRIM' in mri_scanner or 'TRIOTIM' in mri_scanner:
+            return 'siemens', 'TrioTim'
+        else :
+            slog.info(subject, "Error: Do not know scanner type",
+                       script='export_redcap_to_pipeline.py',
+                       mri_scanner = mri_scanner)
+
+        return "",""
+
 
 # Export selected REDCap data to pipeline/distribution directory
 def export(redcap_project, site, subject, event, subject_data, visit_age,
@@ -102,29 +120,8 @@ def export(redcap_project, site, subject, event, subject_data, visit_age,
         race_code = re.sub('(.0)|(nan)', '', str(subject_data['race']))
 
         # scanner manufacturer map
-        mfg = dict(A='siemens', B='ge', C='ge', D='siemens', E='ge')
-        scanner_mfg = ''
-        scanner_model = ''
-        mri_scanner = str(visit_data['mri_scanner'])
-        if mri_scanner != 'nan' :
-            mri_scanner= mri_scanner.upper()
-
-            if 'DISCOVERY MR750' in mri_scanner :
-                scanner_mfg = 'ge' 
-                scanner_model = 'MR750'
-            elif 'PRISMA_FIT' in mri_scanner :
-                scanner_mfg = 'siemens' 
-                scanner_model = 'Prisma_Fit'
-            elif 'TRIOTRIM' in mri_scanner or 'TRIOTIM' in mri_scanner:
-                scanner_mfg = 'siemens' 
-                scanner_model = 'TrioTim'
-            else :
-                sibis.logging(subject, "Error: Do not know scanner type",
-                              script='export_redcap_to_pipeline.py',
-                              mri_scanner = visit_data['mri_scanner'],
-                              subject = subject_code,
-                              arm = arm_code,
-                              visit = visit_code)
+        # mfg = dict(A='siemens', B='ge', C='ge', D='siemens', E='ge')
+        scanner_mfg, scanner_model = get_scanner_mfg_and_model(str(visit_data['mri_scanner']),subject)
 
         demographics = [
             ['subject', subject_code],

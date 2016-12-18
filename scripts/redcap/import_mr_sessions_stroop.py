@@ -10,7 +10,7 @@ import re
 import tempfile
 import shutil
 import subprocess
-import sibis
+from sibisBeta import sibislogger as slog
 
 #
 # Check for Stroop data (ePrime log file) in given XNAT session
@@ -37,7 +37,7 @@ def check_for_stroop( xnat, xnat_eid_list, verbose=False ):
     if len( stroop_files ) > 1:
         error = "ERROR: experiment have/has more than one Stroop .txt file. Please make sure there is exactly one per session."
         for xnat_eid in xnat_eid_list:
-            sibis.logging(xnat_eid,error)
+            slog.info(xnat_eid,error)
 	return (None, None, None)
 
     return stroop_files[0]
@@ -74,7 +74,7 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, red
             subprocess.check_output( [ os.path.join( import_bindir, "eprime2redcap" ), "--api-key", redcap_token, '--record', redcap_key[0], '--event', redcap_key[1], stroop_file_path, 'mri_stroop_log_file' ] )
     else:
         error = "ERROR: could not convert Stroop file %s:%s" % ( xnat_eid, stroop_file )
-        sibis.logging(xnat_eid,error,
+        slog.info(xnat_eid,error,
                       stroop_file = stroop_file)
 
     shutil.rmtree( tempdir )

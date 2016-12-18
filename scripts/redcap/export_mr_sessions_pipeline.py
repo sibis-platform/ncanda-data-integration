@@ -11,7 +11,7 @@ import glob
 import subprocess
 import shutil
 import sys
-import sibis
+from sibisBeta import sibislogger as slog
 
 from export_mr_sessions_spiral import export_spiral_files
 
@@ -108,7 +108,7 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
 
     if pipeline_file != "" :
         [ session, scan ] = session_and_scan_list.split( ' ' )[0].split('/')
-        sibis.logging(session + "_" + scan,"Warning: existing MR images of the pipeline are updated", 
+        slog.info(session + "_" + scan,"Warning: existing MR images of the pipeline are updated", 
                       file = to_path_pattern,
                       session_scan_list = session_and_scan_list )
     
@@ -133,7 +133,7 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
                 finally:
                     output_file.close()
 
-            sibis.logging(session + "_" + scan,"Error: Unable to create dicom file",
+            slog.info(session + "_" + scan,"Error: Unable to create dicom file",
                           cmd=dcm2image_command,
                           output=dcm2image_output)
             return False
@@ -142,7 +142,7 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
             open( eid_file_path, 'w' ).writelines( session_and_scan_list )
         except:
             error = "ERROR: unable to write EID file"
-            sibis.logging(eid_file_path,error)
+            slog.info(eid_file_path,error)
 
         return True
     return False
@@ -215,7 +215,7 @@ def gzip_physio( physio_file_path ):
         subprocess.check_call( [ 'gzip', '-9f', physio_file_path ] )
     except:
         error = "ERROR: unable to compress physio file"
-        sibis.logging(physio_file_path,error)
+        slog.info(physio_file_path,error)
 
 #
 # Copy physio files (cardio and respiratory) for resting-state fMRI session
@@ -417,7 +417,6 @@ def translate_subject_and_event( subject_code, event_label ):
 #
 def export_and_queue( xnat, session_data, redcap_key, pipeline_root_dir, stroop=(None,None,None), run_pipeline_script=None, verbose=False ):
     (subject_label, event_label) = redcap_key
-
     # Put together pipeline work directory for this subject and visit
     subject_code = session_data['mri_xnat_sid']
     (arm_code,visit_code,pipeline_workdir_rel) = (None, None, None)
@@ -484,4 +483,4 @@ def check_excluded_subjects( excluded_subjects, pipeline_root_dir ):
         subject_dir = os.path.join( pipeline_root_dir, subject )
         if os.path.exists( subject_dir ):
             error = "ERROR: pipeline directory is from an *excluded* subject and should probable be deleted"
-            sibis.logging(subject_dir,error)
+            slog.info(subject_dir,error)

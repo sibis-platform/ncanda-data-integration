@@ -14,7 +14,7 @@ import argparse
 import hashlib
 
 import yaml
-import sibis
+from sibisBeta import sibislogger as slog
 import pyxnat
 import redcap
 import requests
@@ -67,10 +67,13 @@ parser.add_argument("--no-stroop",
 parser.add_argument("-n", "--no-upload",
                     help="Only check correspondences; do not upload results to REDCap",
                     action="store_true")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
 args = parser.parse_args()
 
 if args.verbose:
     print args
+
+slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages', 'import_mr_sessions')
 
 # Get the sibis config
 yml = os.path.join(os.path.expanduser("~"), '.server_config/config.yml')
@@ -94,7 +97,7 @@ try:
                                       redcap_token, verify_ssl=False)
 except redcap.RedcapError as e:
     error = "Error creating object redcap.Project()"
-    sibis.logging(hashlib.sha1('import_mr_sessions').hexdigest()[0:6], error,
+    slog.info(hashlib.sha1('import_mr_sessions').hexdigest()[0:6], error,
                   script='import_mr_sessions',
                   msg=str(e))
     sys.exit()
@@ -134,7 +137,7 @@ for ( session_id, session_subject_id, projects, date, scanner ) in xnat_sessions
     xnat_sessions_dict[session_id] = ( date, scanner, projects )
 
 
-def get_sessions_in_range(xnat, subject_label, project_id, subject_id, date_range_from, date_range_to):
+def get_sessions_in_range(redcap_visit_id,xnat, subject_label, project_id, subject_id, date_range_from, date_range_to):
     sessions_in_range = []
     for session_id, session_subject_id, projects, date, scanner in xnat_sessions_list:
         if (subject_id == session_subject_id) and (date >= date_range_from) and (date <= date_range_to):
@@ -154,9 +157,11 @@ def get_sessions_in_range(xnat, subject_label, project_id, subject_id, date_rang
                         if eid == e_eid : 
                             if subject_id != session_subject_id:
                                 error='The eid defined in outside_visit_window of special_cases.yml is not correct as subject_id associated with eid in xnat does not match the subject id associated with the eid in special_cases.yml'
-                                sibis.logging(e_eid,error,
-                                              expected_subject_id=subject_id,
-                                              xnat_subject_id=session_subject_id)
+                                slog.info(redcap_visit_id,error,
+                                          expected_subject_id=subject_id,
+                                          xnat_subject_id=session_subject_id,
+                                          xnat_visit_id = e_eid
+                                )
                                 return sessions_in_range
 
                             else:
@@ -239,26 +244,56 @@ def days_between_dates( date_from_str, date_to_str, date_format=date_format_ymd 
 #
 ncanda_scan_types = [ 't1spgr', 'mprage', 't2fse', 'dti6b500pepolar', 'dti60b1000', 'rsfmri' ]
 
-def get_scans_by_type( usable_scans_list, visit_date ):
+def get_scans_by_type( usable_scans_list, visit_date, redcap_visit_id):
     result = dict()
     for type in ncanda_scan_types:
-        # Get list of scans for this type; as we go, compute and sort by number of days between visit date and scan date
+          # Get list of scans for this type; as we go, compute and sort by number of days between visit date and scan date
         scans = sorted( [ (eid, scan, days_between_dates(visit_date,xnat_sessions_dict[eid][0])) for (scan_type,eid,scan) in usable_scans_list if re.match( '^ncanda-%s-v1$' % type, scan_type ) ], key=lambda x: abs(x[2]) )
 
-        if (len( scans ) == 1) or (len( scans ) > 1 and scans[0][2] < scans[1][2]): # either only one usable scan, or unique usable scan with lowest number of days after "visit_date"
+        # Changed logic here should generally just be one scan across all sessions
+        # if (len( scans ) == 1) or (len( scans ) > 1 and scans[0][2] < scans[1][2]): 
+        if (len( scans ) == 1) :
+            # either only one usable scan, or unique usable scan with lowest number of days after "visit_date"
             result[type] = scans[0]
         elif len(scans) > 1:
-            sibis.logging(scans[0][0],
-                          "ERROR: more than one scan of type {} on the same "
-                          "date".format(type),
-                          scans=str(scans))
+            slog.info(redcap_visit_id, 
+                      "ERROR: more than one scan of type {} on the same visit ".format(type),
+                      eid_and_scan_number=str(scans),
+                      xnat_visit_id= scans[0][0],
+                      type = str(type))
     return result
 
 #
 # Get fieldmap series for a given scan series (either DTI or rs-fMRI) - this can be more than one, because Siemens writes two under the same type
 #
-def get_fieldmap_scans( usable_scans_list, for_scan ):
-    return [ (eid,scan) for (type,eid,scan) in usable_scans_list if 'grefieldmap' in type and for_scan[0]==eid ]
+def get_fieldmap_scans( usable_scans_list, for_scan, scannerMfg,redcap_visit_id):
+    matched_fieldmaps = [ (eid,scan) for (type,eid,scan) in usable_scans_list if 'grefieldmap' in type and for_scan[0]==eid ]
+
+    # only point out if we have more usable scans than needed so it is correctly labelled in xnat
+    # if they are not enough scans it should have been cought before otherwise need to add another round of exception /get error message twice
+    # as it is originally checked in check_new_sessions
+    if scannerMfg == "SIEMENS":
+        if len(matched_fieldmaps) > 2 : 
+            slog.info(redcap_visit_id,"Error: More than two usable grefieldmaps!",
+                      number_of_scans = str(len(matched_fieldmaps)),
+                      xnat_visit_id = for_scan[0], 
+                      scanner_mfg = scannerMfg)
+
+    elif scannerMfg == "GE":
+        if len(matched_fieldmaps) > 1 : 
+            slog.info(redcap_visit_id,"Error: More than one usable grefieldmaps!",
+                      number_of_scans = str(len(matched_fieldmaps)),
+                      xnat_visit_id = for_scan[0], 
+                      scanner_mfg = scannerMfg)
+
+    elif len(matched_fieldmaps) > 0 : 
+            slog.info(redcap_visit_id,"Error: Scanner manufacturer not known even though usable grefieldmap exists!",
+                      number_of_scans = str(len(matched_fieldmaps)),
+                      xnat_visit_id = for_scan[0], 
+                      scanner_mfg = scannerMfg)
+            return []
+        
+    return matched_fieldmaps
 
 #
 # Encode session and scan in a single string
@@ -337,9 +372,11 @@ def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_b
         xnat_sid = sid
         xnat_pid = pid
 
+    redcap_visit_id=subject+"-"+visit_date
+
     # Get all experiments for this subject within the given range of the visit
     # date
-    xnat_session_data = get_sessions_in_range(xnat,
+    xnat_session_data = get_sessions_in_range(redcap_visit_id,xnat,
                                               subject,
                                               xnat_pid,
                                               xnat_sid,
@@ -358,24 +395,43 @@ def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_b
         if today > visit_date_plusNd:
             
             error='Missing MRI for Subject with visit date.'
-            sibis.logging(xnat_sid,error,
+            slog.info(redcap_visit_id,error,
                           project_id=xnat_pid,
-                          experiment_site_id=subject_label,
                           visit_id=event,
                           visit_date=visit_date)
+            sys.exit(0)
         return result
+
 
     # Get the experiment IDs for all sessions in the given range
     xnat_eid_list = [session for (session, project, date) in xnat_session_data]
     if not len(xnat_eid_list):
         return result
 
+
+    # Add New Variables 
+    # this failed a lot 
+    # scanner_model_str = 'xnat:mrSessionData/scanner/model'
+    # scanner_model = xnat.select.experiment(xnat_eid).attrs.get(scanner_model_str)
+    # scanner_mfc_str = 'xnat:mrSessionData/scanner/manufacturer'
+    # scanner_mfc = xnat.select.experiment(xnat_eid).attrs.get(scanner_mfc_str)
+    # Does not work if the scanner label is actually not defined  
+    # field_regex = '.*<xnat:scanner manufacturer="(.*?)" model="(.*?)">(.*?)</xnat:scanner>'
+    first_eid = xnat_eid_list[0]
+    field_regex = '.*<xnat:scanner manufacturer="(.*?)" model="(.*?)"'
+    match = re.match(field_regex, xnat.select.experiment(first_eid).get(), flags=re.DOTALL)
+    scannerMfc = "" 
+    if match:
+        scannerMfc = match.group(1).upper().split(" ",1)[0]
+        result['mri_scanner'] = match.group(1) + " " + match.group(2) + " " + str(xnat.select.experiment(first_eid).attrs.get('scanner'))
+
+
+
     # For all experiments we have found, get list of all "usable" scans
     usable_scans_list = get_usable_scans_list(xnat, xnat_eid_list)
-
     # Now each of the standard NCANDA scans from the usable list - select
     # closes to "visit_date" if there is more than one for a given type
-    scans_by_type = get_scans_by_type(usable_scans_list, visit_date)
+    scans_by_type = get_scans_by_type(usable_scans_list, visit_date, redcap_visit_id)
 
     result['mri_series_t1'] = encode_session_and_scan(scans_by_type, ['t1spgr', 'mprage'])
     result['mri_series_t2'] = encode_session_and_scan(scans_by_type, ['t2fse'])
@@ -384,12 +440,14 @@ def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_b
     # Get fieldmap series for the DTI and the rs-fMRI scans
     if 'dti60b1000' in scans_by_type.keys():
         result['mri_series_dti60b1000'] = encode_session_and_scan( scans_by_type, ['dti60b1000'])
-        fieldmaps_dti60 = get_fieldmap_scans(usable_scans_list, scans_by_type['dti60b1000'])
+        # only choose gradient map that was acquired in the same session as dti scan
+        fieldmaps_dti60 = get_fieldmap_scans(usable_scans_list, scans_by_type['dti60b1000'],scannerMfc,redcap_visit_id)
         result['mri_series_dti_fieldmap'] = ' '.join(['%s/%s' % (eid,scan) for (eid, scan) in fieldmaps_dti60])
 
     if 'rsfmri' in scans_by_type.keys():
         result['mri_series_rsfmri'] = encode_session_and_scan( scans_by_type, ['rsfmri'])
-        fieldmaps_rsfmri = get_fieldmap_scans( usable_scans_list, scans_by_type['rsfmri'])
+        # only choose gradient map that was acquired in the same session as fmri scan
+        fieldmaps_rsfmri = get_fieldmap_scans( usable_scans_list, scans_by_type['rsfmri'],scannerMfc,redcap_visit_id)
         result['mri_series_rsfmri_fieldmap'] = ' '.join(['%s/%s' % (eid,scan) for (eid, scan) in fieldmaps_rsfmri])
 
     for xnat_eid in xnat_eid_list:
@@ -403,19 +461,6 @@ def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_b
     result['mri_xnat_eids'] = result['mri_xnat_eids'].strip()
     result['mri_notes'] = result['mri_notes'].strip()
 
-    # Add New Variables 
-    # this failed a lot 
-    # scanner_model_str = 'xnat:mrSessionData/scanner/model'
-    # scanner_model = xnat.select.experiment(xnat_eid).attrs.get(scanner_model_str)
-    # scanner_mfc_str = 'xnat:mrSessionData/scanner/manufacturer'
-    # scanner_mfc = xnat.select.experiment(xnat_eid).attrs.get(scanner_mfc_str)
-    # Does not work if the scanner label is actually not defined  
-    # field_regex = '.*<xnat:scanner manufacturer="(.*?)" model="(.*?)">(.*?)</xnat:scanner>'
-    field_regex = '.*<xnat:scanner manufacturer="(.*?)" model="(.*?)"'
-    match = re.match(field_regex, xnat.select.experiment(xnat_eid).get(), flags=re.DOTALL)
-    if match:
-        result['mri_scanner'] = match.group(1) + " " + match.group(2) + " " + str(xnat.select.experiment(xnat_eid).attrs.get('scanner'))
- 
     # Get date and age for DTI scan (use DTI60 because DTI6 may be bad or missing, and fieldmap used instead)
     if 'dti60b1000' in scans_by_type.keys():
         result['mri_dti_date'] = xnat_sessions_dict[scans_by_type['dti60b1000'][0]][0]
@@ -606,7 +651,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
     if visit_date == 'nan':
         if float(row['visit_ignore___yes']) != 1:
             error = 'Missing visit date for subject with visit data.'
-            sibis.logging(key[0], error,
+            slog.info(key[0], error,
                           visit_id=key[1])
     else:
         this_subject_data = subject_data.ix[key[0]]
@@ -683,17 +728,18 @@ for [key, row] in mr_sessions_redcap.iterrows():
 
                 except requests.exceptions.RequestException as e:
                     error = 'Failed to import xnat data into redcap'
-                    sibis.logging(record["mri_xnat_eids"], error,
-                                  xnat_data_dictionary=str(record),
-                                  mri_xnat_sid=record["mri_xnat_sid"],
-                                  requestError=str(e))
+                    slog.info(redcap_visit_id, error,
+                              xnat_data_dictionary=str(record),
+                              mri_xnat_sid=record["mri_xnat_sid"],
+                              record = record["mri_xnat_eids"],
+                              requestError=str(e))
                     continue
 
                 if 'count' in import_response.keys():
                     records_uploaded += import_response['count']
 
                 if 'error' in import_response.keys():
-                    sibis.logging(record, "UPLOAD ERROR: {}".format(import_response['error']))
+                    slog.info(redcap_visit_id, "UPLOAD ERROR: {}".format(import_response['error']), record)
 
                 if 'records' in import_response.keys():
                     for r in import_response['records']:
