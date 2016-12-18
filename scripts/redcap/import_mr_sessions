@@ -259,7 +259,6 @@ def get_scans_by_type( usable_scans_list, visit_date, redcap_visit_id):
             slog.info(redcap_visit_id, 
                       "ERROR: more than one scan of type {} on the same visit ".format(type),
                       eid_and_scan_number=str(scans),
-                      xnat_visit_id= scans[0][0],
                       type = str(type))
     return result
 
