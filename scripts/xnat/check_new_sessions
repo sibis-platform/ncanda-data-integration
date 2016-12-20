@@ -578,7 +578,35 @@ def mri_quality_check(eid, manufacturer, label, incorrect_formatting_map):
         return False
 
     return True
-    
+
+def remove_file(fileName): 
+    # nothing to do 
+    if not os.path.isfile(fileName):
+        return
+    try :  
+        os.remove(fileName)
+    except Exception as err_msg: 
+        slog.info(eid,'ERROR: Could not remove file - please check access rights! - stopped processing',
+                  fileName = fileName,
+                  error=str(err_msg))
+        sys.exit("Stopped due to access file issues!")
+
+
+def rename_file(oldFileName,newFileName): 
+    # nothing to do 
+    if not os.path.isfile(oldFileName):
+        return 
+    try :  
+        os.rename(oldFileName,newFileName)
+    except Exception as err_msg: 
+        slog.info(eid,'ERROR: Could not rename file - please check access rights! Processing stopped',
+                  oldFileName = oldFileName,
+                  newFileName = newFileName,
+                  error=str(err_msg))
+        sys.exit("Stopped due to access file issues!")
+
+
+
 #
 # Main loop
 #
@@ -588,15 +616,21 @@ def mri_quality_check(eid, manufacturer, label, incorrect_formatting_map):
 if False: 
     index = 0 
     for session  in sessions_to_check:
-        if session[0] == 'NCANDA_E01715' :
+        if session[0] == 'NCANDA_E03897' :
             break
         index += 1
     sessions_to_check = sessions_to_check[4000:]
     print "DEBUG: Checking " + str(len(sessions_to_check)) + " sessions." 
 
+index = -1
 for (eid, project, subject, insert_date,
      session_label, last_modified) in sessions_to_check:
-    
+    index +=1 
+    #if index < 3517 :
+    #    continue
+    #if index == 3519:
+    #    sys.exit()
+    # print "==== ", index, eid
     if args.verbose:
         sys.stdout.write("Checking experiment %s/%s SID:%s EID:%s, insert date "
                          "%s, modified date %s...\n" % (project, session_label,
@@ -604,13 +638,28 @@ for (eid, project, subject, insert_date,
                                                       last_modified))
         sys.stdout.flush()
 
-    # getting scanner platform
-    manufacturer = 'xnat:mrSessionData/scanner/manufacturer'
-    manufacturer = ifc.select.experiment(eid).attrs.get(manufacturer)
+    # if anything goes wrong just run it again 
+    qc_file = os.path.join(log_dir,eid + "_passed_qc")
+    qc_file_tmp = qc_file + "_"
 
-    scanner_model_str = 'xnat:mrSessionData/scanner/model'
-    scanner_model = ifc.select.experiment(eid).attrs.get(scanner_model_str)
- 
+    remove_file(qc_file_tmp)
+    if args.force_qc_check:
+        remove_file(qc_file)
+    elif os.path.isfile(qc_file):
+        rename_file(qc_file,qc_file_tmp)
+
+    try :
+        manufacturer = 'xnat:mrSessionData/scanner/manufacturer'
+        manufacturer = ifc.select.experiment(eid).attrs.get(manufacturer)
+
+        scanner_model_str = 'xnat:mrSessionData/scanner/model'
+        scanner_model = ifc.select.experiment(eid).attrs.get(scanner_model_str)
+    except Exception as err_msg: 
+        slog.info(eid,'ERROR: Could not retrieve scanner model or manufacturer from xnat - skipping session',
+                  info = "Most likely another app is trying to access xnat at the same time",
+                  error=str(err_msg))
+        continue
+
     # Link to the session
     session_html_link, session_file_link = make_session_link(eid,
                                                              project,
@@ -665,7 +714,6 @@ for (eid, project, subject, insert_date,
     # define QC tag so that scans that passed qc are not checked again 
     # this is done to speed up execution of the script - decided to do 
     # it this way instead of writing file to xnat so that multiple scripts of the session can exist
-    qc_file = os.path.join(log_dir,eid + "_passed_qc")
 
     # Export scans to NIFTI
     nifti_export_ok = True
@@ -683,8 +731,8 @@ for (eid, project, subject, insert_date,
                 scantype,
                 verbose=args.verbose)
             if len(error_msg) or niftisWereCreatedFlag:
-                if os.path.isfile(qc_file):
-                    os.remove(qc_file)
+                # Remove qc_file as session has to be checked again 
+                remove_file(qc_file_tmp)
 
                 if len(error_msg) :
                     nifti_export_ok = False
@@ -698,18 +746,19 @@ for (eid, project, subject, insert_date,
         sys.stdout.write("Beginning QC...")
         sys.stdout.flush()
 
-    scanner_label = 'xnat:mrSessionData/scanner/label'
-    label = ifc.select.experiment(eid).attrs.get(scanner_label)
-
     # ignore phantom Scans 
     # ncanda-rsfmri-v1 for adni phantom has 8800 frames on GE instead of 8768
     # ncanda-t1spgr-v1 of phantom has 186 instead of 146 frames
 
     errorFlag = False
-    if args.force_qc_check or not os.path.isfile(qc_file): 
-        if not label_check(label):
-            errorFlag = incomplete_scan_check(eid, manufacturer, label, missing_scan_map)
-            errorFlag = errorFlag or not mri_quality_check(eid, manufacturer, label, incorrect_formatting_map)
+    if not os.path.exists(qc_file_tmp): 
+        # not sure why this was done
+        # scanner_label = 'xnat:mrSessionData/scanner/label'
+        #label = ifc.select.experiment(eid).attrs.get(scanner_label)
+        # print "label", label, "session label", session_label  
+        if not label_check(session_label):
+            errorFlag = incomplete_scan_check(eid, manufacturer, session_label, missing_scan_map)
+            errorFlag = errorFlag or not mri_quality_check(eid, manufacturer, session_label, incorrect_formatting_map)
 
         # failed dti te comparison
         failed_dti = check_dti(ifc, eid, dti_scans)
@@ -728,17 +777,15 @@ for (eid, project, subject, insert_date,
                 htmlphys.append(session_html_link)
             
         # If no error is detected write flag to data drive
-        if errorFlag:
-            if os.path.isfile(qc_file): 
-                os.remove(qc_file)
-        else:
+        if not errorFlag:
             with open(qc_file, 'a'):
                 os.utime(qc_file, None)
-
 
     else:
         failed_dti = ""
         physio_ok = True
+        rename_file(qc_file_tmp,qc_file)
+
         if args.verbose:
             sys.stdout.write("Skipping QC...")
             sys.stdout.flush()
