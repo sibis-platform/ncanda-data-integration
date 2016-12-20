@@ -210,9 +210,10 @@ for [key,row] in visit_log_redcap.iterrows():
                     try:
                         (arm_code,visit_code,subject_datadir_rel) = mrpipeline.translate_subject_and_event( subject_xnat_id, key[1] )
                     except:
-                        if args.verbose:
-                            print "Event",key[1],"is not supported yet."
-
+                        sibis.logging(hashlib.sha1('export_measures').hexdigest()[0:6], "Event",key[1],"is not supported yet.",
+                                      info = "Add event to ncanda_operations/setup.yml")
+                        continue
+                        
                     if arm_code:
                         subject_datadir = os.path.join(args.pipelinedir,
                                                        subject_datadir_rel)
