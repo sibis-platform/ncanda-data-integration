@@ -153,6 +153,7 @@ if args.verbose:
     print "Checking sessions modified after", str_date_last_checked
 
 # Get list of all sessions after the chosen date
+# Adding fields such as 'xnat:mrSessionData/scanner/manufacturer' does not work for some reason 
 fields_per_session = ['xnat:mrSessionData/SESSION_ID',
                       'xnat:mrSessionData/PROJECT',
                       'xnat:mrSessionData/SUBJECT_ID',
@@ -588,7 +589,7 @@ def remove_file(fileName):
     except Exception as err_msg: 
         slog.info(eid,'ERROR: Could not remove file - please check access rights! - stopped processing',
                   fileName = fileName,
-                  error=str(err_msg))
+                  error_msg=str(err_msg))
         sys.exit("Stopped due to access file issues!")
 
 
@@ -602,7 +603,7 @@ def rename_file(oldFileName,newFileName):
         slog.info(eid,'ERROR: Could not rename file - please check access rights! Processing stopped',
                   oldFileName = oldFileName,
                   newFileName = newFileName,
-                  error=str(err_msg))
+                  error_msg=str(err_msg))
         sys.exit("Stopped due to access file issues!")
 
 
@@ -651,7 +652,6 @@ for (eid, project, subject, insert_date,
     try :
         manufacturer = 'xnat:mrSessionData/scanner/manufacturer'
         manufacturer = ifc.select.experiment(eid).attrs.get(manufacturer)
-
         scanner_model_str = 'xnat:mrSessionData/scanner/model'
         scanner_model = ifc.select.experiment(eid).attrs.get(scanner_model_str)
     except Exception as err_msg: 
