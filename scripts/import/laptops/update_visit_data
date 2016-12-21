@@ -42,7 +42,7 @@ parser.add_argument("--forms",
                     action="store",
                     default=None )
 parser.add_argument("-m", "--missing-only",
-                    help="Only look for missing data, but do not update existing records. This"
+                    help="Only look for missing data, but do not update existing records in the netry project. This"
                          " significantly speeds up processing, but edits made to imported data "
                          "will not propagate.",
                     action="store_true")
@@ -146,53 +146,57 @@ forms_date_increments = {
 
 
 # First REDCap connection for the Summary project (this is where we put data)
-def connect_to_redcap():
-    summary_key_file = open(os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token'), 'r')
+def connect_to_redcap(project):
+    summary_key_file = open(os.path.join( os.path.expanduser("~"), '.server_config/redcap-' + project + '-token'), 'r')
     summary_api_key = summary_key_file.read().strip()
     redcap_server = 'https://ncanda.sri.com/redcap/api/'
-    rc = redcap.Project(redcap_server, summary_api_key, verify_ssl=False)
+    try:
+        rc = redcap.Project(redcap_server, summary_api_key, verify_ssl=False)
+    except Exception, err:
+        sibis.logging(hashlib.sha1('update_visit_data').hexdigest()[0:6],
+                      "ERROR: Could not connect to redcap!",
+                      script='update_visit_data',
+                      error_msg=str(err),
+                      project=project)
+        return None
     return rc
 
 # If connection to redcap server fail, try multiple times
-try:
-    rc_summary = connect_to_redcap()
-except Exception, error:
-    sibis.logging(hashlib.sha1('update_visit_data').hexdigest()[0:6],
-                  "ERROR: Could not connect to redcap!",
-                  script='update_visit_data')
+rc_entry = connect_to_redcap('dataentry')
+if rc_entry == None:    
     sys.exit()
 
 # Get list of all field names in the summary project - this is to figure out which fields to copy
-summary_field_names = [field['field_name'] for field in rc_summary.metadata]
+summary_field_names = [field['field_name'] for field in rc_entry.metadata]
 
 # Get list of all 0/1 encoded Yes/No fields (either radio or dropdown) - these need to be recoded when copied
-summary_fields_yn = [field['field_name'] for field in rc_summary.metadata if field['field_type'] in ['radio', 'dropdown'] and re.match('[^0-9]*1, Yes[^0-9]*0, No.*', field['select_choices_or_calculations'])]
+summary_fields_yn = [field['field_name'] for field in rc_entry.metadata if field['field_type'] in ['radio', 'dropdown'] and re.match('[^0-9]*1, Yes[^0-9]*0, No.*', field['select_choices_or_calculations'])]
 
 # What forms are at what event?
-form_event_mapping = rc_summary.export_fem(format='df')
+form_event_mapping = rc_entry.export_fem(format='df')
 
 # Get record IDs, visit labels, visit dates, and completion status for all laptop forms
-existing_data_fields = [('%s_complete' % form) for form in form_names] + [('%s_missing' % form) for form in form_prefixes] + [('%s_record_id' % form) for form in form_prefixes]
-existing_data_fields += ['study_id', 'dob', 'redcap_event_name', 'visit_date', 'exclude', 'sleep_date']
+entry_data_fields = [('%s_complete' % form) for form in form_names] + [('%s_missing' % form) for form in form_prefixes] + [('%s_record_id' % form) for form in form_prefixes]
+entry_data_fields += ['study_id', 'dob', 'redcap_event_name', 'visit_date', 'exclude', 'sleep_date']
 
 # Get list of existing records
-existing_data = rc_summary.export_records(fields=existing_data_fields,
+entry_data = rc_entry.export_records(fields=entry_data_fields,
                                           event_name='unique',
                                           format='df')
 
 if args.study_id : 
-    existing_data = existing_data.xs(args.study_id)
-    existing_data.reset_index(inplace=True)
-    existing_data['study_id'] = args.study_id
-    existing_data.set_index(['study_id', 'redcap_event_name'],inplace=True)
+    entry_data = entry_data.xs(args.study_id)
+    entry_data.reset_index(inplace=True)
+    entry_data['study_id'] = args.study_id
+    entry_data.set_index(['study_id', 'redcap_event_name'],inplace=True)
 
 # Save dates of birth for later (these only exist for the 'baseline_visit_arm_1'
 # event, but we need them for other arms as well
 try : 
-    concat = [existing_data.xs(event, level=1)['dob'].dropna()
+    concat = [entry_data.xs(event, level=1)['dob'].dropna()
           for event in ['baseline_visit_arm_1', 'baseline_visit_arm_4']]
 except: 
-    concat = [existing_data.xs(event, level=1)['dob'].dropna()
+    concat = [entry_data.xs(event, level=1)['dob'].dropna()
           for event in ['baseline_visit_arm_1']]
 
 subject_dates_of_birth = pandas.concat(concat)
@@ -200,25 +204,20 @@ subject_dates_of_birth = pandas.concat(concat)
 # Remove "excluded" cases - need to do that after getting birth dates, just in
 # case.
 if args.no_excluded:
-    existing_data = existing_data[existing_data['exclude'] != 1]
+    entry_data = entry_data[entry_data['exclude'] != 1]
 
 # Open connection with REDCap server - first for the laptop import project
 # (data source)
-import_key_file = open(os.path.join(os.path.expanduser("~"),
-                                    '.server_config/redcap-laptopimport-token'),
-                       'r')
-import_api_key = import_key_file.read().strip()
-rc_import = redcap.Project('https://ncanda.sri.com/redcap/api/',
-                           import_api_key,
-                           verify_ssl=False)
-
+rc_import = connect_to_redcap('laptopimport')
+if rc_import == None:    
+    sys.exit()
 
 # Upload new data to REDCap
 def to_redcap(upload_records):
     if args.no_upload:
         return 0
     try:
-        import_response = rc_summary.import_records(upload_records,
+        import_response = rc_entry.import_records(upload_records,
                                                     overwrite='overwrite')
 
         # If there were any errors, try to print them as well as possible
@@ -287,7 +286,7 @@ def get_subject_age( subject_id, at_date ):
 # Function to get a subject's next visit - this is so we can exclude MRI
 # collected after the next visit date, but still within N days
 def get_subject_next_visit_date(subject, after_visit_date, form):
-    subject_visit_dates = existing_data.xs(subject, level=0)['visit_date'].dropna()
+    subject_visit_dates = entry_data.xs(subject, level=0)['visit_date'].dropna()
     # Exclude "Recovery" baseline from list - this will usually be the MR day of a normal visit
     subject_visit_dates = subject_visit_dates[subject_visit_dates.index.map(lambda key: key[1] != recovery_baseline_event)]
 
@@ -348,31 +347,21 @@ def batch(iterable, n=1):
 # Check why form is missing
 #
 def MissingFormChecks(vdate):
-    import_subject_list=imported_records[map(lambda match: key[0] in match, imported_records.index.tolist())]
-    mismatch_list = []
-    for session_id,subject_id in zip(import_subject_list.index.tolist(),import_subject_list[subject_label]):  
-        if session_id[0:-11].upper() !=  subject_id.upper() :
-            mismatch_list.append([session_id.upper(), subject_id])
-            
-    if mismatch_list != [] :
-        sibis.logging("{}-{}".format(key[0], vdate), 'Error: Mismatch between session ids and subject ids for specific form !',
-                      form = form_name,
-                      session_and_subject_id = "\n".join(str(v) for v in mismatch_list))
-        return 
-
+    # Note the first part of the session_id can be different from the subject_id - subject_id is what to go by if defined
     session_id = "{}-{}".format(key[0], vdate)
-    if session_id in original_complete_records.index :
-        if not original_complete_records[complete_label][session_id]:
-            sibis.logging(session_id, 'Error: The status of a form in the Input project is incomplete while it is unverified or complete in the Entry project!',
+    if session_id in import_complete_records.index :
+        if not import_complete_records[complete_label][session_id]:
+            sibis.logging(session_id, 'Error: The status of a form in the Import project is incomplete while it is unverified or complete in the Entry project!',
                   entry_subject_id=key[0],
                   form_name=form_name,
                   event_id=key[1],
                   import_visit_dates=records_this_subject[date_label].to_string(),
                   target_visit_date=vdate)
+            print "what" , session_id,  import_complete_records[complete_label][session_id]
             return 
 
-        if not original_complete_records[exclude_label][session_id] :
-            sibis.logging(session_id, 'Error: The form in the Input project is excluded while it is not in the entry project!',
+        if import_complete_records[exclude_label][session_id] :
+            sibis.logging(session_id, 'Error: The form in the Import project is excluded while it is not in the entry project!',
                   entry_subject_id=key[0],
                   form_name=form_name,
                   event_id=key[1],
@@ -394,41 +383,42 @@ def MissingFormChecks(vdate):
 #
 # For each form, get imported data
 for form_prefix, form_name in forms.iteritems():
-    complete_label = '%s_complete' % form_name
-    exclude_label = '%s_exclude' % form_prefix
-    missing_label = form_prefix + '_missing'
-    recordid_label = form_prefix + '_record_id'
-
     if args.verbose:
         print "Processing form",form_prefix,"/",form_name
 
     total_records = 0
     total_uploaded = 0
 
+    complete_label = '%s_complete' % form_name
+    exclude_label = '%s_exclude' % form_prefix
+    fields_list = [complete_label, exclude_label]
+    if args.study_id :
+        subject_id_label = '%s_subject_id' % form_prefix
+        fields_list.append(subject_id_label)
+
     # ==> Export data from laptops for this form from REDCap.
-    #
+    import_complete_records = rc_import.export_records( fields = fields_list, format='df' )
+
     # First, get "complete" and "exclude" fields for this form for all records to
     # find which ones actually have data and are not excluded.
-    original_complete_records = rc_import.export_records( fields = [ complete_label, exclude_label ], format='df' )
-    # Drop all empty form records
-    complete_records = original_complete_records[ original_complete_records[complete_label] > 0 ]
+    # Drop all empty form records (labelled 'incomplete')
+    complete_records = import_complete_records[ import_complete_records[complete_label] > 0 ]
     # Also drop "excluded" records for speed
     complete_records = complete_records[ complete_records[exclude_label] != 1 ]
     if args.study_id :
-        complete_records = complete_records[map(lambda match: args.study_id in match, complete_records.index.tolist())]
+        # only works if record_id is correctly labelled which is not always the case 
+        complete_records = complete_records[map(lambda (record_id,record_subject_id): args.study_id in record_id or args.study_id.strip() == str(record_subject_id).strip(), zip(complete_records.index.tolist(),complete_records[subject_id_label].tolist()))]
         if args.verbose:
             print "Record list from Import project:", str(complete_records.index.tolist())
 
-    if len( complete_records ) == 0:
+    records = complete_records.index.tolist()
+    if len(records) == 0:
         if args.verbose:
             print "No imported records for form",form_name
         continue
 
-
     # Next, export actual records, making sure we get everything as string,
     # and replace all "nan"s with empty strings, "" using batches of 100 records.
-
-    records = complete_records.index.tolist()
 
     forms = [form_name]
     return_format = 'df'
@@ -462,27 +452,27 @@ for form_prefix, form_name in forms.iteritems():
     # Select the events that actually have this form (first, to handle summary forms,
     # figure out what actual form the "FORM_complete" field is in)
     try:
-        summary_form_name = [ field['form_name'] for field in rc_summary.metadata if field['field_name'] == complete_label ][0]
+        summary_form_name = [ field['form_name'] for field in rc_entry.metadata if field['field_name'] == complete_label ][0]
     except:
         # If the above failed (due to empty list, presumably), then this is not a
         # hierarchical form and we should just use the given form name
         summary_form_name = form_name
     instrument_events_list = form_event_mapping[form_event_mapping['form_name'] == summary_form_name ]['unique_event_name'].tolist()
-    existing_form_data = existing_data[ existing_data.index.map( lambda x: x[1] in instrument_events_list ) ]
+    entry_form_data = entry_data[ entry_data.index.map( lambda x: x[1] in instrument_events_list ) ]
 
     # Drop all records that have been marked as permanently missing
     missing_label = '%s_missing' % form_prefix
-    existing_form_data = existing_form_data[existing_form_data[missing_label] != 1]
+    entry_form_data = entry_form_data[entry_form_data[missing_label] != 1]
 
-    # Drop all existing records when doing "missing only", or else unless "update all",
+    # Drop all entry project records when doing "missing only", or else unless "update all",
     # drop records where this form is already marked "Completed"
     if args.missing_only:
-        existing_form_data = existing_form_data[ ~(existing_form_data[complete_label] > 0)]
+        entry_form_data = entry_form_data[ ~(entry_form_data[complete_label] > 0)]
     elif not args.update_all:
-        existing_form_data = existing_form_data[ ~(existing_form_data[complete_label] > 1)]
+        entry_form_data = entry_form_data[ ~(entry_form_data[complete_label] > 1)]
 
     # Go over all summary records (i.e., the visit log) from entry project and find corresponding imported records
-    for key, row in existing_form_data.iterrows():
+    for key, row in entry_form_data.iterrows():
         if args.verbose :
             print "Processing", key
         # Select imported records for this subject
@@ -538,7 +528,7 @@ for form_prefix, form_name in forms.iteritems():
                 total_uploaded += add_over18_to_upload( form_prefix, form_name, key[0], key[1] )
             # We absolutely have no records to assign - check now if one had been assigned
             # previously and somehow disappeared
-            elif (existing_form_data[complete_label][key] > 0) and (existing_form_data[missing_label][key] != 1):
+            elif (entry_form_data[complete_label][key] > 0) and (entry_form_data[missing_label][key] != 1):
                 MissingFormChecks(visit_date)
 
                 if args.reset_disappeared:
@@ -567,7 +557,7 @@ for form_prefix, form_name in forms.iteritems():
                         print records_this_visit
                 elif len(records_this_visit) == 1:
                     total_uploaded += add_to_upload(form_prefix, form_name, key[0], key[1], records_this_visit.ix[0], subject_age)
-                elif (existing_form_data[complete_label][key] > 0) and (existing_form_data[missing_label][key] != 1):
+                elif (entry_form_data[complete_label][key] > 0) and (entry_form_data[missing_label][key] != 1):
                     MissingFormChecks(form_target_date)
 
                     if args.reset_disappeared:
