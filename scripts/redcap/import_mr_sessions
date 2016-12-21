@@ -85,6 +85,7 @@ if not sibis_config:
 # Get a list of cases outside the visit window that should be included.
 with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
     special_cases = yaml.load(fi)
+    export_measures_map = special_cases.get('site_change').get('export_measures')
     exceptions_window = special_cases.get('outside_visit_window')
     exceptions_num_type = special_cases.get('more_of_type')
 
@@ -138,17 +139,19 @@ for ( session_id, session_subject_id, projects, date, scanner ) in xnat_sessions
     xnat_sessions_dict[session_id] = ( date, scanner, projects )
 
 
-def get_sessions_in_range(redcap_visit_id,xnat, subject_label, project_id, subject_id, date_range_from, date_range_to):
+def get_sessions_in_range(redcap_visit_id,xnat, subject_label, project_id, subject_id, date_range_from, date_range_to, verbose):
+    #print "get_sessions_in_range", redcap_visit_id,xnat, subject_label, project_id, subject_id, date_range_from, date_range_to
     sessions_in_range = []
     for session_id, session_subject_id, projects, date, scanner in xnat_sessions_list:
         if (subject_id == session_subject_id) and (date >= date_range_from) and (date <= date_range_to):
             sessions_in_range.append((session_id, projects, date))
 
     if not sessions_in_range:
-        # handling subjects that are outside the visit window
-        if args.verbose: 
+        # handling special cases 
+        if verbose: 
             print "  No session in range for ", subject_id, date_range_from, date_range_to
 
+        # Outside visit window
         exception_list = exceptions_window.get(subject_id)
         if exception_list:
             for except_entry in exception_list.split(';'):
@@ -166,10 +169,19 @@ def get_sessions_in_range(redcap_visit_id,xnat, subject_label, project_id, subje
                                 return sessions_in_range
 
                             else:
-                                if args.verbose: 
+                                if verbose: 
                                     print "  Exception: Adding session", e_eid, projects, date 
 
                                 sessions_in_range.append((e_eid, projects, date))
+
+        # Session might have changed site - this is not necessary - bug in code 
+        # if not sessions_in_range and subject_label in export_measures_map.iterkeys():
+        #     orig_subject_id = export_measures_map.get(subject_label).get('default').get('xnat_subject_id')
+        #     for session_id, session_subject_id, projects, date, scanner in xnat_sessions_list:
+        #         if (orig_subject_id == session_subject_id) and (date >= date_range_from) and (date <= date_range_to):
+        #             if verbose: 
+        #                 print "  Exception: Session (", session_id, projects, date , ") changed site - used ", orig_subject_id ," to find session!"  
+        #             sessions_in_range.append((session_id, projects, date))            
 
     return sessions_in_range
 
@@ -316,7 +328,7 @@ def encode_session_and_scan( session_and_scan, type_list ):
 today = time.strftime(date_format_ymd)
 
 
-def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_birth,
+def get_xnat_data(redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_date, date_of_birth,
                   next_visit_date, mri_inspection_completed, verbose=None):
     subject = redcap_key[0]
     event = redcap_key[1]
@@ -369,13 +381,6 @@ def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_b
             print("Subject {} cannot be found in XNAT.".format(subject))
         return result
 
-    # Use default lookup
-    if defaultFlag:
-        xnat_sid, xnat_pid = subject_project_dict[subject]
-    else :
-        xnat_sid = sid
-        xnat_pid = pid
-
     redcap_visit_id=subject+"-"+visit_date
 
     # Get all experiments for this subject within the given range of the visit
@@ -385,12 +390,9 @@ def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_b
                                               xnat_pid,
                                               xnat_sid,
                                               visit_date,
-                                              visit_date_plusNd)
+                                              visit_date_plusNd,
+                                              args.verbose)
 
-    if sid:
-        result['mri_xnat_sid'] = sid
-    else:
-        result['mri_xnat_sid'] = xnat_sid
 
     if verbose:
         print "XNAT Session Data:", xnat_session_data
@@ -411,6 +413,7 @@ def get_xnat_data(redcap_key, xnat, sid, pid, defaultFlag, visit_date, date_of_b
     if not len(xnat_eid_list):
         return result
 
+    result['mri_xnat_sid'] = pipe_id
 
     # Add New Variables 
     # this failed a lot 
@@ -662,36 +665,33 @@ for [key, row] in mr_sessions_redcap.iterrows():
             print "Missing birthdate for subject %s" % key[0]
         else:
             # Update XNAT SID and PID for subjects that changed sites
-            sid = ''
-            pid = ''
             subject_label = key[0]
-            event = key[1]
-            site_change = special_cases.get('site_change')
-            export_measures = site_change.get('export_measures')
-            defaultFlag = True
-            if subject_label in export_measures.iterkeys():
-                sub_map = export_measures.get(subject_label)
+            if subject_label in export_measures_map.iterkeys():
+                sub_map = export_measures_map.get(subject_label)
+                event = key[1]
                 if event == 'baseline_visit_arm_1':
                     id_map = sub_map.get('baseline')
-                    defaultFlag = False
+                    sid = id_map.get('subject')
                 elif event == '1y_visit_arm_1' and sub_map.get('followup_1y'):
                     id_map = sub_map.get('followup_1y')
-                    defaultFlag = False
+                    sid = id_map.get('subject')
                 elif event == '2y_visit_arm_1' and sub_map.get('followup_2y'):
                     id_map = sub_map.get('followup_2y')
-                    defaultFlag = False
+                    sid = id_map.get('subject')
                 elif event == '3y_visit_arm_1' and sub_map.get('followup_3y'):
                     id_map = sub_map.get('followup_3y')
-                    defaultFlag = False
+                    sid = id_map.get('subject')
                 elif event == '4y_visit_arm_1' and sub_map.get('followup_4y'):
                     id_map = sub_map.get('followup_3y')
-                    defaultFlag = False
+                    sid = id_map.get('subject')
                 else:
                     id_map = sub_map.get('default')
-                correct_sid = id_map.get('subject')
-                correct_pid = id_map.get('project')
-                sid = correct_sid
-                pid = correct_pid
+                    sid = id_map.get('xnat_subject_id')
+                pipe_id = id_map.get('subject')
+                pid = id_map.get('project')
+            else :
+                sid, pid = subject_project_dict[subject_label]
+                pipe_id = sid
 
             visit_age = days_between_dates( this_subject_data['dob'], visit_date ) / 365.242
             next_visit_date = get_subject_next_visit_date(key[0], visit_date)
@@ -699,7 +699,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                                       xnat,
                                       sid,
                                       pid,
-                                      defaultFlag,
+                                      pipe_id,
                                       visit_date,
                                       this_subject_data['dob'],
                                       next_visit_date,
