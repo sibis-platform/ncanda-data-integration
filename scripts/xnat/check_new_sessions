@@ -90,6 +90,7 @@ with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
     complete_file = yaml.load(fi)
     incorrect_formatting_map = complete_file.get('incorrect_format')
     missing_scan_map = complete_file.get('incomplete_sessions')
+    more_of_type_map = complete_file.get('more_of_type')
     fi.close()
 
 # Date format for XNAT dates
@@ -311,25 +312,23 @@ def check_dti(ifc, eid, dti_scans):
                       'xnat:mrScanData/parameters/fov/y',
                       'xnat:mrScanData/parameters/voxelRes/x',
                       'xnat:mrScanData/parameters/voxelRes/y']
-        parameters += [experiment.scan(scan).attrs.mget(scan_attrs)]
+        xnat_para = experiment.scan(scan).attrs.mget(scan_attrs)
+        xnat_para.append(scan)
+        parameters += [xnat_para]
 
     if len(parameters):
-        te0, fovx0, fovy0, pixx0, pixy0 = parameters[0]
-        for te, fovx, fovy, pixx, pixy in parameters:
+        te0, fovx0, fovy0, pixx0, pixy0, scan0 = parameters[0]
+        for te, fovx, fovy, pixx, pixy, scan in parameters:
             if te != te0:
-                errors.append('TE mismatch (%s/%s)' % (te0, te))
+                errors.append('TE mismatch (Scan %s: %s; Scan %s: %s)' % (scan0,te0,scan1, te))
 
             if fovx != fovx0 or fovy != fovy0:
-                errors.append('FOV mismatch (%s,%s/%s,%s)' % (fovx0,
-                                                              fovy0,
-                                                              fovx,
-                                                              fovy))
+                errors.append('FOV mismatch (Scan %s: %s,%s; Scan %s: %s,%s)' % (scan0, fovx0,fovy0,
+                                                                                 scan,fovx,fovy))
 
             if pixx != pixx0 or pixy != pixy0:
-                errors.append('Pixel size mismatch (%s,%s/%s,%s)' % (pixx0,
-                                                                     pixy0,
-                                                                     pixx,
-                                                                     pixy))
+                errors.append('Pixel size mismatch (Scan %s: %s,%s; Scan %s: %s,%s)' % (scan0, pixx0,pixy0,
+                                                                                        scan, pixx, pixy))
 
     return errors
 
@@ -623,7 +622,7 @@ if False:
     sessions_to_check = sessions_to_check[4000:]
     print "DEBUG: Checking " + str(len(sessions_to_check)) + " sessions." 
 
-index = -1
+index = 0
 for (eid, project, subject, insert_date,
      session_label, last_modified) in sessions_to_check:
     index +=1 
@@ -633,8 +632,8 @@ for (eid, project, subject, insert_date,
     #    sys.exit()
     # print "==== ", index, eid
     if args.verbose:
-        sys.stdout.write("Checking experiment %s/%s SID:%s EID:%s, insert date "
-                         "%s, modified date %s...\n" % (project, session_label,
+        sys.stdout.write("%d Checking experiment %s/%s SID:%s EID:%s, insert date "
+                         "%s, modified date %s...\n" % (index, project, session_label,
                                                       subject, eid, insert_date,
                                                       last_modified))
         sys.stdout.flush()
@@ -806,7 +805,7 @@ for (eid, project, subject, insert_date,
     # duplicated scantypes
     dupl =[scantype for scantype in usable
            if (scantype in required_series.keys()) and
-           (usable.count(scantype) > required_series[scantype])]
+           (usable.count(scantype) > required_series[scantype]) and more_of_type_map.get(session_label) != scantype ]
     if len(dupl):
         htmld.append(''.join([session_html_link,
                               session_file_link,
