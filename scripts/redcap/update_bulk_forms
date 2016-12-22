@@ -46,7 +46,7 @@ def connect_to_redcap():
 
 # If connection to redcap server fail, try multiple times
 try:
-    rc_summary = connect_to_redcap()
+    rc_entry = connect_to_redcap()
 except Exception, error:
     slog.info(hashlib.sha1('update_bulk_forms').hexdigest()[0:6],
     "ERROR: Could not connect to redcap!",
@@ -54,7 +54,7 @@ except Exception, error:
     msg=str(error))
     sys.exit()
 
-form_event_mapping = rc_summary.export_fem(format='df')
+form_event_mapping = rc_entry.export_fem(format='df')
 
 # Compute the bulk "Complete" status of a record based on component status values
 def compute_bulk_status( row, field_names, form_complete_field ):
@@ -77,7 +77,7 @@ def process_form( form, complete_field_names ):
 
     # Get fields for applicable events
     try:
-        records = rc_summary.export_records( events=events_this_form, fields=[ form_complete_field ] + complete_field_names, event_name='unique', format='df', df_kwargs = { 'index_col': [rc_summary.def_field,'redcap_event_name'], 'dtype' : 'object' } )
+        records = rc_entry.export_records( events=events_this_form, fields=[ form_complete_field ] + complete_field_names, event_name='unique', format='df', df_kwargs = { 'index_col': [rc_entry.def_field,'redcap_event_name'], 'dtype' : 'object' } )
     except Exception as e:
         slog.info(
             hashlib.sha1('update_bulk_forms').hexdigest()[0:6],
@@ -85,7 +85,7 @@ def process_form( form, complete_field_names ):
             script='update_bulk_forms',
             events=events_this_form,
             fields=[form_complete_field] + complete_field_names,
-            index_col = str([rc_summary.def_field, 'redcap_event_name']),
+            index_col = str([rc_entry.def_field, 'redcap_event_name']),
             msg=str(e))
         return
 
@@ -97,44 +97,75 @@ def process_form( form, complete_field_names ):
     records[form_complete_field] = records.apply( compute_bulk_status, axis=1, args = (complete_field_names, form_complete_field) ).map( lambda x: str( x ) if not str( x ) == 'nan' else '' )
 
     # Dump all records where bulk status is unchanged - no need to upload these
-    records = records[ records[form_complete_field] != previous[form_complete_field] ]
-    return records[form_complete_field]
+    select_records = records[form_complete_field] != previous[form_complete_field]
+    records = records[select_records]
+    previous = previous[select_records]
+    return records[form_complete_field],previous[form_complete_field] 
 
 #
 # MAIN  
 #
 
 # If list of forms given, only update those
-forms_list = rc_summary.forms
+forms_list = rc_entry.forms
 if args.forms:
     forms_list = []
     for form in args.forms.split( ',' ):
-        if form in rc_summary.forms:
+        if form in rc_entry.forms:
             forms_list.append( form )
         else:
             print "WARNING: form '%s' does not exist.\n" % form
  
 for form in forms_list:
     # Does this form have any "_complete" fields, and if you, which ones?
-    complete_field_names = [ field['field_name'] for field in rc_summary.metadata if re.match( '.*_complete$', field['field_name'] ) and (field['form_name'] == form) and (field['field_type'] == 'dropdown') ]
+    complete_field_names = [ field['field_name'] for field in rc_entry.metadata if re.match( '.*_complete$', field['field_name'] ) and (field['form_name'] == form) and (field['field_type'] == 'dropdown') ]
 
     if len( complete_field_names ) > 0:
         if args.verbose:
             print "Processing bulk form",form
 
-        form_status = pandas.DataFrame( process_form( form, complete_field_names ) )
+        form_status_out,old_form_status_out = process_form( form, complete_field_names )
+        form_status = pandas.DataFrame(form_status_out)
 
         if args.no_upload:
             form_status.to_csv( args.no_upload )
         else:
             try:
-                import_response = rc_summary.import_records( form_status, overwrite='overwrite' )
+                import_response = rc_entry.import_records( form_status, overwrite='overwrite' )
             except Exception as e:
-                log_id = hashlib.sha1(str(e)).hexdigest()[0:6]
-                error = 'Exception while importing records into Redcap'
-                slog.info(log_id,
-                              error,
-                              msg=str(e))
+                # for certain errors find out value 
+                remaining_error = [] 
+                old_form_status = pandas.DataFrame(old_form_status_out)
+
+                for error in  str(e).split("u'",3)[2].split("\\n"):
+                    error_list = error.split('","') 
+                    error_list[0] =  error_list[0][1:] 
+                    if "This field is located on a form that is locked" in error_list[3] :
+                        err_subject_id = error_list[0][:11] 
+                        err_event_id = error_list[0][13:-1] 
+                        err_field = error_list[1]
+
+                        error_id= err_subject_id + "-" + err_event_id
+                        error_index_list = map(lambda (form_subject_id,form_event_id): err_subject_id.strip() == form_subject_id.strip() and err_event_id.strip() == form_event_id.strip(), form_status.index.tolist())
+                        new_value = str(form_status[err_field][error_index_list].values) 
+                        old_value = str(old_form_status[err_field][error_index_list].values) 
+
+                        slog.info(error_id, "Cannot update '" + err_field + "' field as form is locked",
+                                  field = err_field,
+                                  value = old_value,
+                                  info = "if the current value is unequal to '' and the new value is '' then redcap wont update the form. A possible solution is to select complete for the field.",
+                                  new_value = new_value)
+
+                    else : 
+                        remaining_error.append(error)
+
+                if remaining_error:
+                    log_id = hashlib.sha1(str(e)).hexdigest()[0:6]
+                    error_title = 'Exception while importing records into Redcap'
+                    slog.info(log_id,
+                              error_title,
+                              msg=str(remaining_error))
+
             else:
                 if 'count' in import_response.keys():
                     if args.verbose:
