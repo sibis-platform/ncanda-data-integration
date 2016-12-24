@@ -649,7 +649,18 @@ if args.verbose:
 
 # Iterate over all remaining rows
 records_uploaded = 0
+index = 0
 for [key, row] in mr_sessions_redcap.iterrows():
+    index +=1 
+    subject_label = key[0]
+    if not subject_label in subject_project_dict:
+        if args.verbose: 
+            print index, "Passing on", key , " does not exist in XNAT"
+        continue
+
+    if args.verbose: 
+        print index, "Processing", key 
+
     # Need to drop it otherwise upload to redcap fails 
     row = row.drop('mri_missing') 
 
@@ -665,7 +676,6 @@ for [key, row] in mr_sessions_redcap.iterrows():
             print "Missing birthdate for subject %s" % key[0]
         else:
             # Update XNAT SID and PID for subjects that changed sites
-            subject_label = key[0]
             if subject_label in export_measures_map.iterkeys():
                 sub_map = export_measures_map.get(subject_label)
                 event = key[1]
