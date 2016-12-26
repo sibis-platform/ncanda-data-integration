@@ -671,6 +671,8 @@ for [key, row] in mr_sessions_redcap.iterrows():
             slog.info(key[0], error,
                           visit_id=key[1])
     else:
+        redcap_visit_id=subject_label+"-"+visit_date
+
         this_subject_data = subject_data.ix[key[0]]
         if str( this_subject_data['dob'] ) == 'nan':
             print "Missing birthdate for subject %s" % key[0]
@@ -715,6 +717,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                                       next_visit_date,
                                       row['mri_inspection___completed'],
                                       verbose=args.verbose)
+
 
             if xnat_data['mri_xnat_eids'] != '':
                 # Check whether this MR session also has Stroop data
