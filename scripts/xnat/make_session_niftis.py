@@ -121,7 +121,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
                               subject=subject,
                               check_nifti = str(nifti_time) + " " +  str(nifti_log_search[0]),
                               check_dicom = str(dicom_time) + " " + str(dicom_file_list[0]),
-                              info =  "If the issue reappears then simply open up the session in  XNAT, go to 'Manage Files', delete the directory 'Resources/nifti/" + scantype + "', and run the script again. If it still reappears then repeat the previous procedure and afterwards delete the directory that the log file in check_nifti is located!")
+                              info =  "If the issue reappears then simply open up the session in  XNAT, go to 'Manage Files', delete the directory 'Resources/nifti/" + scantype + "'. If the pop-up window does not say that it is deleting 'dicom.log' then most likely you will have to manually delete the directory from the hard drive. To find out, simply run the script again. If the error message still reappears then repeat the previous procedure and afterwards delete the directory that the log file in check_nifti is located!")
 
             temp_dir = tempfile.mkdtemp()
             zip_path = '%s/%s_%s.zip' % (temp_dir, scan, scantype)
