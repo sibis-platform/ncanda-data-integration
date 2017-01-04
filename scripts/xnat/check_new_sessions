@@ -13,6 +13,7 @@ import time
 import argparse
 import datetime
 import yaml
+import bisect 
 
 import pyxnat
 from sibisBeta import sibislogger as slog
@@ -512,17 +513,29 @@ def frame_check(eid, manufacturer, scan_list):
     elif manufacturer == 'SIEMENS':
         # Variable frames has two grefieldmap keys, change to one key and list of values.
         # Extract values list -> ['64', '128']
+        voxel_dim_list = []
+        seq_id_list = [] 
+        for (k, v, z) in frames:
+            if k == 'ncanda-grefieldmap-v1':
+                # insert it sorted 
+                ind=bisect.bisect_left(map(int,voxel_dim_list),int(v))
+                voxel_dim_list.insert(ind,v)
+                seq_id_list.insert(ind,z)
 
-        grefieldmap_list = ['ncanda-grefieldmap-v1', [v for (k, v, z) in frames if k == 'ncanda-grefieldmap-v1']]
-        if grefieldmap_list[1] : 
-            # Sort number of frames for later comparison
-            grefieldmap_list[1].sort(lambda x, y: int(x) - int(y))
+        grefieldmap_list = ['ncanda-grefieldmap-v1', voxel_dim_list, seq_id_list]
+        frames = filter(lambda x: x[0] != 'ncanda-grefieldmap-v1', frames) 
+
+        if voxel_dim_list : 
             # Change all frames with fixed grefieldmap
-            frames = filter(lambda x: x[0] != 'ncanda-grefieldmap-v1', frames) + [grefieldmap_list]
+            if len(voxel_dim_list) != 2 :
+                error.append({'scan_type': 'ncanda-grefieldmap-v1', 'frames':  voxel_dim_list, 'scan_id': seq_id_list, 'info' : 'Expected exactly two scans but found ' + str(len(voxel_dim_list))})
+            else : 
+                frames += [grefieldmap_list]
 
         for f in frames:
             if f[0] not in scan_type_dictionary['SIEMENS']:
                 continue 
+
             if f[0] == 'ncanda-dti6b500pepolar-v1':
                 # Tim Trio contains '7' and prisma '8' frames 
                 if not f[1] in ('7', '8'):
@@ -530,7 +543,9 @@ def frame_check(eid, manufacturer, scan_list):
                                   'frames': f[1],
                                   'expected_frames': frame_check_siemens[f[0]],
                                   'scan_id': f[2]})
-            elif f[1] != frame_check_siemens[f[0]]:
+                continue 
+
+            if f[1] != frame_check_siemens[f[0]]:
                 # Some of the required frames are missing
                 error.append({'scan_type': f[0],
                               'frames': f[1],
