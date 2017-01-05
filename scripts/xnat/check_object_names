@@ -92,10 +92,10 @@ def export_t1t2_to_zip( experiment, experiment_label ):
             slog.info(zipfile, error,
                          scan_dirs = ' '.join( scan_dirs ))
             print zip_command
-        try:
-           os.remove(zipfile)
-        except:
-            pass
+            try:
+                os.remove(zipfile)
+            except:
+                pass
 
         if os.path.exists( zipfile ):
             os.chmod( zipfile, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO )
