@@ -63,6 +63,7 @@ class XnatEmail:
         # sendmail function takes 3 arguments: sender's address, recipient's address
         # and message to send - here it is sent as one string.
         s.sendmail( from_email, to_email, msg.as_string() )
+        s.sendmail( from_email, 'ncanda-admin@sri.com', msg.as_string() )
         s.quit()
 
     # Send mail to one user
@@ -90,7 +91,7 @@ We have detected the following problem(s) with data you uploaded to the <a href=
 %s\n\
 Please address these issues as soon as possible (direct links to the respective data items are provided above for your convenience).\n\
 You may want to consult the <a href="http://www.nitrc.org/docman/view.php/672/1206/N-CANDA%%20MRI%%20and%%20Image%%20Management%%20Manual">NCANDA MRI and Image Management Manual</a> for instructions.<br></br>\n\
-If you have further questions, feel free to contact the <a href="mailto:%s">Site Administrator</a>\n\
+If you have further questions, feel free to contact the <a href="mailto:%s">NCANDA support</a>\n\
 </p>\n\
 </body>\n\
 </html>' % (user_firstname, user_lastname, self._site_url, self._site_name, '\n'.join( problem_list ), self._admin_email)
