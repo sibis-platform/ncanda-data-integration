@@ -12,6 +12,7 @@ import time
 import datetime
 import argparse
 import hashlib
+import ast
 
 import yaml
 from sibisBeta import sibislogger as slog
@@ -743,12 +744,27 @@ for [key, row] in mr_sessions_redcap.iterrows():
                    import_response = redcap_project.import_records( [record], overwrite='overwrite' )
 
                 except requests.exceptions.RequestException as e:
-                    error = 'Failed to import xnat data into redcap'
-                    slog.info(redcap_visit_id, error,
-                              xnat_data_dictionary=str(record),
-                              mri_xnat_sid=record["mri_xnat_sid"],
-                              record = record["mri_xnat_eids"],
-                              requestError=str(e))
+                    error = 'Failed to import XNAT data into REDCap'
+                    err_list = ast.literal_eval(str(e))['error'].split('","')
+                    # probably needs more work here - but right now good enough
+                    if len(err_list) > 3 and err_list[3] == 'This field is located on a form that is locked. You must first unlock this form for this record."':
+                        red_var = err_list[1]
+                        event = err_list[0].split('(')[1][:-1]
+                        red_value = redcap_project.export_records(fields=[red_var],records=[subject_label],events=[event])[0][red_var]
+                        slog.info(redcap_visit_id, error,
+                                  redcap_value="'"+str(red_value)+"'",
+                                  redcap_variable=red_var,
+                                  redcap_event=event,
+                                  new_value="'"+str(err_list[2])+"'",
+                                  xnat_sid=record["mri_xnat_sid"],
+                                  xnat_eid=record["mri_xnat_eids"],
+                                  requestError=str(e))
+                    else :
+                        slog.info(redcap_visit_id, error,
+                                  xnat_sid=record["mri_xnat_sid"],
+                                  xnat_eid = record["mri_xnat_eids"],
+                                  requestError=str(e))
+  
                     continue
 
                 if 'count' in import_response.keys():
