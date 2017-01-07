@@ -586,10 +586,10 @@ def mri_quality_check(eid, manufacturer, label, incorrect_formatting_map):
             errors.append(e)
 
     if errors:
-        slog.info(eid,
-                      'ERROR: Failed to match standard frames',
-                      scan_session_label=label,
-                      violations=str(errors))
+        slog.info(label,
+                  'ERROR: Failed to match standard frames',
+                  xnat_experiment_id=eid,
+                  violations=str(errors))
         return False
 
     return True
