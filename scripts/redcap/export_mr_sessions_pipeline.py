@@ -64,20 +64,18 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
 
     # If filename is a pattern with substitution, check whether entire directory exists
 
-    pipeline_file = "" 
+    pipeline_file_list=[]
     if '%' in filename_pattern:
         eid_file_path = os.path.join( to_directory, 'eid' )
         if os.path.exists( to_directory ):
               if check_eid_file( eid_file_path, session_and_scan_list ):
                 pipeline_file_pattern = re.sub('%T%N','*',re.sub( '%n', '*', to_path_pattern)) + ".xml"
                 pipeline_file_list= glob.glob(pipeline_file_pattern)
-                if pipeline_file_list != [] :
-                    pipeline_file = pipeline_file_list[0]
     else:
         eid_file_path = re.sub( '\.[^/]*', '.eid', to_path_pattern )
         if os.path.exists( to_path_pattern ) or os.path.exists( to_path_pattern + '.gz' ):
             if check_eid_file( eid_file_path, session_and_scan_list ):
-                pipeline_file=to_path_pattern + ".xml"
+                pipeline_file_list=[to_path_pattern + ".xml"]
 
     dicom_path_list = []
     CreateDicomFlag=False
@@ -90,7 +88,7 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
                 dicom_path = re.sub( 'storage/XNAT', 'ncanda-xnat', dicom_path )
 
             # If pipeline file does not exist then create dicom - otherwise check date to xnat file - assumes that check_new_sessions is always run before this script otherwise pipeline is run twice !
-            if pipeline_file == "" :
+            if not len(pipeline_file_list) :
                 CreateDicomFlag=True
             else :
                 # Look for xnat file 
@@ -98,7 +96,7 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
                 xnat_file_search  = glob.glob(xnat_file_pattern)
 
                 # If date of xnat file is newer than in pipeline then update  
-                if  xnat_file_search != [] and not check_file_date(pipeline_file,xnat_file_search[0]):
+                if  xnat_file_search != [] and not check_file_date(pipeline_file_list[0],xnat_file_search[0]):
                     CreateDicomFlag=True
 
             dicom_path_list.append( dicom_path )
@@ -106,15 +104,26 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
     if CreateDicomFlag == False :
         return False
 
-    if pipeline_file != "" :
+    if len(pipeline_file_list)  :
         [ session, scan ] = session_and_scan_list.split( ' ' )[0].split('/')
         slog.info(session + "_" + scan,"Warning: existing MR images of the pipeline are updated", 
                       file = to_path_pattern,
                       session_scan_list = session_and_scan_list )
-    
+
+        # Remove existing files of that type to make sure we start with clean slate
+        for xml_file in pipeline_file_list:
+            os.remove(xml_file)
+            nii_file = re.sub('.nii.xml','.nii',xml_file)
+            if os.path.exists(nii_file):
+                os.remove(nii_file)
+            nii_file += ".gz"
+            if os.path.exists(nii_file):
+                os.remove(nii_file)
+            
     dcm2image_output = None
     if len( dicom_path_list ):
-
+        to_path_pattern = os.path.join( to_directory, filename_pattern )
+        
         try:
             dcm2image_command = 'cmtk dcm2image --tolerance 1e-3 --write-single-slices --no-progress -rxO %s %s 2>&1' % ( to_path_pattern, ' '.join( dicom_path_list ) )
 
