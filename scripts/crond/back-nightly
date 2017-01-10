@@ -39,6 +39,7 @@ catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Update Form Status (upda
 ######################################
 
 # Check MR session names etc. in XNAT
+
 catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Check Object Names Message (check_object_names)" ${SIBIS}/scripts/xnat/check_object_names -p --send-mail --zip-root /fs/ncanda-share/burn2dvd
 
 # Check for new or updated sessions and
