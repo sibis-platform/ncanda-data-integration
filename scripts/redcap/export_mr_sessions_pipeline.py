@@ -11,6 +11,7 @@ import glob
 import subprocess
 import shutil
 import sys
+import tempfile 
 from sibisBeta import sibislogger as slog
 
 from export_mr_sessions_spiral import export_spiral_files
@@ -122,10 +123,12 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
             
     dcm2image_output = None
     if len( dicom_path_list ):
-        to_path_pattern = os.path.join( to_directory, filename_pattern )
-        
+        temp_dir = tempfile.mkdtemp()
+        # to_path_pattern = os.path.join( to_directory, filename_pattern )
+        tmp_path_pattern = os.path.join(temp_dir, filename_pattern )
+        dcm2image_output = ""
         try:
-            dcm2image_command = 'cmtk dcm2image --tolerance 1e-3 --write-single-slices --no-progress -rxO %s %s 2>&1' % ( to_path_pattern, ' '.join( dicom_path_list ) )
+            dcm2image_command = 'cmtk dcm2image --tolerance 1e-3 --write-single-slices --no-progress -rxO %s %s 2>&1' % ( tmp_path_pattern, ' '.join( dicom_path_list ) )
 
             if ( verbose ):
                 print dcm2image_command
@@ -133,26 +136,32 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
             dcm2image_output = subprocess.check_output( dcm2image_command, shell=True )
 
         except:
-            if dcm2image_output:
-                output_file = open( to_path_pattern + '.log' , 'w' )
-                try:
-                    output_file.writelines( dcm2image_output )
-                except:
-                    print dcm2image_output
-                finally:
-                    output_file.close()
-
             slog.info(session + "_" + scan,"Error: Unable to create dicom file",
                           cmd=dcm2image_command,
                           output=dcm2image_output)
+            shutil.rmtree(temp_dir)
             return False
 
         try:
+            if not os.path.exists(to_directory):
+                os.makedirs(to_directory)
+
             open( eid_file_path, 'w' ).writelines( session_and_scan_list )
         except:
             error = "ERROR: unable to write EID file"
-            slog.info(eid_file_path,error)
+            slog.info(session + "_" + scan,error, eid_file_path = eid_file_path)
 
+        try: 
+            for f in os.listdir(temp_dir):
+                shutil.move(os.path.join(temp_dir,f),to_directory)
+
+        except Exception as err_msg: 
+            error = "ERROR: unable to move files"
+            slog.info(session + "_" + scan,error, src_dir = temp_dir , dest_dir = to_directory, err_msg = str(err_msg))
+            shutil.rmtree(temp_dir)
+            return False
+
+        shutil.rmtree(temp_dir)
         return True
     return False
 

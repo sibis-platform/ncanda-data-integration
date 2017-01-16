@@ -54,7 +54,7 @@ parser.add_argument("--run-pipeline-script",
                     help="Run image processing pipeline if new files were exported.",
                     action="store")
 parser.add_argument("-f", "--force-update",
-                    help="Update all records in REDCap, overwriting existing data",
+                    help="Check all records in REDCap even if marked as complete -does not recreate image data if it already exists and did not change",
                     action="store_true")
 parser.add_argument("--missing-only",
                      help="Only consider missing records in REDCap, rather than unverified ones also.",
