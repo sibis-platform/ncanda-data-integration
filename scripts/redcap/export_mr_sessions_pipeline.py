@@ -64,19 +64,18 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
     to_path_pattern = os.path.join( to_directory, filename_pattern )
 
     # If filename is a pattern with substitution, check whether entire directory exists
-
-    pipeline_file_list=[]
     if '%' in filename_pattern:
+        pipeline_file_pattern = re.sub('%T%N','*',re.sub( '%n', '*', to_path_pattern)) + ".xml"
         eid_file_path = os.path.join( to_directory, 'eid' )
-        if os.path.exists( to_directory ):
-              if check_eid_file( eid_file_path, session_and_scan_list ):
-                pipeline_file_pattern = re.sub('%T%N','*',re.sub( '%n', '*', to_path_pattern)) + ".xml"
-                pipeline_file_list= glob.glob(pipeline_file_pattern)
     else:
+        pipeline_file_pattern = to_path_pattern + ".xml"
         eid_file_path = re.sub( '\.[^/]*', '.eid', to_path_pattern )
-        if os.path.exists( to_path_pattern ) or os.path.exists( to_path_pattern + '.gz' ):
-            if check_eid_file( eid_file_path, session_and_scan_list ):
-                pipeline_file_list=[to_path_pattern + ".xml"]
+
+    # Check if EID is still the same 
+    eid_unchanged_flag = check_eid_file( eid_file_path, session_and_scan_list )
+    
+    # Check if files are already created 
+    pipeline_file_list= glob.glob(pipeline_file_pattern)
 
     dicom_path_list = []
     CreateDicomFlag=False
@@ -87,11 +86,10 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
             dicom_path = match.group(1)
             if not os.path.exists( dicom_path ):
                 dicom_path = re.sub( 'storage/XNAT', 'ncanda-xnat', dicom_path )
+            dicom_path_list.append( dicom_path )
 
-            # If pipeline file does not exist then create dicom - otherwise check date to xnat file - assumes that check_new_sessions is always run before this script otherwise pipeline is run twice !
-            if not len(pipeline_file_list) :
-                CreateDicomFlag=True
-            else :
+            # If pipeline already has created file check date to xnat file - assumes that check_new_sessions is always run before this script otherwise pipeline is run twice ! If not created then or eid changed then create dicoms 
+            if eid_unchanged_flag and len(pipeline_file_list) : 
                 # Look for xnat file 
                 xnat_file_pattern = re.sub('/DICOM/','_*/image*.nii.xml',re.sub( '/SCANS/', '/RESOURCES/nifti/', dicom_path))
                 xnat_file_search  = glob.glob(xnat_file_pattern)
@@ -99,8 +97,8 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
                 # If date of xnat file is newer than in pipeline then update  
                 if  xnat_file_search != [] and not check_file_date(pipeline_file_list[0],xnat_file_search[0]):
                     CreateDicomFlag=True
-
-            dicom_path_list.append( dicom_path )
+            else:
+                CreateDicomFlag=True
 
     if CreateDicomFlag == False :
         return False
@@ -120,7 +118,7 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
             nii_file += ".gz"
             if os.path.exists(nii_file):
                 os.remove(nii_file)
-            
+
     dcm2image_output = None
     if len( dicom_path_list ):
         temp_dir = tempfile.mkdtemp()
