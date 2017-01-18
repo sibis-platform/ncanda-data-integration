@@ -18,7 +18,7 @@ import datetime
 parser = argparse.ArgumentParser( description="Find new MR sessions in XNAT, check for missing and duplicate scans, and list all sessions with questionable scans." )
 parser.add_argument("-v", "--verbose", action="store_true", default=False, help="Verbose operation.")
 parser.add_argument("-m", "--send-mail", action="store_true", default=False, help="Send emails with problem reports to users and site admin.")
-parser.add_argument("-e", "--eidlist", default =False, action='store',help="Allows for a subset of scans to be selected for export")
+parser.add_argument("-e", "--eidlist", default =False, action='store',help="Allows for a subset of scans to be selected for export - write to file with eid in each line")
 parser.add_argument( "-a", "--check-all", help="Check all subjects and sessions, regardless of date.", action="store_true")
 parser.add_argument( "-W", "--last-week", help="Check all subjects and sessions that were modified within the last week.", action="store_true")
 parser.add_argument( "-M", "--last-month", help="Check all subjects and sessions that were modified within the last month (more precisely: the last 31 days).", action="store_true")
