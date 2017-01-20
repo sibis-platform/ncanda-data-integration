@@ -40,7 +40,7 @@ def get_project(args):
                                              'visit_ignore___yes', 'mri_missing'],
                                      forms=['mr_session_report', 'visit_date',
                                             'demographics'],
-                                     events=args.event.split(", "),
+                                     events=args.event.split(","),
                                      format='df')
     return mri
 
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     parser.add_argument( '-c','--csvdir',  action="store", default = '',
                         help="Directory where CSV will be stored.")
     parser.add_argument('-e', '--event', dest="event", action='store',
-                        default="baseline_visit_arm_1, 1y_visit_arm_1",
+                        default="baseline_visit_arm_1,1y_visit_arm_1",
                         help="A list containg the events of interest. {}".format(default))
     parser.add_argument('-f', '--forms', dest="forms",
                         default="visit_ignore___yes, mri_missing, mri_xnat_sid, mri_xnat_eids",
