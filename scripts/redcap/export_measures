@@ -169,11 +169,11 @@ if args.export:
 else:
     select_exports = None
 
-if args.verbose:
-    print "Exporting %d REDCap records." % len( visit_log_redcap )
-
 if args.subject:
     visit_log_redcap = visit_log_redcap.loc[[args.subject]]
+
+if args.verbose:
+    print "Exporting %d REDCap records." % len( visit_log_redcap )
 
 # Iterate over all remaining rows
 for [key,row] in visit_log_redcap.iterrows():
