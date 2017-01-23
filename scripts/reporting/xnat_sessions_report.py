@@ -80,74 +80,94 @@ def main(args=None):
     site_id_pattern = '[A-E]-[0-9]{5}-[MF]-[0-9]'
     df = df[df.site_id.str.contains(site_id_pattern)]
 
-    # convert to date type
-    df.loc[:, 'experiment_date'] = df.experiment_date.astype('datetime64')
+    # exclude subjects not part of study 
+    df = df[df['subject_id'] != 'NCANDA_S00127']
 
-    result = pd.DataFrame()
-    for subject_id in df.subject_id.drop_duplicates():
-        subject_df = df[df.subject_id == subject_id]
-
-        # find the earliest exam date for each given subject
-        grouping = subject_df.groupby('subject_id')
-        baseline_date = grouping['experiment_date'].nsmallest(1)
-        baseline_df = subject_df[subject_df.experiment_date == baseline_date[0]]
-
-        # Find window for follow-up
-        day_min = pd.datetools.Day(n=args.min)
-        day_max = pd.datetools.Day(n=args.max)
-        followup_min = baseline_df.experiment_date + day_min
-        followup_max = baseline_df.experiment_date + day_max
-
-        df_min = subject_df.experiment_date > followup_min[0]
-        df_max = subject_df.experiment_date < followup_max[0]
-        followup_df = subject_df[df_min & df_max]
-
-        # Included followup sessions slightly outside window
-        included = ['NCANDA_E02615', 'NCANDA_E02860']
-        included_df = subject_df[subject_df.experiment_id.isin(included)]
-        if included_df.shape[0]:
-            followup_df = included_df
-
-        # Create report for baseline visit
-        if args.baseline:
-            followup_df = baseline_df
-
-        # filter for specific scan types
-       
-        scan_type_pairs = get_scan_type_pairs(args.modality)
-        scan1 = scan_type_pairs.get('scan1')
-        scan2 = scan_type_pairs.get('scan2')
-        scan1_df = followup_df[followup_df.scan_type.isin(scan1)]
-        scan2_df = followup_df[followup_df.scan_type.isin(scan2)]
-
-        # Filter quality column
+    if args.unknown : 
+        print "Sessions that have not yet been quality controlled" 
+        for eid in df.experiment_id.drop_duplicates():
+            eid_df = df[df.experiment_id == eid]
+            eid_df = eid_df[~pd.isnull(eid_df['quality'])] 
+            if not len(eid_df[eid_df['quality'] != 'unknown']) :
+                print eid
+        sys.exit()
+    if args.ignore_window : 
         if args.usable : 
-            scan1_selected = scan1_df[scan1_df.quality == 'usable']
-            scan2_selected = scan2_df[scan2_df.quality == 'usable']
-        else : 
-            scan1_selected = scan1_df
-            scan2_selected = scan2_df
+            df = df[df['quality'] == 'usable']
 
-        # report columns
-        columns = ['site_id', 'subject_id', 'experiment_id', 'experiment_date',
-                   'excludefromanalysis', 'note', 'scan_type', 'quality',
-                   'scan_note']
-        scan1_recs = scan1_selected.loc[:, columns].to_records(index=False)
-        scan2_recs = scan2_selected.loc[:, columns].to_records(index=False)
+        result = df[['site_id', 'subject_id', 'experiment_id', 'scan_id', 'scan_type', 'experiment_date','excludefromanalysis']]
+        # print result 
+    else :
+        df.loc[:, 'experiment_date'] = df.experiment_date.astype('datetime64')
+        result = pd.DataFrame()
+        for subject_id in df.subject_id.drop_duplicates():
+            subject_df = df[df.subject_id == subject_id]
 
-        scan1_report = pd.DataFrame(scan1_recs,
-                                    index=scan1_selected.experiment_id)
-        scan2_report = pd.DataFrame(scan2_recs,
-                                    index=scan2_selected.experiment_id)
+            # find the earliest exam date for each given subject
+            grouping = subject_df.groupby('subject_id')
+            baseline_date = grouping['experiment_date'].nsmallest(1)
+            baseline_df = subject_df[subject_df.experiment_date == baseline_date[0]]
 
-        scan1_scan2_report = scan1_report.join(scan2_report[['scan_type',
-                                                             'quality',
-                                                             'scan_note']],
-                                               lsuffix='_scan1',
-                                               rsuffix='_scan2',
-                                               how='inner')
-        if scan1_scan2_report.shape[0]:
-            result = result.append(scan1_scan2_report)
+            # Find window for follow-up
+            day_min = pd.datetools.Day(n=args.min)
+            day_max = pd.datetools.Day(n=args.max)
+            followup_min = baseline_df.experiment_date + day_min
+            followup_max = baseline_df.experiment_date + day_max
+
+            df_min = subject_df.experiment_date > followup_min[0]
+            df_max = subject_df.experiment_date < followup_max[0]
+            followup_df = subject_df[df_min & df_max]
+
+            # Included followup sessions slightly outside window
+            included = ['NCANDA_E02615', 'NCANDA_E02860']
+            included_df = subject_df[subject_df.experiment_id.isin(included)]
+            if included_df.shape[0]:
+                followup_df = included_df
+
+            # Create report for baseline visit
+            if args.baseline:
+                followup_df = baseline_df
+
+            # filter for specific scan types
+       
+            scan_type_pairs = get_scan_type_pairs(args.modality)
+            scan1 = scan_type_pairs.get('scan1')
+            scan2 = scan_type_pairs.get('scan2')
+            scan1_df = followup_df[followup_df.scan_type.isin(scan1)]
+            scan2_df = followup_df[followup_df.scan_type.isin(scan2)]
+
+            # Filter quality column
+            if args.usable : 
+                scan1_selected = scan1_df[scan1_df.quality == 'usable']
+                scan2_selected = scan2_df[scan2_df.quality == 'usable']
+            else : 
+                scan1_selected = scan1_df
+                scan2_selected = scan2_df
+
+            # report columns
+            columns = ['site_id', 'subject_id', 'experiment_id', 'experiment_date',
+                       'excludefromanalysis', 'note', 'scan_type', 'quality',
+                       'scan_note']
+            scan1_recs = scan1_selected.loc[:, columns].to_records(index=False)
+            scan2_recs = scan2_selected.loc[:, columns].to_records(index=False)
+
+            scan1_report = pd.DataFrame(scan1_recs,
+                                        index=scan1_selected.experiment_id)
+            scan2_report = pd.DataFrame(scan2_recs,
+                                        index=scan2_selected.experiment_id)
+
+            scan1_scan2_report = scan1_report.join(scan2_report[['scan_type',
+                                                                 'quality',
+                                                                 'scan_note']],
+                                                   lsuffix='_scan1',
+                                                   rsuffix='_scan2',
+                                                   how='inner')
+            if scan1_scan2_report.shape[0]:
+                result = result.append(scan1_scan2_report)
+    #
+    # Write out results 
+    #
+
     # Remove any duplicate rows due to extra usable scan types (i.e., fieldmaps)
     result = result.drop_duplicates()
     result.to_csv(args.outfile, index=False)
@@ -184,9 +204,15 @@ if __name__ == "__main__":
                         default=540,
                         help='Maximum days from baseline (to specify followup '
                              '1y, only impacts final report but not -u option)')
+    parser.add_argument('--ignore-window',
+                        action='store_true',
+                        help='Just list sessions regardless of window')
     parser.add_argument('--usable',
                         action='store_true',
                         help='Only list scans with usable image quality')
+    parser.add_argument('--unknown',
+                        action='store_true',
+                        help='Only list sessions that have unknown scans, i.e. have not been reviewed')
 
     parser.add_argument('-o', '--outfile',
                         type=str,
