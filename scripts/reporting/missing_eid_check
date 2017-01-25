@@ -15,130 +15,223 @@ python missing_eid_check.py xnat_inventory.csv redcap_inventory.csv
 
 import sys
 import pandas
+import datetime
+import yaml
+date_format_ymd = '%Y-%m-%d'
 
+
+def series_in_dataframe(df_entry,df_list):
+    df_list = df_list[df_list['experiment_id'] == df_entry['experiment_id']]
+    if len(df_list[df_list['scan_id'] == df_entry['scan_id']]) :
+        return True
+    return False
 
 def in_dataframe(df_entry,df_list):
     df_list = df_list[df_list['experiment_id'] == df_entry.experiment_id]
-    df_list = df_list[df_list['scan_id'] == df_entry.scan_id]
-    if len(df_list) :
+    if len(df_list[df_list['scan_id'] == df_entry.scan_id]) :
         return True
-    
     return False
 
 def main(args):
 
-    xnat_list = pandas.read_csv(args.xnatcsv)
-    xnat_list = xnat_list[xnat_list['subject_id'] > 'NCANDA_S00032']
-    # xnat_list = xnat_list[xnat_list['experiment_date'] < '2016-01-01']
+    #
+    # Define Subject List Associate with Release 
+    # 
+    with open(args.subjectlist, 'r') as f:
+        subject_list = [line.strip() for line in f]
 
-    exception_list = ['ncanda-dti30b400-v1','ncanda-calibration-v1','ncanda-fmri-antisaccade-v1','ncanda-localizer-v1','ncanda-fmri-ringrewards-v1','ncanda-dti6b500pepolar-v1_TRACEW','ncanda-dti60b1000-v1_TRACEW',]
-    print "Currently not taken into account: ", exception_list 
-    for exception in exception_list:
-        xnat_list = xnat_list[xnat_list['scan_type'] != exception ]
-
-
-
-    if False:
-        with open(args.subjectlist, 'r') as f:
-            subject_list = [line.strip() for line in f]
-
-        redcap_list_base = redcap_list[redcap_list['redcap_event_name'] == 'baseline_visit_arm_1']
-        redcap_list_base_interest = redcap_list_base[redcap_list_base.mri_xnat_sid.isin(subject_list) ]
+    # Identify special cases that switched sites (important for xnat check) 
+    special_subject_list = []
+    with open(args.special_cases) as fi:
+        export_measures_map = yaml.load(fi).get('site_change').get('export_measures')
+        for sub in export_measures_map.iterkeys():
+            sub_map = export_measures_map.get(sub).get('default')  
+            if sub_map.get('subject') in subject_list :
+                special_subject_list += [ sub_map.get('xnat_subject_id') ] 
 
 
-        # Events to check
-        event_list = args.events.split(',')
-        event_column_list = ['site_id','subject_id'] + event_list
-        redcap_event_list = pandas.DataFrame(columns=event_column_list)
-        redcap_event_list['site_id'] = redcap_list_base_interest['study_id']
-        redcap_event_list['subject_id'] = redcap_list_base_interest['mri_xnat_sid']
 
+    #
+    # Setup REDCap Check  
+    #
 
     redcap_list = pandas.read_csv(args.redcapcsv)
-    visit_column_list = ['site_id','last_date_for_visit','visit_window_list']
-    redcap_visit_window_list = pandas.DataFrame(columns=visit_column_list)
 
     #
-    # check visit window and 
-    #
-    if False: 
-        for sid in redcap_list['study_id'].drop_duplicates().iterrows():
-            init=0
-            for red_entry in redcap_list[redcap_list['study_id'] == sid].iterrows():
-                if red_entry.study_id in redcap_event_list['site_id'] and red_entry.redcap_event_name in event_list :
-                    redcap_event_list[redcap_event_list['site_id'] == red_entry.study_id][red_entry.redcap_event_name] = red_entry.visit_date
-    
+    # Step 1: Check that all events specified are properly labelled as missing or visit_date
+    # 
+
+    event_list = args.events.split(',')
+
+    # Baseline
+    redcap_list_base = redcap_list[redcap_list.redcap_event_name == 'baseline_visit_arm_1']
+    redcap_list_base = redcap_list_base[redcap_list_base.mri_xnat_sid.isin(subject_list) ]
+    if len(redcap_list_base) != len(subject_list):
+        print "Error: Not all subjects in the list have a baseline or an mri session!"
+        sys.exit(1)
+        
+    entries_with_null=redcap_list_base[pandas.isnull(redcap_list_base['mri_xnat_sid'])]
+    if len(entries_with_null):
+        print "Error: Not all subjects in the list have a mri visit at baseline! Also subjectlist is incorrect as it includes  NULL !"
+        print entries_with_null
+        sys.exit(1)
+
+    redcap_event_list = pandas.concat([pandas.DataFrame({"site_id": redcap_list_base['study_id'].values}),pandas.DataFrame({"subject_id": redcap_list_base['mri_xnat_sid'].values}),pandas.DataFrame({"baseline_visit_arm_1": redcap_list_base['visit_date'].values})],axis=1)
+
+    redcap_list_interest = redcap_list[redcap_list.study_id.isin(redcap_event_list.site_id.values)]
+
+    # Define Data for other events
+    incorrect_entries = pandas.isnull(redcap_event_list['baseline_visit_arm_1'])
+    ErrorFlag = False
+
+    for event in event_list[1:] :
+        tmp_list_event =  redcap_list_interest[redcap_list_interest.redcap_event_name == event ]
+
+        missing_subject_list = redcap_list_base[~redcap_list_base.study_id.isin(tmp_list_event.study_id)]
+        if len(missing_subject_list) :
+            print "Error: Event " + event + " missing for " + str(missing_subject_list.study_id.values)
+            ErrorFlag = True
+            continue 
+
+        tmp_list_visit_date = pandas.DataFrame()
+        for sid in redcap_list_base['study_id'].drop_duplicates():
+            tmp_sub_event = tmp_list_event[tmp_list_event['study_id'] == sid]
+            if tmp_sub_event["visit_ignore___yes"] == 1 :
+                tmp_list_visit_date = tmp_list_visit_date.append([['']],ignore_index=True)
+            else :
+                tmp_list_visit_date = tmp_list_visit_date.append([tmp_sub_event['visit_date'].values],ignore_index=True)
+
+        tmp_list_visit_date.columns=[event]
+
+        redcap_event_list = pandas.concat([redcap_event_list,tmp_list_visit_date],axis=1)
+        incorrect_entries = incorrect_entries | pandas.isnull(tmp_list_visit_date).xs(event,axis=1)
+            
+    if (not ErrorFlag) and len(redcap_event_list[incorrect_entries]):
+        print "Error: The following sessions are not excluded nor have a visit_date defined:"
+        print redcap_event_list[incorrect_entries]
+        ErrorFlag = True
+                                
+    if ErrorFlag :
+        sys.exit(1)
 
     #
-    # Turn REDCap into xnatlist
+    # Step 2: Define window to look at scans in xnat as otherwise one will get a lot of false positives 
+    # as xnat scans are only transferred to redcap once a visit date in range is defined  
+    #
+    tmp_list_max_date = pandas.DataFrame()
+    check_list=[]
+    for index,sub_entry in redcap_event_list.iterrows():
+        time_added=datetime.timedelta(120)
+        for event in reversed(event_list):
+            if sub_entry[event] != '':
+                max_date = (datetime.datetime.strptime(sub_entry[event], date_format_ymd) + time_added).strftime(date_format_ymd)
+                tmp_list_max_date = tmp_list_max_date.append([[max_date]],ignore_index=True)
+                break
+            time_added += datetime.timedelta(365)
+
+    tmp_list_max_date.columns = ['Last_Allowed_Visit']
+    redcap_event_list = pandas.concat([redcap_event_list,tmp_list_max_date],axis=1)
+
+    #
+    # Step 3: Turn REDCap into xnatlist
     #
 
     column_list= ['site_id','subject_id','experiment_id','scan_id','scan_type','experiment_date']
     scan_type_list = ['mri_series_t1','mri_series_t2','mri_series_dti6b500pepolar','mri_series_dti60b1000','mri_series_dti_fieldmap','mri_series_rsfmri', 'mri_series_rsfmri_fieldmap']
 
-    if True: 
+    if False: 
         redcap_xnat_list = pandas.read_csv('/tmp/blubber.csv')
     else:
         redcap_xnat_list = pandas.DataFrame(columns=column_list)
-
 
         print "=== Turn REDCap into XNAT list ===" 
         red_len = len(redcap_list)
         for index,red_entry in redcap_list.iterrows():
             if index % 1000 == 1 : 
                 print index, "of", red_len
-            # if red_entry.study_id != 'E-00367-M-4' : 
-            #    continue 
+
+            # Only keep those that were selected as part of the redcap_event_list 
+            # If not you get false positives as xnat is confined to those 
+            if not red_entry['study_id'] in redcap_event_list['site_id'].values:
+                continue 
+
             for scan_type in scan_type_list :
                 if not pandas.isnull(red_entry[scan_type]):
                     for eid_sid in str(red_entry[scan_type]).split(' '):
                         eid,scan_id= eid_sid.split('/')
-                        new_entry = [[red_entry.study_id,red_entry.mri_xnat_sid,eid,scan_id,scan_type,red_entry.visit_date]] 
+                        new_entry = [[red_entry['study_id'],red_entry['mri_xnat_sid'],eid,scan_id,scan_type,red_entry['visit_date']]] 
                         redcap_xnat_list = redcap_xnat_list.append(pandas.DataFrame(new_entry,columns=column_list),ignore_index=True)
 
-        # redcap_xnat_list.to_csv('/tmp/blubber.csv', index=False)
+        # First time write to directory so that if you run it multiple times you do not have to repeat it 
+        #redcap_xnat_list.to_csv('/tmp/blubber.csv', index=False)
 
+    #
+    # Check XNAT Records 
+    #
+
+    #
+    # Step 1: Setup XNAT variables 
+    #
+
+    xnat_list = pandas.read_csv(args.xnatcsv)
+    
+    # account for subjects changing sites so they have multiple subject numbers 
+    xnat_list = xnat_list[xnat_list.subject_id.isin(subject_list + special_subject_list)]
+
+    exception_list = ['ncanda-dti30b400-v1','ncanda-calibration-v1','ncanda-fmri-antisaccade-v1','ncanda-localizer-v1','ncanda-fmri-ringrewards-v1','ncanda-dti6b500pepolar-v1_TRACEW',]
+    print " " 
+    print "Types of scans ignored: ", exception_list 
+    for exception in exception_list:
+        xnat_list = xnat_list[xnat_list['scan_type'] != exception ]
+
+    # NCANDA_E00836 outside of visit window
+    ignore_eid_list = ['NCANDA_E00836']
+    print "Vists that will be ignored: ", ignore_eid_list
+
+    for eid in ignore_eid_list:
+        xnat_list = xnat_list[xnat_list['experiment_id'] != eid ]
 
     comply_list = False
     for TYPE in [ 't1spgr', 'mprage', 't2fse', 'dti6b500pepolar', 'dti60b1000', 'rsfmri', 'grefieldmap' ]:
         comply_list = comply_list | (xnat_list['scan_type'] == 'ncanda-' + TYPE + '-v1' )
 
-    if False:
+    #
+    # Step 2: Check that all XNAT sessions are in REDCap that complied with naming convention and were part of subject list (including those that switched sites) 
+    #
+    if True:
         print " " 
         print "======================="
         print "In XNAT and not in REDCap:" 
-        print "Comply with Naming convention:" 
         xnat_list_comply = xnat_list[comply_list]
         for index,xnat_entry in xnat_list_comply.iterrows():
-            if not in_dataframe(xnat_entry,redcap_xnat_list) :
-                # create visit date list range from original redcap list and then check if in range 
-                # if not in list ignore as visit is not yet defined in redcap 
-            
-                #red_study_id = redcap_xnat_list[redcap_xnat_list['site_id'] == 
-                #experiment_date
-                # visit_date_plusNd = (datetime.datetime.strptime( visit_date, date_format_ymd) + datetime.timedelta(args.max_days_after_visit)).strftime(date_format_ymd)
-                # if (subject_id == session_subject_id) and (date >= date_range_from) and (date <= date_range_to):
-
-                # if xnat_entry.study_id != 'E-00367-M-4' : 
-
-                if xnat_entry.scan_type != 'ncanda-grefieldmap-v1' :
-                    print xnat_entry.values  
-                else :
-                    # only print out field maps if corresponding dti or resting state is usable otherwise not ported to redcap 
-                    eid_entries = xnat_list_comply[xnat_list_comply['experiment_id'] == xnat_entry.experiment_id]
-                    if ('ncanda-dti60b1000-v1' in eid_entries['scan_type']) or ('ncanda-rsfmri-v1' in eid_entries['scan_type']) :
+            if not series_in_dataframe(xnat_entry,redcap_xnat_list): 
+                # this is here a little bit more complicated as one has to consider if scan is still in possible visit window
+                # or for fieldmaps that the corresponding DTI /fmri scans are usuable - otherwise REDCap will not automatically be updated with scan info
+                cutoff_date=redcap_event_list[redcap_event_list['site_id'] == xnat_entry['site_id']]['Last_Allowed_Visit'].values[0]
+                if datetime.datetime.strptime(cutoff_date, date_format_ymd) >= datetime.datetime.strptime(xnat_entry['experiment_date'], date_format_ymd):
+                    if xnat_entry['scan_type'] != 'ncanda-grefieldmap-v1' :
                         print xnat_entry.values  
+                    else :
+                        # only print out field maps if corresponding dti or resting state is usable otherwise not ported to redcap 
+                        eid_entries = xnat_list_comply[xnat_list_comply['experiment_id'] == xnat_entry['experiment_id']]
+                        if ('ncanda-dti60b1000-v1' in eid_entries['scan_type']) or ('ncanda-rsfmri-v1' in eid_entries['scan_type']) :
+                            print xnat_entry.values  
 
-    if True :
+    #
+    # Step 3: Print out all xnat sessions that are marked usuable but did not comply with naming convention 
+    #         - see excepted names that will not be considered at beginning of script 
+    #
+    if len(xnat_list[~comply_list]):
         print " " 
         print "======================="
-        print "In XNAT and not in REDCap:" 
-        print "Does not comply with Naming convention:" 
+        print "In XNAT and does not comply with Naming convention:"  
         for index,xnat_entry in xnat_list[~comply_list].iterrows():
-            # if not in_dataframe(xnat_entry,redcap_xnat_list):
             print xnat_entry.values  
 
-    if False:
+    #
+    # Check REDCap Records 
+    #
+    if True:
         print " " 
         print "======================="
         print "In REDCap and not in XNAT:"
@@ -147,11 +240,14 @@ def main(args):
         # print redcap_xnat_list[only_in_redcap].values
 
         for index,red_xnat_entry in redcap_xnat_list.iterrows():
-            if not in_dataframe(red_xnat_entry,xnat_list) :  
+            if not series_in_dataframe(red_xnat_entry,xnat_list):
                 print red_xnat_entry.values
 
     print " " 
 
+#
+# MAIN 
+#
 if __name__ == '__main__':
     import argparse
 
@@ -168,6 +264,9 @@ if __name__ == '__main__':
                         help="The csv file containing all usable eids generated by scripts/reporting/xnat_sessions_report.py --usable --ignore-window")
     parser.add_argument('--red', dest="redcapcsv", action="store",
                         help="The CSV containing the data from redcap - generated by scripts/reporting/create_redcap_visit_list.py --all-events")
+
+    parser.add_argument('--special_cases', action="store",
+                        help="location of ncanda-operations/special_cases.yml")
 
     parser.add_argument('-s', '--subjectlist', dest="subjectlist",
                         help="Text file containing the sID (NCANDA_S00033) for subjects of interest", action='store')
