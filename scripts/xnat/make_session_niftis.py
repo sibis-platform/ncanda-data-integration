@@ -139,7 +139,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
                                                      shell=True)
             except:
                 error_msg.append(
-                    "The following command failed %s with the following output %s" % dcm2image_command,output)
+                    "The following command failed %s with the following output %s" % (dcm2image_command,output))
 
             if len(error_msg) == 0:
                     output_file = open(log_filename, 'w')
