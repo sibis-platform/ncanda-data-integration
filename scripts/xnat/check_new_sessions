@@ -321,7 +321,7 @@ def check_dti(ifc, eid, dti_scans):
         te0, fovx0, fovy0, pixx0, pixy0, scan0 = parameters[0]
         for te, fovx, fovy, pixx, pixy, scan in parameters:
             if te != te0:
-                errors.append('TE mismatch (Scan %s: %s; Scan %s: %s)' % (scan0,te0,scan1, te))
+                errors.append('TE mismatch (Scan %s: %s; Scan %s: %s)' % (scan0,te0,scan, te))
 
             if fovx != fovx0 or fovy != fovy0:
                 errors.append('FOV mismatch (Scan %s: %s,%s; Scan %s: %s,%s)' % (scan0, fovx0,fovy0,
