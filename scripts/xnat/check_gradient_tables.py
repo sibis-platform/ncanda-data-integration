@@ -205,8 +205,8 @@ def check_diffusion(session_label,session,xml_file_list,manufacturer,scanner_mod
                     errorsExpected.append(truth_gradient[idx])
         else:
             slog.info(session_label,"ERROR: Incorrect number of frames.",
-                          case_gradients=str(evaluated_gradients),
-                          expected=str(truth_gradient),
+                          number_of_frames=str(len(evaluated_gradients)),
+                          expected=str(len(truth_gradient)),
                           session=session)
 
     except AttributeError as error:
