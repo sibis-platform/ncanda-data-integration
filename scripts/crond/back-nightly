@@ -5,8 +5,8 @@
 ##  for the copyright and license terms
 ##
 
-IMAGE_PROCESS_FLAG=0
-PIPELINE_UPDATE_FLAG=0
+IMAGE_PROCESS_FLAG=1
+PIPELINE_UPDATE_FLAG=1
 
 
 # Set the SIBIS environment variable to the data integration repo

@@ -265,13 +265,14 @@ for [key,row] in visit_log_redcap.iterrows():
                                 print "Creating a report of locked forms for: " \
                                       "{0}, {1}, {2}".format(subject_xnat_id, arm_code, visit_code)
                             # Link directory names with names in REDCap mysql
-                            visit_map = dict(baseline="Baseline visit",
-                                             followup_1y="1y visit",
-                                             followup_2y="2y visit",
-                                             followup_3y="3y visit")
+                            if visit_code == 'baseline' : 
+                                visit = "Baseline visit"
+                            else :
+                                visit = visit_code.split('_',1)[1] + " visit"
+
                             # Get a dataframe of the locked forms
                             arm = "{0} Protocol".format(arm_code.capitalize())
-                            visit = visit_map.get(visit_code)
+                            
                             locked_forms = rclocker.report_locked_forms(key[0], subject_xnat_id,
                                                                         forms_by_event_dict[key[1]], 'ncanda_subject_visit_log',
                                                                         arm, visit, engine)

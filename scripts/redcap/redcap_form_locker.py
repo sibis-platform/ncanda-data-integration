@@ -229,6 +229,7 @@ def report_locked_forms(site_id, xnat_id, forms, project_name,
     :param engine: `sqlalchemy.Engine`
     :return: `pandas.DataFrame`
     """
+
     columns = ['subject', 'arm', 'visit'] + list(forms)
     data = dict(subject=xnat_id, arm=arm_name.lower(), visit=event_descrip.lower())
     dataframe = pd.DataFrame(data=data, index=[0], columns=columns)
