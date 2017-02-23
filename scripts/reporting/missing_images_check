@@ -74,37 +74,37 @@ def main(args):
         sys.exit(1)
 
 
-    redcap_pipe_list = pandas.DataFrame(columns=['study_id','case','event','type'])
+    redcap_missing_list = pandas.DataFrame(columns=['study_id','case','event','type'])
     print "======================="
     print "Check REDCap entries:" 
 
     # List All Missing Sessions
     missing_index = (redcap_list['visit_ignore___yes'] == 1) | (redcap_list['mri_missing'] == 1)
-    redcap_pipe_list_session_missing = redcap_list[missing_index]
-    redcap_pipe_list = add_red_list(redcap_pipe_list,redcap_pipe_list_session_missing,'SESSION',redcap_list_base)
+    redcap_session_missing = redcap_list[missing_index]
+    redcap_missing_list = add_red_list(redcap_missing_list,redcap_session_missing,'SESSION',redcap_list_base)
     redcap_list = redcap_list[ ~ missing_index ]
 
     # List All Missing Image :
     for red_name,pipe_missing_type in [('mri_series_t1','t1'),('mri_series_t2','t2'),('mri_series_dti6b500pepolar','dti6-1'), ('mri_series_dti60b1000','dti60-01'), ('mri_series_rsfmri','bold-001'), ('mri_series_rsfmri_fieldmap','fieldmap')] :
         missing_index = pandas.isnull(redcap_list[red_name]) 
-        redcap_pipe_list = add_red_list(redcap_pipe_list,redcap_list[missing_index],pipe_missing_type,redcap_list_base)
+        redcap_missing_list = add_red_list(redcap_missing_list,redcap_list[missing_index],pipe_missing_type,redcap_list_base)
 
     print " " 
     print "======================="
     print "Missing in pipeline:" 
     for index,pipe_entry in pipe_missing_list.iterrows():
         # still has to be done 
-        # and (not matches_case_event_in_data_frame(pipe_entry,redcap_pipe_list_session_missing)):
+        # and (not matches_case_event_in_data_frame(pipe_entry,redcap_session_missing)):
         # otherwise get some false positive 
-        if not in_dataframe(pipe_entry,redcap_pipe_list) :  
+        if not in_dataframe(pipe_entry,redcap_missing_list) :  
            print redcap_list_base[redcap_list_base['mri_xnat_sid'] == pipe_entry.case]['study_id'].values[0], pipe_entry.values
            
     print " " 
     print "======================="
-    print "Is in pipeline and REDCap states:" 
-    for index,red_pipe_entry in redcap_pipe_list.iterrows():
-        if not in_dataframe(red_pipe_entry,pipe_missing_list):
-            print red_pipe_entry.values  
+    print "Missing in REDCap but not in pipeline:" 
+    for index,red_missing_entry in redcap_missing_list.iterrows():
+        if not in_dataframe(red_missing_entry,pipe_missing_list):
+            print red_missing_entry.values  
 
     print " " 
 
