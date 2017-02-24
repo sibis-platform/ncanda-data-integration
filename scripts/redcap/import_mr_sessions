@@ -189,10 +189,10 @@ def get_sessions_in_range(redcap_visit_id,xnat, subject_label, project_id, subje
 
 # Get URIs for spiral data (Stroop and resting state, where they exist)
 def get_spiral_uris( xnat_eid_list ):
+    spiral_uri = ''
+    spiralrest_uri = ''
     for xnat_eid in xnat_eid_list:
         resource_dict_list = xnat._get_json( '/data/experiments/%s/resources/?format=json' %xnat_eid )
-        spiral_uri = ''
-        spiralrest_uri = ''
         for res in resource_dict_list:
             if 'spiral' in res['label'].lower():
                 resource_id = res['xnat_abstractresource_id']
@@ -204,6 +204,7 @@ def get_spiral_uris( xnat_eid_list ):
                         spiralrest_uri = "/".join([eid, resource_id, file_path])
                     else:
                         spiral_uri = "/".join([eid, resource_id, file_path])
+
     return (spiral_uri, spiralrest_uri)
 
 #
