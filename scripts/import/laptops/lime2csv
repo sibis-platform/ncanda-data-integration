@@ -68,7 +68,7 @@ surveys = {
             '34495' : ( 'sleeppre', 'sleep_study_presleep_questionnaire', {} ),
 # Recovery Forms
             '67375' : ( 'recq', 'recovery_questionnaire', {} ),
-# Longitudinal follow-up surveys: (from YR2 to YR3)
+# Longitudinal follow-up surveys: (mostly from YR2 to YR3)
             '17895' : ( 'youthreport1', 'youth_report_1', {} ), # Improved Youth Report
             '11772' : ( 'youthreport1', 'youth_report_1b', {} ), # Improved Youth Report1b
             '25126' : ( 'youthreport2', 'youth_report_2', {} ),# Improved Youth Report2
