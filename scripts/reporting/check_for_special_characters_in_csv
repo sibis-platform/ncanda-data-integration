@@ -1,0 +1,49 @@
+#!/usr/bin/env python
+##
+##  Copyright 2015 SRI International
+##  License: https://ncanda.sri.com/software-license.txt
+##
+"""
+Report: check_for_special_characters_in_csv 
+
+
+Usage:
+python missing_eid_check.py --csv xnat_session_notes_report.csv --col note 
+"""
+
+import sys
+import pandas
+
+def main(args):
+
+    report = pandas.read_csv(args.csv_file)
+    invalidChars=set(['"', "'", '`', '^','\r','\n','&','#','%', "\t"])
+    for index,row in report.iterrows():
+        note =  row[args.column]
+        if pandas.notnull(note):
+            if any(char in invalidChars for char in note):
+                #print row['site_id']
+                print "failed", row.values   
+ 
+            # else :
+            #    print "good", index, repr(note)  
+                
+
+#
+# MAIN 
+#
+if __name__ == '__main__':
+    import argparse
+
+    formatter = argparse.RawDescriptionHelpFormatter
+    # default = 'default: %(default)s'
+
+    parser = argparse.ArgumentParser(prog="check_for_special_characters_in_csv",
+                                     description=__doc__,
+                                     formatter_class=formatter)
+    parser.add_argument('--csv', dest="csv_file", action='store',
+                        help="The csv file containing the notes to check")
+    parser.add_argument('--col', dest="column", action="store",
+                        help="Column to check" )
+    argv = parser.parse_args()
+    sys.exit(main(args=argv))

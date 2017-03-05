@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 
 ##
@@ -91,11 +92,21 @@ def main(args=None):
             if not len(eid_df[eid_df['quality'] != 'unknown']) :
                 print eid
         sys.exit()
-    if args.ignore_window : 
+    if args.ignore_window or args.session_notes or args.scan_notes : 
         if args.usable : 
             df = df[df['quality'] == 'usable']
 
-        result = df[['site_id', 'subject_id', 'experiment_id', 'scan_id', 'scan_type', 'experiment_date','excludefromanalysis']]
+        columns = ['site_id', 'subject_id', 'experiment_id', 'experiment_date','excludefromanalysis']
+        if args.ignore_window or args.scan_notes : 
+            columns = columns + ['scan_id', 'scan_type', 'quality']
+            if args.scan_notes : 
+                columns = columns + [ 'scan_note']
+
+        if args.session_notes :
+            columns = columns + [ 'note' ]
+
+        result = df[columns]
+
         # print result 
     else :
         df.loc[:, 'experiment_date'] = df.experiment_date.astype('datetime64')
@@ -213,7 +224,12 @@ if __name__ == "__main__":
     parser.add_argument('--unknown',
                         action='store_true',
                         help='Only list sessions that have unknown scans, i.e. have not been reviewed')
-
+    parser.add_argument('--session-notes',
+                        action='store_true',
+                        help='create report with session notes')
+    parser.add_argument('--scan-notes',
+                        action='store_true',
+                        help='include scan notes in the report')
     parser.add_argument('-o', '--outfile',
                         type=str,
                         default='/tmp/usability_report.csv',
