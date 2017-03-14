@@ -18,6 +18,7 @@ def main(args):
 
     report = pandas.read_csv(args.csv_file)
     invalidChars=set(['"', "'", '`', '^','\r','\n','&','#','%', "\t"])
+
     for index,row in report.iterrows():
         note =  row[args.column]
         if pandas.notnull(note):
