@@ -212,7 +212,7 @@ if rc_import == None:
     sys.exit()
 
 # Upload new data to REDCap
-def to_redcap(upload_records):
+def to_redcap(form_name, subject_id, upload_records):
     if args.no_upload:
         return 0
     try:
@@ -236,10 +236,15 @@ def to_redcap(upload_records):
 
     except requests.exceptions.RequestException, err:
         sha = hashlib.sha1(err.message).hexdigest()
-        error_id = "Requests Exception: {}".format(sha[0:6])
+        error_id = subject_id +"-"+ form_name +"-{}".format(sha[0:6])
+    
         sibis.logging(error_id,
-                      "WARNING: Records may be locked...",
-                      error_message=err.message)
+                      "Error: Records may be locked - could not import to data entry",
+                      error_message=str(err.message),
+                      subject_id = subject_id,
+                      form_id = form_name)
+        # Not useful information 
+        # upload_records=str(upload_records))
     return 0
 
 
@@ -317,17 +322,17 @@ def add_to_upload(form_prefix, form_name, subject_id, event_name, data, subject_
     # Set actual age - do this after everything else, because some surveys have "age" fields; we want to overwrite those
     record['%s_age' % form_prefix] = subject_age
 
-    return to_redcap([record])
+    return to_redcap(form_name, subject_id,[record])
 
 
 # Add an empty record to upload - this is done to reset "disappeared" records
 def add_empty_to_upload(form_prefix, form_name, subject_id, event_name):
-    return to_redcap([{'study_id': subject_id, 'redcap_event_name': event_name, '%s_record_id' % form_prefix: '', '%s_complete' % form_name: ''}])
+    return to_redcap(form_name, subject_id,[{'study_id': subject_id, 'redcap_event_name': event_name, '%s_record_id' % form_prefix: '', '%s_complete' % form_name: ''}])
 
 
 # Add a record to upload that labels it "missing permanently" for parent surveys of an over-18 participant
 def add_over18_to_upload( form_prefix, form_name, subject_id, event_name ):
-    return to_redcap( [{ 'study_id' : subject_id, 'redcap_event_name' : event_name, '%s_missing' % form_prefix : '1', '%s_missing_why' % form_prefix : 'OVER_18', '%s_complete' % form_name : '1' }] )
+    return to_redcap( form_name, subject_id, [{ 'study_id' : subject_id, 'redcap_event_name' : event_name, '%s_missing' % form_prefix : '1', '%s_missing_why' % form_prefix : 'OVER_18', '%s_complete' % form_name : '1' }] )
 
 
 def batch(iterable, n=1):
