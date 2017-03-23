@@ -55,6 +55,7 @@ def check_file_date(pipeline_file,xnat_file):
 #
 # Returns - True if new files were created, False if not
 #
+
 def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, verbose=False ):
     # List should have at least one "SESSION/SCAN" entry
     if not '/' in session_and_scan_list:
@@ -345,50 +346,83 @@ def copy_manual_pipeline_files( xnat, xnat_eid, to_directory ):
 
     return files_created
 
+
+def delete_workdir(workdir,redcap_key,verbose=False): 
+    if os.path.exists(workdir):
+        if verbose :
+            print "Deleting " + workdir
+
+        try :
+            shutil.rmtree(workdir)            
+        except Exception as err_msg:  
+            (subject_label, event_label) = redcap_key
+            slog.info(subject_label + "_" + event_label,"Error: Could not delete directory", 
+                      directory = workdir,
+                      err_msg = str(err_msg))
+
 #
 # Export MR images and associated data to pipeline directory tree.
 #
 # Returns - True if new file as created, False if not
 #
-def export_to_workdir( xnat, session_data, pipeline_workdir, stroop=(None,None,None), verbose=False ):
+def export_to_workdir( xnat, session_data, pipeline_workdir, redcap_key, stroop=(None,None,None), verbose=False ):
     new_files_created = False
 
     # Export structural data
-    pipeline_workdir_structural = os.path.join( pipeline_workdir, 'structural', 'native' );
-    if session_data['mri_series_t1'] != '':
-        new_files_created = export_series( xnat, session_data['mri_series_t1'], pipeline_workdir_structural, 't1.nii', verbose=verbose ) or new_files_created
-    if session_data['mri_series_t2'] != '':
-        new_files_created = export_series( xnat, session_data['mri_series_t2'], pipeline_workdir_structural, 't2.nii', verbose=verbose ) or new_files_created
+    pipeline_workdir_structural_main = os.path.join( pipeline_workdir, 'structural');
+    pipeline_workdir_structural_native = os.path.join( pipeline_workdir_structural_main, 'native' );
+    if session_data['mri_series_t1'] != '' and session_data['mri_series_t2'] != '' :
+        new_files_created = export_series( xnat, session_data['mri_series_t1'], pipeline_workdir_structural_native, 't1.nii', verbose=verbose ) or new_files_created
 
-    # Copy ADNI phantom XML file
-    if 'NCANDA_E' in session_data['mri_adni_phantom_eid']:
-        new_files_created = copy_adni_phantom_xml( xnat, session_data['mri_adni_phantom_eid'], pipeline_workdir_structural ) or new_files_created
-        new_files_created = copy_adni_phantom_t1w( xnat, session_data['mri_adni_phantom_eid'], pipeline_workdir_structural ) or new_files_created
+        new_files_created = export_series( xnat, session_data['mri_series_t2'], pipeline_workdir_structural_native, 't2.nii', verbose=verbose ) or new_files_created
+
+        # Copy ADNI phantom XML file
+        if 'NCANDA_E' in session_data['mri_adni_phantom_eid']:
+            new_files_created = copy_adni_phantom_xml( xnat, session_data['mri_adni_phantom_eid'], pipeline_workdir_structural_native ) or new_files_created
+            new_files_created = copy_adni_phantom_t1w( xnat, session_data['mri_adni_phantom_eid'], pipeline_workdir_structural_native ) or new_files_created
+
+    else :
+        delete_workdir(pipeline_workdir_structural_main,redcap_key,verbose)
 
     # Export diffusion data
-    pipeline_workdir_diffusion = os.path.join( pipeline_workdir, 'diffusion', 'native' );
-    if session_data['mri_series_dti6b500pepolar'] != '':
-        new_files_created = export_series( xnat, session_data['mri_series_dti6b500pepolar'], os.path.join( pipeline_workdir_diffusion, 'dti6b500pepolar' ), 'dti6-%n.nii', verbose=verbose ) or new_files_created
-    if session_data['mri_series_dti60b1000'] != '':
-        new_files_created = export_series( xnat, session_data['mri_series_dti60b1000'], os.path.join( pipeline_workdir_diffusion, 'dti60b1000' ), 'dti60-%n.nii', verbose=verbose ) or new_files_created
-    if session_data['mri_series_dti_fieldmap'] != '':
-        new_files_created = export_series( xnat, session_data['mri_series_dti_fieldmap'], os.path.join( pipeline_workdir_diffusion, 'fieldmap' ), 'fieldmap-%T%N.nii', verbose=verbose ) or new_files_created
+    pipeline_workdir_diffusion_main = os.path.join( pipeline_workdir, 'diffusion' );
+    pipeline_workdir_diffusion_native = os.path.join(pipeline_workdir_diffusion_main, 'native' );
+    if session_data['mri_series_dti6b500pepolar'] != '' and session_data['mri_series_dti60b1000'] != '' :
+        new_files_created = export_series( xnat, session_data['mri_series_dti6b500pepolar'], os.path.join( pipeline_workdir_diffusion_native, 'dti6b500pepolar' ), 'dti6-%n.nii', verbose=verbose ) or new_files_created
+
+        new_files_created = export_series( xnat, session_data['mri_series_dti60b1000'], os.path.join( pipeline_workdir_diffusion_native, 'dti60b1000' ), 'dti60-%n.nii', verbose=verbose ) or new_files_created
+
+        if session_data['mri_series_dti_fieldmap'] != '':
+            new_files_created = export_series( xnat, session_data['mri_series_dti_fieldmap'], os.path.join( pipeline_workdir_diffusion_native, 'fieldmap' ), 'fieldmap-%T%N.nii', verbose=verbose ) or new_files_created
+    else :
+        delete_workdir(pipeline_workdir_diffusion_main,redcap_key,verbose)
 
     # Export EPI functional data (from DICOM files)
-    pipeline_workdir_functional = os.path.join( pipeline_workdir, 'restingstate', 'native' );
-    if session_data['mri_series_rsfmri'] != '':
-        new_files_created = export_series( xnat, session_data['mri_series_rsfmri'], os.path.join( pipeline_workdir_functional, 'rs-fMRI' ), 'bold-%n.nii', verbose=verbose ) or new_files_created
+    pipeline_workdir_functional_main = os.path.join( pipeline_workdir, 'restingstate');
+    pipeline_workdir_functional_native = os.path.join( pipeline_workdir_functional_main, 'native' );
+    if session_data['mri_series_rsfmri'] != '' and session_data['mri_series_rsfmri_fieldmap'] != '':
+        new_files_created = export_series( xnat, session_data['mri_series_rsfmri'], os.path.join( pipeline_workdir_functional_native, 'rs-fMRI' ), 'bold-%n.nii', verbose=verbose ) or new_files_created
         # Copy rs-fMRI physio files
-        new_files_created = copy_rsfmri_physio_files( xnat, session_data['mri_series_rsfmri'], os.path.join( pipeline_workdir_functional, 'physio' ) ) or new_files_created
+        new_files_created = copy_rsfmri_physio_files( xnat, session_data['mri_series_rsfmri'], os.path.join( pipeline_workdir_functional_native, 'physio' ) ) or new_files_created
 
-    if session_data['mri_series_rsfmri_fieldmap'] != '':
-        new_files_created = export_series( xnat, session_data['mri_series_rsfmri_fieldmap'], os.path.join( pipeline_workdir_functional, 'fieldmap' ), 'fieldmap-%T%N.nii', verbose=verbose ) or new_files_created
+        new_files_created = export_series( xnat, session_data['mri_series_rsfmri_fieldmap'], os.path.join( pipeline_workdir_functional_native, 'fieldmap' ), 'fieldmap-%T%N.nii', verbose=verbose ) or new_files_created
+
+    else :
+        delete_workdir(pipeline_workdir_functional_main,redcap_key,verbose)
 
     # Export spiral functional data (from uploaded resources)
+    pipeline_workdir_spiralstroop  =  os.path.join( pipeline_workdir, 'spiralstroop' )
     if session_data['mri_eid_spiral_stroop'] != '':
-        new_files_created = export_spiral_files( xnat, session_data['mri_eid_spiral_stroop'], os.path.join( pipeline_workdir, 'spiralstroop' ), stroop=stroop, verbose=verbose ) or new_files_created
+        new_files_created = export_spiral_files( xnat, session_data['mri_eid_spiral_stroop'], pipeline_workdir_spiralstroop, stroop=stroop, verbose=verbose ) or new_files_created
+    else :
+        delete_workdir(pipeline_workdir_spiralstroop,redcap_key,verbose)
+
+    pipeline_workdir_spiralrest = os.path.join( pipeline_workdir, 'spiralrest')
     if session_data['mri_eid_spiral_rest'] != '':
-        new_files_created = export_spiral_files(xnat, session_data['mri_eid_spiral_rest'], os.path.join( pipeline_workdir, 'spiralrest'), verbose=verbose) or new_files_created
+        new_files_created = export_spiral_files(xnat, session_data['mri_eid_spiral_rest'], pipeline_workdir_spiralrest, verbose=verbose) or new_files_created
+    else :
+        delete_workdir(pipeline_workdir_spiralrest,redcap_key,verbose)
+
 
     # Copy any manual pipeline override files from all involved experiments
     #   First, extract "Experiment ID" part from each "EID/SCAN" string, unless empty, then make into set of unique IDs.
@@ -447,7 +481,7 @@ def export_and_queue( xnat, session_data, redcap_key, pipeline_root_dir, stroop=
         if verbose:
             print subject_label,'/',subject_code,'/',event_label,'to',pipeline_workdir
 
-        new_files_created = export_to_workdir( xnat, session_data, pipeline_workdir, stroop=stroop, verbose=verbose )
+        new_files_created = export_to_workdir( xnat, session_data, pipeline_workdir, redcap_key, stroop=stroop, verbose=verbose )
 
         if new_files_created and run_pipeline_script:
             if verbose:
