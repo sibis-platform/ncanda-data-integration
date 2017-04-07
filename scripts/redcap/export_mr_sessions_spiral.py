@@ -15,7 +15,7 @@ import subprocess
 from sibisBeta import sibislogger as slog
 
 
-def export_spiral_files(xnat, resource_location, to_directory, stroop=(None, None, None), verbose=None):
+def export_spiral_files(xnat, redcap_key, resource_location, to_directory, stroop=(None, None, None), verbose=None):
     if verbose:
         print("Exporting spiral files...")
     result = False # Nothing updated or created yet
@@ -24,7 +24,7 @@ def export_spiral_files(xnat, resource_location, to_directory, stroop=(None, Non
     spiral_nifti_out = os.path.join(to_directory, 'native', 'bold4D.nii.gz')
     if not os.path.exists(spiral_nifti_out):
         tmpdir = tempfile.mkdtemp()
-        result = do_export_spiral_files(xnat, resource_location, to_directory, spiral_nifti_out, tmpdir)
+        result = do_export_spiral_files(xnat, redcap_key, resource_location, to_directory, spiral_nifti_out, tmpdir)
         shutil.rmtree(tmpdir)
 
     # Do we have information on Stroop files?
@@ -50,7 +50,7 @@ def export_spiral_files(xnat, resource_location, to_directory, stroop=(None, Non
     return result
 
 
-def do_export_spiral_files(xnat, resource_location, to_directory, spiral_nifti_out, tmpdir, verbose=None):
+def do_export_spiral_files(xnat, redcap_key, resource_location, to_directory, spiral_nifti_out, tmpdir, verbose=None):
     # Do the actual export using a temporary directory that is managed by the caller
     # (simplifies its removal regardless of exit taken)
     # print "do_export_spiral_files" , str(xnat), str(resource_location), str(to_directory), str(spiral_nifti_out), xnat_eid, str(resource_id), str(resource_file_bname)
@@ -61,8 +61,10 @@ def do_export_spiral_files(xnat, resource_location, to_directory, spiral_nifti_o
     errcode, stdout, stderr = untar_to_dir(tmp_file_path, tmpdir)
     if errcode != 0:
         error="ERROR: Unable to un-tar resource file. File is likely corrupt."
+        (subject_label, event_label) = redcap_key
         slog.info(xnat_eid,error,
                      tempfile_path=tmp_file_path,
+                     subject_id=str(subject_label + "_" + event_label),
                      resource_location=resource_location)
         if verbose:
             print "StdErr:\n{}".format(stderr)
