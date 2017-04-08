@@ -8,7 +8,7 @@
 # Set the SIBIS environment variable to the data integration repo
 export SIBIS=${HOME}/ncanda-data-integration
 
-XNAT_FLAG=1
+XNAT_FLAG=0
 
 
 [ -r $HOME/.bashrc ] && . $HOME/.bashrc
@@ -19,6 +19,10 @@ XNAT_FLAG=1
 # Run QA on fBIRN and ADNI phantom scans
 if [ ${XNAT_FLAG} == 1 ]; then
    catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Phantom QA Messages (phantom_qa)" ${SIBIS}/scripts/xnat/phantom_qa
+else 
+   if [ ${hour} -eq 0 ]; then
+      echo "front-nightly: Warning: XNAT updates are disabled !"    
+   fi
 fi 
 
 
