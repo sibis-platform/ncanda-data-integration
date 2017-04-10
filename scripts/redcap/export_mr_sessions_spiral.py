@@ -62,9 +62,10 @@ def do_export_spiral_files(xnat, redcap_key, resource_location, to_directory, sp
     if errcode != 0:
         error="ERROR: Unable to un-tar resource file. File is likely corrupt."
         (subject_label, event_label) = redcap_key
-        slog.info(xnat_eid,error,
+        subject_id=str(subject_label + "_" + event_label)
+        slog.info(subject_id, error,
                      tempfile_path=tmp_file_path,
-                     subject_id=str(subject_label + "_" + event_label),
+                     xnat_eid=xnat_eid,
                      resource_location=resource_location)
         if verbose:
             print "StdErr:\n{}".format(stderr)
