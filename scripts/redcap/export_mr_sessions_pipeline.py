@@ -413,13 +413,13 @@ def export_to_workdir( xnat, session_data, pipeline_workdir, redcap_key, stroop=
     # Export spiral functional data (from uploaded resources)
     pipeline_workdir_spiralstroop  =  os.path.join( pipeline_workdir, 'spiralstroop' )
     if session_data['mri_eid_spiral_stroop'] != '':
-        new_files_created = export_spiral_files( xnat, session_data['mri_eid_spiral_stroop'], pipeline_workdir_spiralstroop, stroop=stroop, verbose=verbose ) or new_files_created
+        new_files_created = export_spiral_files( xnat, redcap_key, session_data['mri_eid_spiral_stroop'], pipeline_workdir_spiralstroop, stroop=stroop, verbose=verbose ) or new_files_created
     else :
         delete_workdir(pipeline_workdir_spiralstroop,redcap_key,verbose)
 
     pipeline_workdir_spiralrest = os.path.join( pipeline_workdir, 'spiralrest')
     if session_data['mri_eid_spiral_rest'] != '':
-        new_files_created = export_spiral_files(xnat, session_data['mri_eid_spiral_rest'], pipeline_workdir_spiralrest, verbose=verbose) or new_files_created
+        new_files_created = export_spiral_files(xnat, redcap_key, session_data['mri_eid_spiral_rest'], pipeline_workdir_spiralrest, verbose=verbose) or new_files_created
     else :
         delete_workdir(pipeline_workdir_spiralrest,redcap_key,verbose)
 
