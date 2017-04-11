@@ -8,7 +8,7 @@
 # Set the SIBIS environment variable to the data integration repo
 export SIBIS=${HOME}/ncanda-data-integration
 
-XNAT_FLAG=0
+XNAT_FLAG=1
 
 
 [ -r $HOME/.bashrc ] && . $HOME/.bashrc
