@@ -395,9 +395,9 @@ def incomplete_scan_check(eid, manufacturer, label, missing_scan_map):
         if siemens_gradient_flag :
             err_msg += "Note, Siemens scans require two 'ncanda-grefieldmap-v1'" 
 
-        slog.info(eid,
+        slog.info(label,
                       err_msg,
-                      scan_session_label=label,
+                      xnat_id=eid,
                       manufacturer=manufacturer,
                       missing_scans=', '.join(missing_scans))
         return True
