@@ -59,10 +59,10 @@ def do_export_spiral_files(xnat, redcap_key, resource_location, to_directory, sp
     tmp_file_path = xnat.select.experiment(xnat_eid).resource(resource_id).file(resource_file_bname).get_copy(os.path.join(tmpdir, "pfiles.tar.gz"))
 
     errcode, stdout, stderr = untar_to_dir(tmp_file_path, tmpdir)
+    (subject_label, event_label) = redcap_key
+    subject_id = str(subject_label + "_" + event_label)
     if errcode != 0:
         error="ERROR: Unable to un-tar resource file. File is likely corrupt."
-        (subject_label, event_label) = redcap_key
-        subject_id=str(subject_label + "_" + event_label)
         slog.info(subject_id, error,
                      tempfile_path=tmp_file_path,
                      xnat_eid=xnat_eid,
@@ -82,7 +82,8 @@ def do_export_spiral_files(xnat, redcap_key, resource_location, to_directory, sp
     physio_files = glob_for_files_recursive(tmpdir, pattern="P*.physio")
     if len(physio_files) > 1:
         error = 'More than one physio file found in spiral tar file.'
-        slog.info(xnat_eid,error,
+        slog.info(subject_id,error,
+                      xnat_eid=xnat_eid,
                       tmp_file_path=tmp_file_path,
                       physio_files=physio_files,
                       spiral_tar_file=resource_location)
@@ -97,7 +98,8 @@ def do_export_spiral_files(xnat, redcap_key, resource_location, to_directory, sp
         errcode, stdout, stderr = make_nifti_from_spiral(spiral_E_files[0], spiral_nifti_out)
         if not os.path.exists(spiral_nifti_out):
             error="Unable to make NIfTI from resource file, please try running makenifti manually"
-            slog.info(xnat_eid, error,
+            slog.info(subject_id, error,
+                         xnat_eid=xnat_eid,
                          spiral_file=spiral_E_files[0])
             if verbose:
                 print "StdErr:\n{}".format(stderr)
