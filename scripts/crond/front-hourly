@@ -9,6 +9,7 @@
 export SIBIS=${HOME}/ncanda-data-integration
 
 XNAT_FLAG=1
+IMPORT_FLAG=1
 
 
 [ -r $HOME/.bashrc ] && . $HOME/.bashrc
@@ -29,7 +30,13 @@ fi
 
 
 # Import data from the sites' data capture laptops into REDCap and reconcile imported with longitudinal data
-catch_output_email ncanda-admin@sri.com "NCANDA: Laptop Data Import Stage 1 (harvester)" ${SIBIS}/scripts/import/laptops/harvester ${HOME}/laptops/ncanda ${HOME}/laptops/imported
+if [ ${IMPORT_FLAG} == 1 ]; then
+  catch_output_email ncanda-admin@sri.com "NCANDA: Laptop Data Import Stage 1 (harvester)" ${SIBIS}/scripts/import/laptops/harvester ${HOME}/laptops/ncanda ${HOME}/laptops/imported
+else 
+   if [ ${hour} -eq 0 ]; then
+      echo "front-nightly: Warning: Import from laptops  disabled !"    
+   fi
+fi 
 
 #
 # Previouly front-nighlty
