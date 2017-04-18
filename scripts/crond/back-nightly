@@ -47,7 +47,8 @@ if [ ${IMAGE_PROCESS_FLAG} == 1 ]; then
   catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Check Object Names Message (check_object_names)" ${SIBIS}/scripts/xnat/check_object_names -p --send-mail --zip-root /fs/ncanda-share/burn2dvd
 
   # Check for new or updated sessions and
-  catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Check New Sessions Message (check_new_sessions)" ${SIBIS}/scripts/xnat/check_new_sessions --send-mail-to ncanda-image-qc@sri.com -p --qc-csv /fs/ncanda-share/beta/image-qc/scan_qc.csv
+  catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Check New Sessions Message (check_new_sessions)" ${SIBIS}/scripts/xnat/check_new_sessions --send-mail-to ncanda-image-qc@sri.com -p 
+  # --qc-csv /fs/ncanda-share/beta/image-qc/scan_qc.csv
 
   # Check whether any MR sessions are missing corresponding phantom scans
   catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Phantom Scan Messages (check_phantom_scans)" ${SIBIS}/scripts/xnat/check_phantom_scans --check-all
