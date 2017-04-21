@@ -669,7 +669,9 @@ for (eid, project, subject, insert_date,
         scanner_model_str = 'xnat:mrSessionData/scanner/model'
         scanner_model = ifc.select.experiment(eid).attrs.get(scanner_model_str)
     except Exception as err_msg: 
-        slog.info(eid,'ERROR: Could not retrieve scanner model or manufacturer from xnat - skipping session',
+        slog.info(session_label,'ERROR: Could not retrieve scanner model or manufacturer from xnat - skipping session',
+                  experiment_id = eid,
+                  project = project,
                   info = "Most likely another app is trying to access xnat at the same time",
                   error=str(err_msg))
         continue
