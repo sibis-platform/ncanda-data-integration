@@ -21,6 +21,7 @@ def in_dataframe(df_entry,df_list):
     df_list = df_list[df_list['case'] == df_entry.case]
     df_list = df_list[df_list['event'] == df_entry.event]
     df_list = df_list[df_list['type'] == df_entry.type]
+
     if len(df_list) :
         return True
     
@@ -92,12 +93,20 @@ def main(args):
     print " " 
     print "======================="
     print "Missing in pipeline:" 
+    # "t1":"t2", "t2":"t1",
+    modality_compatible = { "t1":"t2", "t2":"t1", "dti60-01": "dti6-1", "dti6-1":"dti60-01", "bold-001":"fieldmap", "fieldmap":"bold-001" } 
     for index,pipe_entry in pipe_missing_list.iterrows():
         # still has to be done 
         # and (not matches_case_event_in_data_frame(pipe_entry,redcap_session_missing)):
         # otherwise get some false positive 
-        if not in_dataframe(pipe_entry,redcap_missing_list) :  
-           print redcap_list_base[redcap_list_base['mri_xnat_sid'] == pipe_entry.case]['study_id'].values[0], pipe_entry.values
+        if not in_dataframe(pipe_entry,redcap_missing_list) :
+           # Only print out if entire modality is missing as otherwise not ported to pipeline: 
+           # e.g. T1 exists but not T2 then T1 is also not ported to pipeline  
+           pipe_entry_tmp = pipe_entry.copy(True);
+           pipe_entry_tmp.type = modality_compatible[pipe_entry.type]
+           if not in_dataframe(pipe_entry_tmp,redcap_missing_list):
+               print redcap_list_base[redcap_list_base['mri_xnat_sid'] == pipe_entry.case]['study_id'].values[0], pipe_entry.values
+
            
     print " " 
     print "======================="
