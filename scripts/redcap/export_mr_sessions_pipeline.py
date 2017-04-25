@@ -56,7 +56,8 @@ def check_file_date(pipeline_file,xnat_file):
 # Returns - True if new files were created, False if not
 #
 
-def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, verbose=False ):
+def export_series( xnat, redcap_key, session_and_scan_list, to_directory, filename_pattern, verbose=False ):
+    (subject_label, event_label) = redcap_key
     # List should have at least one "SESSION/SCAN" entry
     if not '/' in session_and_scan_list:
         return False
@@ -106,8 +107,9 @@ def export_series( xnat, session_and_scan_list, to_directory, filename_pattern, 
 
     if len(pipeline_file_list)  :
         [ session, scan ] = session_and_scan_list.split( ' ' )[0].split('/')
-        slog.info(session + "_" + scan,"Warning: existing MR images of the pipeline are updated", 
+        slog.info(subject_label + "_" + event_label,"Warning: existing MR images of the pipeline are updated",
                       file = to_path_pattern,
+                      experiment_xnat_id=session + "_" + scan,
                       session_scan_list = session_and_scan_list )
 
         # Remove existing files of that type to make sure we start with clean slate
@@ -372,9 +374,9 @@ def export_to_workdir( xnat, session_data, pipeline_workdir, redcap_key, stroop=
     pipeline_workdir_structural_main = os.path.join( pipeline_workdir, 'structural');
     pipeline_workdir_structural_native = os.path.join( pipeline_workdir_structural_main, 'native' );
     if session_data['mri_series_t1'] != '' and session_data['mri_series_t2'] != '' :
-        new_files_created = export_series( xnat, session_data['mri_series_t1'], pipeline_workdir_structural_native, 't1.nii', verbose=verbose ) or new_files_created
+        new_files_created = export_series( xnat, redcap_key, session_data['mri_series_t1'], pipeline_workdir_structural_native, 't1.nii', verbose=verbose ) or new_files_created
 
-        new_files_created = export_series( xnat, session_data['mri_series_t2'], pipeline_workdir_structural_native, 't2.nii', verbose=verbose ) or new_files_created
+        new_files_created = export_series( xnat, redcap_key, session_data['mri_series_t2'], pipeline_workdir_structural_native, 't2.nii', verbose=verbose ) or new_files_created
 
         # Copy ADNI phantom XML file
         if 'NCANDA_E' in session_data['mri_adni_phantom_eid']:
@@ -388,12 +390,12 @@ def export_to_workdir( xnat, session_data, pipeline_workdir, redcap_key, stroop=
     pipeline_workdir_diffusion_main = os.path.join( pipeline_workdir, 'diffusion' );
     pipeline_workdir_diffusion_native = os.path.join(pipeline_workdir_diffusion_main, 'native' );
     if session_data['mri_series_dti6b500pepolar'] != '' and session_data['mri_series_dti60b1000'] != '' :
-        new_files_created = export_series( xnat, session_data['mri_series_dti6b500pepolar'], os.path.join( pipeline_workdir_diffusion_native, 'dti6b500pepolar' ), 'dti6-%n.nii', verbose=verbose ) or new_files_created
+        new_files_created = export_series( xnat, redcap_key, session_data['mri_series_dti6b500pepolar'], os.path.join( pipeline_workdir_diffusion_native, 'dti6b500pepolar' ), 'dti6-%n.nii', verbose=verbose ) or new_files_created
 
-        new_files_created = export_series( xnat, session_data['mri_series_dti60b1000'], os.path.join( pipeline_workdir_diffusion_native, 'dti60b1000' ), 'dti60-%n.nii', verbose=verbose ) or new_files_created
+        new_files_created = export_series( xnat, redcap_key, session_data['mri_series_dti60b1000'], os.path.join( pipeline_workdir_diffusion_native, 'dti60b1000' ), 'dti60-%n.nii', verbose=verbose ) or new_files_created
 
         if session_data['mri_series_dti_fieldmap'] != '':
-            new_files_created = export_series( xnat, session_data['mri_series_dti_fieldmap'], os.path.join( pipeline_workdir_diffusion_native, 'fieldmap' ), 'fieldmap-%T%N.nii', verbose=verbose ) or new_files_created
+            new_files_created = export_series( xnat, redcap_key, session_data['mri_series_dti_fieldmap'], os.path.join( pipeline_workdir_diffusion_native, 'fieldmap' ), 'fieldmap-%T%N.nii', verbose=verbose ) or new_files_created
     else :
         delete_workdir(pipeline_workdir_diffusion_main,redcap_key,verbose)
 
@@ -401,11 +403,11 @@ def export_to_workdir( xnat, session_data, pipeline_workdir, redcap_key, stroop=
     pipeline_workdir_functional_main = os.path.join( pipeline_workdir, 'restingstate');
     pipeline_workdir_functional_native = os.path.join( pipeline_workdir_functional_main, 'native' );
     if session_data['mri_series_rsfmri'] != '' and session_data['mri_series_rsfmri_fieldmap'] != '':
-        new_files_created = export_series( xnat, session_data['mri_series_rsfmri'], os.path.join( pipeline_workdir_functional_native, 'rs-fMRI' ), 'bold-%n.nii', verbose=verbose ) or new_files_created
+        new_files_created = export_series( xnat, redcap_key, session_data['mri_series_rsfmri'], os.path.join( pipeline_workdir_functional_native, 'rs-fMRI' ), 'bold-%n.nii', verbose=verbose ) or new_files_created
         # Copy rs-fMRI physio files
         new_files_created = copy_rsfmri_physio_files( xnat, session_data['mri_series_rsfmri'], os.path.join( pipeline_workdir_functional_native, 'physio' ) ) or new_files_created
 
-        new_files_created = export_series( xnat, session_data['mri_series_rsfmri_fieldmap'], os.path.join( pipeline_workdir_functional_native, 'fieldmap' ), 'fieldmap-%T%N.nii', verbose=verbose ) or new_files_created
+        new_files_created = export_series( xnat, redcap_key, session_data['mri_series_rsfmri_fieldmap'], os.path.join( pipeline_workdir_functional_native, 'fieldmap' ), 'fieldmap-%T%N.nii', verbose=verbose ) or new_files_created
 
     else :
         delete_workdir(pipeline_workdir_functional_main,redcap_key,verbose)
