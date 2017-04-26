@@ -107,9 +107,9 @@ def export_series( xnat, redcap_key, session_and_scan_list, to_directory, filena
 
     if len(pipeline_file_list)  :
         [ session, scan ] = session_and_scan_list.split( ' ' )[0].split('/')
-        slog.info(subject_label + "_" + event_label,"Warning: existing MR images of the pipeline are updated",
+        slog.info(subject_label + "_" + event_label + "_" + scan,"Warning: existing MR images of the pipeline are updated",
                       file = to_path_pattern,
-                      experiment_xnat_id=session + "_" + scan,
+                      experiment_xnat_id=session,
                       session_scan_list = session_and_scan_list )
 
         # Remove existing files of that type to make sure we start with clean slate
