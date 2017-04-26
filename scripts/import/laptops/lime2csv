@@ -243,11 +243,13 @@ if not match:
     error = "ERROR: file cannot be parsed."
     slog.info(subject_label, error,
               filename=str(args.infile))
+    sys.exit(1)
 if not match.group(1) in surveys.keys():
     error = "ERROR: survey '%s' is unknown or not supported" % (match.group(1))
     slog.info(subject_label, error,
               survey=str(match.group(1)),
               filename=str(args.infile))
+    sys.exit(1)
 survey_id = match.group(1)
 
 # Read the input CSV file from LimeSurvey
