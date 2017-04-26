@@ -240,7 +240,7 @@ def handle_survey( survey_id, data ):
 match = re.match( '.*survey_([0-9]{5})_subjid_([^_]*)_([0-9]{8})_([0-9]{10})\.csv', args.infile )
 subject_label = str(args.infile).split('/')[-2]
 if not match:
-    error = "ERROR: file cannot be parsed."
+    error = "ERROR: file " + str(args.infile) + " cannot be parsed."
     slog.info(subject_label, error,
               filename=str(args.infile))
     sys.exit(1)
