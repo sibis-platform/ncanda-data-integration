@@ -13,6 +13,7 @@ import csv
 
 import pandas
 
+from sibisBeta import sibislogger as slog
 import recover_yn_variables as recyn
 
 # Setup command line parser
@@ -237,10 +238,18 @@ def handle_survey( survey_id, data ):
 
 # Figure out which survey type this is - bail if unknown
 match = re.match( '.*survey_([0-9]{5})_subjid_([^_]*)_([0-9]{8})_([0-9]{10})\.csv', args.infile )
+subject_label = str(args.infile).split('/')[-2]
 if not match:
-    sys.exit( "ERROR: file name %s cannot be parsed." % args.infile )
+    error = "ERROR: file " + str(args.infile) + " cannot be parsed."
+    slog.info(subject_label, error,
+              filename=str(args.infile))
+    sys.exit(1)
 if not match.group(1) in surveys.keys():
-    sys.exit( "ERROR: survey '%s' is unknown or not supported (file %s)." % (match.group(1), args.infile) )
+    error = "ERROR: survey '%s' is unknown or not supported" % (match.group(1))
+    slog.info(subject_label, error,
+              survey=str(match.group(1)),
+              filename=str(args.infile))
+    sys.exit(1)
 survey_id = match.group(1)
 
 # Read the input CSV file from LimeSurvey
