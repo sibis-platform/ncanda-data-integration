@@ -11,7 +11,7 @@ import subprocess
 
 import sys
 
-import sibis
+from sibisBeta import sibislogger as slog
 import hashlib
 
 # Setup command line parser
@@ -42,7 +42,11 @@ parser.add_argument("svndir",
 parser.add_argument("outdir",
                     help="Output directory. All CSV files are created in subdirectories"
                          " of this directory.")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
 args = parser.parse_args()
+
+# Setup logging
+slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: Harvester Message', 'harvester')
 
 # Figure out where this script is, so we can get path to other scripts.
 
@@ -83,13 +87,18 @@ def run_converter(site, command):
 def handle_file( path, site, filename):
     # Prepare option for overwriting
     if args.overwrite:
-        overwrite=["--overwrite"]
+        overwrite = ["--overwrite"]
     else:
-        overwrite=[]
+        overwrite = []
+
+    if args.post_to_github:
+        post_to_github = ["--post-to-github"]
+    else:
+        post_to_github = []
 
     # Is this a LimeSurvey file?
     if re.match( '^survey.*\.csv$', filename ):
-        run_converter( site, [ os.path.join( bindir, "lime2csv" ) ] + overwrite + [ path, os.path.join( args.outdir, site, "limesurvey" ) ] )
+        run_converter( site, [ os.path.join( bindir, "lime2csv" ) ] + overwrite + post_to_github + [ path, os.path.join( args.outdir, site, "limesurvey" ) ] )
     # Is this a Stroop file (Note: the "_100SD-" is signifigant as some MRI
     # Stroop files will include "_100SDMirror" in the filename)?
     elif re.match('^NCANDAStroopMtS_3cycles_7m53stask_100SD-[^/]*\.txt$', filename):
@@ -97,7 +106,7 @@ def handle_file( path, site, filename):
         try:
             subprocess.check_output([os.path.join(bindir, "eprime2redcap"), path, 'stroop_log_file'])
         except:
-            sibis.logging(hashlib.sha1('harvester').hexdigest()[0:6],
+            slog.info(hashlib.sha1('harvester').hexdigest()[0:6],
                           "ERROR: could not upload Stroop file",
                           subject_label=path.split('/')[-2],
                           filename=filename,
@@ -151,7 +160,7 @@ try:
     client.callback_notify = notify
     client.update( args.svndir )
 except pysvn._pysvn.ClientError as e:
-    sibis.logging(hashlib.sha1('harvester').hexdigest()[0:6],
+    slog.info(hashlib.sha1('harvester').hexdigest()[0:6],
                   "ERROR: Failed to create a Client for pysvn",
                   script='harvester',
                   msg=str(e))
