@@ -137,7 +137,8 @@ def export_series( xnat, redcap_key, session_and_scan_list, to_directory, filena
             dcm2image_output = subprocess.check_output( dcm2image_command, shell=True )
 
         except:
-            slog.info(session + "_" + scan,"Error: Unable to create dicom file",
+            slog.info(subject_label + "_" + event_label + "_" + scan,"Error: Unable to create dicom file",
+                          experiment_site_id=session,
                           cmd=dcm2image_command,
                           output=dcm2image_output)
             shutil.rmtree(temp_dir)
@@ -150,7 +151,9 @@ def export_series( xnat, redcap_key, session_and_scan_list, to_directory, filena
             open( eid_file_path, 'w' ).writelines( session_and_scan_list )
         except:
             error = "ERROR: unable to write EID file"
-            slog.info(session + "_" + scan,error, eid_file_path = eid_file_path)
+            slog.info(subject_label + "_" + event_label + "_" + scan,error,
+                      experiment_site_id=session,
+                      eid_file_path = eid_file_path)
 
         try: 
             for f in os.listdir(temp_dir):
@@ -158,7 +161,11 @@ def export_series( xnat, redcap_key, session_and_scan_list, to_directory, filena
 
         except Exception as err_msg: 
             error = "ERROR: unable to move files"
-            slog.info(session + "_" + scan,error, src_dir = temp_dir , dest_dir = to_directory, err_msg = str(err_msg))
+            slog.info(subject_label + "_" + event_label + "_" + scan,error,
+                      experiment_site_id = session,
+                      src_dir = temp_dir ,
+                      dest_dir = to_directory,
+                      err_msg = str(err_msg))
             shutil.rmtree(temp_dir)
             return False
 
