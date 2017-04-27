@@ -31,7 +31,7 @@ fi
 
 # Import data from the sites' data capture laptops into REDCap and reconcile imported with longitudinal data
 if [ ${IMPORT_FLAG} == 1 ]; then
-  catch_output_email ncanda-admin@sri.com "NCANDA: Laptop Data Import Stage 1 (harvester)" ${SIBIS}/scripts/import/laptops/harvester /fs/storage/laptops/ncanda /fs/storage/laptops/imported
+  catch_output_email ncanda-admin@sri.com "NCANDA: Laptop Data Import Stage 1 (harvester)" ${SIBIS}/scripts/import/laptops/harvester -p /fs/storage/laptops/ncanda /fs/storage/laptops/imported
 else 
    if [ ${hour} -eq 0 ]; then
       echo "front-nightly: Warning: Import from laptops  disabled !"    
