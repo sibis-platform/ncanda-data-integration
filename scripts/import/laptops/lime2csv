@@ -22,7 +22,11 @@ parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_
 parser.add_argument( "--overwrite", help="Overwrite existing CSV files.", action="store_true")
 parser.add_argument( "infile", help="Input .csv LimeSurvey file.")
 parser.add_argument( "outdir", help="Output directory. All CSV files are created in this directory")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
 args = parser.parse_args()
+
+# Setup logging
+slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: lime2csv Message', 'lime2csv')
 
 # Label translation function - LimeSurvey to SRI/REDCap style
 def label_to_sri( prefix, ls_label ):
