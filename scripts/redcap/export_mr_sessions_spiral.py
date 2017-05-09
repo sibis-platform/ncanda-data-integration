@@ -75,7 +75,8 @@ def do_export_spiral_files(xnat, redcap_key, resource_location, to_directory, sp
     spiral_E_files = glob_for_files_recursive(tmpdir, pattern="E*P*.7")
     if len(spiral_E_files) > 1:
         error = "ERROR: more than one E file found"
-        slog.info(xnat_eid,error,
+        slog.info(subject_id, error,
+                      xnat_eid=xnat_eid,
                       spiral_e_files = ', '.join(spiral_E_files))
         return False
 
@@ -107,7 +108,8 @@ def do_export_spiral_files(xnat, redcap_key, resource_location, to_directory, sp
             return False
     else:
         error = "ERROR: no spiral data file found"
-        slog.info(xnat_eid,error,
+        slog.info(subject_id, error,
+                      xnat_eid=xnat_eid,
                       resource_location=resource_location)
         return False
 
