@@ -170,7 +170,7 @@ def unlock_form(project_name, arm_name, event_descrip, form_name, engine):
         execute(sql, engine)
         return True
     else : 
-        print "Warning: Nothing to unlock or form '{0}' does not exist".format(form_name)
+        print "Warning: Nothing to unlock for form '{0}' does not exist".format(form_name)
         return False
 
 def lock_form(project_name, arm_name, event_descrip, form_name, username, outfile, engine):
