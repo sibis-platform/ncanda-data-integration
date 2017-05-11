@@ -12,7 +12,7 @@ import tempfile
 import subprocess
 import numpy
 import re
-from sibisBeta import sibislogger as slog
+from sibispy import sibislogger as slog
 import check_gradient_tables as cgt
 import time 
 import sys 

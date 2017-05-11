@@ -10,7 +10,7 @@ import re
 import glob
 import time
 import filecmp
-from sibisBeta import sibislogger as slog
+from sibispy import sibislogger as slog
 
 import pandas
 

@@ -16,7 +16,9 @@ import yaml
 import bisect 
 
 import pyxnat
-from sibisBeta import sibislogger as slog
+import sibispy 
+from sibispy import sibislogger as slog
+
 import make_session_niftis
 
 # Setup command line parser
@@ -66,23 +68,17 @@ if args.eid:
 slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: Check New Sessions Message', 'check_new_sessions')
 
 # Create interface using stored configuration
-ifc = pyxnat.Interface(config=os.path.join(os.path.expanduser("~"),
-                                           '.server_config/ncanda.cfg'))
+# pyxnat.Interface(config=os.path.join(os.path.expanduser("~"), '.server_config/ncanda.cfg'))
 
-# Get sibis config 
-yml = os.path.join(os.path.expanduser("~"), '.server_config/config.yml')
-with open(yml, 'r') as fi:
-    fi_data = yaml.load(fi)
-    sibis_config = fi_data.get('operations')
-    log_dir = os.path.join(fi_data.get('logdir'),'check_new_sessions')
+session = sibispy.Session() 
+session.connect_xnat() 
+ifc = session.api_xnat
 
-if not sibis_config:
-    raise IOError("Please ensure config.yml file exists at: {}".format(yml))
-
-
+log_dir = os.path.join(session.get_log_dir(),'check_new_sessions')
 if not os.path.exists(log_dir):
     raise IOError("Please ensure {} exists!".format(log_dir))
 
+sibis_config = session.get_operations_dir()
 if not os.path.exists(os.path.join(sibis_config, 'special_cases.yml')): 
     raise IOError("Please ensure special_cases.yml file exists at: {}".format(sibis_config))
 

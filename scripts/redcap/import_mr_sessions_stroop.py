@@ -10,7 +10,7 @@ import re
 import tempfile
 import shutil
 import subprocess
-from sibisBeta import sibislogger as slog
+from sibispy import sibislogger as slog
 
 #
 # Check for Stroop data (ePrime log file) in given XNAT session

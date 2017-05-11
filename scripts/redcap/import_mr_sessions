@@ -15,7 +15,8 @@ import hashlib
 import ast
 
 import yaml
-from sibisBeta import sibislogger as slog
+import sibispy
+from sibispy import sibislogger as slog
 import pyxnat
 import redcap
 import requests
@@ -76,10 +77,34 @@ if args.verbose:
 
 slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages', 'import_mr_sessions')
 
-# Get the sibis config
-yml = os.path.join(os.path.expanduser("~"), '.server_config/config.yml')
-with open(yml, 'r') as fi:
-    sibis_config = yaml.load(fi).get('operations')
+session = sibispy.Session() 
+# # Open connection with REDCap server
+# redcap_token_path = os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' )
+# redcap_token_file = open( redcap_token_path, 'r' )
+# redcap_token = redcap_token_file.read().strip()
+# 
+# try:
+#     redcap_project = redcap.Project('https://ncanda.sri.com/redcap/api/',
+#                                       redcap_token, verify_ssl=False)
+# 
+# except redcap.RedcapError as e:
+#     error = "Error creating object redcap.Project()"
+#     slog.info(hashlib.sha1('import_mr_sessions').hexdigest()[0:6], error,
+#                   script='import_mr_sessions',
+#                   msg=str(e))
+#     sys.exit()
+session.connect_redcap(project_entry=True,project_import=False)
+redcap_project = session.api_data_entry
+
+# Open connection with XNAT server
+# xnat = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+session.connect_xnat()
+xnat = session.api_xnat
+
+# yml = os.path.join(os.path.expanduser("~"), '.server_config/config.yml')
+# with open(yml, 'r') as fi:
+#    sibis_config = yaml.load(fi).get('operations')
+sibis_config = session.get_operations_dir()
 if not sibis_config:
     raise IOError("Please ensure config.yml file exists at: {}".format(yml))
 
@@ -90,27 +115,10 @@ with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
     exceptions_window = special_cases.get('outside_visit_window')
     exceptions_num_type = special_cases.get('more_of_type')
 
-# Open connection with REDCap server
-redcap_token_path = os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' )
-redcap_token_file = open( redcap_token_path, 'r' )
-redcap_token = redcap_token_file.read().strip()
-
-try:
-    redcap_project = redcap.Project('https://ncanda.sri.com/redcap/api/',
-                                      redcap_token, verify_ssl=False)
-except redcap.RedcapError as e:
-    error = "Error creating object redcap.Project()"
-    slog.info(hashlib.sha1('import_mr_sessions').hexdigest()[0:6], error,
-                  script='import_mr_sessions',
-                  msg=str(e))
-    sys.exit()
 form_event_mapping = redcap_project.export_fem( format='df' )
 
 # Organize REDCap metadata, e.g., filter all confidential fields out of export lists, and make code-to-label lookup dictionaries
 rcpipeline.organize_metadata( redcap_project.metadata )
-
-# Open connection with XNAT server
-xnat = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
 
 #
 # Get subject and project IDs

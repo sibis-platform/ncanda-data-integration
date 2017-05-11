@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from lxml import objectify
 
-from sibisBeta import sibislogger as slog
+from sibispy import sibislogger as slog
 
 def read_xml_sidecar(filepath):
     """

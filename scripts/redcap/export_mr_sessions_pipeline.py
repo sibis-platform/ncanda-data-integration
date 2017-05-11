@@ -12,7 +12,7 @@ import subprocess
 import shutil
 import sys
 import tempfile 
-from sibisBeta import sibislogger as slog
+from sibispy import sibislogger as slog
 
 from export_mr_sessions_spiral import export_spiral_files
 
