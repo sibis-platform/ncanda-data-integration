@@ -26,128 +26,18 @@ import import_mr_sessions_stroop as stroop
 import export_mr_sessions_pipeline as mrpipeline
 import export_redcap_to_pipeline as rcpipeline
 
-# Set global date format
+#
+# GLOBAL VARIABLES 
+# 
 date_format_ymd = '%Y-%m-%d'
+today = time.strftime(date_format_ymd)
 
-# Setup command line parser
-parser = argparse.ArgumentParser(description="For all subjects and visits in the REDCap database, find MR sessions in XNAT",
-                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter )
-parser.add_argument("-v", "--verbose",
-                    help="Verbose operation",
-                    action="store_true")
-parser.add_argument("--max-days-after-visit",
-                    help="Maximum number of days the scan session can be after the entered 'visit date' in REDCap to be assigned to a given event.",
-                    action="store",
-                    default=120,
-                    type=int)
-parser.add_argument("--site",
-                    help="Limit processing by site (SRI, UCSD, OHSU, UPMC, DUKE). Multiple sites can be listed, separated by comma (',')",
-                    action="store",
-                    default=None )
-parser.add_argument("--study-id",
-                    help="Limit processing to subject id (e.g., A-00000-F-1)",
-                    action="store",
-                    default=None)
-parser.add_argument("--pipeline-root-dir",
-                    help="Root directory of the image analysis pipeline. Newly detected imaging series will be converted to NIFTI files and put here for processing. ",
-                    action="store")
-parser.add_argument("--run-pipeline-script",
-                    help="Run image processing pipeline if new files were exported.",
-                    action="store")
-parser.add_argument("-f", "--force-update",
-                    help="Check all records in REDCap even if marked as complete -does not recreate image data if it already exists and did not change",
-                    action="store_true")
-parser.add_argument("--missing-only",
-                     help="Only consider missing records in REDCap, rather than unverified ones also.",
-                    action="store_true")
-parser.add_argument("--force-update-stroop",
-                    help="Update all Stroop records in REDCap, overwriting existing data",
-                     action="store_true")
-parser.add_argument("--no-stroop",
-                    help="Do not check for, or upload, MRI Stroop results (ePrime files in XNAT)",
-                    action="store_true")
-parser.add_argument("-n", "--no-upload",
-                    help="Only check correspondences; do not upload results to REDCap",
-                    action="store_true")
-parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
-args = parser.parse_args()
+ncanda_scan_types = [ 't1spgr', 'mprage', 't2fse', 'dti6b500pepolar', 'dti60b1000', 'rsfmri' ]
 
-if args.verbose:
-    print args
 
-slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages', 'import_mr_sessions')
-
-session = sibispy.Session() 
-# # Open connection with REDCap server
-# redcap_token_path = os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' )
-# redcap_token_file = open( redcap_token_path, 'r' )
-# redcap_token = redcap_token_file.read().strip()
+#
+# Functions 
 # 
-# try:
-#     redcap_project = redcap.Project('https://ncanda.sri.com/redcap/api/',
-#                                       redcap_token, verify_ssl=False)
-# 
-# except redcap.RedcapError as e:
-#     error = "Error creating object redcap.Project()"
-#     slog.info(hashlib.sha1('import_mr_sessions').hexdigest()[0:6], error,
-#                   script='import_mr_sessions',
-#                   msg=str(e))
-#     sys.exit()
-session.connect_redcap(project_entry=True,project_import=False)
-redcap_project = session.api_data_entry
-
-# Open connection with XNAT server
-# xnat = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
-session.connect_xnat()
-xnat = session.api_xnat
-
-# yml = os.path.join(os.path.expanduser("~"), '.server_config/config.yml')
-# with open(yml, 'r') as fi:
-#    sibis_config = yaml.load(fi).get('operations')
-sibis_config = session.get_operations_dir()
-if not sibis_config:
-    raise IOError("Please ensure config.yml file exists at: {}".format(yml))
-
-# Get a list of cases outside the visit window that should be included.
-with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
-    special_cases = yaml.load(fi)
-    export_measures_map = special_cases.get('site_change').get('export_measures')
-    exceptions_window = special_cases.get('outside_visit_window')
-    exceptions_num_type = special_cases.get('more_of_type')
-
-form_event_mapping = redcap_project.export_fem( format='df' )
-
-# Organize REDCap metadata, e.g., filter all confidential fields out of export lists, and make code-to-label lookup dictionaries
-rcpipeline.organize_metadata( redcap_project.metadata )
-
-#
-# Get subject and project IDs
-#
-try:
-    subject_project_list = xnat.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_LABEL', 'xnat:subjectData/SUBJECT_ID','xnat:subjectData/PROJECT'] ).where( [ ('xnat:subjectData/SUBJECT_LABEL','LIKE', '%')] ).items()
-except:
-    sys.exit( "ERROR: retrieving subject list from XNAT failed." )
-
-subject_project_dict = dict()
-subject_label_to_sid_dict = dict()
-for subject_label, subject_id, projects in subject_project_list:
-    subject_project_dict[subject_label] = (subject_id, projects)
-    subject_label_to_sid_dict[subject_label] = subject_id
-
-#
-# Get all scan sessions in permissible date range for a given subject and visit
-#
-try:
-    xnat_sessions_fields = ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SUBJECT_ID','xnat:mrSessionData/PROJECTS','xnat:mrSessionData/DATE','xnat:mrSessionData/SCANNER']
-    xnat_sessions_list = xnat.select( 'xnat:mrSessionData', xnat_sessions_fields ).where( [ ('xnat:mrSessionData/SESSION_ID','LIKE', '%') ] ).items()
-except:
-    sys.exit( "ERROR: retrieving session list from XNAT failed." )
-
-xnat_sessions_dict = dict()
-for ( session_id, session_subject_id, projects, date, scanner ) in xnat_sessions_list:
-    xnat_sessions_dict[session_id] = ( date, scanner, projects )
-
-
 def get_sessions_in_range(redcap_visit_id,xnat, subject_label, project_id, subject_id, date_range_from, date_range_to, verbose):
     #print "get_sessions_in_range", redcap_visit_id,xnat, subject_label, project_id, subject_id, date_range_from, date_range_to
     sessions_in_range = []
@@ -215,14 +105,6 @@ def get_spiral_uris( xnat_eid_list ):
 
     return (spiral_uri, spiralrest_uri)
 
-#
-# Get ADNI phantom scans from XNAT
-#
-try:
-    xnat_phantom_sessions_list = xnat.select( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SCANNER','xnat:mrSessionData/DATE'] ).where( [ ('xnat:mrSessionData/LABEL','LIKE', '%-99999-P-9-%') ] ).items()
-except:
-    sys.exit( "ERROR: retrieving phantom session list from XNAT failed." )
-
 def get_phantom_scans_for_date( date, scanner ):
     return [ session for (session,sscanner,sdate) in xnat_phantom_sessions_list if (sdate == date) and (sscanner == scanner) ]
 
@@ -262,10 +144,10 @@ def get_usable_scans_list( xnat, xnat_eid_list ):
 def days_between_dates( date_from_str, date_to_str, date_format=date_format_ymd ):
     return (datetime.datetime.strptime( date_to_str, date_format_ymd ) - datetime.datetime.strptime( date_from_str, date_format_ymd ) ).days
 
+
 #
 # Get scans from a list, selected by type
 #
-ncanda_scan_types = [ 't1spgr', 'mprage', 't2fse', 'dti6b500pepolar', 'dti60b1000', 'rsfmri' ]
 
 def get_scans_by_type( usable_scans_list, visit_date, redcap_visit_id):
     result = dict()
@@ -335,8 +217,6 @@ def encode_session_and_scan( session_and_scan, type_list ):
 #
 #  Returned result is a dictionary of keys and values to enter into the REDCap record for this subject/visit
 #
-today = time.strftime(date_format_ymd)
-
 
 def get_xnat_data(redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_date, date_of_birth,
                   next_visit_date, mri_inspection_completed, verbose=None):
@@ -572,6 +452,166 @@ def get_sibling_id1(subject_label):
         result = ''
     return result
 
+
+# ----------------------------------------
+# MAIN 
+# ----------------------------------------
+
+# Setup command line parser
+parser = argparse.ArgumentParser(description="For all subjects and visits in the REDCap database, find MR sessions in XNAT",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter )
+parser.add_argument("-v", "--verbose",
+                    help="Verbose operation",
+                    action="store_true")
+parser.add_argument("--max-days-after-visit",
+                    help="Maximum number of days the scan session can be after the entered 'visit date' in REDCap to be assigned to a given event.",
+                    action="store",
+                    default=120,
+                    type=int)
+parser.add_argument("--site",
+                    help="Limit processing by site (SRI, UCSD, OHSU, UPMC, DUKE). Multiple sites can be listed, separated by comma (',')",
+                    action="store",
+                    default=None )
+parser.add_argument("--study-id",
+                    help="Limit processing to subject id (e.g., A-00000-F-1)",
+                    action="store",
+                    default=None)
+parser.add_argument("--pipeline-root-dir",
+                    help="Root directory of the image analysis pipeline. Newly detected imaging series will be converted to NIFTI files and put here for processing. ",
+                    action="store")
+parser.add_argument("--run-pipeline-script",
+                    help="Run image processing pipeline if new files were exported.",
+                    action="store")
+parser.add_argument("-f", "--force-update",
+                    help="Check all records in REDCap even if marked as complete -does not recreate image data if it already exists and did not change",
+                    action="store_true")
+parser.add_argument("--missing-only",
+                     help="Only consider missing records in REDCap, rather than unverified ones also.",
+                    action="store_true")
+parser.add_argument("--force-update-stroop",
+                    help="Update all Stroop records in REDCap, overwriting existing data",
+                     action="store_true")
+parser.add_argument("--no-stroop",
+                    help="Do not check for, or upload, MRI Stroop results (ePrime files in XNAT)",
+                    action="store_true")
+parser.add_argument("-n", "--no-upload",
+                    help="Only check correspondences; do not upload results to REDCap",
+                    action="store_true")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+args = parser.parse_args()
+
+if args.verbose:
+    print args
+
+slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages', 'import_mr_sessions')
+
+session = sibispy.Session() 
+if not session.configure() :
+    if args.verbose:
+        print "Error: session configure file was not found"
+ 
+    sys.exit()
+
+
+# # Open connection with REDCap server
+# redcap_token_path = os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' )
+# redcap_token_file = open( redcap_token_path, 'r' )
+# redcap_token = redcap_token_file.read().strip()
+# 
+# try:
+#     redcap_project = redcap.Project('https://ncanda.sri.com/redcap/api/',
+#                                       redcap_token, verify_ssl=False)
+# 
+# except redcap.RedcapError as e:
+#     error = "Error creating object redcap.Project()"
+#     slog.info(hashlib.sha1('import_mr_sessions').hexdigest()[0:6], error,
+#                   script='import_mr_sessions',
+#                   msg=str(e))
+#     sys.exit()
+redcap_project = session.connect_server('data_entry') 
+if not redcap_project : 
+    if args.verbose:
+        print "Error: Could not connect to Redcap" 
+
+    sys.exit()
+
+# Open connection with XNAT server
+# xnat = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+xnat = session.connect_server('xnat') 
+if not xnat : 
+    if args.verbose:
+        print "Error: Could not connect to XNAT" 
+
+    sys.exit()
+
+# yml = os.path.join(os.path.expanduser("~"), '.server_config/config.yml')
+# with open(yml, 'r') as fi:
+#    sibis_config = yaml.load(fi).get('operations')
+sibis_config = session.get_operations_dir()
+special_cases_file = os.path.join(sibis_config, 'special_cases.yml')
+if not os.path.isfile(special_cases_file) : 
+    slog.info("import_mr_sesions","Error: The following file does not exist :" + special_cases_file)
+    sys.exit(1)
+              
+# Get a list of cases outside the visit window that should be included.
+with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
+    special_cases = yaml.load(fi)
+    export_measures_map = special_cases.get('site_change').get('export_measures')
+    exceptions_window = special_cases.get('outside_visit_window')
+    exceptions_num_type = special_cases.get('more_of_type')
+
+form_event_mapping = redcap_project.export_fem( format='df' )
+
+# Organize REDCap metadata, e.g., filter all confidential fields out of export lists, and make code-to-label lookup dictionaries
+rcpipeline.organize_metadata( redcap_project.metadata )
+
+#
+# Get subject and project IDs
+#
+subject_project_list = session.xnat_select_general( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_LABEL', 'xnat:subjectData/SUBJECT_ID','xnat:subjectData/PROJECT'], [ ('xnat:subjectData/SUBJECT_LABEL','LIKE', '%')] )
+# do not perform if not subject_project_list : as this is also true for [] !
+if subject_project_list == None: 
+    if args.verbose:
+        print "ERROR: retrieving subject list from XNAT failed."
+    sys.exit(1)
+
+subject_project_dict = dict()
+subject_label_to_sid_dict = dict()
+for subject_label, subject_id, projects in subject_project_list:
+    subject_project_dict[subject_label] = (subject_id, projects)
+    subject_label_to_sid_dict[subject_label] = subject_id
+
+#
+# Get all scan sessions in permissible date range for a given subject and visit
+#
+xnat_sessions_fields = ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SUBJECT_ID','xnat:mrSessionData/PROJECTS','xnat:mrSessionData/DATE','xnat:mrSessionData/SCANNER']
+xnat_sessions_list = session.xnat_select_general( 'xnat:mrSessionData', xnat_sessions_fields, [ ('xnat:mrSessionData/SESSION_ID','LIKE', '%') ])
+if xnat_sessions_list == None :
+    if args.verbose : 
+        print "ERROR: retrieving session list from XNAT failed."
+
+    sys.exit(1) 
+
+xnat_sessions_dict = dict()
+for ( session_id, session_subject_id, projects, date, scanner ) in xnat_sessions_list:
+    xnat_sessions_dict[session_id] = ( date, scanner, projects )
+
+
+#
+# Get ADNI phantom scans from XNAT
+#
+# try:
+#     xnat_phantom_sessions_list = xnat.select( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SCANNER','xnat:mrSessionData/DATE'] ).where( [ ('xnat:mrSessionData/LABEL','LIKE', '%-99999-P-9-%') ] ).items()
+# except:
+#     sys.exit( "ERROR: retrieving phantom session list from XNAT failed." )
+xnat_phantom_sessions_list = session.xnat_select_general('xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SCANNER','xnat:mrSessionData/DATE'], [ ('xnat:mrSessionData/LABEL','LIKE', '%-99999-P-9-%') ] )
+if xnat_phantom_sessions_list  == None :
+    if args.verbose:
+       print "ERROR: retrieving subject list from XNAT failed." 
+
+    sys.exit(1)
+
+
 #
 # Main program loop
 #
@@ -736,7 +776,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                     if args.force_update_stroop or not visit_log_redcap['mri_stroop_complete'][key] > 0:
                         (stroop_eid,stroop_resource,stroop_file) = stroop.check_for_stroop( xnat, xnat_data['mri_xnat_eids'].split( ' ' ), verbose=args.verbose )
                         if stroop_eid != None:
-                            stroop.import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, redcap_token, key, verbose=args.verbose, no_upload=args.no_upload )
+                            stroop.import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, key, verbose=args.verbose, no_upload=args.no_upload, post_to_github=args.post_to_github)
 
                 # Check if pipeline directory given and export imaging series there
                 if args.pipeline_root_dir and (this_subject_data['exclude'] != 1):

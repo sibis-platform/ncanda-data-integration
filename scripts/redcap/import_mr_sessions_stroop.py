@@ -44,7 +44,7 @@ def check_for_stroop( xnat, xnat_eid_list, verbose=False ):
 
 
 # Import a Stroop file into REDCap after scoring
-def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, redcap_token, redcap_key, verbose=False, no_upload=False ):
+def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, redcap_key, verbose=False, no_upload=False, post_to_github=False):
     if verbose:
         print "Importing Stroop data from file %s:%s" % ( stroop_eid, stroop_file )
 
@@ -71,7 +71,14 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, red
             # Upload original ePrime file for future reference
             if verbose:
                 print "Uploading ePrime Stroop file",stroop_file_path
-            subprocess.check_output( [ os.path.join( import_bindir, "eprime2redcap" ), "--api-key", redcap_token, '--record', redcap_key[0], '--event', redcap_key[1], stroop_file_path, 'mri_stroop_log_file' ] )
+
+            eprimeFlag=''
+            if post_to_github: 
+                eprimeFlag='-p'
+
+            eprimeFlag += ' --project data-entry --record' 
+                
+            subprocess.check_output( [ os.path.join( import_bindir, "eprime2redcap" ), eprimeFlag, redcap_key[0], '--event', redcap_key[1], stroop_file_path, 'mri_stroop_log_file' ] )
     else:
         error = "ERROR: could not convert Stroop file %s:%s" % ( xnat_eid, stroop_file )
         slog.info(xnat_eid,error,

@@ -16,7 +16,8 @@ import yaml
 import bisect 
 
 import pyxnat
-import sibispy 
+import sibispy
+from sibispy import sessionbeta 
 from sibispy import sibislogger as slog
 
 import make_session_niftis
@@ -71,9 +72,20 @@ slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: Check New Sessions
 # pyxnat.Interface(config=os.path.join(os.path.expanduser("~"), '.server_config/ncanda.cfg'))
 
 session = sibispy.Session() 
-session.connect_xnat() 
-ifc = session.api_xnat
+# session = sessionbeta.Session()
+if not session.configure() :
+    if verbose:
+        print "Error: session configure file was not found"
+ 
+    sys.exit()
 
+ifc = session.connect_server('xnat') 
+if not ifc : 
+    if verbose:
+        print "Error: Could not connect to XNAT" 
+
+    sys.exit()
+    
 log_dir = os.path.join(session.get_log_dir(),'check_new_sessions')
 if not os.path.exists(log_dir):
     raise IOError("Please ensure {} exists!".format(log_dir))

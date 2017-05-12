@@ -15,11 +15,10 @@ import shutil
 import zipfile
 import glob
 
-
-
 import pandas
 
-import sibis
+import sibispy
+from sibispy import sibislogger as slog
 import redcap
 import pyxnat
 
@@ -30,7 +29,11 @@ parser.add_argument( "--max-days-after-visit", help="Maximum number of days the 
 parser.add_argument( "-f", "--force-update", help="Update all records in REDCap, overwriting existing data", action="store_true")
 parser.add_argument( "-e", "--with-excluded", help="Include records marked 'excluded' in REDCap", action="store_true")
 parser.add_argument( "-n", "--no-upload", help="Only check correspondences; do not upload results to REDCap", action="store_true")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+
 args = parser.parse_args()
+
+slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages', 'import_mr_stroop')
 
 #
 # Check for Stroop data (ePrime log file) in given XNAT session
@@ -38,7 +41,7 @@ args = parser.parse_args()
 import_bindir = os.path.join( os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) ), 'import', 'laptops' )
 bindir = os.path.dirname( os.path.abspath(__file__) )
 
-def check_for_stroop( xnat, xnat_eid, redcap_token, redcap_key, verbose=False, no_upload=False ):
+def check_for_stroop( xnat, xnat_eid, redcap_key, verbose=False, no_upload=False, post_to_github=False):
     experiment = xnat.select.experiment( xnat_eid )
 
     # Get list of resource files that match the Stroop file name pattern
@@ -85,11 +88,6 @@ def check_for_stroop( xnat, xnat_eid, redcap_token, redcap_key, verbose=False, n
     # Convert downloaded Stroop file to CSV scores file
     added_files = subprocess.check_output( [ os.path.join( import_bindir, "stroop2csv" ), '--mr-session', '--record', redcap_key[0], '--event', redcap_key[1], stroop_file_path, tempdir ] )
 
-
-   # added_files = subprocess.check_output( [ os.path.join( import_bindir, "stroop2csv" ), '--mr-session', '--record', redcap_key[0], '--event', redcap_key[1],stroop_file_path_zip[0], tempdir ] )
-
-
-
     if len( added_files ):
         if not no_upload:
             # Upload CSV file(s) (should only be one anyway)
@@ -101,24 +99,44 @@ def check_for_stroop( xnat, xnat_eid, redcap_token, redcap_key, verbose=False, n
             # Upload original ePrime file for future reference
             if verbose:
                 print "Uploading ePrime Stroop file",stroop_file_path
-            subprocess.check_output( [ os.path.join( import_bindir, "eprime2redcap" ), "--api-key", redcap_token, '--record', redcap_key[0], '--event', redcap_key[1], stroop_file_path, 'mri_stroop_log_file' ] )
+   
+            eprimeFlag=''
+            if post_to_github: 
+                eprimeFlag='-p'
+
+            eprimeFlag += ' --project data-entry --record' 
+
+            subprocess.check_output( [ os.path.join( import_bindir, "eprime2redcap" ), eprimeFlag, redcap_key[0], '--event', redcap_key[1], stroop_file_path, 'mri_stroop_log_file' ] )
     else:
         error = "ERROR: could not convert Stroop file"
-        sibis.logging(xnat_eid, error,
-                      stroop_file = stroop_file)
+        slog.info(xnat_eid, error, stroop_file = stroop_file)
 
     shutil.rmtree( tempdir )
 
 # Open connection with REDCap server
-redcap_token_path = os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' )
-redcap_token_file = open( redcap_token_path, 'r' )
-redcap_token = redcap_token_file.read().strip()
+session = sibispy.Session() 
+if not session.configure() :
+    if args.verbose:
+        print "Error: session configure file was not found"
+ 
+    sys.exit()
 
-redcap_project = redcap.Project( 'https://ncanda.sri.com/redcap/api/', redcap_token, verify_ssl=False)
+redcap_project = session.connect_server('data_entry') 
+if not redcap_project : 
+    if args.verbose:
+        print "Error: Could not connect to Redcap" 
+
+    sys.exit()
+
 form_event_mapping = redcap_project.export_fem( format='df' )
 
 # Open connection with XNAT server
-xnat = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+xnat = session.connect_server('xnat') 
+if not xnat : 
+    if args.verbose:
+        print "Error: Could not connect to XNAT" 
+
+    sys.exit()
 
 #
 # Main program loop
@@ -148,7 +166,7 @@ for [key,row] in mr_sessions_redcap.iterrows():
         else:
             try:
                 for xnat_eid in row['mri_xnat_eids'].split( ' ' ):
-                    check_for_stroop( xnat, xnat_eid, redcap_token, key, verbose=args.verbose, no_upload=args.no_upload )
+                    check_for_stroop( xnat, xnat_eid, key, verbose=args.verbose, no_upload=args.no_upload,post_to_github=args.post_to_github)
             except AttributeError, e:
                 error = "Error for xnat_eid: {}".format(e)
-                sibis.logging(xnat_eid,error)
+                slog.info(xnat_eid,error)
