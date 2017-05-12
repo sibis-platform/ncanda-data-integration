@@ -16,7 +16,8 @@ import pandas
 import redcap
 import requests
 
-import sibis
+import sibispy
+from sibispy import sibislogger as slog
 
 date_format_ymd = '%Y-%m-%d'
 
@@ -65,6 +66,10 @@ parser.add_argument("--study-id",
 
 args = parser.parse_args()
 
+
+slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages', 'update_visit_data')
+
+session = sibispy.Session()
 
 # Convert to string, or empty if nan.
 def nan_to_empty( x ):
@@ -144,36 +149,20 @@ forms_date_increments = {
     'sleepmor': 1
 }
 
-
-# First REDCap connection for the Summary project (this is where we put data)
-def connect_to_redcap(project):
-    summary_key_file = open(os.path.join( os.path.expanduser("~"), '.server_config/redcap-' + project + '-token'), 'r')
-    summary_api_key = summary_key_file.read().strip()
-    redcap_server = 'https://ncanda.sri.com/redcap/api/'
-    try:
-        rc = redcap.Project(redcap_server, summary_api_key, verify_ssl=False)
-    except Exception, err:
-        sibis.logging(hashlib.sha1('update_visit_data').hexdigest()[0:6],
-                      "ERROR: Could not connect to redcap!",
-                      script='update_visit_data',
-                      error_msg=str(err),
-                      project=project)
-        return None
-    return rc
-
-# If connection to redcap server fail, try multiple times
-rc_entry = connect_to_redcap('dataentry')
-if rc_entry == None:    
-    sys.exit()
+session.connect_redcap(project_entry=True,project_import=False)
+# Open connection with REDCap server - Data Entry
+redcap_project = session.api_data_entry
+# Open connection with REDCap server - Import Project
+import_project = session.api_import_laptops
 
 # Get list of all field names in the summary project - this is to figure out which fields to copy
-summary_field_names = [field['field_name'] for field in rc_entry.metadata]
+summary_field_names = [field['field_name'] for field in redcap_project.metadata]
 
 # Get list of all 0/1 encoded Yes/No fields (either radio or dropdown) - these need to be recoded when copied
-summary_fields_yn = [field['field_name'] for field in rc_entry.metadata if field['field_type'] in ['radio', 'dropdown'] and re.match('[^0-9]*1, Yes[^0-9]*0, No.*', field['select_choices_or_calculations'])]
+summary_fields_yn = [field['field_name'] for field in redcap_project.metadata if field['field_type'] in ['radio', 'dropdown'] and re.match('[^0-9]*1, Yes[^0-9]*0, No.*', field['select_choices_or_calculations'])]
 
 # What forms are at what event?
-form_event_mapping = rc_entry.export_fem(format='df')
+form_event_mapping = redcap_project.export_fem(format='df')
 
 # Get record IDs, visit labels, visit dates, and completion status for all laptop forms
 entry_data_fields = [('%s_complete' % form) for form in form_names] + [('%s_missing' % form) for form in form_prefixes] + [('%s_record_id' % form) for form in form_prefixes]
@@ -181,11 +170,11 @@ entry_data_fields += ['study_id', 'dob', 'redcap_event_name', 'visit_date', 'exc
 
 # Get list of existing records
 if args.study_id:
-    entry_data = rc_entry.export_records(records=[args.study_id], fields=entry_data_fields,
+    entry_data = redcap_project.export_records(records=[args.study_id], fields=entry_data_fields,
                                           event_name='unique',
                                           format='df')
 else:
-    entry_data = rc_entry.export_records(fields=entry_data_fields,
+    entry_data = redcap_project.export_records(fields=entry_data_fields,
                                           event_name='unique',
                                           format='df')
 
@@ -205,18 +194,12 @@ subject_dates_of_birth = pandas.concat(concat)
 if args.no_excluded:
     entry_data = entry_data[entry_data['exclude'] != 1]
 
-# Open connection with REDCap server - first for the laptop import project
-# (data source)
-rc_import = connect_to_redcap('laptopimport')
-if rc_import == None:    
-    sys.exit()
-
 # Upload new data to REDCap
 def to_redcap(form_name, subject_id, upload_records):
     if args.no_upload:
         return 0
     try:
-        import_response = rc_entry.import_records(upload_records,
+        import_response = redcap_project.import_records(upload_records,
                                                     overwrite='overwrite')
 
         # If there were any errors, try to print them as well as possible
@@ -238,7 +221,7 @@ def to_redcap(form_name, subject_id, upload_records):
         sha = hashlib.sha1(err.message).hexdigest()
         error_id = subject_id +"-"+ form_name +"-{}".format(sha[0:6])
     
-        sibis.logging(error_id,
+        slog.info(error_id,
                       "Error: Records may be locked - could not import to data entry",
                       error_message=str(err.message),
                       subject_id = subject_id,
@@ -274,7 +257,7 @@ def get_subject_age( subject_id, at_date ):
         date_of_birth = subject_dates_of_birth[subject_id]
     except KeyError, e:
         error = "ERROR: no birth date for subject"
-        sibis.logging(subject_id, error, e=e)
+        slog.info(subject_id, error, e=e)
         return ''
     # Set actual age - do this after everything else, because some surveys have
     # "age" fields; we want to overwrite those
@@ -283,7 +266,7 @@ def get_subject_age( subject_id, at_date ):
     except:
         if at_date != 'nan':
             error = "ERROR: could not parse visit date"
-            sibis.logging(subject_id, error, date=at_date)
+            slog.info(subject_id, error, date=at_date)
         return ''
 
 
@@ -355,7 +338,7 @@ def MissingFormChecks(vdate):
     session_id = "{}-{}".format(key[0], vdate)
     if session_id in import_complete_records.index :
         if not import_complete_records[complete_label][session_id]:
-            sibis.logging(session_id, 'Error: The status of a form in the Import project is incomplete while it is unverified or complete in the Entry project!',
+            slog.info(session_id, 'Error: The status of a form in the Import project is incomplete while it is unverified or complete in the Entry project!',
                   entry_subject_id=key[0],
                   form_name=form_name,
                   event_id=key[1],
@@ -365,7 +348,7 @@ def MissingFormChecks(vdate):
             return 
 
         if import_complete_records[exclude_label][session_id] :
-            sibis.logging(session_id, 'Error: The form in the Import project is excluded while it is not in the entry project!',
+            slog.info(session_id, 'Error: The form in the Import project is excluded while it is not in the entry project!',
                   entry_subject_id=key[0],
                   form_name=form_name,
                   event_id=key[1],
@@ -374,7 +357,7 @@ def MissingFormChecks(vdate):
             return 
 
             
-    sibis.logging(session_id, 'WARNING: Previously assigned form seems to have disappered. Not sure what happened - most likely the visit date is wrongly defined!',
+    slog.info(session_id, 'WARNING: Previously assigned form seems to have disappered. Not sure what happened - most likely the visit date is wrongly defined!',
                   entry_subject_id=key[0],
                   form_name=form_name,
                   event_id=key[1],
@@ -401,7 +384,7 @@ for form_prefix, form_name in forms.iteritems():
         fields_list.append(subject_id_label)
 
     # ==> Export data from laptops for this form from REDCap.
-    import_complete_records = rc_import.export_records( fields = fields_list, format='df' )
+    import_complete_records = import_project.export_records( fields = fields_list, format='df' )
 
     # First, get "complete" and "exclude" fields for this form for all records to
     # find which ones actually have data and are not excluded.
@@ -426,11 +409,11 @@ for form_prefix, form_name in forms.iteritems():
 
     forms = [form_name]
     return_format = 'df'
-    df_kwargs = {'index_col': rc_import.def_field, 'dtype': 'object'}
+    df_kwargs = {'index_col': import_project.def_field, 'dtype': 'object'}
     returned_records = []
 
     for record_batch in batch(records, n=100):
-        returned_records.append(rc_import.export_records(records=record_batch,
+        returned_records.append(import_project.export_records(records=record_batch,
                                                          forms=forms,
                                                          format=return_format,
                                                          df_kwargs=df_kwargs).applymap(nan_to_empty))
@@ -456,7 +439,7 @@ for form_prefix, form_name in forms.iteritems():
     # Select the events that actually have this form (first, to handle summary forms,
     # figure out what actual form the "FORM_complete" field is in)
     try:
-        summary_form_name = [ field['form_name'] for field in rc_entry.metadata if field['field_name'] == complete_label ][0]
+        summary_form_name = [ field['form_name'] for field in redcap_project.metadata if field['field_name'] == complete_label ][0]
     except:
         # If the above failed (due to empty list, presumably), then this is not a
         # hierarchical form and we should just use the given form name
@@ -512,7 +495,7 @@ for form_prefix, form_name in forms.iteritems():
                 records_this_visit.sort( columns = 'days_from_visit', inplace = True )
                 if records_this_visit.ix[0]['days_from_visit'] == records_this_visit.ix[1]['days_from_visit']:
                     error ='ERROR: more than one closest record'
-                    sibis.logging("{}-{}".format(key[0], visit_date), error,
+                    slog.info("{}-{}".format(key[0], visit_date), error,
                                   subject_id = key[0],
                                   form_name = form_name,
                                   event_id = key[1],
@@ -552,7 +535,7 @@ for form_prefix, form_name in forms.iteritems():
                 if len(records_this_visit) > 1:
                     # Not unique - bail
                     error = 'More than one record found for subject on event with same visit date'
-                    sibis.logging("{}-{}".format(key[0], form_target_date), error,
+                    slog.info("{}-{}".format(key[0], form_target_date), error,
                                  subject_id=key[0],
                                  form_name=form_name,
                                  event_id=key[1],
