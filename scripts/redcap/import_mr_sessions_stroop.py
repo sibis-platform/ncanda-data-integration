@@ -76,7 +76,7 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, red
             if post_to_github: 
                 eprimeFlag='-p'
 
-            eprimeFlag += ' --project data-entry --record' 
+            eprimeFlag += ' --project data_entry --record' 
                 
             subprocess.check_output( [ os.path.join( import_bindir, "eprime2redcap" ), eprimeFlag, redcap_key[0], '--event', redcap_key[1], stroop_file_path, 'mri_stroop_log_file' ] )
     else:
