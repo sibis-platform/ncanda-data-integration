@@ -79,8 +79,7 @@ catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Undeclared Drinking Exce
 if [ ${PIPELINE_UPDATE_FLAG} == 1 ]; then
     if [ ${IMAGE_PROCESS_FLAG} == 1 ]; then
 	# Import data from XNAT into REDCap and feed image analysis pipeline
-	catch_output_email ncanda-admin@sri.com "NCANDA Pipeline Feeder Messages (import_mr_sessions)" ${SIBIS}/scripts/redcap/import_mr_sessions -p --max-days-after-visit 120 --pipeline-root-dir /fs/ncanda-share/pipeline/cases --run-pipeline-script /fs/ncanda-share/pipeline/scripts/bin/ncanda_all_pipelines
-
+	catch_output_email ncanda-admin@sri.com "NCANDA Pipeline Feeder Messages (import_mr_sessions)" ${SIBIS}/scripts/redcap/import_mr_sessions -p --max-days-after-visit 120 --pipeline-root-dir /fs/ncanda-share/pipeline/cases --run-pipeline-script /fs/ncanda-share/pipeline/scripts/bin/ncanda_all_pipelines -t /fs/ncanda-share/ncanda-data-log/back-nightly
     fi 
 
     # Export NP/clinical/dempgraphics data into image analysis pipeline directories

@@ -498,12 +498,19 @@ parser.add_argument("-n", "--no-upload",
                     help="Only check correspondences; do not upload results to REDCap",
                     action="store_true")
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+
+parser.add_argument("-t","--time-log-dir",
+                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    action="store",
+                    default=None)
+
 args = parser.parse_args()
 
 if args.verbose:
     print args
 
-slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages', 'import_mr_sessions')
+slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages', 'import_mr_sessions', args.time_log_dir)
+slog.startTimer1()
 
 session = sibispy.Session() 
 if not session.configure() :
@@ -528,7 +535,7 @@ if not session.configure() :
 #                   script='import_mr_sessions',
 #                   msg=str(e))
 #     sys.exit()
-redcap_project = session.connect_server('data_entry') 
+redcap_project = session.connect_server('data_entry', True) 
 if not redcap_project : 
     if args.verbose:
         print "Error: Could not connect to Redcap" 
@@ -537,7 +544,7 @@ if not redcap_project :
 
 # Open connection with XNAT server
 # xnat = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
-xnat = session.connect_server('xnat') 
+xnat = session.connect_server('xnat',True) 
 if not xnat : 
     if args.verbose:
         print "Error: Could not connect to XNAT" 
@@ -831,3 +838,5 @@ if args.verbose:
         print "Successfully uploaded %d/%d records to REDCap." % ( records_uploaded, len( mr_sessions_redcap ) )
     else:
         print "Suppressed uploading of %d records to REDCap." % ( len( mr_sessions_redcap ) )
+
+slog.trackTimer1('script_time|TotalSessions: ' + str(len(mr_sessions_redcap)) + ';RecordsUploaded: ' +  str(len( records_uploaded)))
