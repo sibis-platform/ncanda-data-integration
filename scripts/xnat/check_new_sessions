@@ -17,7 +17,7 @@ import bisect
 
 import pyxnat
 import sibispy
-from sibispy import sessionbeta 
+# from sibispy import sessionbeta 
 from sibispy import sibislogger as slog
 
 import make_session_niftis
