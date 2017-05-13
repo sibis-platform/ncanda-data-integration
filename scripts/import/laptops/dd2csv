@@ -25,7 +25,7 @@ parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub in
 args = parser.parse_args()
 
 # Setup logging
-slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: lime2csv Message', 'dd2csv')
+slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: dd2csv Message', 'dd2csv')
 
 # Make a temporary directory
 temp_dir_path = tempfile.mkdtemp()
@@ -48,14 +48,14 @@ subject_label = str(args.ddfile).split('/')[-2]
 # Anything still left? If not, this file has nothing for us.
 if len( dd ) == 0:
     error = 'WARNING: no suitable data in file %s' % args.ddfile
-    slog.init_log(subject_label, error)
+    slog.info(subject_label, error)
     sys.exit(1)
 
 # Make sure all rows have the same "Amount", and it's either 100 or 1000
 amount = dd['Amount'][0]
 if not amount in [100,1000]:
     error = 'WARNING: amount %f is neither 100 nor 1000 in %s' % (amount, args.ddfile)
-    slog.init_log(subject_label, error)
+    slog.info(subject_label, error)
     sys.exit(1)
 dd = dd[ dd['Amount'] == amount ]
 
@@ -84,7 +84,7 @@ if match_date:
     date = '%s-%02d-%02d' % (match_date.group(3), int(match_date.group(1)), int(match_date.group(2)))
 else:
     error = 'ERROR: %s\nCannot extract date from "%s"' % ( args.ddfile, dd['Date'][0] )
-    slog.init_log(subject_label, error)
+    slog.info(subject_label, error)
     sys.exit(1)
 
 # Create unique record ID
