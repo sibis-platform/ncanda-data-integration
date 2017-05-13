@@ -839,4 +839,4 @@ if args.verbose:
     else:
         print "Suppressed uploading of %d records to REDCap." % ( len( mr_sessions_redcap ) )
 
-slog.trackTimer1('script_time|TotalSessions: ' + str(len(mr_sessions_redcap)) + ';RecordsUploaded: ' +  str(len( records_uploaded)))
+slog.takeTimer1('script_time|TotalSessions: ' + str(len(mr_sessions_redcap)) + ';RecordsUploaded: ' +  str(records_uploaded))
