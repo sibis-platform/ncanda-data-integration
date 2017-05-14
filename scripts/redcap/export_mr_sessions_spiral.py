@@ -12,12 +12,13 @@ import fnmatch
 import tempfile
 import subprocess
 
-from sibisBeta import sibislogger as slog
+from sibispy import sibislogger as slog
 
 
 def export_spiral_files(xnat, redcap_key, resource_location, to_directory, stroop=(None, None, None), verbose=None):
     if verbose:
         print("Exporting spiral files...")
+
     result = False # Nothing updated or created yet
     # resource location contains results dict with path building elements
     # NCANDA_E01696/27630/spiral.tar.gz
