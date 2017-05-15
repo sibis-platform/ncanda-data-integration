@@ -56,7 +56,7 @@ def check_file_date(pipeline_file,xnat_file):
 # Returns - True if new files were created, False if not
 #
 
-def export_series( xnat, redcap_key, session_and_scan_list, to_directory, filename_pattern, verbose=False ):
+def export_series( xnat, redcap_key, session_and_scan_list, to_directory, filename_pattern, verbose=False, timer_label=None):
     (subject_label, event_label) = redcap_key
     # List should have at least one "SESSION/SCAN" entry
     if not '/' in session_and_scan_list:
@@ -128,6 +128,9 @@ def export_series( xnat, redcap_key, session_and_scan_list, to_directory, filena
         # to_path_pattern = os.path.join( to_directory, filename_pattern )
         tmp_path_pattern = os.path.join(temp_dir, filename_pattern )
         dcm2image_output = ""
+        if timer_label :
+            slog.startTimer2() 
+
         try:
             dcm2image_command = 'cmtk dcm2image --tolerance 1e-3 --write-single-slices --no-progress -rxO %s %s 2>&1' % ( tmp_path_pattern, ' '.join( dicom_path_list ) )
 
@@ -143,6 +146,9 @@ def export_series( xnat, redcap_key, session_and_scan_list, to_directory, filena
                           output=dcm2image_output)
             shutil.rmtree(temp_dir)
             return False
+
+        if timer_label:
+            slog.takeTimer2('convert_dicom_to_nifti', timer_label) 
 
         try:
             if not os.path.exists(to_directory):
@@ -374,16 +380,21 @@ def delete_workdir(workdir,redcap_key,verbose=False):
 #
 # Returns - True if new file as created, False if not
 #
-def export_to_workdir( xnat, session_data, pipeline_workdir, redcap_key, stroop=(None,None,None), verbose=False ):
+def export_to_workdir( xnat, session_data, pipeline_workdir, redcap_key, stroop=(None,None,None), verbose=False, timerFlag=False):
     new_files_created = False
 
     # Export structural data
     pipeline_workdir_structural_main = os.path.join( pipeline_workdir, 'structural');
     pipeline_workdir_structural_native = os.path.join( pipeline_workdir_structural_main, 'native' );
     if session_data['mri_series_t1'] != '' and session_data['mri_series_t2'] != '' :
-        new_files_created = export_series( xnat, redcap_key, session_data['mri_series_t1'], pipeline_workdir_structural_native, 't1.nii', verbose=verbose ) or new_files_created
+        if timerFlag :
+            timerLabel = 't1'
+        else :
+            timerLabel = None
 
-        new_files_created = export_series( xnat, redcap_key, session_data['mri_series_t2'], pipeline_workdir_structural_native, 't2.nii', verbose=verbose ) or new_files_created
+        new_files_created = export_series( xnat, redcap_key, session_data['mri_series_t1'], pipeline_workdir_structural_native, 't1.nii', verbose=verbose, timer_label= timerLabel ) or new_files_created
+
+        new_files_created = export_series( xnat, redcap_key, session_data['mri_series_t2'], pipeline_workdir_structural_native, 't2.nii', verbose=verbose) or new_files_created
 
         # Copy ADNI phantom XML file
         if 'NCANDA_E' in session_data['mri_adni_phantom_eid']:
@@ -410,7 +421,12 @@ def export_to_workdir( xnat, session_data, pipeline_workdir, redcap_key, stroop=
     pipeline_workdir_functional_main = os.path.join( pipeline_workdir, 'restingstate');
     pipeline_workdir_functional_native = os.path.join( pipeline_workdir_functional_main, 'native' );
     if session_data['mri_series_rsfmri'] != '' and session_data['mri_series_rsfmri_fieldmap'] != '':
-        new_files_created = export_series( xnat, redcap_key, session_data['mri_series_rsfmri'], os.path.join( pipeline_workdir_functional_native, 'rs-fMRI' ), 'bold-%n.nii', verbose=verbose ) or new_files_created
+        if timerFlag :
+            timerLabel = 'rsfmri' 
+        else :
+            timerLabel = None
+
+        new_files_created = export_series( xnat, redcap_key, session_data['mri_series_rsfmri'], os.path.join( pipeline_workdir_functional_native, 'rs-fMRI' ), 'bold-%n.nii', verbose=verbose, timer_label = timerLabel ) or new_files_created
         # Copy rs-fMRI physio files
         new_files_created = copy_rsfmri_physio_files( xnat, session_data['mri_series_rsfmri'], os.path.join( pipeline_workdir_functional_native, 'physio' ) ) or new_files_created
 
@@ -474,7 +490,7 @@ def translate_subject_and_event( subject_code, event_label ):
 #
 # Export MR session and run pipeline if so instructed
 #
-def export_and_queue( xnat, session_data, redcap_key, pipeline_root_dir, stroop=(None,None,None), run_pipeline_script=None, verbose=False ):
+def export_and_queue( xnat, session_data, redcap_key, pipeline_root_dir, stroop=(None,None,None), run_pipeline_script=None, verbose=False, timerFlag = False ):
     (subject_label, event_label) = redcap_key
     # Put together pipeline work directory for this subject and visit
     subject_code = session_data['mri_xnat_sid']
@@ -490,7 +506,7 @@ def export_and_queue( xnat, session_data, redcap_key, pipeline_root_dir, stroop=
         if verbose:
             print subject_label,'/',subject_code,'/',event_label,'to',pipeline_workdir
 
-        new_files_created = export_to_workdir( xnat, session_data, pipeline_workdir, redcap_key, stroop=stroop, verbose=verbose )
+        new_files_created = export_to_workdir( xnat, session_data, pipeline_workdir, redcap_key, stroop=stroop, verbose=verbose, timerFlag= timerFlag)
 
         if new_files_created and run_pipeline_script:
             if verbose:
@@ -535,6 +551,9 @@ def export_and_queue( xnat, session_data, redcap_key, pipeline_root_dir, stroop=
             xnat.cache.clear()
         except:
             print "WARNING: clearing PyXNAT cache threw an exception - are you running multiple copies of this script?"
+
+        return new_files_created
+        
 
 #
 # Check to make sure no pipeline data exist for "excluded" subjects

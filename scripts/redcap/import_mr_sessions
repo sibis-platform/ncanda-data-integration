@@ -19,7 +19,6 @@ import sibispy
 from sibispy import sibislogger as slog
 import pyxnat
 import redcap
-import requests
 import pandas as pd
 
 import import_mr_sessions_stroop as stroop
@@ -33,7 +32,6 @@ date_format_ymd = '%Y-%m-%d'
 today = time.strftime(date_format_ymd)
 
 ncanda_scan_types = [ 't1spgr', 'mprage', 't2fse', 'dti6b500pepolar', 'dti60b1000', 'rsfmri' ]
-
 
 #
 # Functions 
@@ -519,7 +517,6 @@ if not session.configure() :
  
     sys.exit()
 
-
 # # Open connection with REDCap server
 # redcap_token_path = os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' )
 # redcap_token_file = open( redcap_token_path, 'r' )
@@ -575,7 +572,7 @@ rcpipeline.organize_metadata( redcap_project.metadata )
 #
 # Get subject and project IDs
 #
-subject_project_list = session.xnat_select_general( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_LABEL', 'xnat:subjectData/SUBJECT_ID','xnat:subjectData/PROJECT'], [ ('xnat:subjectData/SUBJECT_LABEL','LIKE', '%')] )
+subject_project_list = session.xnat_export_general( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_LABEL', 'xnat:subjectData/SUBJECT_ID','xnat:subjectData/PROJECT'], [ ('xnat:subjectData/SUBJECT_LABEL','LIKE', '%')],"subject_list")
 # do not perform if not subject_project_list : as this is also true for [] !
 if subject_project_list == None: 
     if args.verbose:
@@ -592,7 +589,7 @@ for subject_label, subject_id, projects in subject_project_list:
 # Get all scan sessions in permissible date range for a given subject and visit
 #
 xnat_sessions_fields = ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SUBJECT_ID','xnat:mrSessionData/PROJECTS','xnat:mrSessionData/DATE','xnat:mrSessionData/SCANNER']
-xnat_sessions_list = session.xnat_select_general( 'xnat:mrSessionData', xnat_sessions_fields, [ ('xnat:mrSessionData/SESSION_ID','LIKE', '%') ])
+xnat_sessions_list = session.xnat_export_general( 'xnat:mrSessionData', xnat_sessions_fields, [ ('xnat:mrSessionData/SESSION_ID','LIKE', '%') ],"subject_session_data")
 if xnat_sessions_list == None :
     if args.verbose : 
         print "ERROR: retrieving session list from XNAT failed."
@@ -611,7 +608,7 @@ for ( session_id, session_subject_id, projects, date, scanner ) in xnat_sessions
 #     xnat_phantom_sessions_list = xnat.select( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SCANNER','xnat:mrSessionData/DATE'] ).where( [ ('xnat:mrSessionData/LABEL','LIKE', '%-99999-P-9-%') ] ).items()
 # except:
 #     sys.exit( "ERROR: retrieving phantom session list from XNAT failed." )
-xnat_phantom_sessions_list = session.xnat_select_general('xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SCANNER','xnat:mrSessionData/DATE'], [ ('xnat:mrSessionData/LABEL','LIKE', '%-99999-P-9-%') ] )
+xnat_phantom_sessions_list = session.xnat_export_general('xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SCANNER','xnat:mrSessionData/DATE'], [ ('xnat:mrSessionData/LABEL','LIKE', '%-99999-P-9-%') ],'phantom_session_data')
 if xnat_phantom_sessions_list  == None :
     if args.verbose:
        print "ERROR: retrieving subject list from XNAT failed." 
@@ -624,15 +621,14 @@ if xnat_phantom_sessions_list  == None :
 #
 # these are the "baseline" events of the study arms that have them
 baseline_events = ['baseline_visit_arm_1', 'baseline_visit_arm_4']
-subject_data = redcap_project.export_records(fields=['study_id',
-                                                     'dob',
-                                                     'exclude',
-                                                     'enroll_exception',
-                                                     'siblings_enrolled',
-                                                     'siblings_id1'],
-                                             events=baseline_events,
-                                             event_name='unique',
-                                             format='df')
+
+subject_data = session.redcap_export_records("subject_data",fields=['study_id','dob','exclude','enroll_exception','siblings_enrolled','siblings_id1'], events = baseline_events, event_name='unique', format='df')
+
+if type(subject_data) == type(None) or subject_data.empty:
+    if verbose: 
+        print "No subjects selected" 
+    sys.exit(1)
+
 # Gather all the subject data.
 subject_data = pd.concat([subject_data.xs(event, level=1)
                           for event in baseline_events])
@@ -640,18 +636,23 @@ subject_data = pd.concat([subject_data.xs(event, level=1)
 # Get the sibling id
 subject_data['siblings_id1'] = subject_data['siblings_id1'].map(get_sibling_id1)
 
-visit_log_redcap = redcap_project.export_records(
-    fields=['study_id',
-            'redcap_data_access_group',
-            'visit_date', 'visit_ignore',
-            'mr_session_report_complete',
-            'mri_xnat_sid',
-            'mri_stroop_complete',
-            'mri_inspection',
-            'mri_missing'],
-    event_name='unique',
-    export_data_access_groups=True,
-    format='df')
+visit_log_redcap = session.redcap_export_records("visit_log", 
+                                                 fields=['study_id',
+                                                         'redcap_data_access_group',
+                                                         'visit_date', 'visit_ignore',
+                                                         'mr_session_report_complete',
+                                                         'mri_xnat_sid',
+                                                         'mri_stroop_complete',
+                                                         'mri_inspection',
+                                                         'mri_missing'],
+                                                 event_name='unique',
+                                                 export_data_access_groups=True,
+                                                 format='df')
+
+if type(visit_log_redcap) == type(None) or visit_log_redcap.empty:
+    if verbose: 
+        print "No subjects selected" 
+    sys.exit(1)
 
 # Limit export by site.
 if args.site:
@@ -707,6 +708,8 @@ if args.verbose:
 # Iterate over all remaining rows
 records_uploaded = 0
 index = 0
+# timer is just run once for dicom conversion if timer log dir is set 
+runTimerForImportToPipeline=True
 for [key, row] in mr_sessions_redcap.iterrows():
     index +=1 
     subject_label = key[0]
@@ -787,7 +790,9 @@ for [key, row] in mr_sessions_redcap.iterrows():
 
                 # Check if pipeline directory given and export imaging series there
                 if args.pipeline_root_dir and (this_subject_data['exclude'] != 1):
-                    mrpipeline.export_and_queue( xnat, xnat_data, key, args.pipeline_root_dir, run_pipeline_script=args.run_pipeline_script, stroop=(stroop_eid,stroop_resource,stroop_file), verbose=args.verbose )
+                    if mrpipeline.export_and_queue( xnat, xnat_data, key, args.pipeline_root_dir, run_pipeline_script=args.run_pipeline_script, stroop=(stroop_eid,stroop_resource,stroop_file), verbose=args.verbose , timerFlag = runTimerForImportToPipeline) :
+                        # only run timer once - otherwise collect too much data
+                        runTimerForImportToPipeline = False
 
             if not args.no_upload and (xnat_data['mr_session_report_complete'] > 0 or args.force_update):
                 # Make session data into dict for REDCap import
@@ -796,31 +801,14 @@ for [key, row] in mr_sessions_redcap.iterrows():
                 for (key,value) in xnat_data.iteritems():
                     record[key] = value
 
-                try:
-                   import_response = redcap_project.import_records( [record], overwrite='overwrite' )
+                # only record the first upload - otherwise creating too many records
+                if records_uploaded :
+                    timer_label = None
+                else :
+                    timer_label = "mr_session_report"
 
-                except requests.exceptions.RequestException as e:
-                    error = 'Failed to import XNAT data into REDCap'
-                    err_list = ast.literal_eval(str(e))['error'].split('","')
-                    # probably needs more work here - but right now good enough
-                    if len(err_list) > 3 and err_list[3] == 'This field is located on a form that is locked. You must first unlock this form for this record."':
-                        red_var = err_list[1]
-                        event = err_list[0].split('(')[1][:-1]
-                        red_value = redcap_project.export_records(fields=[red_var],records=[subject_label],events=[event])[0][red_var]
-                        slog.info(redcap_visit_id, error,
-                                  redcap_value="'"+str(red_value)+"'",
-                                  redcap_variable=red_var,
-                                  redcap_event=event,
-                                  new_value="'"+str(err_list[2])+"'",
-                                  xnat_sid=record["mri_xnat_sid"],
-                                  xnat_eid=record["mri_xnat_eids"],
-                                  requestError=str(e))
-                    else :
-                        slog.info(redcap_visit_id, error,
-                                  xnat_sid=record["mri_xnat_sid"],
-                                  xnat_eid = record["mri_xnat_eids"],
-                                  requestError=str(e))
-  
+                import_response =  session.redcap_import_records( redcap_visit_id, timer_label, [record]) 
+                if not import_response : 
                     continue
 
                 if 'count' in import_response.keys():
@@ -839,4 +827,4 @@ if args.verbose:
     else:
         print "Suppressed uploading of %d records to REDCap." % ( len( mr_sessions_redcap ) )
 
-slog.takeTimer1('script_time|TotalSessions: ' + str(len(mr_sessions_redcap)) + ';RecordsUploaded: ' +  str(records_uploaded))
+slog.takeTimer1("script_time","{'TotalSessions': " + str(len(mr_sessions_redcap)) + ", 'RecordsUploaded': " +  str(records_uploaded) + "}")
