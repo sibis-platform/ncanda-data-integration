@@ -5,6 +5,14 @@
 ##  for the copyright and license terms
 ##
 
+import tempfile
+import pandas
+import sys
+import re
+import os
+
+from sibispy import sibislogger as slog
+
 # Setup command line parser
 import argparse
 parser = argparse.ArgumentParser( description="Convert Delayed Discounting results file to CSV" )
@@ -12,14 +20,16 @@ parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_
 parser.add_argument( "--overwrite", help="Overwrite existing CSV files.", action="store_true")
 parser.add_argument( "ddfile", help="Input .txt file with Delayed Discounting results.")
 parser.add_argument( "outdir", help="Output directory. All CSV files are created in this directory")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
 args = parser.parse_args()
 
+# Setup logging
+slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: dd2csv Message', 'dd2csv')
+
 # Make a temporary directory
-import tempfile
 temp_dir_path = tempfile.mkdtemp()
 
 # Read the temporary CSV file
-import pandas
 dd = pandas.read_csv(args.ddfile, sep='\t', header=None, names=['SubjectID', 'FuturePresent', 'Reward', 'HypReal', 'Exp1', 'Exp2', 'Amount', 'Days', 'DelDisc', 'Version', 'Date'])
 
 # Convert days to integer to avoid comparing floats
@@ -31,15 +41,21 @@ dd = dd[ dd['Reward'] == 'money' ]
 dd = dd[ dd['HypReal'] == 'hyp' ]
 dd = dd[ dd['Exp1'] == 'gain' ]
 
+#Get experiment_id for logs
+subject_label = str(args.ddfile).split('/')[-2]
+
 # Anything still left? If not, this file has nothing for us.
-import sys
 if len( dd ) == 0:
-    sys.exit( 'WARNING: no suitable data in file %s' % args.ddfile )
+    error = 'WARNING: no suitable data in file %s' % args.ddfile
+    slog.info(subject_label, error)
+    sys.exit(1)
 
 # Make sure all rows have the same "Amount", and it's either 100 or 1000
 amount = dd['Amount'][0]
 if not amount in [100,1000]:
-    sys.exit( 'WARNING: amount %f is neither 100 nor 1000 in %s' % (amount,args.ddfile) )
+    error = 'WARNING: amount %f is neither 100 nor 1000 in %s' % (amount, args.ddfile)
+    slog.info(subject_label, error)
+    sys.exit(1)
 dd = dd[ dd['Amount'] == amount ]
 
 # Now drop the columns we know we don't want anymore
@@ -49,7 +65,6 @@ dd = dd.drop(['FuturePresent', 'Reward', 'HypReal', 'Exp1', 'Exp2'], axis=1)
 entered_id = dd['SubjectID'][0].upper()
 
 # First, see if prefix is valid N-CANDA ID
-import re
 match_id = re.search('^\s*([A-F]-[0-9]{5}-[MFT]-[0-9]).*', entered_id)
 if match_id:
     subject_id = match_id.group(1)
@@ -67,7 +82,9 @@ match_date = re.search('^([0-9]*)/([0-9]*)/(20[0-9]{2})$', dd['Date'][0])
 if match_date:
     date = '%s-%02d-%02d' % (match_date.group(3), int(match_date.group(1)), int(match_date.group(2)))
 else:
-    sys.exit('ERROR: %s\nCannot extract date from "%s"' % ( args.ddfile, dd['Date'][0] ) )
+    error = 'ERROR: %s\nCannot extract date from "%s"' % ( args.ddfile, dd['Date'][0] )
+    slog.info(subject_label, error)
+    sys.exit(1)
 
 # Create unique record ID
 record_id = '%s-%s' % (subject_id, date)
@@ -88,7 +105,6 @@ for ( days, field ) in [ (1, '1d'), (7, '7d'), (30, '1mo'), (182, '6mo') ]:
 out_df = pandas.DataFrame(data=data, index=[0])
 
 # Determine directory name - create if it doesn't exist
-import os
 if not os.path.exists(args.outdir):
     os.makedirs(args.outdir)
 
