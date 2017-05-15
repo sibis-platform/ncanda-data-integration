@@ -97,16 +97,17 @@ def check_for_stroop( xnat, xnat_eid, redcap_key, verbose=False, no_upload=False
                         print "Uploading ePrime Stroop scores",file
                     subprocess.call( [ os.path.join( bindir, 'csv2redcap' ), file ] )
             # Upload original ePrime file for future reference
+            cmd_array = [ os.path.join( import_bindir, "eprime2redcap" ) ]
+            if post_to_github: 
+                cmd_array += ['-p']
+
+            cmd_array += ['--project', 'data_entry', '--record' , redcap_key[0], '--event', redcap_key[1], stroop_file_path, 'mri_stroop_log_file' ] 
+                
             if verbose:
                 print "Uploading ePrime Stroop file",stroop_file_path
-   
-            eprimeFlag=''
-            if post_to_github: 
-                eprimeFlag='-p'
+                print " ".join(cmd_array)
 
-            eprimeFlag += ' --project data_entry --record' 
-
-            subprocess.check_output( [ os.path.join( import_bindir, "eprime2redcap" ), eprimeFlag, redcap_key[0], '--event', redcap_key[1], stroop_file_path, 'mri_stroop_log_file' ] )
+            subprocess.check_output( cmd_array )
     else:
         error = "ERROR: could not convert Stroop file"
         slog.info(xnat_eid, error, stroop_file = stroop_file)
