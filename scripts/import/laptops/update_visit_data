@@ -19,80 +19,10 @@ import requests
 import sibispy
 from sibispy import sibislogger as slog
 
+#
+# Variables 
+# 
 date_format_ymd = '%Y-%m-%d'
-
-# Setup command line parser
-parser = argparse.ArgumentParser(description="Update longitudinal project forms from data imported from the data capture laptops",
-                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("-v", "--verbose",
-                    help="Verbose operation",
-                    action="store_true")
-parser.add_argument("-n", "--no-upload",
-                    help="Do not upload any data back to the REDCap server",
-                    action="store_true")
-parser.add_argument("--max-days-after-visit",
-                    help="Maximum number of days the scan session can be after the entered "
-                         "'visit date' in REDCap to be assigned to a given event. This applies"
-                         " ONLY to Arm 1: Standard Protocol. Other arms (e.g., Arm 3: Sleep) "
-                         "require EXACT date matches.",
-                    action="store",
-                    default=120,
-                    type=int)
-parser.add_argument("--forms",
-                    help="Select specific forms to update. Separate multiple forms with commas.",
-                    action="store",
-                    default=None )
-parser.add_argument("-m", "--missing-only",
-                    help="Only look for missing data, but do not update existing records in the netry project. This"
-                         " significantly speeds up processing, but edits made to imported data "
-                         "will not propagate.",
-                    action="store_true")
-parser.add_argument("-a", "--update-all",
-                    help="Update all summary records, regardless of current completion status "
-                         "(otherwise, only update records where incoming data completion status "
-                         "exceeds existing summary data status)",
-                    action="store_true")
-parser.add_argument("-x", "--no-excluded",
-                    help="Do not process any subjects marked as 'excluded' in REDCap.",
-                    action="store_true")
-parser.add_argument("--reset-disappeared",
-                    help="Reset form status of records that have 'disappeared', i.e., an imported"
-                         " record was previously assigned but can no longer be found.",
-                    action="store_true")
-parser.add_argument("--study-id",
-                    help="Limit processing to subject id (e.g., A-00000-F-1)",
-                    action="store",
-                    default=None)
-parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
-
-parser.add_argument("-t","--time-log-dir",
-                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
-                    action="store",
-                    default=None)
-
-args = parser.parse_args()
-
-
-slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages', 'update_visit_data')
-slog.startTimer1()
-
-#Create a session object to connect to different projects
-#TO-DO: Submit it under try-except ??
-session = sibispy.Session()
-
-if not session.configure():
-    if args.verbose:
-        print "Error: session configure file was not found"
-
-    sys.exit()
-
-# Convert to string, or empty if nan.
-def nan_to_empty( x ):
-    s = str(x)
-    if s != 'nan':
-        return s
-    else:
-        return ''
 
 # List of forms imported from the laptops
 all_forms = {
@@ -136,25 +66,6 @@ all_forms = {
 # corresponding Standard visit)
 recovery_baseline_event = 'recovery_baseline_arm_2'
 
-if args.forms:
-    forms = dict()
-    for f in args.forms.split(','):
-        if f in all_forms.keys():
-            forms[f] = all_forms[f]
-        elif f in all_forms.values():
-            lookup = [k for (k, v) in all_forms.iteritems() if v == f]
-            forms[lookup[0]] = f
-        else:
-            print "WARNING: no form with name or prefix '%s' defined.\n" % f
-else:
-    forms = all_forms
-
-if args.verbose:
-    print "Processing the following forms:\n\t", '\n\t'.join( sorted(forms.values()))
-
-form_prefixes = forms.keys()
-form_names = forms.values()
-
 forms_date_increments = {
     # PLUS, Evening and Presleep forms same date as entered, Morning form next
     # day
@@ -164,60 +75,18 @@ forms_date_increments = {
     'sleepmor': 1
 }
 
-# Open connection with REDCap server - Data Entry
-redcap_project = session.connect_server('data_entry', True)
-if not redcap_project :
-    if args.verbose:
-        print "Error: Could not connect to Redcap for Data Entry"
+#
+# Functions
+#
+ 
+# Convert to string, or empty if nan.
+def nan_to_empty( x ):
+    s = str(x)
+    if s != 'nan':
+        return s
+    else:
+        return ''
 
-    sys.exit()
-
-# Open connection with REDCap server - Import Project
-import_project = session.connect_server('import_laptops', True)
-if not import_project :
-    if args.verbose:
-        print "Error: Could not connect to Redcap for Import Project"
-
-    sys.exit()
-
-# Get list of all field names in the summary project - this is to figure out which fields to copy
-summary_field_names = [field['field_name'] for field in redcap_project.metadata]
-
-# Get list of all 0/1 encoded Yes/No fields (either radio or dropdown) - these need to be recoded when copied
-summary_fields_yn = [field['field_name'] for field in redcap_project.metadata if field['field_type'] in ['radio', 'dropdown'] and re.match('[^0-9]*1, Yes[^0-9]*0, No.*', field['select_choices_or_calculations'])]
-
-# What forms are at what event?
-form_event_mapping = redcap_project.export_fem(format='df')
-
-# Get record IDs, visit labels, visit dates, and completion status for all laptop forms
-entry_data_fields = [('%s_complete' % form) for form in form_names] + [('%s_missing' % form) for form in form_prefixes] + [('%s_record_id' % form) for form in form_prefixes]
-entry_data_fields += ['study_id', 'dob', 'redcap_event_name', 'visit_date', 'exclude', 'sleep_date']
-
-# Get list of existing records
-if args.study_id:
-    entry_data = redcap_project.export_records(records=[args.study_id], fields=entry_data_fields,
-                                          event_name='unique',
-                                          format='df')
-else:
-    entry_data = redcap_project.export_records(fields=entry_data_fields,
-                                          event_name='unique',
-                                          format='df')
-
-# Save dates of birth for later (these only exist for the 'baseline_visit_arm_1'
-# event, but we need them for other arms as well
-try : 
-    concat = [entry_data.xs(event, level=1)['dob'].dropna()
-          for event in ['baseline_visit_arm_1', 'baseline_visit_arm_4']]
-except: 
-    concat = [entry_data.xs(event, level=1)['dob'].dropna()
-          for event in ['baseline_visit_arm_1']]
-
-subject_dates_of_birth = pandas.concat(concat)
-
-# Remove "excluded" cases - need to do that after getting birth dates, just in
-# case.
-if args.no_excluded:
-    entry_data = entry_data[entry_data['exclude'] != 1]
 
 # Upload new data to REDCap
 def to_redcap(form_name, subject_id, upload_records):
@@ -391,9 +260,156 @@ def MissingFormChecks(vdate):
 
 
 #
+# MAIN 
+#
+
+
+# Setup command line parser
+parser = argparse.ArgumentParser(description="Update longitudinal project forms from data imported from the data capture laptops",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument("-v", "--verbose",
+                    help="Verbose operation",
+                    action="store_true")
+parser.add_argument("-n", "--no-upload",
+                    help="Do not upload any data back to the REDCap server",
+                    action="store_true")
+parser.add_argument("--max-days-after-visit",
+                    help="Maximum number of days the scan session can be after the entered "
+                         "'visit date' in REDCap to be assigned to a given event. This applies"
+                         " ONLY to Arm 1: Standard Protocol. Other arms (e.g., Arm 3: Sleep) "
+                         "require EXACT date matches.",
+                    action="store",
+                    default=120,
+                    type=int)
+parser.add_argument("--forms",
+                    help="Select specific forms to update. Separate multiple forms with commas.",
+                    action="store",
+                    default=None )
+parser.add_argument("-m", "--missing-only",
+                    help="Only look for missing data, but do not update existing records in the netry project. This"
+                         " significantly speeds up processing, but edits made to imported data "
+                         "will not propagate.",
+                    action="store_true")
+parser.add_argument("-a", "--update-all",
+                    help="Update all summary records, regardless of current completion status "
+                         "(otherwise, only update records where incoming data completion status "
+                         "exceeds existing summary data status)",
+                    action="store_true")
+parser.add_argument("-x", "--no-excluded",
+                    help="Do not process any subjects marked as 'excluded' in REDCap.",
+                    action="store_true")
+parser.add_argument("--reset-disappeared",
+                    help="Reset form status of records that have 'disappeared', i.e., an imported"
+                         " record was previously assigned but can no longer be found.",
+                    action="store_true")
+parser.add_argument("--study-id",
+                    help="Limit processing to subject id (e.g., A-00000-F-1)",
+                    action="store",
+                    default=None)
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+
+parser.add_argument("-t","--time-log-dir",
+                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    action="store",
+                    default=None)
+
+args = parser.parse_args()
+
+
+slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages', 'update_visit_data', args.time_log_dir)
+slog.startTimer1()
+
+#Create a session object to connect to different projects
+#TO-DO: Submit it under try-except ??
+session = sibispy.Session()
+
+if not session.configure():
+    if args.verbose:
+        print "Error: session configure file was not found"
+
+    sys.exit()
+
+if args.forms:
+    forms = dict()
+    for f in args.forms.split(','):
+        if f in all_forms.keys():
+            forms[f] = all_forms[f]
+        elif f in all_forms.values():
+            lookup = [k for (k, v) in all_forms.iteritems() if v == f]
+            forms[lookup[0]] = f
+        else:
+            print "WARNING: no form with name or prefix '%s' defined.\n" % f
+else:
+    forms = all_forms
+
+if args.verbose:
+    print "Processing the following forms:\n\t", '\n\t'.join( sorted(forms.values()))
+
+form_prefixes = forms.keys()
+form_names = forms.values()
+
+# Open connection with REDCap server - Data Entry
+redcap_project = session.connect_server('data_entry', True)
+if not redcap_project :
+    if args.verbose:
+        print "Error: Could not connect to Redcap for Data Entry"
+
+    sys.exit()
+
+# Open connection with REDCap server - Import Project
+import_project = session.connect_server('import_laptops', True)
+if not import_project :
+    if args.verbose:
+        print "Error: Could not connect to Redcap for Import Project"
+
+    sys.exit()
+
+# Get list of all field names in the summary project - this is to figure out which fields to copy
+summary_field_names = [field['field_name'] for field in redcap_project.metadata]
+
+# Get list of all 0/1 encoded Yes/No fields (either radio or dropdown) - these need to be recoded when copied
+summary_fields_yn = [field['field_name'] for field in redcap_project.metadata if field['field_type'] in ['radio', 'dropdown'] and re.match('[^0-9]*1, Yes[^0-9]*0, No.*', field['select_choices_or_calculations'])]
+
+# What forms are at what event?
+form_event_mapping = redcap_project.export_fem(format='df')
+
+# Get record IDs, visit labels, visit dates, and completion status for all laptop forms
+entry_data_fields = [('%s_complete' % form) for form in form_names] + [('%s_missing' % form) for form in form_prefixes] + [('%s_record_id' % form) for form in form_prefixes]
+entry_data_fields += ['study_id', 'dob', 'redcap_event_name', 'visit_date', 'exclude', 'sleep_date']
+
+# Get list of existing records
+if args.study_id:
+    entry_data = redcap_project.export_records(records=[args.study_id], fields=entry_data_fields,
+                                          event_name='unique',
+                                          format='df')
+else:
+    entry_data = redcap_project.export_records(fields=entry_data_fields,
+                                          event_name='unique',
+                                          format='df')
+
+# Save dates of birth for later (these only exist for the 'baseline_visit_arm_1'
+# event, but we need them for other arms as well
+try : 
+    concat = [entry_data.xs(event, level=1)['dob'].dropna()
+          for event in ['baseline_visit_arm_1', 'baseline_visit_arm_4']]
+except: 
+    concat = [entry_data.xs(event, level=1)['dob'].dropna()
+          for event in ['baseline_visit_arm_1']]
+
+subject_dates_of_birth = pandas.concat(concat)
+
+# Remove "excluded" cases - need to do that after getting birth dates, just in
+# case.
+if args.no_excluded:
+    entry_data = entry_data[entry_data['exclude'] != 1]
+
+#
 # MAIN LOOP
 #
 # For each form, get imported data
+all_records = 0
+all_uploaded = 0
+
 for form_prefix, form_name in forms.iteritems():
     if args.verbose:
         print "Processing form",form_prefix,"/",form_name
@@ -579,4 +595,8 @@ for form_prefix, form_name in forms.iteritems():
     if args.verbose:
         print "Uploaded", total_uploaded, "of", total_records, "records to form", form_name
 
-slog.takeTimer1('script_time:|update_visit_data ' + str(total_uploaded) + ';TotalRecordsUploaded: ' +  str(total_records))
+    all_uploaded += total_uploaded
+    all_records += total_records
+
+
+slog.takeTimer1('script_time',"{'Uploads': " + str(all_uploaded) +", 'Records': " + str(all_records) +"}" )
