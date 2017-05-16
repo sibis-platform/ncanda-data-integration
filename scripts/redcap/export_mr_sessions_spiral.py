@@ -15,7 +15,7 @@ import subprocess
 from sibispy import sibislogger as slog
 
 
-def export_spiral_files(xnat, redcap_key, resource_location, to_directory, stroop=(None, None, None), verbose=None):
+def export_spiral_files(redcap_visit_id, xnat, redcap_key, resource_location, to_directory, stroop=(None, None, None), verbose=None):
     if verbose:
         print("Exporting spiral files...")
 
@@ -25,7 +25,7 @@ def export_spiral_files(xnat, redcap_key, resource_location, to_directory, stroo
     spiral_nifti_out = os.path.join(to_directory, 'native', 'bold4D.nii.gz')
     if not os.path.exists(spiral_nifti_out):
         tmpdir = tempfile.mkdtemp()
-        result = do_export_spiral_files(xnat, redcap_key, resource_location, to_directory, spiral_nifti_out, tmpdir)
+        result = do_export_spiral_files(redcap_visit_id, xnat, redcap_key, resource_location, to_directory, spiral_nifti_out, tmpdir)
         shutil.rmtree(tmpdir)
 
     # Do we have information on Stroop files?
@@ -51,7 +51,7 @@ def export_spiral_files(xnat, redcap_key, resource_location, to_directory, stroo
     return result
 
 
-def do_export_spiral_files(xnat, redcap_key, resource_location, to_directory, spiral_nifti_out, tmpdir, verbose=None):
+def do_export_spiral_files(redcap_visit_id,xnat, redcap_key, resource_location, to_directory, spiral_nifti_out, tmpdir, verbose=None):
     # Do the actual export using a temporary directory that is managed by the caller
     # (simplifies its removal regardless of exit taken)
     # print "do_export_spiral_files" , str(xnat), str(resource_location), str(to_directory), str(spiral_nifti_out), xnat_eid, str(resource_id), str(resource_file_bname)
@@ -61,13 +61,13 @@ def do_export_spiral_files(xnat, redcap_key, resource_location, to_directory, sp
 
     errcode, stdout, stderr = untar_to_dir(tmp_file_path, tmpdir)
     (subject_label, event_label) = redcap_key
-    subject_id = str(subject_label + "_" + event_label)
+
     if errcode != 0:
         error="ERROR: Unable to un-tar resource file. File is likely corrupt."
-        slog.info(subject_id, error,
+        slog.info(redcap_visit_id, error,
                      tempfile_path=tmp_file_path,
                      xnat_eid=xnat_eid,
-                     resource_location=resource_location)
+                     spiral_tar_file=resource_location)
         if verbose:
             print "StdErr:\n{}".format(stderr)
             print "StdOut:\n{}".format(stdout)
@@ -76,7 +76,7 @@ def do_export_spiral_files(xnat, redcap_key, resource_location, to_directory, sp
     spiral_E_files = glob_for_files_recursive(tmpdir, pattern="E*P*.7")
     if len(spiral_E_files) > 1:
         error = "ERROR: more than one E file found"
-        slog.info(subject_id, error,
+        slog.info(redcap_visit_id, error,
                       xnat_eid=xnat_eid,
                       spiral_e_files = ', '.join(spiral_E_files))
         return False
@@ -84,7 +84,7 @@ def do_export_spiral_files(xnat, redcap_key, resource_location, to_directory, sp
     physio_files = glob_for_files_recursive(tmpdir, pattern="P*.physio")
     if len(physio_files) > 1:
         error = 'More than one physio file found in spiral tar file.'
-        slog.info(subject_id,error,
+        slog.info(redcap_visit_id,error,
                       xnat_eid=xnat_eid,
                       tmp_file_path=tmp_file_path,
                       physio_files=physio_files,
@@ -100,7 +100,7 @@ def do_export_spiral_files(xnat, redcap_key, resource_location, to_directory, sp
         errcode, stdout, stderr = make_nifti_from_spiral(spiral_E_files[0], spiral_nifti_out)
         if not os.path.exists(spiral_nifti_out):
             error="Unable to make NIfTI from resource file, please try running makenifti manually"
-            slog.info(subject_id, error,
+            slog.info(redcap_visit_id, error,
                          xnat_eid=xnat_eid,
                          spiral_file=spiral_E_files[0])
             if verbose:
@@ -109,9 +109,9 @@ def do_export_spiral_files(xnat, redcap_key, resource_location, to_directory, sp
             return False
     else:
         error = "ERROR: no spiral data file found"
-        slog.info(subject_id, error,
-                      xnat_eid=xnat_eid,
-                      resource_location=resource_location)
+        slog.info(redcap_visit_id, error,
+                  xnat_eid=xnat_eid,
+                  spiral_tar_file=resource_location)
         return False
 
     if len(physio_files) == 1:

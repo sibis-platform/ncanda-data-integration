@@ -56,7 +56,7 @@ def check_file_date(pipeline_file,xnat_file):
 # Returns - True if new files were created, False if not
 #
 
-def export_series( xnat, redcap_key, session_and_scan_list, to_directory, filename_pattern, verbose=False, timer_label=None):
+def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_directory, filename_pattern, verbose=False, timer_label=None):
     (subject_label, event_label) = redcap_key
     # List should have at least one "SESSION/SCAN" entry
     if not '/' in session_and_scan_list:
@@ -107,7 +107,7 @@ def export_series( xnat, redcap_key, session_and_scan_list, to_directory, filena
 
     if len(pipeline_file_list)  :
         [ session, scan ] = session_and_scan_list.split( ' ' )[0].split('/')
-        slog.info(subject_label + "_" + event_label + "_" + scan,"Warning: existing MR images of the pipeline are updated",
+        slog.info(redcap_visit_id  + "_" + scan,"Warning: existing MR images of the pipeline are updated",
                       file = to_path_pattern,
                       experiment_xnat_id=session,
                       session_scan_list = session_and_scan_list )
@@ -140,7 +140,7 @@ def export_series( xnat, redcap_key, session_and_scan_list, to_directory, filena
             dcm2image_output = subprocess.check_output( dcm2image_command, shell=True )
 
         except:
-            slog.info(subject_label + "_" + event_label + "_" + scan,"Error: Unable to create dicom file",
+            slog.info(redcap_visit_id + "_" + scan,"Error: Unable to create dicom file",
                           experiment_site_id=session,
                           cmd=dcm2image_command,
                           output=dcm2image_output)
@@ -157,7 +157,7 @@ def export_series( xnat, redcap_key, session_and_scan_list, to_directory, filena
             open( eid_file_path, 'w' ).writelines( session_and_scan_list )
         except:
             error = "ERROR: unable to write EID file"
-            slog.info(subject_label + "_" + event_label + "_" + scan,error,
+            slog.info(redcap_visit_id + "_" + scan,error,
                       experiment_site_id=session,
                       eid_file_path = eid_file_path)
 
@@ -167,7 +167,7 @@ def export_series( xnat, redcap_key, session_and_scan_list, to_directory, filena
 
         except Exception as err_msg: 
             error = "ERROR: unable to move files"
-            slog.info(subject_label + "_" + event_label + "_" + scan,error,
+            slog.info(redcap_visit_id + "_" + scan,error,
                       experiment_site_id = session,
                       src_dir = temp_dir ,
                       dest_dir = to_directory,
@@ -362,7 +362,7 @@ def copy_manual_pipeline_files( xnat, xnat_eid, to_directory ):
     return files_created
 
 
-def delete_workdir(workdir,redcap_key,verbose=False): 
+def delete_workdir(workdir,redcap_visit_id,verbose=False): 
     if os.path.exists(workdir):
         if verbose :
             print "Deleting " + workdir
@@ -370,9 +370,7 @@ def delete_workdir(workdir,redcap_key,verbose=False):
         try :
             shutil.rmtree(workdir)            
         except Exception as err_msg:  
-            (subject_label, event_label) = redcap_key
-            slog.info(subject_label + "_" + event_label,"Error: Could not delete directory", 
-                      directory = workdir,
+            slog.info(redcap_visit_id,"Error: Could not delete directory " + workdir, 
                       err_msg = str(err_msg))
 
 #
@@ -380,7 +378,7 @@ def delete_workdir(workdir,redcap_key,verbose=False):
 #
 # Returns - True if new file as created, False if not
 #
-def export_to_workdir( xnat, session_data, pipeline_workdir, redcap_key, stroop=(None,None,None), verbose=False, timerFlag=False):
+def export_to_workdir( redcap_visit_id, xnat, session_data, pipeline_workdir, redcap_key, stroop=(None,None,None), verbose=False, timerFlag=False):
     new_files_created = False
 
     # Export structural data
@@ -392,9 +390,9 @@ def export_to_workdir( xnat, session_data, pipeline_workdir, redcap_key, stroop=
         else :
             timerLabel = None
 
-        new_files_created = export_series( xnat, redcap_key, session_data['mri_series_t1'], pipeline_workdir_structural_native, 't1.nii', verbose=verbose, timer_label= timerLabel ) or new_files_created
+        new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_t1'], pipeline_workdir_structural_native, 't1.nii', verbose=verbose, timer_label= timerLabel ) or new_files_created
 
-        new_files_created = export_series( xnat, redcap_key, session_data['mri_series_t2'], pipeline_workdir_structural_native, 't2.nii', verbose=verbose) or new_files_created
+        new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_t2'], pipeline_workdir_structural_native, 't2.nii', verbose=verbose) or new_files_created
 
         # Copy ADNI phantom XML file
         if 'NCANDA_E' in session_data['mri_adni_phantom_eid']:
@@ -402,20 +400,20 @@ def export_to_workdir( xnat, session_data, pipeline_workdir, redcap_key, stroop=
             new_files_created = copy_adni_phantom_t1w( xnat, session_data['mri_adni_phantom_eid'], pipeline_workdir_structural_native ) or new_files_created
 
     else :
-        delete_workdir(pipeline_workdir_structural_main,redcap_key,verbose)
+        delete_workdir(pipeline_workdir_structural_main,redcap_visit_id,verbose)
 
     # Export diffusion data
     pipeline_workdir_diffusion_main = os.path.join( pipeline_workdir, 'diffusion' );
     pipeline_workdir_diffusion_native = os.path.join(pipeline_workdir_diffusion_main, 'native' );
     if session_data['mri_series_dti6b500pepolar'] != '' and session_data['mri_series_dti60b1000'] != '' :
-        new_files_created = export_series( xnat, redcap_key, session_data['mri_series_dti6b500pepolar'], os.path.join( pipeline_workdir_diffusion_native, 'dti6b500pepolar' ), 'dti6-%n.nii', verbose=verbose ) or new_files_created
+        new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_dti6b500pepolar'], os.path.join( pipeline_workdir_diffusion_native, 'dti6b500pepolar' ), 'dti6-%n.nii', verbose=verbose ) or new_files_created
 
-        new_files_created = export_series( xnat, redcap_key, session_data['mri_series_dti60b1000'], os.path.join( pipeline_workdir_diffusion_native, 'dti60b1000' ), 'dti60-%n.nii', verbose=verbose ) or new_files_created
+        new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_dti60b1000'], os.path.join( pipeline_workdir_diffusion_native, 'dti60b1000' ), 'dti60-%n.nii', verbose=verbose ) or new_files_created
 
         if session_data['mri_series_dti_fieldmap'] != '':
-            new_files_created = export_series( xnat, redcap_key, session_data['mri_series_dti_fieldmap'], os.path.join( pipeline_workdir_diffusion_native, 'fieldmap' ), 'fieldmap-%T%N.nii', verbose=verbose ) or new_files_created
+            new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_dti_fieldmap'], os.path.join( pipeline_workdir_diffusion_native, 'fieldmap' ), 'fieldmap-%T%N.nii', verbose=verbose ) or new_files_created
     else :
-        delete_workdir(pipeline_workdir_diffusion_main,redcap_key,verbose)
+        delete_workdir(pipeline_workdir_diffusion_main,redcap_visit_id,verbose)
 
     # Export EPI functional data (from DICOM files)
     pipeline_workdir_functional_main = os.path.join( pipeline_workdir, 'restingstate');
@@ -426,27 +424,27 @@ def export_to_workdir( xnat, session_data, pipeline_workdir, redcap_key, stroop=
         else :
             timerLabel = None
 
-        new_files_created = export_series( xnat, redcap_key, session_data['mri_series_rsfmri'], os.path.join( pipeline_workdir_functional_native, 'rs-fMRI' ), 'bold-%n.nii', verbose=verbose, timer_label = timerLabel ) or new_files_created
+        new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_rsfmri'], os.path.join( pipeline_workdir_functional_native, 'rs-fMRI' ), 'bold-%n.nii', verbose=verbose, timer_label = timerLabel ) or new_files_created
         # Copy rs-fMRI physio files
         new_files_created = copy_rsfmri_physio_files( xnat, session_data['mri_series_rsfmri'], os.path.join( pipeline_workdir_functional_native, 'physio' ) ) or new_files_created
 
-        new_files_created = export_series( xnat, redcap_key, session_data['mri_series_rsfmri_fieldmap'], os.path.join( pipeline_workdir_functional_native, 'fieldmap' ), 'fieldmap-%T%N.nii', verbose=verbose ) or new_files_created
+        new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_rsfmri_fieldmap'], os.path.join( pipeline_workdir_functional_native, 'fieldmap' ), 'fieldmap-%T%N.nii', verbose=verbose ) or new_files_created
 
     else :
-        delete_workdir(pipeline_workdir_functional_main,redcap_key,verbose)
+        delete_workdir(pipeline_workdir_functional_main,redcap_visit_id,verbose)
 
     # Export spiral functional data (from uploaded resources)
     pipeline_workdir_spiralstroop  =  os.path.join( pipeline_workdir, 'spiralstroop' )
     if session_data['mri_eid_spiral_stroop'] != '':
-        new_files_created = export_spiral_files( xnat, redcap_key, session_data['mri_eid_spiral_stroop'], pipeline_workdir_spiralstroop, stroop=stroop, verbose=verbose ) or new_files_created
+        new_files_created = export_spiral_files( redcap_visit_id, xnat, redcap_key, session_data['mri_eid_spiral_stroop'], pipeline_workdir_spiralstroop, stroop=stroop, verbose=verbose ) or new_files_created
     else :
-        delete_workdir(pipeline_workdir_spiralstroop,redcap_key,verbose)
+        delete_workdir(pipeline_workdir_spiralstroop,redcap_visit_id,verbose)
 
     pipeline_workdir_spiralrest = os.path.join( pipeline_workdir, 'spiralrest')
     if session_data['mri_eid_spiral_rest'] != '':
         new_files_created = export_spiral_files(xnat, redcap_key, session_data['mri_eid_spiral_rest'], pipeline_workdir_spiralrest, verbose=verbose) or new_files_created
     else :
-        delete_workdir(pipeline_workdir_spiralrest,redcap_key,verbose)
+        delete_workdir(pipeline_workdir_spiralrest,redcap_visit_id,verbose)
 
 
     # Copy any manual pipeline override files from all involved experiments
@@ -490,7 +488,7 @@ def translate_subject_and_event( subject_code, event_label ):
 #
 # Export MR session and run pipeline if so instructed
 #
-def export_and_queue( xnat, session_data, redcap_key, pipeline_root_dir, stroop=(None,None,None), run_pipeline_script=None, verbose=False, timerFlag = False ):
+def export_and_queue( redcap_visit_id, xnat, session_data, redcap_key, pipeline_root_dir, stroop=(None,None,None), run_pipeline_script=None, verbose=False, timerFlag = False ):
     (subject_label, event_label) = redcap_key
     # Put together pipeline work directory for this subject and visit
     subject_code = session_data['mri_xnat_sid']
@@ -506,26 +504,12 @@ def export_and_queue( xnat, session_data, redcap_key, pipeline_root_dir, stroop=
         if verbose:
             print subject_label,'/',subject_code,'/',event_label,'to',pipeline_workdir
 
-        new_files_created = export_to_workdir( xnat, session_data, pipeline_workdir, redcap_key, stroop=stroop, verbose=verbose, timerFlag= timerFlag)
+        new_files_created = export_to_workdir(redcap_visit_id,xnat, session_data, pipeline_workdir, redcap_key, stroop=stroop, verbose=verbose, timerFlag= timerFlag)
 
         if new_files_created and run_pipeline_script:
             if verbose:
                 print 'Submitting script',run_pipeline_script,'to process',pipeline_workdir
             just_pipeline_script=os.path.basename(run_pipeline_script)
-
-            # Old Cluster 
-            # qsub_command = subprocess.Popen( [ '/usr/bin/qsub', '-j', 'oe', '-o', '/dev/null', '-l', 'nodes=1:ppn=4,vmem=32gb', '-N', '%s-%s-%s'%(just_pipeline_script,visit_code, subject_code) ], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT )
-            # (stdoutdata, stderrdata) = qsub_command.communicate( 'cd %s; %s %s' % ( pipeline_root_dir,run_pipeline_script,pipeline_workdir_rel) )
-            #if verbose and (stdoutdata != None):
-            #    print stdoutdata
-
-            #
-            # Just temporary for testing - run in parrallel to original pipeline 
-            #
-            # test_pipeline_root_dir='/fs/ncanda-test/pipeline/cases'
-            #if verbose:
-            #    print 'Testing on ', os.path.join(test_pipeline_root_dir, pipeline_workdir_rel )
-            # qsub_exe = 'cd %s; /fs/ncanda-test/pipeline/scripts/utils/ncanda_link_data_and_run_pipelines %s' % (test_pipeline_root_dir,pipeline_workdir_rel)
 
             sge_env = os.environ.copy()
             sge_env['SGE_ROOT'] = '/opt/sge' 
@@ -550,7 +534,7 @@ def export_and_queue( xnat, session_data, redcap_key, pipeline_root_dir, stroop=
         try:
             xnat.cache.clear()
         except:
-            print "WARNING: clearing PyXNAT cache threw an exception - are you running multiple copies of this script?"
+            slog.info("export_mr_sessions_pipeline","WARNING: clearing PyXNAT cache threw an exception - are you running multiple copies of this script?")
 
         return new_files_created
         

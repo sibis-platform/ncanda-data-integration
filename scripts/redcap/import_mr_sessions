@@ -774,7 +774,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
 
                 # Check if pipeline directory given and export imaging series there
                 if args.pipeline_root_dir and (this_subject_data['exclude'] != 1):
-                    if mrpipeline.export_and_queue( xnat, xnat_data, key, args.pipeline_root_dir, run_pipeline_script=args.run_pipeline_script, stroop=(stroop_eid,stroop_resource,stroop_file), verbose=args.verbose , timerFlag = runTimerForImportToPipeline) :
+                    if mrpipeline.export_and_queue( redcap_visit_id, xnat, xnat_data, key, args.pipeline_root_dir, run_pipeline_script=args.run_pipeline_script, stroop=(stroop_eid,stroop_resource,stroop_file), verbose=args.verbose , timerFlag = runTimerForImportToPipeline) :
                         # only run timer once - otherwise collect too much data
                         runTimerForImportToPipeline = False
 
