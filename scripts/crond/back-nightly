@@ -30,7 +30,7 @@ if [ ${hour} -ne 0 ]; then
     update_args+=" --missing-only"
 fi
 
-catch_output_email ncanda-admin@sri.com "NCANDA: Laptop Data Import Stage 2 (update_visit_data)" ${SIBIS}/scripts/import/laptops/update_visit_data --max-days-after-visit 120 ${update_args}
+catch_output_email ncanda-admin@sri.com "NCANDA: Laptop Data Import Stage 2 (update_visit_data)" ${SIBIS}/scripts/import/laptops/update_visit_data -p -t --max-days-after-visit 120 ${update_args}
 
 catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Update Form Status (update_bulk_forms)" ${SIBIS}/scripts/redcap/update_bulk_forms -p 
 

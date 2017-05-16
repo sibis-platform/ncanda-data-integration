@@ -63,13 +63,28 @@ parser.add_argument("--study-id",
                     help="Limit processing to subject id (e.g., A-00000-F-1)",
                     action="store",
                     default=None)
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+
+parser.add_argument("-t","--time-log-dir",
+                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    action="store",
+                    default=None)
 
 args = parser.parse_args()
 
 
 slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages', 'update_visit_data')
+slog.startTimer1()
 
+#Create a session object to connect to different projects
+#TO-DO: Submit it under try-except ??
 session = sibispy.Session()
+
+if not session.configure():
+    if args.verbose:
+        print "Error: session configure file was not found"
+
+    sys.exit()
 
 # Convert to string, or empty if nan.
 def nan_to_empty( x ):
@@ -149,11 +164,21 @@ forms_date_increments = {
     'sleepmor': 1
 }
 
-session.connect_redcap(project_entry=True,project_import=False)
 # Open connection with REDCap server - Data Entry
-redcap_project = session.api_data_entry
+redcap_project = session.connect_server('data_entry', True)
+if not redcap_project :
+    if args.verbose:
+        print "Error: Could not connect to Redcap for Data Entry"
+
+    sys.exit()
+
 # Open connection with REDCap server - Import Project
-import_project = session.api_import_laptops
+import_project = session.connect_server('import_laptops', True)
+if not import_project :
+    if args.verbose:
+        print "Error: Could not connect to Redcap for Import Project"
+
+    sys.exit()
 
 # Get list of all field names in the summary project - this is to figure out which fields to copy
 summary_field_names = [field['field_name'] for field in redcap_project.metadata]
@@ -553,3 +578,5 @@ for form_prefix, form_name in forms.iteritems():
     # Anything to upload?
     if args.verbose:
         print "Uploaded", total_uploaded, "of", total_records, "records to form", form_name
+
+slog.takeTimer1('script_time:|update_visit_data ' + str(total_uploaded) + ';TotalRecordsUploaded: ' +  str(total_records))
