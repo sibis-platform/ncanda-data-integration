@@ -44,7 +44,7 @@ catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Update Form Status (upda
 
 if [ ${IMAGE_PROCESS_FLAG} == 1 ]; then
   # Check MR session names etc. in XNAT
-  catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Check Object Names Message (check_object_names)" ${SIBIS}/scripts/xnat/check_object_names -p --send-mail --zip-root /fs/ncanda-share/burn2dvd
+  catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Check Object Names Message (check_object_names)" ${SIBIS}/scripts/xnat/check_object_names -p -t /fs/ncanda-share/ncanda-data-log/back-nightly --send-mail --zip-root /fs/ncanda-share/burn2dvd
 
   # Check for new or updated sessions and
   catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Check New Sessions Message (check_new_sessions)" ${SIBIS}/scripts/xnat/check_new_sessions --send-mail-to ncanda-image-qc@sri.com -p 
