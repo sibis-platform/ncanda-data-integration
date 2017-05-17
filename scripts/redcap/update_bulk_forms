@@ -44,16 +44,6 @@ if not session.configure():
 # Functions 
 #
 
-# First REDCap connection for the Summary project (this is where we put data)
-def connect_to_redcap():
-    summary_key_file = open(os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token'), 'r')
-    summary_api_key = summary_key_file.read().strip()
-    redcap_server = 'https://ncanda.sri.com/redcap/api/'
-    rc = redcap.Project(redcap_server, summary_api_key, verify_ssl=False)
-    return rc
-
-
-
 
 # If connection to redcap server fail, try multiple times
 try:
