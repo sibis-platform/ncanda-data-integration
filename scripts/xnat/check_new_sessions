@@ -142,9 +142,6 @@ if not args.check_all:
             print 'Unable to retrieve date of last script run and list of ' \
                   'flagged projects from server.'
 
-        ifc = pyxnat.Interface(config=os.path.join(os.path.expanduser("~"),
-                                                   '.server_config/ncanda.cfg'))
-        ifc._memtimeout = 0
 
 
 # If "last week" option is used, override last checked date
@@ -744,6 +741,7 @@ for (eid, project, subject, insert_date,
     for (scan, scantype, quality) in scantype_and_quality:
         if re.match('^ncanda-.*-v[0-9]$', scantype):
             error_msg, niftisWereCreatedFlag = make_session_niftis.export_to_nifti(
+                session,
                 ifc,
                 project,
                 subject,

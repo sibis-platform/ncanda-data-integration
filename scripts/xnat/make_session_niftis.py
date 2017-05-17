@@ -10,12 +10,11 @@ import shutil
 import zipfile
 import tempfile
 import subprocess
-import numpy
 import re
+import time
+
 from sibispy import sibislogger as slog
 import check_gradient_tables as cgt
-import time 
-import sys 
 
 #
 # Verify image count in temp directory created by dcm2image
@@ -59,7 +58,7 @@ def verify_image_count(session, session_label, scan, scantype, manufacturer,
 #
 # Export experiment files to NIFTI
 #
-def export_to_nifti(interface, project, subject, session, session_label,
+def export_to_nifti(sibispy_session, interface, project, subject, session, session_label,
                     manufacturer, scanner_model, scan, scantype, verbose=False):
     if verbose:
         print "Starting export of nifti files for ", project, subject, session, session_label, scan, scantype
@@ -179,9 +178,10 @@ def export_to_nifti(interface, project, subject, session, session_label,
                     if 'dti60b1000' in scantype:
                             xml_search_string = os.path.join(temp_dir,'%s_%s' % (scan,scantype), 'image*.nii.xml')
                             xml_file_list = glob.glob(xml_search_string)
-                            cgt.check_diffusion(session_label,session,xml_file_list,manufacturer_u,scanner_model,decimals=2)
+                            cgt.check_diffusion(sibispy_session, session_label,session,xml_file_list,manufacturer_u,scanner_model,decimals=2)
 
             # Clean up - remove temp directory
             shutil.rmtree(temp_dir)
 
     return error_msg,1
+

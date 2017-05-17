@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from lxml import objectify
 
+import sibispy
 from sibispy import sibislogger as slog
 
 def read_xml_sidecar(filepath):
@@ -137,11 +138,12 @@ def get_site_scanner(site):
     return site_scanner.get(site)
 
 
-def get_ground_truth_gradients(scanner,scanner_model,decimals):
+def get_ground_truth_gradients(sibispy_session, scanner,scanner_model,decimals):
     """
     Return a dictionary for scanner:gratient
     """
     # Choose arbitrary cases for ground truth
+    sibispy_session.config.get('ground_truth_cases')
     test_path = '/fs/ncanda-share/pipeline/cases'
     # Get ground truth for standard baseline
     test_arm = 'standard'
@@ -172,14 +174,14 @@ def get_ground_truth_gradients(scanner,scanner_model,decimals):
     return get_all_gradients(scanner_subject + "_" + test_arm + "_" + test_event, dti_stack, decimals)
     # dict(Siemens=siemens_gradients, GE=ge_gradients)
 
-def check_diffusion(session_label,session,xml_file_list,manufacturer,scanner_model,decimals):
+def check_diffusion(sibispy_session, session_label,session,xml_file_list,manufacturer,scanner_model,decimals):
     if len(xml_file_list) == 0 : 
         slog.info(session_label,
                       "Error: check_diffusion : xml_file_list is empty ",
                       session=session)
         return 
 
-    truth_gradient = np.array(get_ground_truth_gradients(manufacturer,scanner_model,decimals))
+    truth_gradient = np.array(get_ground_truth_gradients(sibispy_session, manufacturer,scanner_model,decimals))
     if len(truth_gradient) == 0 :
         slog.info(session_label,
                     'ERROR: check_diffusion: scanner is unknown',
