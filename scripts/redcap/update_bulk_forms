@@ -12,7 +12,8 @@ import hashlib
 import requests
 import argparse
 
-from sibisBeta import sibislogger as slog
+import sibispy
+from sibispy import sibislogger as slog
 import pandas
 import redcap
 
@@ -24,29 +25,30 @@ parser.add_argument("--forms", help="Select specific forms to update. Separate m
 parser.add_argument("-a", "--update-all", help="Update all summary records, regardless of current completion status (otherwise, only 'Complete' forms will be skipped)", action="store_true")
 parser.add_argument("-n", "--no-upload", help="Do not upload any scores to REDCap server; instead write to CSV file with given path.", action="store")
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+parser.add_argument("-t","--time-log-dir",
+                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    action="store",
+                    default=None)
 args = parser.parse_args()
 
-# this should be defined centrally not hard coded
-redcap_server='https://ncanda.sri.com/redcap/api/'
+slog.init_log(args.verbose, args.post_to_github,'NCANDA Redcap: Update Form Status (update_bulk_forms)', 'update_bulk_forms', args.time_log_dir)
 
-# Object class Logging from sibisBeta
-slog.init_log(args.verbose, args.post_to_github,'NCANDA REDCap: Update Form Status', 'update_bulk_forms')
+slog.startTimer1()
 
+session = sibispy.Session()
+if not session.configure():
+    if args.verbose:
+        print "Error: session configure file was not found"
+
+    sys.exit()
 #
 # Functions 
 #
 
-# First REDCap connection for the Summary project (this is where we put data)
-def connect_to_redcap():
-    summary_key_file = open(os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token'), 'r')
-    summary_api_key = summary_key_file.read().strip()
-    redcap_server = 'https://ncanda.sri.com/redcap/api/'
-    rc = redcap.Project(redcap_server, summary_api_key, verify_ssl=False)
-    return rc
 
 # If connection to redcap server fail, try multiple times
 try:
-    rc_entry = connect_to_redcap()
+    rc_entry = session.connect_server('data_entry', True)
 except Exception, error:
     slog.info(hashlib.sha1('update_bulk_forms').hexdigest()[0:6],
     "ERROR: Could not connect to redcap!",
@@ -108,6 +110,8 @@ def process_form( form, complete_field_names ):
 
 # If list of forms given, only update those
 forms_list = rc_entry.forms
+records_uploaded = 0
+
 if args.forms:
     forms_list = []
     for form in args.forms.split( ',' ):
@@ -165,8 +169,10 @@ for form in forms_list:
                     slog.info(log_id,
                               error_title,
                               msg=str(remaining_error))
-
             else:
                 if 'count' in import_response.keys():
+                    records_uploaded += import_response['count']
                     if args.verbose:
                         print "Uploaded",import_response['count'],"records to REDCap."
+
+slog.takeTimer1("script_time","{'RecordsUploaded': " +  str(records_uploaded) + "}")

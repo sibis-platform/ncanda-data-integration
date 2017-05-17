@@ -32,7 +32,7 @@ fi
 
 catch_output_email ncanda-admin@sri.com "NCANDA: Laptop Data Import Stage 2 (update_visit_data)" ${SIBIS}/scripts/import/laptops/update_visit_data -p -t /fs/ncanda-share/ncanda-data-log/back-nightly --max-days-after-visit 120 ${update_args}
 
-catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Update Form Status (update_bulk_forms)" ${SIBIS}/scripts/redcap/update_bulk_forms -p 
+catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Update Form Status (update_bulk_forms)" ${SIBIS}/scripts/redcap/update_bulk_forms -p -t /fs/ncanda-share/ncanda-data-log/back-nightly
 
 #
 # Previouly front-nighlty

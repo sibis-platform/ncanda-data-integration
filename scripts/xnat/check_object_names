@@ -11,9 +11,22 @@ import stat
 import time
 import argparse
 import subprocess
-from sibisBeta import sibislogger as slog
-import pyxnat
 import datetime
+import pyxnat
+import sys
+
+import sibispy
+from sibispy import sibislogger as slog
+
+
+
+session = sibispy.Session()
+if not session.configure():
+    print "Error: session configure file was not found"
+
+    sys.exit()
+
+
 
 parser = argparse.ArgumentParser( description="Find new MR sessions in XNAT, check for missing and duplicate scans, and list all sessions with questionable scans." )
 parser.add_argument("-v", "--verbose", action="store_true", default=False, help="Verbose operation.")
@@ -23,14 +36,19 @@ parser.add_argument( "-a", "--check-all", help="Check all subjects and sessions,
 parser.add_argument( "-W", "--last-week", help="Check all subjects and sessions that were modified within the last week.", action="store_true")
 parser.add_argument( "-M", "--last-month", help="Check all subjects and sessions that were modified within the last month (more precisely: the last 31 days).", action="store_true")
 parser.add_argument( "--no-update", help="Do not update the persistent data stored on the XNAT server (e.g., last run date, list of flagged sessions).", action="store_true")
-parser.add_argument("--zip-root", default='/var/tmp/burn2dvd', help="Root directory to create ZIP archives with T1w and T2w DICOM files for clinical reading.")
+parser.add_argument("--zip-root", default=session.config.get('zip-root'), help="Root directory to create ZIP archives with T1w and T2w DICOM files for clinical reading.")
 parser.add_argument("--zip-none", action="store_true", default=False, help="Do not create any ZIP archives (T1w and T2w DICOM files for clinical reading).")
 parser.add_argument("--zip-all", action="store_true", default=False, help="Create ZIP archives (T1w and T2w DICOM files for clinical reading) for all sessions, regardless of whether or not they have been processed before.")
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+parser.add_argument("-t","--time-log-dir",
+                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    action="store",
+                    default=None)
 args = parser.parse_args()
 
-# Setup logging 
-slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: Check Object Names Message', 'check_object_names')
+# Setup logging
+slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: Check Object Names Message', 'check_object_names', args.time_log_dir)
+slog.startTimer1()
 
 # Get one or more custom variables from XML representation of experiment
 def get_custom_variables( experiment, field_names, default_value=None ):
@@ -191,6 +209,9 @@ def validate_subject( ifc, sid, slabel, sinsert ):
 #
 # Check each subject in the project
 #
+experiment_list = None
+subject_list = None
+
 def validate_new_and_outstanding( ifc, project, objects_to_check, date_last_checked ):
     # Get all subjects and sessions from XNAT - this speeds things up a lot
     subject_list = ifc.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID','xnat:subjectData/SUBJECT_LABEL','xnat:subjectData/INSERT_USER','xnat:subjectData/INSERT_DATE'] ).where( [ ('xnat:subjectData/PROJECT','LIKE', '%'+project+'%') ] )
@@ -228,8 +249,10 @@ def validate_new_and_outstanding( ifc, project, objects_to_check, date_last_chec
 
     return check_again
 
+
 # Create interface using stored configuration
-ifc = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+ifc = session.connect_server('xnat', True)
+ifc._memtimeout = 0
 
 # Set up email object to contact users and admin
 from xnat_email import XnatEmail
@@ -277,7 +300,7 @@ if not args.check_all:
         if args.verbose:
             print 'Unable to retrieve date of last script run and list of flagged projects from server.'
 
-        ifc = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+        ifc = session.connect_server('xnat', True)
         ifc._memtimeout = 0
 
 # If "last week" option is used, override last checked date
@@ -311,3 +334,5 @@ if not args.no_update:
         check_again_str = 'NONE'
 
     content = ifc._exec( uri='%s?inbody=true' % config_uri, method='PUT', body=check_again_str, headers={'content-type':'text/plain'} )
+
+slog.takeTimer1("script_time","{'TotalSubjects': " + str(len(subject_list)) + ", 'TotalExperiments': " +  str(len(experiment_list)) + "}")

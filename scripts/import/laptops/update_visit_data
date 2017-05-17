@@ -316,7 +316,7 @@ parser.add_argument("-t","--time-log-dir",
 args = parser.parse_args()
 
 
-slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages', 'update_visit_data', args.time_log_dir)
+slog.init_log(args.verbose, args.post_to_github,'NCANDA Import: Update Form Status (update_visit_data)', 'update_visit_data', args.time_log_dir)
 slog.startTimer1()
 
 #Create a session object to connect to different projects
