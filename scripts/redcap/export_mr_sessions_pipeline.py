@@ -442,7 +442,7 @@ def export_to_workdir( redcap_visit_id, xnat, session_data, pipeline_workdir, re
 
     pipeline_workdir_spiralrest = os.path.join( pipeline_workdir, 'spiralrest')
     if session_data['mri_eid_spiral_rest'] != '':
-        new_files_created = export_spiral_files(xnat, redcap_key, session_data['mri_eid_spiral_rest'], pipeline_workdir_spiralrest, verbose=verbose) or new_files_created
+        new_files_created = export_spiral_files(redcap_visit_id, xnat, redcap_key, session_data['mri_eid_spiral_rest'], pipeline_workdir_spiralrest, verbose=verbose) or new_files_created
     else :
         delete_workdir(pipeline_workdir_spiralrest,redcap_visit_id,verbose)
 
