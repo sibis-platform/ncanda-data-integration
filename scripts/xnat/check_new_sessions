@@ -17,7 +17,6 @@ import bisect
 
 import pyxnat
 import sibispy
-# from sibispy import sessionbeta 
 from sibispy import sibislogger as slog
 
 import make_session_niftis
@@ -60,26 +59,27 @@ parser.add_argument("-f", "--force-qc-check",
                     help="Always perform quality check regardless if it was done before.",
                     action="store_true")
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+parser.add_argument("-t","--time-log-dir",
+                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    action="store",
+                    default=None)
 args = parser.parse_args()
 
 if args.eid:
     args.no_update = True
 
-# Setup logging 
-slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: Check New Sessions Message', 'check_new_sessions')
+# Setup logging
+slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages', 'check_new_sessions', args.time_log_dir)
+slog.startTimer1()
 
-# Create interface using stored configuration
-# pyxnat.Interface(config=os.path.join(os.path.expanduser("~"), '.server_config/ncanda.cfg'))
-
-session = sibispy.Session() 
-# session = sessionbeta.Session()
+session = sibispy.Session()
 if not session.configure() :
     if verbose:
         print "Error: session configure file was not found"
  
     sys.exit()
 
-ifc = session.connect_server('xnat') 
+ifc = session.connect_server('xnat', True)
 if not ifc : 
     if verbose:
         print "Error: Could not connect to XNAT" 
@@ -940,3 +940,5 @@ if not args.no_update:
                         method='PUT',
                         body=','.join(set(experiments_for_next_run)),
                         headers={'content-type': 'text/plain'})
+
+slog.takeTimer1("script_time","{'NewSessions': " + str(len(new_session_links)) + "}")
