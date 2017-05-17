@@ -69,7 +69,7 @@ if args.eid:
     args.no_update = True
 
 # Setup logging
-slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages', 'check_new_sessions', args.time_log_dir)
+slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT', 'check_new_sessions', args.time_log_dir)
 slog.startTimer1()
 
 session = sibispy.Session()
