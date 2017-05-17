@@ -36,7 +36,7 @@ parser.add_argument( "-a", "--check-all", help="Check all subjects and sessions,
 parser.add_argument( "-W", "--last-week", help="Check all subjects and sessions that were modified within the last week.", action="store_true")
 parser.add_argument( "-M", "--last-month", help="Check all subjects and sessions that were modified within the last month (more precisely: the last 31 days).", action="store_true")
 parser.add_argument( "--no-update", help="Do not update the persistent data stored on the XNAT server (e.g., last run date, list of flagged sessions).", action="store_true")
-parser.add_argument("--zip-root", default=session.config.get('zip-root'), help="Root directory to create ZIP archives with T1w and T2w DICOM files for clinical reading.")
+parser.add_argument("--zip-root", default='/var/tmp/burn2dvd', help="Root directory to create ZIP archives with T1w and T2w DICOM files for clinical reading.")
 parser.add_argument("--zip-none", action="store_true", default=False, help="Do not create any ZIP archives (T1w and T2w DICOM files for clinical reading).")
 parser.add_argument("--zip-all", action="store_true", default=False, help="Create ZIP archives (T1w and T2w DICOM files for clinical reading) for all sessions, regardless of whether or not they have been processed before.")
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
@@ -209,8 +209,8 @@ def validate_subject( ifc, sid, slabel, sinsert ):
 #
 # Check each subject in the project
 #
-experiment_list = None
-subject_list = None
+experiment_list = []
+subject_list = []
 
 def validate_new_and_outstanding( ifc, project, objects_to_check, date_last_checked ):
     # Get all subjects and sessions from XNAT - this speeds things up a lot
@@ -252,7 +252,6 @@ def validate_new_and_outstanding( ifc, project, objects_to_check, date_last_chec
 
 # Create interface using stored configuration
 ifc = session.connect_server('xnat', True)
-ifc._memtimeout = 0
 
 # Set up email object to contact users and admin
 from xnat_email import XnatEmail
@@ -300,9 +299,6 @@ if not args.check_all:
         if args.verbose:
             print 'Unable to retrieve date of last script run and list of flagged projects from server.'
 
-        ifc = session.connect_server('xnat', True)
-        ifc._memtimeout = 0
-
 # If "last week" option is used, override last checked date
 if args.last_week:
     date_last_checked = (datetime.datetime.now() - datetime.timedelta(7)).timetuple()
@@ -336,3 +332,4 @@ if not args.no_update:
     content = ifc._exec( uri='%s?inbody=true' % config_uri, method='PUT', body=check_again_str, headers={'content-type':'text/plain'} )
 
 slog.takeTimer1("script_time","{'TotalSubjects': " + str(len(subject_list)) + ", 'TotalExperiments': " +  str(len(experiment_list)) + "}")
+
