@@ -32,6 +32,7 @@ parser.add_argument("-t","--time-log-dir",
 args = parser.parse_args()
 
 slog.init_log(args.verbose, args.post_to_github,'NCANDA Redcap: Update Form Status (update_bulk_forms)', 'update_bulk_forms', args.time_log_dir)
+
 slog.startTimer1()
 
 session = sibispy.Session()
