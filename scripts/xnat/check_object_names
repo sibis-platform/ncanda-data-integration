@@ -252,7 +252,6 @@ def validate_new_and_outstanding( ifc, project, objects_to_check, date_last_chec
 
 # Create interface using stored configuration
 ifc = session.connect_server('xnat', True)
-ifc._memtimeout = 0
 
 # Set up email object to contact users and admin
 from xnat_email import XnatEmail
