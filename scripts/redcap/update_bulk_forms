@@ -31,7 +31,7 @@ parser.add_argument("-t","--time-log-dir",
                     default=None)
 args = parser.parse_args()
 
-slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages', 'update_bulk_forms', args.time_log_dir)
+slog.init_log(args.verbose, args.post_to_github,'NCANDA Import: Update Form Status (update_bulk_forms)', 'update_bulk_forms', args.time_log_dir)
 slog.startTimer1()
 
 session = sibispy.Session()
@@ -169,9 +169,9 @@ for form in forms_list:
                               error_title,
                               msg=str(remaining_error))
             else:
-                records_uploaded = import_response['count']
                 if 'count' in import_response.keys():
+                    records_uploaded += import_response['count']
                     if args.verbose:
-                        print "Uploaded",records_uploaded,"records to REDCap."
+                        print "Uploaded",import_response['count'],"records to REDCap."
 
 slog.takeTimer1("script_time","{'RecordsUploaded': " +  str(records_uploaded) + "}")
