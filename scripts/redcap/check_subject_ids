@@ -149,7 +149,7 @@ if __name__ == "__main__":
     for key, value in check_subjects_study_errors.iteritems():
         if value[1] == 0: continue
         arm = ''.join(value[0])
-        slog.info(hashlib.sha1('check_subject_ids').hexdigest(arm)[0:6], value[2],
+        slog.info(hashlib.sha1('check_subject_ids {}'.format(arm)).hexdigest()[0:6], value[2],
                     arm=arm)
 
 slog.takeTimer1("script_time","{'records': " + str(len_demographics) + "}")
