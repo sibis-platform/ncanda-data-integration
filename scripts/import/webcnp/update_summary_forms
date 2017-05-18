@@ -51,7 +51,7 @@ if not session.configure():
 rc_import = session.connect_server('import_webcnp', True)
 
 # Second connection for the Summary project (this is where we put data)
-rc_summary = session.connect_server('import_webcnp', True)
+rc_summary = session.connect_server('data_entry', True)
 
 # Get list of variables common to import and summary projects (minus 'cnp_' prefix in the latter)
 cnp_copy_variables = cnp.get_copy_variables( rc_import, rc_summary )
@@ -130,8 +130,9 @@ for key, row in summary_records.iterrows():
             # Make sure there is only one, unique record
             if len( records_this_visit ) > 1:
                 # Not unique - warning
-                print 'WARNING: More than one CNP record found for subject %s, event %s, visit date %s - selecting the latest record' % (key[0],key[1],visit_date)
-                print '\n\t'.join( records_this_visit.index.tolist() )
+                error = 'WARNING: More than one CNP record found for subject %s, event %s, visit date %s - selecting the latest record' % (key[0],key[1],visit_date)
+                slog.info( hashlib.sha1('update_summary_scores').hexdigest()[0:6], error,
+                           records_this_visit = str(records_this_visit.index.tolist()))
 
             # Unique record - copy data from imported project to summary form
             cnp_data = records_this_visit.ix[ len( records_this_visit ) - 1 ]
@@ -218,4 +219,4 @@ else:
     if args.verbose:
         print "Successfully uploaded %d/%d records to REDCap." % ( uploaded_count, len( summary_records ) )
 
-slog.takeTimer1("script_time","{'TotalRecordsUploaded': " + str(len(uploaded_count)) + "}")
+slog.takeTimer1("script_time","{'records': " + str(len(summary_records)) + ", 'uploaded': " +  str(uploaded_count) + "}")

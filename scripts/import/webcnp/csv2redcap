@@ -22,12 +22,12 @@ from sibispy import sibislogger as slog
 parser = argparse.ArgumentParser( description="Import WebCNP CSV file into REDCap database" )
 parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
 parser.add_argument( "-a", "--import-all", help="Import all records from Penn server, overwriting any data already in REDCap", action="store_true")
-parser.add_argument("infile", help="Input file in CSV format.")
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
 parser.add_argument("-t","--time-log-dir",
                     help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
                     action="store",
                     default=None)
+parser.add_argument("infile", help="Input file in CSV format.")
 args = parser.parse_args()
 
 slog.init_log(args.verbose, args.post_to_github,'NCANDA Import', 'csv2redcap', args.time_log_dir)
@@ -131,5 +131,5 @@ for [key,row] in data.iterrows():
 if args.verbose:
     print "Successfully uploaded %d/%d records to REDCap." % ( uploaded, len( data ) )
 
-slog.takeTimer1("script_time","{'TotalRecordsUploaded': " + str(len(uploaded)) + "}")
+slog.takeTimer1("script_time","{'records': " + str(len(data)) + ", 'uploaded': " + str(uploaded) + "}")
 
