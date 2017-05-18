@@ -8,6 +8,19 @@
 bindir=`dirname $0`
 tmpdir=`mktemp -d`
 
+# default for a for loop is to iterate over "$@"
+postGithubFlag=""
+timeStampLog=""
+for arg; do 
+  echo $arg
+  case $arg in
+    '-p'*) postGithubFlag="-p" ;;
+    '-t '*) timeStampLog="-t ${arg#*}" ;;
+  esac
+done
+
+echo "$postGithubFlag $timeStampLog"
+exit
 #
 # First, start virtual X server and retrieve XLS file from Penn via Selenium
 #
