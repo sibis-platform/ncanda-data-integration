@@ -66,6 +66,11 @@ if not session.configure():
 
 # Get the sibis config
 sibis_config = session.get_operations_dir()
+if not sibis_config :
+    if args.verbose:
+        print "Error: Could not retrieve configuration"
+
+    sys.exit()
 
 # Create interface using stored configuration
 if args.verbose:
@@ -81,7 +86,6 @@ if not ifc :
 ifc._memtimeout = 0
 
 # RegExp pattern for subject IDs
-subject_id_pattern = '^[A-FX]-[0-9]{5}-[MFPT]-[0-9]$'
 subject_id_pattern_nophantom = '^([A-F])-[0-9]{5}-[MF]-[0-9]$'
 
 # Date format for XNAT dates
