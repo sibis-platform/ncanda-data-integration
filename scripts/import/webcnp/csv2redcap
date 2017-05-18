@@ -12,33 +12,46 @@ import hashlib
 
 import pandas
 import sys
-import redcap
 
 import cnp
 
-import sibis
+import sibispy
+from sibispy import sibislogger as slog
 
 # Setup command line parser
 parser = argparse.ArgumentParser( description="Import WebCNP CSV file into REDCap database" )
 parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
 parser.add_argument( "-a", "--import-all", help="Import all records from Penn server, overwriting any data already in REDCap", action="store_true")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+parser.add_argument("-t","--time-log-dir",
+                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    action="store",
+                    default=None)
 parser.add_argument("infile", help="Input file in CSV format.")
 args = parser.parse_args()
 
+slog.init_log(args.verbose, args.post_to_github,'NCANDA Import', 'csv2redcap', args.time_log_dir)
+slog.startTimer1()
+
+session = sibispy.Session()
+if not session.configure():
+    if args.verbose:
+        print "Error: session configure file was not found"
+
+    sys.exit()
+
 # Open connection with REDCap server
-key_file = open( os.path.join( os.path.expanduser("~"), '.server_config/redcap-penncnp-token' ), 'r' )
-api_key = key_file.read().strip()
 try:
-    redcap = redcap.Project( 'https://ncanda.sri.com/redcap/api/', api_key, verify_ssl=False)
+    redcap = session.connect_server('import_webcnp', True)
 except KeyError as e:
     error = "ERROR: failed creating the metadata for Project"
-    sibis.logging(hashlib.sha1('csv2redcap').hexdigest()[0:6], error,
+    slog.info(hashlib.sha1('csv2redcap').hexdigest()[0:6], error,
                   script='csv2redcap',
                   msg=str(e))
     sys.exit(1)
 except Exception as e:
     error = "ERROR: failed creating Project object"
-    sibis.logging(hashlib.sha1('csv2redcap').hexdigest()[0:6], error,
+    slog.info(hashlib.sha1('csv2redcap').hexdigest()[0:6], error,
                   script='csv2redcap',
                   msg=str(e))
     sys.exit(1)
@@ -99,7 +112,7 @@ for [key,row] in data.iterrows():
     # If there were any errors, try to print them as well as possible
     if 'error' in import_response.keys():
         error = "UPLOAD ERROR: {}".format(import_response['error'])
-        sibis.logging(hashlib.sha1(string).hexdigest()[0:6], error)
+        slog.info(hashlib.sha1(string).hexdigest()[0:6], error)
 
     if 'fields' in import_response.keys():
         for field in import_response['fields']:
@@ -110,10 +123,13 @@ for [key,row] in data.iterrows():
             print "\t", record
 
     if 'count' in import_response.keys():
-	uploaded += int( import_response['count'] )
+        uploaded += int( import_response['count'] )
     else:
-	print "WARNING: failed to upload record",record['record_id']
+        print "WARNING: failed to upload record",record['record_id']
 
 # Finally, print upload status if so desired
 if args.verbose:
     print "Successfully uploaded %d/%d records to REDCap." % ( uploaded, len( data ) )
+
+slog.takeTimer1("script_time","{'records': " + str(len(data)) + ", 'uploaded': " + str(uploaded) + "}")
+
