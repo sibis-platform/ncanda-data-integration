@@ -11,7 +11,8 @@ import datetime
 import numpy as np
 import pandas
 
-import redcap
+import sibispy
+from sibispy import sibislogger as slog
 
 # Convert to string, or empty if nan.
 def nan_to_empty( x ):
@@ -29,17 +30,28 @@ parser.add_argument( "-a", "--update-all", help="Update all summary records, reg
                      action="store_true")
 parser.add_argument( "--records-per-upload", help="Maximum number of records to upload to REDCap using a single HTTP request. This limits the request size and prevents upload problems.", action="store", default=30, type=int)
 parser.add_argument( "-n", "--no-upload", help="Do not upload any data to REDCap server; instead write to CSV file with given path.", action="store")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+parser.add_argument("-t","--time-log-dir",
+                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    action="store",
+                    default=None)
 args = parser.parse_args()
 
 # Open connection with REDCap server - first for the Penn import project (data source)
-import_key_file = open( os.path.join( os.path.expanduser("~"), '.server_config/redcap-penncnp-token' ), 'r' )
-import_api_key = import_key_file.read().strip()
-rc_import = redcap.Project( 'https://ncanda.sri.com/redcap/api/', import_api_key, verify_ssl=False)
+slog.init_log(args.verbose, args.post_to_github,'NCANDA Import', 'update_summary_forms', args.time_log_dir)
+slog.startTimer1()
+
+session = sibispy.Session()
+if not session.configure():
+    if args.verbose:
+        print "Error: session configure file was not found"
+
+    sys.exit()
+
+rc_import = session.connect_server('import_webcnp', True)
 
 # Second connection for the Summary project (this is where we put data)
-summary_key_file = open( os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' ), 'r' )
-summary_api_key = summary_key_file.read().strip()
-rc_summary = redcap.Project( 'https://ncanda.sri.com/redcap/api/', summary_api_key, verify_ssl=False)
+rc_summary = session.connect_server('import_webcnp', True)
 
 # Get list of variables common to import and summary projects (minus 'cnp_' prefix in the latter)
 cnp_copy_variables = cnp.get_copy_variables( rc_import, rc_summary )
@@ -168,6 +180,8 @@ summary_records = summary_records[ summary_records['cnp_datasetid'] != '' ]
 # Drop all (logically) read-only columns from the summary data - these are the ones that are neither index-related (subject, event), nor part of the data imported from WebCNP
 summary_records = summary_records.drop( [ 'dob', 'exclude', 'visit_date' ], axis=1 )
 
+uploaded_count = 0
+
 if args.no_upload:
     if args.verbose:
         print "Writing",len( summary_records ),"records to",args.no_upload
@@ -176,7 +190,6 @@ else:
     if args.verbose:
         print "Uploading",len(summary_records),"records."
 
-    uploaded_count = 0
     for from_index in range(0,len(summary_records),args.records_per_upload):
         # Upload next block of records of new data to REDCap
         to_index = min( from_index + args.records_per_upload, len(summary_records) )
@@ -204,3 +217,5 @@ else:
     # Finally, print upload status if so desired                    
     if args.verbose:
         print "Successfully uploaded %d/%d records to REDCap." % ( uploaded_count, len( summary_records ) )
+
+slog.takeTimer1("script_time","{'TotalRecordsUploaded': " + str(len(uploaded_count)) + "}")

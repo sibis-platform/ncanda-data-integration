@@ -14,7 +14,7 @@ tmpdir=`mktemp -d`
 Xvfb +extension RANDR :666 >& /dev/null &
 xpid=$!
 export DISPLAY=:666
-${bindir}/get_results_selenium $* ${tmpdir}
+${bindir}/get_results_selenium $* ${tmpdir} -p -t /fs/ncanda-share/ncanda-data-log/back-nightly
 unset DISPLAY
 #kill $xpid
 
@@ -22,7 +22,7 @@ unset DISPLAY
 # Second, upload CSV file to REDCap
 #
 for csv in `cd ${tmpdir}; ls | fgrep .csv`; do
-    if ! ${bindir}/csv2redcap --import-all ${tmpdir}/${csv}; then
+    if ! ${bindir}/csv2redcap -p -t /fs/ncanda-share/ncanda-data-log/back-nightly --import-all ${tmpdir}/${csv}; then
 	echo $tmpdir
 	exit 1
     fi
@@ -31,7 +31,7 @@ done
 #
 # Third, update summary records
 #
-${bindir}/update_summary_forms --max-days-after-visit 120
+${bindir}/update_summary_forms -p -t /fs/ncanda-share/ncanda-data-log/back-nightly --max-days-after-visit 120
 
 #
 # Finally, clean up

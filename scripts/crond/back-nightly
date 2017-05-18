@@ -64,7 +64,7 @@ fi
 ######################################
 
 # Import data from UPenn into REDCap
-catch_output_email ncanda-admin@sri.com "NCANDA REDCap: WebCNP Import Messages (cnp2redcap)" ${SIBIS}/scripts/import/webcnp/cnp2redcap -p -t /fs/ncanda-share/ncanda-data-log/back-nightly --last-3-months
+catch_output_email ncanda-admin@sri.com "NCANDA REDCap: WebCNP Import Messages (cnp2redcap)" ${SIBIS}/scripts/import/webcnp/cnp2redcap --last-3-months
 
 # Check whether subject birth dates and gender match checksum digit, plus whether all subjects on study arms appear in main arm also
 catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Subject ID Checks (check_subject_ids)" ${SIBIS}/scripts/redcap/check_subject_ids
