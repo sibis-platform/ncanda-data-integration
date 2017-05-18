@@ -131,7 +131,7 @@ for key, row in summary_records.iterrows():
             if len( records_this_visit ) > 1:
                 # Not unique - warning
                 error = 'WARNING: More than one CNP record found for subject %s, event %s, visit date %s - selecting the latest record' % (key[0],key[1],visit_date)
-                slog.info( hashlib.sha1('update_summary_scores').hexdigest()[0:6], error,
+                slog.info( hashlib.sha1('update_summary_forms').hexdigest()[0:6], error,
                            records_this_visit = str(records_this_visit.index.tolist()))
 
             # Unique record - copy data from imported project to summary form
