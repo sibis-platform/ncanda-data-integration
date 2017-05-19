@@ -50,6 +50,9 @@ slog.init_log(args.verbose, args.post_to_github, 'NCANDA ', 'export_measures',
                 args.time_log_dir)
 slog.startTimer1()
 
+global uploads
+uploads = 0
+
 # Open connection with REDCap server
 session = sibispy.Session()
 if not session.configure():
@@ -258,7 +261,6 @@ for [key,row] in visit_log_redcap.iterrows():
                                 subject_xnat_id, subject_code)
                             subject_xnat_id = subject_code
 
-                        global uploads
                         uploads += 1
 
                         # Export measures from RECap into the pipeline.
