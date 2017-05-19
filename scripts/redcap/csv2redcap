@@ -16,14 +16,26 @@ import argparse
 import pandas
 
 import redcap
+import sibispy
+from sibispy import sibislogger as slog
 
 parser = argparse.ArgumentParser( description="Import contents of CSV file into longitudinal REDCap project" )
 parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
 parser.add_argument( "-f", "--force", help="Force overwriting of existing records.", action="store_true")
-parser.add_argument( "--api-key-file", help="File containing API Key for REDCap project", default=os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' ) )
+parser.add_argument( "--project", help="REDCAP project (import_laptops, import_webcnp, or data_entry)", default="data_entry" )
 parser.add_argument( "--data-access-group", help="REDCap project data access group that the imported data should be assigned to.", default=None )
 parser.add_argument( "csvfile", help="Input .csv file.")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+parser.add_argument("-t", "--time-log-dir",
+                        help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                        action="store",
+                        default=None)
+
 args = parser.parse_args()
+
+slog.init_log(args.verbose, args.post_to_github, 'NCANDA REDCap', 'csv2redcap',
+                  args.time_log_dir)
+slog.startTimer1()
 
 # Read input file
 data = pandas.io.parsers.read_csv( args.csvfile )
@@ -36,18 +48,22 @@ if not args.data_access_group == None:
     data['redcap_data_access_group'] = args.data_access_group
 
 # First REDCap connection for the Summary project (this is where we put data)
-def connect_to_redcap():
-    summary_key_file = open(os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token'), 'r')
-    summary_api_key = summary_key_file.read().strip()
-    redcap_server = 'https://ncanda.sri.com/redcap/api/'
-    rc = redcap.Project(redcap_server, summary_api_key, verify_ssl=False)
-    return rc
+slog.init_log(args.verbose, args.post_to_github, 'NCANDA REDCap', 'csv2redcap',
+                  args.time_log_dir)
+slog.startTimer1()
+
+session = sibispy.Session()
+if not session.configure():
+    if args.verbose:
+        print "Error: session configure file was not found"
+
+    sys.exit()
 
 # If connection to redcap server fail, try multiple times
 try:
-    project = connect_to_redcap()
+    project = session.connect_server(args.project, True)
 except Exception, error:
-    sibis.logging(hashlib.sha1('csv2redcap').hexdigest()[0:6],
+    slog.info(hashlib.sha1('csv2redcap').hexdigest()[0:6],
     "ERROR: Could not connect to redcap!",
     script = 'csv2redcap')
     sys.exit()
@@ -96,3 +112,5 @@ if 'records' in import_response.keys():
 # Finally, print upload status if so desired
 if args.verbose and 'count' in import_response.keys():
     print "Successfully uploaded %d/%d records to REDCap." % ( import_response['count'], len( data ) )
+
+slog.takeTimer1("script_time","{'Records': " +  str(import_response['count']) + "}")
