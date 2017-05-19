@@ -70,7 +70,7 @@ catch_output_email ncanda-admin@sri.com "NCANDA REDCap: WebCNP Import Messages (
 catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Subject ID Checks (check_subject_ids)" ${SIBIS}/scripts/redcap/check_subject_ids
 
 # Check (and update, if necessary) drinking exception status
-catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Undeclared Drinking Exceptions (check_exceptions)" ${SIBIS}/scripts/redcap/check_exceptions --update-fn
+catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Undeclared Drinking Exceptions (check_exceptions)" ${SIBIS}/scripts/redcap/check_exceptions -p -t /fs/ncanda-share/ncanda-data-log/back-nightly --update-fn
 
 #
 # Original back-nightly

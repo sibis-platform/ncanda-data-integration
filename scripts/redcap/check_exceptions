@@ -6,10 +6,11 @@
 ##
 
 # system packages
-import os
+import sys
+import hashlib
 
-# pycap api
-from redcap import Project
+import sibispy
+from sibispy import sibislogger as slog
 
 # Enrollnemt criteria: Maximum number of days drinking by age.
 max_days_drinking_by_age = { 12 : 5, 13 : 5, 14 : 7, 15 : 16, 16 : 31, 17 : 53, 18 : 81, 19 : 123, 20 : 171, 21 : 238 }
@@ -84,13 +85,23 @@ def update_false_negatives( project_interface, subjects ):
 
     if 'count' in import_response.keys():
         if str( import_response['count'] ) == str( len ( upload ) ):
-            print "INFO: updated drinking exception status for the following false-negative subjects:"
-            print "\n".join( subjects )
+            list_subjects = ''.join(subjects)
+            error = 'INFO: updated drinking exception status for the following false-negative subjects'
+            slog.info('check_exceptions {}'.format(list_subjects).hexdigest()[0:6], error,
+                        list_subjects=list_subjects )
         else:
-            print "ERROR: uploading updated drinking exception status for",len( upload ),"false-negative subjects returned count",import_response['count']
+            error = 'ERROR: uploading updated drinking exception error'
+            updated_drinking_exception_count = len(upload)
+            false_neg_subjects_count = import_response['count']
+            slog.info('check_exceptions {} {}'.format(updated_drinking_exception_count, false_neg_subjects_count).hexdigest()[0:6], error,
+                      updated_drinking_exception_count=str(updated_drinking_exception_count),
+                      false_neg_subjects_count=str(false_neg_subjects_count))
     else:
-        print "ERROR: uploading updated drinking exception status for",len( upload ),"false-negative subjects failed:"
-        print import_response
+        error = 'ERROR: uploading updated drinking exception error, key "count" not found in metadata'
+        slog.info(
+            'check_exceptions {}'.format(error).hexdigest()[
+            0:6], error,
+            import_response_dictionary=str(import_response))
 
 
 if __name__ == "__main__":
@@ -98,42 +109,62 @@ if __name__ == "__main__":
 
     # setup the argument parser and help text
     parser = argparse.ArgumentParser(prog='check_exceptions',
-                                     description='Check enrollment exceptions (e.g., exceeded baseline drinking levels) marked in the Basic Demographics form against collected data.')
+                                     description='Check enrollment exceptions (e.g., exceeded baseline drinking levels) \
+                                     marked in the Basic Demographics form against collected data.')
     parser.add_argument('--strict', action="store_true", default=False,
                         help='Apply strict checking without any second-guessing of REDCap data.')
     parser.add_argument('--update-fn', action="store_true", default=False,
-                        help='Update False Negative cases, i.e., mark subjects as exceptions when they exceed baseline drinking levels. This will disable the default output of subjects by drinking group.')
-    parser.add_argument('api_key_path', nargs='?',
-                        default=os.path.join(os.path.expanduser('~'), '.server_config/redcap-dataentry-token'),
-                        type=argparse.FileType('r'),
-                        help='Path to REDCap API key specific to a study site')
-    parser.add_argument('api_url', nargs='?',
-                        default='https://ncanda.sri.com/redcap/api/',
-                        help='The URL to a valid REDCap')
+                        help='Update False Negative cases, i.e., mark subjects as exceptions when they exceed baseline \
+                        drinking levels. This will disable the default output of subjects by drinking group.')
+    parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.",
+                        action="store_true")
+    parser.add_argument("-t", "--time-log-dir",
+                        help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                        action="store",
+                        default=None)
     args = parser.parse_args()
 
-    # get api_key
-    api_key = args.api_key_path.read().strip()
+    slog.init_log(args.verbose, args.post_to_github, 'NCANDA ', 'check_exceptions',
+                  args.time_log_dir)
+    slog.startTimer1()
+
+    session = sibispy.Session()
+    if not session.configure():
+        if args.verbose:
+            print "Error: session configure file was not found"
+
+        sys.exit()
 
     # get a connection to redcap
-    project_interface = Project(args.api_url, api_key, verify_ssl=False)
+    project_interface = session.connect_server('data_entry', True)
+    if not project_interface :
+        if args.verbose:
+            print "Error: Could not connect to Redcap"
+        sys.exit()
+
     (count_subjects,false_neg,false_pos,true_pos) = validate_exceptions(project_interface,strict=args.strict)
+
+    global count_subjects_checked
+    count_subjects_checked = count_subjects
 
     if args.update_fn:
         if len( false_neg ):
             update_false_negatives( project_interface, [ subject for (subject,sid,criteria) in false_neg ] )
     else:
-        if len( false_neg ):
-            print "\nExceed criteria but NOT marked as exceptions (FALSE NEG; %d/%d cases):" % ( len( false_neg ), count_subjects )
-            for (subject,sid,criteria) in false_neg:
-                print subject,'/',sid,'[',', '.join(criteria),']'
-                
-        if len( false_pos ):
-            print "\nMarked as exceptions but do NOT exceed criteria (FALSE POS; %d/%d cases):" % ( len( false_pos ), count_subjects )
-            for (subject,sid) in false_pos:
-                print subject,'/',sid
+        error_false_neg = 'Exceed criteria but NOT marked as exceptions'
+        error_false_pos = 'Marked as exceptions but do NOT exceed criteria'
+        error_true_pos = 'Marked as exceptions and DO exceed criteria'
 
-        if len( true_pos ):
-            print "\nMarked as exceptions and DO exceed criteria (TRUE POS; %d/%d cases):" % ( len( true_pos ), count_subjects )
-            for (subject,sid,criteria) in true_pos:
-                print subject,'/',sid,'[',', '.join(criteria),']'
+        validate_exceptions_errors = {'false_neg' :  [false_neg, len(false_neg), error_false_neg], \
+                                      'false_pos' : [false_pos, len(false_pos), error_false_pos], \
+                                      'true_pos' : [true_pos, len(true_pos), error_true_pos]}
+
+        for key, value in validate_exceptions_errors.iteritems():
+            if value[1] == 0: continue
+            list_subject = ''.join(value[0])
+            slog.info(hashlib.sha1('check_exceptions {}'.format(list_subject)).hexdigest()[0:6], value[2],
+                      list_subject=list_subject)
+
+
+slog.takeTimer1("script_time","{'Records': " +  str(count_subjects_checked) + "}")
+
