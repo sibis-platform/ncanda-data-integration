@@ -111,6 +111,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog='check_exceptions',
                                      description='Check enrollment exceptions (e.g., exceeded baseline drinking levels) \
                                      marked in the Basic Demographics form against collected data.')
+    parser.add_argument("-v", "--verbose",
+                    help="Verbose operation",
+                    action="store_true")
+    parser.add_argument( "--project", help="REDCAP project (import_laptops, import_webcnp, or data_entry)", default="data_entry" )
     parser.add_argument('--strict', action="store_true", default=False,
                         help='Apply strict checking without any second-guessing of REDCap data.')
     parser.add_argument('--update-fn', action="store_true", default=False,
@@ -136,7 +140,7 @@ if __name__ == "__main__":
         sys.exit()
 
     # get a connection to redcap
-    project_interface = session.connect_server('data_entry', True)
+    project_interface = session.connect_server(args.project, True)
     if not project_interface :
         if args.verbose:
             print "Error: Could not connect to Redcap"
@@ -158,10 +162,10 @@ if __name__ == "__main__":
         validate_exceptions_errors = {'false_neg' :  [false_neg, len(false_neg), error_false_neg], \
                                       'false_pos' : [false_pos, len(false_pos), error_false_pos], \
                                       'true_pos' : [true_pos, len(true_pos), error_true_pos]}
-
+        
         for key, value in validate_exceptions_errors.iteritems():
             if value[1] == 0: continue
-            list_subject = ''.join(value[0])
+            list_subject = str(map(lambda x: x[0], value[0]))
             slog.info(hashlib.sha1('check_exceptions {}'.format(list_subject)).hexdigest()[0:6], value[2],
                       list_subject=list_subject)
 
