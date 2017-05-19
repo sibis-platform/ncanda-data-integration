@@ -88,6 +88,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog='check_subject_ids',
                                      description='Validate that the last digit of a Subject ID is the same as'
                                                  'the last digit of the date-of-birth checksum')
+    parser.add_argument( "--project", help="REDCAP project (import_laptops, import_webcnp, or data_entry)", default="data_entry" )
     parser.add_argument("-v", "--verbose",
                     help="Verbose operation",
                     action="store_true")    
@@ -111,7 +112,7 @@ if __name__ == "__main__":
 
         sys.exit()
 
-    project_interface = session.connect_server('data_entry', True)
+    project_interface = session.connect_server(args.project, True)
 
     if not project_interface :
         if args.verbose:
