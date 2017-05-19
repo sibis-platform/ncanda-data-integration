@@ -33,7 +33,7 @@ parser.add_argument("-t", "--time-log-dir",
 
 args = parser.parse_args()
 
-slog.init_log(args.verbose, args.post_to_github, 'NCANDA REDCap', 'csv2redcap',
+slog.init_log(args.verbose, args.post_to_github, 'NCANDA REDCap', 'redcap-csv2redcap',
                   args.time_log_dir)
 slog.startTimer1()
 
@@ -48,10 +48,6 @@ if not args.data_access_group == None:
     data['redcap_data_access_group'] = args.data_access_group
 
 # First REDCap connection for the Summary project (this is where we put data)
-slog.init_log(args.verbose, args.post_to_github, 'NCANDA REDCap', 'csv2redcap',
-                  args.time_log_dir)
-slog.startTimer1()
-
 session = sibispy.Session()
 if not session.configure():
     if args.verbose:
