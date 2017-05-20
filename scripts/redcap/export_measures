@@ -22,6 +22,9 @@ import export_mr_sessions_pipeline as mrpipeline
 import export_redcap_to_pipeline as rcpipeline
 import redcap_form_locker as rclocker
 
+import sibispy
+from sibispy import sibislogger as slog
+
 # Time format
 date_format_ymd = '%Y-%m-%d'
 
@@ -36,36 +39,51 @@ parser.add_argument( "--export", help="Limit export by output file (e.g., 'cddr'
 parser.add_argument( "-e", "--exclude", help="Exports Meausres for excluded subjects", action="store_true" )
 parser.add_argument( "--datadict-dir", help="Provides a directory in which the script creates data dictionaries for all supported export files.", action="store", default=None )
 parser.add_argument( "pipelinedir", help="Root directory of the image analysis pipeline.", action="store")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.",action="store_true")
+parser.add_argument("-t", "--time-log-dir",
+                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    action="store",
+                    default=None)
 args = parser.parse_args()
 
+slog.init_log(args.verbose, args.post_to_github, 'NCANDA ', 'export_measures',
+                args.time_log_dir)
+slog.startTimer1()
+
+global uploads
+uploads = 0
+
+# Open connection with REDCap server
+session = sibispy.Session()
+if not session.configure():
+    if args.verbose:
+        print "Error: session configure file was not found"
+
+    sys.exit()
+
 # Site changes are mapped here to the correct case identifier.
-# Get the sibis config
-yml = os.path.join(os.path.expanduser("~"), '.server_config/config.yml')
-with open(yml, 'r') as fi:
-    sibis_config = yaml.load(fi).get('operations')
-if not sibis_config:
-    raise IOError(
-        "Please ensure config.yml file exists at: {}".format(yml))
+sibis_config = session.get_operations_dir()
+special_cases_file = os.path.join(sibis_config, 'special_cases.yml')
+if not os.path.isfile(special_cases_file) :
+    slog.info("export_measures","Error: The following file does not exist :" + special_cases_file)
+    sys.exit(1)
 
 # Get a map of subjects that changed sited
+# SB: Followed example in import_mr_sessions
 with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
     site_change_map = yaml.load(fi).get('site_change')
     export_measures_map = site_change_map.get('export_measures')
 
-# Open connection with REDCap server
-redcap_token_path = os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token' )
-redcap_token_file = open( redcap_token_path, 'r' )
-redcap_token = redcap_token_file.read().strip()
-
 try:
-    redcap_project = redcap.Project( 'https://ncanda.sri.com/redcap/api/',
-                                      redcap_token, verify_ssl=False)
+    redcap_project = session.connect_server('data_entry', True)
 except redcap.RedcapError as e:
     error = "Error creating object redcap.Project()"
-    sibis.logging(hashlib.sha1('export_measures').hexdigest()[0:6], error,
+    slog.info(hashlib.sha1('export_measures').hexdigest()[0:6], error,
                   script='export_measures',
                   msg=str(e))
     sys.exit()
+
+
 
 form_event_mapping = redcap_project.export_fem( format='df' )
 
@@ -194,7 +212,8 @@ for [key,row] in visit_log_redcap.iterrows():
             this_subject_data = subject_data.ix[key[0]]
             subject_dob_str = str( this_subject_data['dob'] )
             if not re.match( '[0-9]{4}-[0-9]{2}-[0-9]{2}', subject_dob_str ):
-                print "Missing or invalid birthdate '%s' for subject %s" % ( subject_dob_str, key[0] )
+                error = "Missing or invalid birthdate '%s' for subject %s" % ( subject_dob_str, key[0] )
+                slog.info(str(key[0]), error)
             else:
                 visit_age = days_between_dates( subject_dob_str, visit_date ) / 365.242
 
@@ -210,7 +229,7 @@ for [key,row] in visit_log_redcap.iterrows():
                     try:
                         (arm_code,visit_code,subject_datadir_rel) = mrpipeline.translate_subject_and_event( subject_xnat_id, key[1] )
                     except:
-                        sibis.logging(hashlib.sha1('export_measures').hexdigest()[0:6], "Event",key[1],"is not supported yet.",
+                        slog.info(hashlib.sha1('export_measures').hexdigest()[0:6], "Event",key[1],"is not supported yet.",
                                       info = "Add event to ncanda_operations/setup.yml")
                         continue
                         
@@ -241,6 +260,8 @@ for [key,row] in visit_log_redcap.iterrows():
                             subject_datadir = subject_datadir.replace(
                                 subject_xnat_id, subject_code)
                             subject_xnat_id = subject_code
+
+                        uploads += 1
 
                         # Export measures from RECap into the pipeline.
                         rcpipeline.export(redcap_project,
@@ -280,3 +301,5 @@ for [key,row] in visit_log_redcap.iterrows():
                             rcpipeline.safe_csv_export(locked_forms, filename, verbose=args.verbose)
                             if args.verbose:
                                 print "If locked form report changed from existing version than updated: {0}".format(filename)
+
+slog.takeTimer1("script_time","{'Records': " + str(len(visit_log_redcap)) + ", 'Uploaded': " +  str(uploads) + "}")
