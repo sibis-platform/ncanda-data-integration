@@ -13,7 +13,8 @@ import argparse
 
 import pandas
 import redcap
-import sibis
+import sibispy
+from sibispy import sibislogger as slog
 
 import scoring
 
@@ -35,21 +36,33 @@ parser.add_argument("-a", "--update-all",
 parser.add_argument("-n", "--no-upload",
                     help="Do not upload any scores to REDCap server; instead write to CSV file with given path.",
                     action="store")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+parser.add_argument("-t","--time-log-dir",
+                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    action="store",
+                    default=None)
 args = parser.parse_args()
 
+slog.init_log(args.verbose, args.post_to_github,'NCANDA REDCap', 'update_summary_scores', args.time_log_dir)
+slog.startTimer1()
+
+global count_uploaded
+count_uploaded = 0
+
 # First REDCap connection for the Summary project (this is where we put data)
-def connect_to_redcap():
-    summary_key_file = open(os.path.join( os.path.expanduser("~"), '.server_config/redcap-dataentry-token'), 'r')
-    summary_api_key = summary_key_file.read().strip()
-    redcap_server = 'https://ncanda.sri.com/redcap/api/'
-    rc = redcap.Project(redcap_server, summary_api_key, verify_ssl=False)
-    return rc
+session = sibispy.Session()
+if not session.configure():
+    if args.verbose:
+        print "Error: session configure file was not found"
+
+    sys.exit()
+
 
 # If connection to redcap server fail, try multiple times
 try:
-    rc_summary = connect_to_redcap()
+    rc_summary =  session.connect_server('data_entry', True)
 except Exception as e:
-    sibis.logging(hashlib.sha1('update_summary_scores').hexdigest()[0:6],
+    slog.info(hashlib.sha1('update_summary_scores').hexdigest()[0:6],
     "ERROR: Could not connect to redcap!: {0}".format(e),
     script = 'update_summary_scores')
     sys.exit()
@@ -130,10 +143,10 @@ for instrument in instrument_list:
 
         try:
             scored_records = scoring.functions[instrument](pandas.concat(imported), demographics)
-        except:
-            import sys
-            print "ERROR: scoring failed for instrument", instrument
-            sys.excepthook(sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2])
+        except Exception as e:
+            error = "ERROR: scoring failed for instrument", instrument
+            slog.info(hashlib.sha1('update_summary_scores {}'.format(instrument)).hexdigest()[0:6], error,
+                      exception=str(e))
             continue
 
         if args.verbose:
@@ -145,8 +158,9 @@ for instrument in instrument_list:
             try:
                 uploaded = rc_summary.import_records(scored_records,
                                                      overwrite='overwrite')
+                count_uploaded += 1
             except redcap.RedcapError as e:
-                sibis.logging(instrument,
+                slog.info(instrument,
                     "ERROR: Field is located on a form that is locked",
                     script='update_summary_scores',
                     msg=str(e))
@@ -160,3 +174,5 @@ for instrument in instrument_list:
     else:
         if args.verbose:
             print 'No unscored records instrument "%s"' % instrument
+
+slog.takeTimer1("script_time","{'records': " + str(len(instrument_list)) + ", 'uploaded': " +  str(count_uploaded) + "}")
