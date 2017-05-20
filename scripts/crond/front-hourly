@@ -47,4 +47,7 @@ update_args=""
 if [ ${hour} -eq 0 ]; then
     update_args+="--update-all"
 fi
-catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Update Scores (update_summary_scores)" ${SIBIS}/scripts/redcap/update_summary_scores ${update_args}
+catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Update Scores (update_summary_scores)" \
+    ${SIBIS}/scripts/redcap/update_summary_scores -p \
+    -t /fs/ncanda-share/ncanda-data-log/back-nightly \
+    ${update_args}
