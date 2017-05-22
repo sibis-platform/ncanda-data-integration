@@ -44,8 +44,8 @@ def check_for_stroop( xnat, xnat_eid_list, verbose=False ):
 
 
 # Import a Stroop file into REDCap after scoring
-def import_stroop_to_redcap( flag_post_to_github, flag_timer, xnat, stroop_eid, stroop_resource, stroop_file, \
-                             redcap_key, verbose=False, no_upload=False, post_to_github=False):
+def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, \
+                             redcap_key, verbose=False, no_upload=False, post_to_github=False, time_log_dir=False):
     if verbose:
         print "Importing Stroop data from file %s:%s" % ( stroop_eid, stroop_file )
 
@@ -68,7 +68,12 @@ def import_stroop_to_redcap( flag_post_to_github, flag_timer, xnat, stroop_eid, 
                 if re.match( '.*\.csv$', file ):
                     if verbose:
                         print "Uploading ePrime Stroop scores",file
-                    subprocess.call( [ os.path.join( bindir, 'csv2redcap' ), flag_post_to_github, flag_timer, file ] )
+                    command_array = [ os.path.join( bindir, 'csv2redcap' ) ]
+                    if post_to_github:
+                        command_array += ["-p"]
+                    elif time_log_dir:
+                        command_array += ["-t"]
+                    subprocess.call( [ command_array, file ] )
             # Upload original ePrime file for future reference
             cmd_array = [ os.path.join( import_bindir, "eprime2redcap" ) ]
             if post_to_github: 
