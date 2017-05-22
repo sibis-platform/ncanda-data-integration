@@ -697,6 +697,7 @@ runTimerForImportToPipeline=True
 for [key, row] in mr_sessions_redcap.iterrows():
     index +=1 
     subject_label = key[0]
+
     if not subject_label in subject_project_dict:
         if args.verbose: 
             print index, "Passing on", key , " does not exist in XNAT"
@@ -791,7 +792,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                 else :
                     timer_label = "mr_session_report"
 
-                import_response =  session.redcap_import_records( redcap_visit_id, timer_label, [record]) 
+                import_response =  session.redcap_import_record( redcap_visit_id, subject_label, event, timer_label, record) 
                 if not import_response : 
                     continue
 
