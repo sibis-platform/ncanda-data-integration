@@ -67,7 +67,7 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, red
                 if re.match( '.*\.csv$', file ):
                     if verbose:
                         print "Uploading ePrime Stroop scores",file
-                    subprocess.call( [ os.path.join( bindir, 'csv2redcap' ), file ] )
+                    subprocess.call( [ os.path.join( bindir, 'csv2redcap' ), '-p', '-t', file ] )
             # Upload original ePrime file for future reference
             cmd_array = [ os.path.join( import_bindir, "eprime2redcap" ) ]
             if post_to_github: 
