@@ -771,7 +771,10 @@ for [key, row] in mr_sessions_redcap.iterrows():
                     if args.force_update_stroop or not visit_log_redcap['mri_stroop_complete'][key] > 0:
                         (stroop_eid,stroop_resource,stroop_file) = stroop.check_for_stroop( xnat, xnat_data['mri_xnat_eids'].split( ' ' ), verbose=args.verbose )
                         if stroop_eid != None:
-                            stroop.import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, key, verbose=args.verbose, no_upload=args.no_upload, post_to_github=args.post_to_github)
+                            stroop.import_stroop_to_redcap( xnat, stroop_eid, \
+                                                            stroop_resource, stroop_file, key, verbose=args.verbose, \
+                                                            no_upload=args.no_upload, post_to_github=args.post_to_github, \
+                                                            time_log_dir=args.time_log_dir)
 
                 # Check if pipeline directory given and export imaging series there
                 if args.pipeline_root_dir and (this_subject_data['exclude'] != 1):
@@ -812,4 +815,4 @@ if args.verbose:
     else:
         print "Suppressed uploading of %d records to REDCap." % ( len( mr_sessions_redcap ) )
 
-slog.takeTimer1("script_time","{'TotalSessions': " + str(len(mr_sessions_redcap)) + ", 'RecordsUploaded': " +  str(records_uploaded) + "}")
+slog.takeTimer1("script_time","{'records': " + str(len(mr_sessions_redcap)) + ", 'uploads': " +  str(records_uploaded) + "}")
