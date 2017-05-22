@@ -73,7 +73,9 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, \
                         command_array += ["-p"]
                     if time_log_dir:
                         command_array += ["-t", time_log_dir]
-                    subprocess.call( [ command_array, file ] )
+
+                    command_array += [ file ]
+                    subprocess.call( command_array )
             # Upload original ePrime file for future reference
             cmd_array = [ os.path.join( import_bindir, "eprime2redcap" ) ]
             if post_to_github: 
