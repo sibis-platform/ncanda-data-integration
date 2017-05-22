@@ -30,11 +30,18 @@ parser.add_argument( "-f", "--force-update", help="Update all records in REDCap,
 parser.add_argument( "-e", "--with-excluded", help="Include records marked 'excluded' in REDCap", action="store_true")
 parser.add_argument( "-n", "--no-upload", help="Only check correspondences; do not upload results to REDCap", action="store_true")
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+parser.add_argument("-t","--time-log-dir",
+                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    action="store",
+                    default=None)
 
 args = parser.parse_args()
 
-slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages', 'import_mr_stroop')
+slog.init_log(args.verbose, args.post_to_github,'NCANDA REDCap', 'import_mr_stroop')
+slog.startTimer1()
 
+global check_uploads
+check_uploads = 0
 #
 # Check for Stroop data (ePrime log file) in given XNAT session
 #
@@ -87,6 +94,8 @@ def check_for_stroop( xnat, xnat_eid, redcap_key, verbose=False, no_upload=False
 
     # Convert downloaded Stroop file to CSV scores file
     added_files = subprocess.check_output( [ os.path.join( import_bindir, "stroop2csv" ), '--mr-session', '--record', redcap_key[0], '--event', redcap_key[1], stroop_file_path, tempdir ] )
+
+    check_uploads += added_files
 
     if len( added_files ):
         if not no_upload:
@@ -171,3 +180,5 @@ for [key,row] in mr_sessions_redcap.iterrows():
             except AttributeError, e:
                 error = "Error for xnat_eid: {}".format(e)
                 slog.info(xnat_eid,error)
+
+slog.takeTimer1("script_time","{'records': " + str(len(mr_sessions_redcap)) + ", 'uploads': " +  str(check_uploads) + "}")
