@@ -109,4 +109,4 @@ if 'records' in import_response.keys():
 if args.verbose and 'count' in import_response.keys():
     print "Successfully uploaded %d/%d records to REDCap." % ( import_response['count'], len( data ) )
 
-slog.takeTimer1("script_time","{'Records': " +  str(import_response['count']) + "}")
+slog.takeTimer1("script_time","{'records': " +  str(import_response['count']) + "}")
