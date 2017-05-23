@@ -10,7 +10,7 @@ PIPELINE_UPDATE_FLAG=1
 
 
 # Set the SIBIS environment variable to the data integration repo
-export SIBIS=${HOME}/ncanda-data-integration
+export SIBIS=`realpath $(dirname $0)/../../`
 
 # When generating a release do not update pipeline
 # exit 0
