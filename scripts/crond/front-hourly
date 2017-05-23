@@ -49,5 +49,5 @@ if [ ${hour} -eq 0 ]; then
 fi
 catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Update Scores (update_summary_scores)" \
     ${SIBIS}/scripts/redcap/update_summary_scores -p \
-    -t /fs/ncanda-share/ncanda-data-log/back-nightly \
+    -t /fs/ncanda-share/ncanda-data-log/front-hourly \
     ${update_args}
