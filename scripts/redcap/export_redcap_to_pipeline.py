@@ -479,13 +479,9 @@ for f in exports_files:
             export_rename[export_name][match.group(1)] = match.group(2)
 
 # Open connection with REDCap server for testing
-# import redcap
-# redcap_token_path = os.path.join(os.path.expanduser("~"),
-#                                  '.server_config/redcap-dataentry-token')
-# redcap_token_file = open(redcap_token_path, 'r')
-# redcap_token = redcap_token_file.read().strip()
-#
-# redcap_project = redcap.Project('https://ncanda.sri.com/redcap/api/',
-#                                 redcap_token, verify_ssl=False)
+# import sibispy
+# session = sibispy.Session()
+# session.configure()
+# redcap_project = session.connect_server('data_entry', True)
 # organize_metadata(redcap_project.metadata)
 # create_datadicts('/Users/nicholsn/Downloads/datadicts')
