@@ -4,7 +4,8 @@ import sys
 import glob
 import json
 import re
-import math 
+import math
+import hashlib
 
 import numpy as np
 import pandas as pd
@@ -250,10 +251,15 @@ def check_diffusion(session_label,session,xml_file_list,manufacturer,scanner_mod
 def main(args=None):
     # Get the gradient tables for all cases and compare to ground truth
 
+    global records
+    global uploads
+    uploads = 0
+
     if args.verbose:
       print "Checking cases in " + args.base_dir 
 
     cases = get_cases(args.base_dir, arm=args.arm, event=args.event, case=args.case)
+    records = len(cases)
 
     if cases == [] : 
         if args.case :
@@ -290,14 +296,28 @@ def main(args=None):
             scanner_model = demographics.xs([sid, args.arm, args.event])['scanner_model']
         except :
             print "Error: case " + case + "," +  args.arm + "," + args.event +" not in " + demo_path +"!"
+            error = 'Case, arm and event not in demo_path'
+            slog.info(hashlib.sha1('check_gradient_tables {} {} {}'.format(case, args.arm, args.event)).hexdigest()[0:6], error,
+                      case=str(case),
+                      arm=str(args.arm),
+                      event=str(args.event),
+                      demo_path=str(demo_path))
             continue
 
         if (isinstance(scanner, float) and math.isnan(scanner)) or (isinstance(scanner_model, float) and math.isnan(scanner_model)) :
             print "Error: Did not find scanner or model for " + sid + "/" +  args.arm + "/" + args.event +" so cannot check gradient for that scan!"
+            error = "Did not find any cases matching base_dir, case, arm, event"
+            slog.info(hashlib.sha1('check_gradient_tables {} {} {}'.format(args.base_dir, args.arm, args.event)).hexdigest()[0:6], error,
+                      base_dir=str(args.base_dir),
+                      case=str(case),
+                      arm=str(args.arm),
+                      event=str(args.event))
             continue
 
         xml_file_list = get_dti_stack(case, arm=args.arm, event=args.event)
         check_diffusion(dti_path,"",xml_file_list,scanner, scanner_model,args.decimals)
+
+    slog.takeTimer1("script_time", "{'records': " + str(len(records)) + ", 'uploads': " + str(uploads) + "}")
 
 if __name__ == '__main__':
     import argparse
@@ -323,9 +343,15 @@ if __name__ == '__main__':
                         help="Case to check - if none are defined then it checks all cases in that directory. {}".format(default), default=None)
     parser.add_argument('-v', '--verbose', dest="verbose",
                         help="Turn on verbose", action='store_true')
+    parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.",
+                        action = "store_true", default = False)
+    parser.add_argument("-t", "--time-log-dir",help = "If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                        action = "store",
+                        default = None)
     argv = parser.parse_args()
 
     # Setting up logging 
-    slog.init_log(args.verbose) 
+    slog.init_log(argv.verbose, argv.post_to_github, 'NCANDA XNAT', 'check_gradient_tables', argv.time_log_dir)
+    slog.startTimer1()
 
     sys.exit(main(argv))
