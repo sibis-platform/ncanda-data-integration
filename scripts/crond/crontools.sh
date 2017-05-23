@@ -5,10 +5,9 @@
 ##  for the copyright and license terms
 ##
 
-# Set the SIBIS environment variable to the data integration repo
-export SIBIS=${HOME}/ncanda-data-integration
-
 # Run a command, and send its output (stdout and stderr) to a given email address, but only if there is output
+export SIBIS_ADMIN_EMAIL=`grep email: ~/.sibis-general-config.yml | cut -d ' ' -f2`
+
 catch_output_email()
 {
     local mailto="$1"
@@ -21,7 +20,8 @@ catch_output_email()
 
     eval ${cmd} &> ${tmpfile}
     if [ -s ${tmpfile} ]; then
-        eval "mailx -r crond@ncanda.sri.com -s \"${subject}\" ${mailto} < ${tmpfile}"
+	
+        eval "mailx -r ${SIBIS_ADMIN_EMAIL} -s \"${subject}\" ${mailto} < ${tmpfile}"
         eval "python ${PYTHONPATH}/sibisBeta/post_issues_to_github.py --org sibis-platform --repo ncanda-operations --title \"${subject}\" --body ${tmpfile}"
     fi
 
