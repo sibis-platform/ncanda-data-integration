@@ -175,4 +175,4 @@ for form in forms_list:
                     if args.verbose:
                         print "Uploaded",import_response['count'],"records to REDCap."
 
-slog.takeTimer1("script_time","{'RecordsUploaded': " +  str(records_uploaded) + "}")
+slog.takeTimer1("script_time","{'uploads': " +  str(records_uploaded) + "}")

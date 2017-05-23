@@ -175,4 +175,4 @@ for instrument in instrument_list:
         if args.verbose:
             print 'No unscored records instrument "%s"' % instrument
 
-slog.takeTimer1("script_time","{'records': " + str(len(instrument_list)) + ", 'uploaded': " +  str(count_uploaded) + "}")
+slog.takeTimer1("script_time","{'records': " + str(len(instrument_list)) + ", 'uploads': " +  str(count_uploaded) + "}")

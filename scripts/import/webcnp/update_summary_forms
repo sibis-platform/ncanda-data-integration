@@ -219,4 +219,4 @@ else:
     if args.verbose:
         print "Successfully uploaded %d/%d records to REDCap." % ( uploaded_count, len( summary_records ) )
 
-slog.takeTimer1("script_time","{'records': " + str(len(summary_records)) + ", 'uploaded': " +  str(uploaded_count) + "}")
+slog.takeTimer1("script_time","{'records': " + str(len(summary_records)) + ", 'uploads': " +  str(uploaded_count) + "}")

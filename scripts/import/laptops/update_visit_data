@@ -599,4 +599,4 @@ for form_prefix, form_name in forms.iteritems():
     all_records += total_records
 
 
-slog.takeTimer1('script_time',"{'Uploads': " + str(all_uploaded) +", 'Records': " + str(all_records) +"}" )
+slog.takeTimer1('script_time',"{'records': " + str(all_records) + ", 'uploads': " + str(all_uploaded) + "}" )
