@@ -18,15 +18,13 @@ import sys
 import sibispy
 from sibispy import sibislogger as slog
 
-
-
 session = sibispy.Session()
 if not session.configure():
     print "Error: session configure file was not found"
 
     sys.exit()
 
-
+server_address = str(session.get_xnat_server_address())
 
 parser = argparse.ArgumentParser( description="Find new MR sessions in XNAT, check for missing and duplicate scans, and list all sessions with questionable scans." )
 parser.add_argument("-v", "--verbose", action="store_true", default=False, help="Verbose operation.")
@@ -143,6 +141,7 @@ def validate_experiment( ifc, project, sid, slabel, eid, elabel, edate, einsert 
         print "INFO: checking experiment %s (%s)" % (elabel,eid)
 
     global email
+    global server_address
 
     check_again = []
 
@@ -168,7 +167,7 @@ def validate_experiment( ifc, project, sid, slabel, eid, elabel, edate, einsert 
         else:
             check_again.append( eid )
             if args.send_mail:
-                experiment_uri = 'https://ncanda.sri.com/xnat/app/action/DisplayItemAction/search_element/xnat:mrSessionData/search_field/xnat:mrSessionData.ID/search_value/%s/popup/false' % eid
+                experiment_uri = '%s/app/action/DisplayItemAction/search_element/xnat:mrSessionData/search_field/xnat:mrSessionData.ID/search_value/%s/popup/false' % (server_address,eid)
                 email.add_user_message( einsert, 'Session "%s" (<a href="%s">%s</a>) is not named correctly (should be: "%s")' % (elabel, experiment_uri, eid, correct_label) )
             else:
                 print 'Session "%s" (%s) is not named correctly (should be: "%s")' % (elabel, eid, correct_label)
@@ -177,7 +176,7 @@ def validate_experiment( ifc, project, sid, slabel, eid, elabel, edate, einsert 
         if not re.match( experiment_label_pattern, elabel ):
             check_again.append( eid )
             if args.send_mail:
-                experiment_uri = 'https://ncanda.sri.com/xnat/app/action/DisplayItemAction/search_element/xnat:mrSessionData/search_field/xnat:mrSessionData.ID/search_value/%s/popup/false' % eid
+                experiment_uri = '%s/app/action/DisplayItemAction/search_element/xnat:mrSessionData/search_field/xnat:mrSessionData.ID/search_value/%s/popup/false' % (server_address,eid)
                 email.add_user_message( einsert, 'Session "%s" (<a href="%s">%s</a>) does not conform with naming convention (fix subject ID first)' % (elabel, experiment_uri, eid) )
             else:
                 print 'Session "%s" (%s) does not conform to naming convention' % (elabel, eid)
@@ -199,7 +198,7 @@ def validate_subject( ifc, sid, slabel, sinsert ):
     if not re.match( subject_id_pattern, slabel ):
         check_again.append( sid )
         if args.send_mail:
-            subject_uri = 'https://ncanda.sri.com/xnat/app/action/DisplayItemAction/search_element/xnat:subjectData/search_field/xnat:subjectData.ID/search_value/%s' % sid
+            subject_uri = '%s/app/action/DisplayItemAction/search_element/xnat:subjectData/search_field/xnat:subjectData.ID/search_value/%s' % (server_address,sid)
             email.add_user_message( sinsert, 'Subject name "%s" (<a href="%s">%s</a>) does not conform with ID convention' % (slabel, subject_uri, sid) )
         else:
             print 'Subject name "%s" (%s) does not conform to ID convention' % (slabel, sid)
@@ -229,7 +228,7 @@ def validate_new_and_outstanding( ifc, project, objects_to_check, date_last_chec
                 if len( [ eid for ( eid,elabel,esid,edate,einsert,emodified ) in experiment_list.items() if sid == esid ] ) == 0:
                     check_again.append( sid )
                     if args.send_mail:
-                        subject_uri = 'https://ncanda.sri.com/xnat/app/action/DisplayItemAction/search_element/xnat:subjectData/search_field/xnat:subjectData.ID/search_value/%s/project/%s' % (sid,project)
+                        subject_uri = '%s/app/action/DisplayItemAction/search_element/xnat:subjectData/search_field/xnat:subjectData.ID/search_value/%s/project/%s' % (server_address,sid,project)
                         email.add_user_message( sinsert, 'Subject "%s" (<a href="%s">%s</a>) does not have any MR sessions. Consider deleting it.' % (slabel, subject_uri, sid) )
                     else:
                         print 'Subject name "%s" (%s) does not have any MR sessions' % (slabel, sid)
@@ -255,7 +254,8 @@ ifc = session.connect_server('xnat', True)
 
 # Set up email object to contact users and admin
 from xnat_email import XnatEmail
-email = XnatEmail( ifc )
+
+email = XnatEmail( ifc, session.get_email())
 
 # Experiments to check from last run - these should be the ones we flagged last time and stored on the server for reconsideration
 objects_to_check = []

@@ -93,7 +93,7 @@ xnat_date_format = '%Y-%m-%d %H:%M:%S'
 now_str = time.strftime('%Y-%m-%d %H:%M:%S')
 
 # Set up email object to contact users and admin
-email = XnatEmail(ifc)
+email = XnatEmail(ifc,session.get_email())
 
 # Date (and time) when we last checked things
 date_last_checked = time.localtime(0)

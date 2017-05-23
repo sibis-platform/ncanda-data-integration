@@ -13,21 +13,24 @@ from email.mime.text import MIMEText
 # Parse json table
 import json
 
+from sibispy import sibislogger as slog
+
 class XnatEmail:
     """ Class handling email communication with XNAT users and admin."""
 
     # Initialize class.
-    def __init__(self, interface ):
+    def __init__(self, interface, sibis_admin_email = None):
         self._interface = interface
         # Determine server config to get admin email and public URL
         server_config = json.loads( self._interface._exec( '/data/services/settings' ) )[u'ResultSet'][u'Result']
-        self._admin_email = server_config[u'siteAdminEmail']
+        self._xnat_admin_email = server_config[u'siteAdminEmail']
+        self._sibis_admin_email = sibis_admin_email
         self._site_url = server_config[u'siteUrl']
         self._site_name = server_config[u'siteId']
         self._smtp_server = server_config[u'smtpHost']
         self._messages_by_user = dict()
         self._admin_messages = []
-
+        
     # Add to the message building up for a specific user
     def add_user_message( self, uname, msg ):
         if uname not in self._messages_by_user:
@@ -63,7 +66,11 @@ class XnatEmail:
         # sendmail function takes 3 arguments: sender's address, recipient's address
         # and message to send - here it is sent as one string.
         s.sendmail( from_email, to_email, msg.as_string() )
-        s.sendmail( from_email, 'ncanda-admin@sri.com', msg.as_string() )
+        
+        # Send email also to sibis admin if defined
+        if self._sibis_admin_email and to_email != self._sibis_admin_email : 
+            s.sendmail( from_email, self._sibis_admin_email, msg.as_string() )
+
         s.quit()
 
     # Send mail to one user
@@ -74,7 +81,7 @@ class XnatEmail:
             user_lastname = self._interface.manage.users.lastname( uid )
             user_email = self._interface.manage.users.email( uid )
 	except:
-	    print "ERROR: failed to get detail information for user",uid
+	    slog.info('xnat_email',"ERROR: failed to get detail information for user" + str(uid))
 	    return
                 
         problem_list = [ '<ol>' ]
@@ -94,9 +101,9 @@ You may want to consult the <a href="http://www.nitrc.org/docman/view.php/672/12
 If you have further questions, feel free to contact the <a href="mailto:%s">NCANDA support</a>\n\
 </p>\n\
 </body>\n\
-</html>' % (user_firstname, user_lastname, self._site_url, self._site_name, '\n'.join( problem_list ), self._admin_email)
+</html>' % (user_firstname, user_lastname, self._site_url, self._site_name, '\n'.join( problem_list ), self._xnat_admin_email)
     
-        self.send( "NCANDA XNAT: problems with your uploaded data", self._admin_email, [ user_email ], html )
+        self.send( "NCANDA XNAT: problems with your uploaded data", self._xnat_admin_email, [ user_email ], html )
 
     # Send summary mail to admin
     def mail_admin( self ):
@@ -129,7 +136,7 @@ We have detected the following problem(s) with data on <a href="%s">NCANDA XNAT 
 </body>\n\
 </html>' % (self._site_url, '\n'.join( problem_list ))
     
-        self.send( "%s XNAT problem update" % self._site_name, self._admin_email, [ self._admin_email ], html )
+        self.send( "%s XNAT problem update" % self._site_name, self._xnat_admin_email, [ self._xnat_admin_email ], html )
 
     def send_all( self ):
         # Run through list of messages by user
