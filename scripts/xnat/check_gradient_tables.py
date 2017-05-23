@@ -172,7 +172,7 @@ def get_ground_truth_gradients(scanner,scanner_model,decimals):
     return get_all_gradients(scanner_subject + "_" + test_arm + "_" + test_event, dti_stack, decimals)
     # dict(Siemens=siemens_gradients, GE=ge_gradients)
 
-def check_diffusion(session_label,session,xml_file_list,manufacturer,scanner_model,decimals):
+def check_diffusion(session_label,session,xml_file_list,manufacturer,scanner_model,decimals, post_to_github, time_log_dir):
     if len(xml_file_list) == 0 : 
         slog.info(session_label,
                       "Error: check_diffusion : xml_file_list is empty ",
@@ -249,11 +249,23 @@ def check_diffusion(session_label,session,xml_file_list,manufacturer,scanner_mod
                      
 def main(args=None):
     # Get the gradient tables for all cases and compare to ground truth
+    post_to_github = False
+    time_log_dir = None
+    global records
+    global uploads
+    uploads = 0
 
     if args.verbose:
-      print "Checking cases in " + args.base_dir 
+        print "Checking cases in " + args.base_dir
+
+    if args.post_to_github:
+        post_to_github = args.post_to_github
+
+    if args.time_log_dir:
+        time_log_dir = args.time_log_dir
 
     cases = get_cases(args.base_dir, arm=args.arm, event=args.event, case=args.case)
+    records = len(cases)
 
     if cases == [] : 
         if args.case :
@@ -285,6 +297,7 @@ def main(args=None):
             print "Processing: " + "/".join([case,args.arm, args.event])
 
         sid = os.path.basename(case)
+        uploads += 1
         try:
             scanner = demographics.xs([sid, args.arm, args.event])['scanner']
             scanner_model = demographics.xs([sid, args.arm, args.event])['scanner_model']
@@ -297,7 +310,7 @@ def main(args=None):
             continue
 
         xml_file_list = get_dti_stack(case, arm=args.arm, event=args.event)
-        check_diffusion(dti_path,"",xml_file_list,scanner, scanner_model,args.decimals)
+        check_diffusion(dti_path,"",xml_file_list,scanner, scanner_model,args.decimals, post_to_github, time_log_dir)
 
 if __name__ == '__main__':
     import argparse
@@ -323,9 +336,19 @@ if __name__ == '__main__':
                         help="Case to check - if none are defined then it checks all cases in that directory. {}".format(default), default=None)
     parser.add_argument('-v', '--verbose', dest="verbose",
                         help="Turn on verbose", action='store_true')
+    parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.",
+                        action="store_true")
+    parser.add_argument("-t", "--time-log-dir",
+                        help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                        action="store",
+                        default=None)
+
     argv = parser.parse_args()
 
-    # Setting up logging 
-    slog.init_log(args.verbose) 
+    # Setting up logging
+    slog.init_log(argv.verbose, argv.post_to_github, 'NCANDA XNAT', 'check_gradient_tables', argv.time_log_dir)
+    slog.startTimer1()
 
     sys.exit(main(argv))
+
+slog.takeTimer1("script_time","{'records': " + str(len(records)) + ", 'uploads': " +  str(uploads) + "}")
