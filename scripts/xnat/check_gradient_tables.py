@@ -251,10 +251,8 @@ def check_diffusion(session_label,session,xml_file_list,manufacturer,scanner_mod
 def main(args=None):
     # Get the gradient tables for all cases and compare to ground truth
 
-    global records
-    global uploads
-    uploads = 0
-
+    slog.startTimer1()
+ 
     if args.verbose:
       print "Checking cases in " + args.base_dir 
 
@@ -317,7 +315,7 @@ def main(args=None):
         xml_file_list = get_dti_stack(case, arm=args.arm, event=args.event)
         check_diffusion(dti_path,"",xml_file_list,scanner, scanner_model,args.decimals)
 
-    slog.takeTimer1("script_time", "{'records': " + str(records) + ", 'uploads': " + str(uploads) + "}")
+    slog.takeTimer1("script_time", "{'records': " + str(len(records)) + "}")
 
 if __name__ == '__main__':
     import argparse
@@ -352,6 +350,5 @@ if __name__ == '__main__':
 
     # Setting up logging 
     slog.init_log(argv.verbose, argv.post_to_github, 'NCANDA XNAT', 'check_gradient_tables', argv.time_log_dir)
-    slog.startTimer1()
-
+    
     sys.exit(main(argv))
