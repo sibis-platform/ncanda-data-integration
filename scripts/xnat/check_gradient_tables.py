@@ -257,7 +257,6 @@ def main(args=None):
       print "Checking cases in " + args.base_dir 
 
     cases = get_cases(args.base_dir, arm=args.arm, event=args.event, case=args.case)
-    records = cases
 
     if cases == [] : 
         if args.case :
@@ -315,7 +314,7 @@ def main(args=None):
         xml_file_list = get_dti_stack(case, arm=args.arm, event=args.event)
         check_diffusion(dti_path,"",xml_file_list,scanner, scanner_model,args.decimals)
 
-    slog.takeTimer1("script_time", "{'records': " + str(len(records)) + "}")
+    slog.takeTimer1("script_time", "{'records': " + str(len(cases)) + "}")
 
 if __name__ == '__main__':
     import argparse
