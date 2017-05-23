@@ -302,4 +302,4 @@ for [key,row] in visit_log_redcap.iterrows():
                             if args.verbose:
                                 print "If locked form report changed from existing version than updated: {0}".format(filename)
 
-slog.takeTimer1("script_time","{'Records': " + str(len(visit_log_redcap)) + ", 'Uploaded': " +  str(uploads) + "}")
+slog.takeTimer1("script_time","{'records': " + str(len(visit_log_redcap)) + ", 'uploads': " +  str(uploads) + "}")
