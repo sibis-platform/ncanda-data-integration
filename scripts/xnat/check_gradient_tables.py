@@ -257,7 +257,7 @@ def main(args=None):
       print "Checking cases in " + args.base_dir 
 
     cases = get_cases(args.base_dir, arm=args.arm, event=args.event, case=args.case)
-    records = len(cases)
+    records = cases
 
     if cases == [] : 
         if args.case :
