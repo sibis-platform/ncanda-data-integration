@@ -42,11 +42,17 @@ parser.add_argument("svndir",
 parser.add_argument("outdir",
                     help="Output directory. All CSV files are created in subdirectories"
                          " of this directory.")
-parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true",
+                    default=False)
+parser.add_argument("-t","--time-log-dir",
+                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    action="store",
+                    default=None)
 args = parser.parse_args()
 
 # Setup logging
 slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: Harvester Message', 'harvester')
+slog.startTimer1()
 
 # Figure out where this script is, so we can get path to other scripts.
 
@@ -72,11 +78,15 @@ def run_converter(site, command):
                         if args.verbose:
                             print "Importing", fi, "into REDCap"
                         if args.force_upload:
-                            subprocess.call([os.path.join(bindir, 'csv2redcap'), '--force-update', '--data-access-group', site, fi])
+                            subprocess.call([os.path.join(bindir, 'csv2redcap'), '--force-update', args.post_to_github,
+                                             '--data-access-group', site, fi])
                         else:
-                            subprocess.call([os.path.join(bindir, 'csv2redcap'), '--data-access-group', site, fi])
+                            subprocess.call([os.path.join(bindir, 'csv2redcap'), args.post_to_github,
+                                             '--data-access-group', site, fi])
                     except:
-                        print "FAILED: importing", fi, "into REDCap"
+                        error = "Failed importing files into REDCap"
+                        slog.info(hashlib.sha1('harvester {}'.format(fi)).hexdigest()[0:6], error,
+                                  file=str(fi))
                 else:
                     print 'NOT A CSV FILE:', fi
     except:
@@ -173,3 +183,6 @@ if args.file_to_upload:
 # Process all updated or added files
 for file in updated_files:
     handle_file_update( file )
+
+slog.takeTimer1("script_time","{'records': " + str(len(updated_files)) + "}")
+
