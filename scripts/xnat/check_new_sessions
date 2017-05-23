@@ -74,14 +74,14 @@ slog.startTimer1()
 
 session = sibispy.Session()
 if not session.configure() :
-    if verbose:
+    if args.verbose:
         print "Error: session configure file was not found"
  
     sys.exit()
 
 ifc = session.connect_server('xnat', True)
 if not ifc : 
-    if verbose:
+    if args.verbose:
         print "Error: Could not connect to XNAT" 
 
     sys.exit()
@@ -753,7 +753,9 @@ for (eid, project, subject, insert_date,
                 scanner_model,
                 scan,
                 scantype,
-                verbose=args.verbose)
+                verbose=args.verbose,
+                post_to_github=args.post_to_github,
+                time_log_dir=args.time_log_dir)
             if len(error_msg) or niftisWereCreatedFlag:
                 # Remove qc_file as session has to be checked again 
                 remove_file(qc_file_tmp)
@@ -941,4 +943,4 @@ if not args.no_update:
                         body=','.join(set(experiments_for_next_run)),
                         headers={'content-type': 'text/plain'})
 
-slog.takeTimer1("script_time","{'NewSessions': " + str(len(new_session_links)) + "}")
+slog.takeTimer1("script_time","{'records': " + str(len(new_session_links)) + "}")
