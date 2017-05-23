@@ -317,7 +317,7 @@ def main(args=None):
         xml_file_list = get_dti_stack(case, arm=args.arm, event=args.event)
         check_diffusion(dti_path,"",xml_file_list,scanner, scanner_model,args.decimals)
 
-    slog.takeTimer1("script_time", "{'records': " + str(len(records)) + ", 'uploads': " + str(uploads) + "}")
+    slog.takeTimer1("script_time", "{'records': " + str(records) + ", 'uploads': " + str(uploads) + "}")
 
 if __name__ == '__main__':
     import argparse
