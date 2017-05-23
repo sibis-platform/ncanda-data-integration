@@ -85,6 +85,8 @@ if not ifc :
         print "Error: Could not connect to XNAT" 
 
     sys.exit()
+
+server_address = str(session.get_xnat_server_address())
     
 log_dir = os.path.join(session.get_log_dir(),'check_new_sessions')
 if not os.path.exists(log_dir):
@@ -233,10 +235,10 @@ adni_ids = adni_ids_search.get('subject_id')
 
 
 # Make a direct link to XNAT session
-def make_session_link(eid, project, label):
+def make_session_link(server_address,eid, project, label):
     html_list = ['<li>',
                  '<a href=',
-                 'https://ncanda.sri.com/xnat/app/action/DisplayItemAction/',
+                 server_address + '/app/action/DisplayItemAction/',
                  'search_value/',
                  eid,
                  '/search_element/xnat:mrSessionData/search_field/',
@@ -682,7 +684,8 @@ for (eid, project, subject, insert_date,
         continue
 
     # Link to the session
-    session_html_link, session_file_link = make_session_link(eid,
+    session_html_link, session_file_link = make_session_link(server_address,
+                                                             eid,
                                                              project,
                                                              session_label)
 
@@ -851,7 +854,7 @@ for (eid, project, subject, insert_date,
 # Make links for all "new" sessions, i.e., those inserted after the
 # "last checked" date
 new_session_links = [
-    make_session_link(eid, project, label)
+    make_session_link(server_address,eid, project, label)
     for (eid, project, subject,
          insert_date, label, last_modified) in new_sessions
     if insert_date >= str_date_last_checked]
