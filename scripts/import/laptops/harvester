@@ -187,5 +187,8 @@ if args.file_to_upload:
 for file in updated_files:
     handle_file_update( file )
 
+if args.verbose: 
+    print "Records uploaded: "  + str(len(updated_files))
+
 slog.takeTimer1("script_time","{'records': " + str(len(updated_files)) + "}")
 
