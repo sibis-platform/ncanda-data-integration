@@ -13,7 +13,7 @@ import csv
 
 import pandas
 
-from sibisBeta import sibislogger as slog
+from sibispy import sibislogger as slog
 import recover_yn_variables as recyn
 
 # Setup command line parser

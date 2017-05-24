@@ -11,7 +11,7 @@ import subprocess
 
 import sys
 
-from sibisBeta import sibislogger as slog
+from sibispy import sibislogger as slog
 import hashlib
 
 # Setup command line parser

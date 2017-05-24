@@ -22,7 +22,7 @@ catch_output_email()
     if [ -s ${tmpfile} ]; then
 	
         eval "mailx -r ${SIBIS_ADMIN_EMAIL} -s \"${subject}\" ${mailto} < ${tmpfile}"
-        eval "python ${PYTHONPATH}/sibisBeta/post_issues_to_github.py --org sibis-platform --repo ncanda-operations --title \"${subject}\" --body ${tmpfile}"
+        eval "python ${PYTHONPATH}/sibispy/post_issues_to_github.py --org sibis-platform --repo ncanda-operations --title \"${subject}\" --body ${tmpfile}"
     fi
 
     rm -f ${tmpfile}
