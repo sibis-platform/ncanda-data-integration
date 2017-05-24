@@ -5,16 +5,16 @@
 ##  for the copyright and license terms
 ##
 
-import os
 import re
 import sys
 import string
-import hashlib
 import argparse
+import hashlib
 
-import sibis
-import redcap
 import pandas as pd
+
+import sibispy
+from sibispy import sibislogger as slog
 
 parser = argparse.ArgumentParser(description="Import contents of CSV file into "
                                              "non-longitudinal REDCap project")
@@ -25,11 +25,7 @@ parser.add_argument("-f", "--force-update",
                     help="Force updates even when records are already marked "
                          "'Complete'",
                     action="store_true")
-parser.add_argument("--api-key-file",
-                    help="File containing API Key for REDCap project",
-                    default=os.path.join(
-                        os.path.expanduser("~"),
-                        '.server_config/redcap-laptopimport-token'))
+parser.add_argument( "--project", help="REDCAP project (import_laptops, import_webcnp, or data_entry)", default="import_laptops" )
 parser.add_argument("--data-access-group",
                     help="REDCap project data access group that the imported "
                          "data should be assigned to.",
@@ -37,20 +33,33 @@ parser.add_argument("--data-access-group",
 parser.add_argument("csvfile",
                     nargs='+',
                     help="Input .csv file.")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+
+parser.add_argument("-t","--time-log-dir",
+                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    action="store",
+                    default=None)
+
 args = parser.parse_args()
 
+slog.init_log(args.verbose, args.post_to_github,'NCANDA Import', 'import-laptops-csv2redcap', args.time_log_dir)
+slog.startTimer1()
+
 # Open connection to REDCap server
-key_file = open(args.api_key_file, 'r')
-api_key = key_file.read().strip()
-try:
-    project = redcap.Project('https://ncanda.sri.com/redcap/api/',
-                             api_key,
-                             verify_ssl=False)
-except Exception as error:
-    sibis.logging(hashlib.sha1('csv2redcap').hexdigest()[0:6],
-                  "ERROR: Could not connect to redcap!",
-                  script='csv2redcap',
-                  msg=str(error))
+
+session = sibispy.Session()
+if not session.configure():
+    if args.verbose:
+        print "Error: session configure file was not found"
+
+    sys.exit()
+
+project = session.connect_server(args.project, True)
+
+if not project:
+    if args.verbose:
+        print "Error: Could not connect to Redcap"
+
     sys.exit()
 
 # List of failed files
@@ -60,6 +69,9 @@ failed = []
 # Process one file.
 def process_file(fname):
     # Read input file
+    global records
+    global uploaded
+
     data = pd.read_csv(fname, dtype=object)
 
     # Replace periods in column labels with underscores
@@ -105,7 +117,9 @@ def process_file(fname):
 
     # If there were any errors, try to print them as well as possible
     if 'error' in import_response.keys():
-        print "UPLOAD ERROR:", import_response['error']
+        error = "Upload error"
+        slog.info(hashlib.sha1('import-laptops-csv2redcap {}'.format(import_response['error'])).hexdigest()[0:6], error,
+                  error_msg=str(import_response['error']))
 
     if 'fields' in import_response.keys():
         for field in import_response['fields']:
@@ -117,16 +131,24 @@ def process_file(fname):
 
     # Finally, print upload status if so desired
     if 'count' in import_response.keys():
+        uploaded += import_response['count']
+        records += len(data)
         if args.verbose:
             print "Successfully uploaded %d/%d records to REDCap." % \
                   (import_response['count'], len(data))
     else:
-        failed.append(f)
+        failed.append(fname)
 
 # Process all files from the command line
+uploaded = 0 
+records = 0
 for f in args.csvfile:
     process_file(f)
 
 # Print failures
 if len(failed) > 0:
-    sys.exit('ERROR uploading file(s):\n%s' % '\n'.join(failed))
+    slog.log(hashlib.sha1('import-laptops-csv2redcap {}'.format(' '.join(failed))).hexdigest()[0:6], "ERROR uploading file(s)",
+             files_not_uploaded = str(failed) )
+    sys.exit()
+
+slog.takeTimer1("script_time","{'records': " + str(records) +  ", 'uploads': " +  str(uploaded) + "}")
