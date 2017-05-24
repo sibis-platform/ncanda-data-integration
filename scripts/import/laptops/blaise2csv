@@ -201,4 +201,4 @@ if not args.no_xvfb:
     Xvfb.terminate()
 devnull.close()
 
-slog.takeTimer1("script_time","{'records': " + str(1) + "}")
+slog.takeTimer1("script_time","")
