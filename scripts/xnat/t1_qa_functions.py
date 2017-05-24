@@ -7,13 +7,12 @@
 
 import os
 import re
-import json
 import shutil
 import tempfile
 import subprocess
 import hashlib
 
-import sibis
+from sibispy import sibislogger as slog
 
 # Check the phantom XML file for various thresholds
 def check_xml_file( xml_file, project, session, label ):
@@ -62,7 +61,7 @@ def check_xml_file( xml_file, project, session, label ):
                         warnings.append( "Nonlinearity[%d]=%f" % (project,session,idx,nonlinear) )
     except:
          error='Could not open XML file for experiment.'
-         sibis.logging(session,error,
+         slog.info(session,error,
                      project_id=project)
 
 
@@ -72,7 +71,7 @@ def check_xml_file( xml_file, project, session, label ):
     # Print warnings if there were any
     if len( warnings ) > 0:
         warning = " ".join(warnings)
-        sibis.logging(label, warning,
+        slog.info(label, warning,
                       session_id=session,
                       project=project,
                       script='t1_qa_functions')
@@ -92,7 +91,7 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
     subprocess.call( 'cmtk dcm2image --tolerance 1e-3 -rO %s %s >& /dev/null' % ( nii_file, dicom_path ), shell=True )
     if not os.path.exists( nii_file ):
         error = "ERROR: NIFTI file was not created from DICOM files experiment"
-        sibis.logging('{}/{}'.format(project,session),error,
+        slog.info('{}/{}'.format(project,session),error,
                          session = session,
                          project = project,
                          nii_file = nii_file,
@@ -112,7 +111,7 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
     subprocess.call( 'cmtk detect_adni_phantom --tolerant --refine-xform --erode-snr 15 --write-labels %s %s %s' % ( lbl_file, nii_file, xml_file ), shell=True )
     if not os.path.exists( xml_file ) or not os.path.exists( lbl_file ):
         error = "ERROR: mandatory output file (either xml or label image) was not created from file %s, experiment %s/%s/%s" % ( nii_file,project,session,label )
-        sibis.logging('{}/{}/{}'.format(project,session,label),error,
+        slog.info('{}/{}/{}'.format(project,session,label),error,
                        nii_file=nii_file,
                        project = project,
                        session = session,
@@ -162,5 +161,5 @@ def process_phantom_session( interface, project, subject, session, label, force_
             # If there was no matching scan in the session, print a warning
             warning = "WARNING: ADNI phantom session: {}, experiment: {}, subject: {} does not have \
                        a usable T1-weighted scan".format(session, experiment, subject)
-            sibis.logging(hashlib.sha1('t1_qa_functions').hexdigest()[0:6], warning,
+            slog.info(hashlib.sha1('t1_qa_functions').hexdigest()[0:6], warning,
                           script='t1_qa_functions')
