@@ -919,7 +919,7 @@ if args.send_mail_to:
     from xnat_email import XnatEmail
     email = XnatEmail( ifc )
     email.send('NCANDA XNAT - MRI Session Report',
-               email._admin_email,
+               email._xnat_admin_email,
                args.send_mail_to.split(','),
                html)
 elif args.verbose:
