@@ -14,9 +14,6 @@ import hashlib
 
 import yaml
 import pandas
-import redcap
-import pyxnat
-import sibis
 
 import export_mr_sessions_pipeline as mrpipeline
 import export_redcap_to_pipeline as rcpipeline
@@ -74,13 +71,11 @@ with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
     site_change_map = yaml.load(fi).get('site_change')
     export_measures_map = site_change_map.get('export_measures')
 
-try:
-    redcap_project = session.connect_server('data_entry', True)
-except redcap.RedcapError as e:
-    error = "Error creating object redcap.Project()"
-    slog.info(hashlib.sha1('export_measures').hexdigest()[0:6], error,
-                  script='export_measures',
-                  msg=str(e))
+redcap_project = session.connect_server('data_entry', True)
+if not redcap_project :
+    if args.verbose:
+        print "Error: Could not connect to Redcap"
+
     sys.exit()
 
 
@@ -102,8 +97,14 @@ if args.locked_form_report:
         print "Configured to output a report of locked forms..."
         print "Connected to REDCap MySQL: {0}".format(engine)
 
+
 # Open connection with XNAT server
-xnat = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+xnat = session.connect_server('xnat',True)
+if not xnat :
+    if args.verbose:
+        print "Error: Could not connect to XNAT"
+
+    sys.exit()
 
 #
 # Get subject and project IDs
