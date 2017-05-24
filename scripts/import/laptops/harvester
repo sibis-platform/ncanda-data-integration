@@ -51,7 +51,7 @@ parser.add_argument("-t","--time-log-dir",
 args = parser.parse_args()
 
 # Setup logging
-slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: Harvester Message', 'harvester')
+slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: Harvester Message', 'harvester', args.time_log_dir)
 slog.startTimer1()
 
 # Figure out where this script is, so we can get path to other scripts.
@@ -82,7 +82,7 @@ def run_converter(site, command):
                             command_array += ['--force-update']
                         if args.post_to_github:
                             command_array += ["-p"]
-                        if args.file_to_upload:
+                        if args.time_log_dir:
                             command_array += ["-t", args.time_log_dir]
                         command_array += ['--data-access-group', site, fi]
                         subprocess.call(command_array)
