@@ -109,6 +109,7 @@ def handle_file( path, site, filename):
     else:
         post_to_github = []
 
+    subject_label = path.split('/')[-2]
     # Is this a LimeSurvey file?
     if re.match( '^survey.*\.csv$', filename ):
         run_converter( site, [ os.path.join( bindir, "lime2csv" ) ] + overwrite + post_to_github + [ path, os.path.join( args.outdir, site, "limesurvey" ) ] )
@@ -119,9 +120,8 @@ def handle_file( path, site, filename):
         try:
             subprocess.check_output([os.path.join(bindir, "eprime2redcap"), path, 'stroop_log_file'])
         except:
-            slog.info(hashlib.sha1('harvester').hexdigest()[0:6],
+            slog.info(subject_label,
                           "ERROR: could not upload Stroop file",
-                          subject_label=path.split('/')[-2],
                           filename=filename,
                           script='harvester')
     # Is this a Delayed Discounting file?
@@ -132,12 +132,19 @@ def handle_file( path, site, filename):
         run_converter( site, [ os.path.join( bindir, "pasat2csv" ) ] + overwrite + [ path, os.path.join( args.outdir, site, "pasat" ) ] )
     # Is this a SSAGA (Blaise) database?
     elif re.match( '^NSSAGA_v3\.bdb$', filename ) or re.match( '.*\.[Aa][Ss][Cc]$', filename ):
+        command_array = [site, os.path.join(bindir, 'blaise2csv')]
+        if args.time_log_dir:
+            command_array += ["-t", args.time_log_dir]
+        if args.post_to_github:
+            command_array += ["-p"]
         if 'Youth_SAAGAv3' in path:
-            run_converter( site, [ os.path.join( bindir, "blaise2csv" ) ] + overwrite + [ path, 'youth', os.path.join( args.outdir, site, "ssaga" ) ] )
+            command_array += overwrite + [ path, 'youth', os.path.join( args.outdir, site, "ssaga" ) ]
         elif 'Parent_SAAGAv3' in path:
-            run_converter( site, [ os.path.join( bindir, "blaise2csv" ) ] + overwrite + [ path, 'parent', os.path.join( args.outdir, site, "ssaga" ) ] )
+            command_array += overwrite + [ path, 'parent', os.path.join( args.outdir, site, "ssaga" ) ]
         else:
-            print "ERROR: could not determine whether",path,"contains Youth or Parent SSAGA"
+            slog.info(subject_label, 'ERROR: could not determine whether the path contains Youth or Parent SSAGA',
+                      path=str(path))
+        run_converter(command_array)
 
 #
 # Function: handle updated file by dispatching to the correct subhandler
@@ -191,4 +198,5 @@ if args.verbose:
     print "Records uploaded: "  + str(len(updated_files))
 
 slog.takeTimer1("script_time","{'records': " + str(len(updated_files)) + "}")
+
 
