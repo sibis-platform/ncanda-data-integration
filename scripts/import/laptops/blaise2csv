@@ -170,7 +170,7 @@ parser.add_argument("-t","--time-log-dir",
                     default=None)
 args = parser.parse_args()
 
-slog.init_log(args.verbose, args.post_to_github,'NCANDA Import', 'blaise2csv', args.time_log_dir)
+slog.init_log(args.verbose, args.post_to_github,'NCANDA Import Laptop', 'blaise2csv', args.time_log_dir)
 slog.startTimer1()
 
 # Determine directory name - create if it doesn't exist
