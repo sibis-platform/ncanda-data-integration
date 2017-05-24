@@ -202,3 +202,4 @@ if not args.no_xvfb:
 devnull.close()
 
 slog.takeTimer1("script_time","{'records': " + str(1) + "}")
+
