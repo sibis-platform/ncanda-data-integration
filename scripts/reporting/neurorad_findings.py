@@ -22,8 +22,6 @@ no_findings_or_date - no findings or findings date listed
 no_findings_before_date - filters no_findings_or_date by date
 
 """
-__author__ = 'Nolan Nichols <https://orcid.org/0000-0003-1099-3328>'
-__modified__ = "2015-08-31"
 
 import os
 

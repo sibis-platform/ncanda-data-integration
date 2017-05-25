@@ -8,8 +8,6 @@ NCANDA XNAT Extractor
 
 Extract all experiment, scan, and reading data from NCANDA's XNAT server.
 """
-__author__ = "Nolan Nichols <http://orcid.org/0000-0003-1099-3328>"
-__modified__ = "2015-08-26"
 
 import os
 import glob

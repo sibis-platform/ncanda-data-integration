@@ -20,7 +20,6 @@ python redcap_form_locker.py --project ncanda_subject_visit_log
                              --username nicholsn (need locking permissions)
                              --lock or --unlock
 """
-__author__ = 'Nolan Nichols <https://orcid.org/0000-0003-1099-3328>'
 
 import os
 import sys

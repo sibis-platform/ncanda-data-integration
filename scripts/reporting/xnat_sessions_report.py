@@ -24,8 +24,6 @@ Example
 - Use the existing cache to extract 10 in the followup window
  ./xnat_sessions_report.py --num_extract 10 --min 180 --max 540
 """
-__author__ = "Nolan Nichols <http://orcid.org/0000-0003-1099-3328>"
-__modified__ = "2016-05-09"
 
 import os
 

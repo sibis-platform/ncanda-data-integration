@@ -7,8 +7,6 @@
 """
 Validate that the last digit of a Subject ID is the same as the last digit of the dob checksum
 """
-__author__ = 'Nolan Nichols <nolan.nichols@gmail.com'
-
 # system packages
 import sys
 import hashlib

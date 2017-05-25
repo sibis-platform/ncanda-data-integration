@@ -12,7 +12,6 @@ check_siblings
 * verify that the selected representative really the first enrolled
 
 """
-__author__ = 'Nolan Nichols <nolan.nichols@gmail.com'
 
 # system packages
 import os

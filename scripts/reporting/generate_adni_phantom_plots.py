@@ -7,7 +7,6 @@
 """
 Generate a plot of the SNR across NCANDA sites.
 """
-__author__ = "Nolan Nichols"
 
 import os
 import glob
