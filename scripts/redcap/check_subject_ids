@@ -118,14 +118,15 @@ if __name__ == "__main__":
 
         sys.exit()
 
+    
     (records_bad_dob,records_bad_sex,records_no_dag) = validate_subject_id(project_interface)
-
-    if len(records_bad_sex):
+    
+    if len(records_bad_dob):
         slog.info(hashlib.sha1('check_subject_ids {}'.format(records_bad_dob)).hexdigest()[0:6],
                        "Checksum does not match birth date for the following subjects",
                         list_subjects=str(records_bad_dob))
 
-    if len(records_no_dag):
+    if len(records_bad_sex):
         slog.info(hashlib.sha1('check_subject_ids {}'.format(records_bad_sex)).hexdigest()[0:6],
                   "Sex code in subject ID does not match entered gender for the following subjects",
                   list_subjects=str(records_bad_sex))
