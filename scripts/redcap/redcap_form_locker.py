@@ -29,33 +29,8 @@ import ConfigParser
 import pandas as pd
 from pandas.io.sql import execute
 
-from sqlalchemy import create_engine
-
-
-def create_connection(cfg):
-    """
-    Create an engine for mysql
-
-    :param cfg: str
-    :return: `sqlalchemy.Engine`
-    """
-    # Get the redcap mysql configuration
-    config = ConfigParser.RawConfigParser()
-    config_path = os.path.expanduser(cfg)
-    config.read(config_path)
-
-    user = config.get('redcap', 'user')
-    passwd = config.get('redcap', 'passwd')
-    db = config.get('redcap', 'db')
-    hostname = config.get('redcap', 'hostname')
-
-    connection_string = "mysql+pymysql://{0}:{1}@{2}/{3}".format(user,
-                                                                 passwd,
-                                                                 hostname,
-                                                                 db)
-    engine = create_engine(connection_string, pool_recycle=3600)
-    return engine
-
+import sibispy
+from sibispy import sibislogger as slog
 
 def get_project_id(project_name, engine):
     """
@@ -242,10 +217,21 @@ def report_locked_forms(site_id, xnat_id, forms, project_name,
 
 def main(args=None):
     if args:
-        if args.verbose:
-            print "Parameters specified: {0}".format(args)
-            print "Connecting to REDCap Mysql..."
-        engine = create_connection(args.config)
+        slog.startTimer1()
+        session = sibispy.Session()
+        if not session.configure() :
+            if verbose:
+                print "Error: session configure file was not found"
+            
+            sys.exit(1)
+
+        engine = session.connect_server('redcap_mysql_db', True)
+        if not engine : 
+            if verbose:
+                print "Error: Could not connect to REDCap mysql db" 
+
+            sys.exit(1)
+
         if args.verbose:
             print "Connected to REDCap using: {0}".format(engine)
         if args.unlock and args.lock:
@@ -265,6 +251,8 @@ def main(args=None):
                 print "The {0} form has been unlocked".format(args.form)
         if args.verbose:
             print "Done!"
+
+        slog.takeTimer1("script_time")
 
 if __name__ == "__main__":
     import argparse
@@ -298,5 +286,11 @@ if __name__ == "__main__":
                         help="Path to config file. {0}".format(default))
     parser.add_argument("-v", "--verbose", dest="verbose",
                         help="Turn on verbose", action='store_true')
+    parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+    parser.add_argument("-t","--time-log-dir", help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)", action="store", default=None)
+
     args = parser.parse_args()
+
+    slog.init_log(args.verbose, args.post_to_github,'NCANDA REDCAP', 'redcap_form_locker', args.time_log_dir)
+
     sys.exit(main(args=args))
