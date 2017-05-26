@@ -29,10 +29,10 @@ import ConfigParser
 import pandas as pd
 from pandas.io.sql import execute
 
+from sqlalchemy import create_engine
+
 import sibispy
 from sibispy import sibislogger as slog
-
-from sqlalchemy import create_engine
 
 
 
