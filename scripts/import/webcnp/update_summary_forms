@@ -49,9 +49,20 @@ if not session.configure():
     sys.exit()
 
 rc_import = session.connect_server('import_webcnp', True)
+if not rc_import : 
+    if verbose:
+        print "Error: Could not connect to the REDCap project 'import_webcnp'" 
+
+    sys.exit(1)
+
 
 # Second connection for the Summary project (this is where we put data)
 rc_summary = session.connect_server('data_entry', True)
+if not rc_summary : 
+    if verbose:
+        print "Error: Could not connect to the REDCap project 'data_entry'" 
+
+    sys.exit(1)
 
 # Get list of variables common to import and summary projects (minus 'cnp_' prefix in the latter)
 cnp_copy_variables = cnp.get_copy_variables( rc_import, rc_summary )
