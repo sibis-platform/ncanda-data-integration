@@ -4,25 +4,54 @@
 ##  See COPYING file distributed along with the ncanda-data-integration package
 ##  for the copyright and license terms
 ##
+from optparse import OptionParser
+import os
+import time
+import json
+import fmri_qa_functions as qa
+import sys
+import argparse
+
+import sibispy
+from sibispy import sibislogger as slog
 
 # Define command line options for this script
-from optparse import OptionParser
-parser = OptionParser()
-parser.add_option("-f", "--force-updates", action="store_true", dest="force_updates", default=False, help="Force updates of QA analyses for all subject scan experiments.")
-(options, args) = parser.parse_args()
+formatter = argparse.RawDescriptionHelpFormatter
+default = 'default: %(default)s'
+parser = argparse.ArgumentParser(prog="redcap_form_locker.py",
+                                 description=__doc__,
+                                 formatter_class=formatter)
+parser.add_argument("-f", "--force-updates", action="store_true", dest="force_updates", default=False, help="Force updates of QA analyses for all subject scan experiments.")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+parser.add_argument("-t","--time-log-dir",
+                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    action="store",
+                    default=None)
+args = parser.parse_args()
+
+slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT', 'fmri_qa_subjects', args.time_log_dir)
+slog.startTimer1()
+
+session = sibispy.Session()
+if not session.configure() :
+    if args.verbose:
+        print "Error: session configure file was not found"
+
+    sys.exit()
 
 # Create interface using stored configuration
-import os
-import pyxnat
-interface = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+interface = session.connect_server('xnat',True)
+if not xnat :
+    if args.verbose:
+        print "Error: Could not connect to XNAT"
+
+    sys.exit()
 
 # Date format for XNAT dates
-import time
 xnat_date_format = '%Y-%m-%d %H:%M:%S'
 now_str = time.strftime( xnat_date_format )
 
 # Date (and time) when we last checked things
-import json
 config_uri = '/data/config/pyxnat/fmri_qa_subject'
 date_last_checked = time.localtime(0)
 try:
@@ -34,13 +63,17 @@ try:
 #    print 'Script was last run %s' % date_last_checked
 except:
     # If we cannot get last script run date from server, leave at epoch (Jan 1, 1970)
-    interface = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+    interface = session.connect_server('xnat',True)
+    if not xnat :
+        if args.verbose:
+            print "Error: Could not connect to XNAT"
+
+        sys.exit()
 
 # For comparison - convert time of last check to string in XNAT date format
 str_date_last_checked = time.strftime( xnat_date_format, date_last_checked )
 
 # Now find all subject sessions and see which ones need to have QA done
-import fmri_qa_functions as qa
 # Search XNAT database for all Subjects (i.e., all non-phantoms)
 subject_IDs = interface.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID','xnat:subjectData/PROJECT']).where([('xnat:subjectData/SUBJECT_LABEL','NOT LIKE','%-P-%')]).items()
 for [subject,project] in subject_IDs:
@@ -54,3 +87,5 @@ for [subject,project] in subject_IDs:
 
 # Finally, update config stored on the server to have current date/time as the time that this script was last run
 content = interface._exec( uri='%s?inbody=true' % config_uri, method='PUT', body=now_str, headers={'content-type':'text/plain'} )
+
+slog.takeTimer1("script_time","{'records': " + str(len(subject_IDs)) + "}")
