@@ -10,25 +10,55 @@ import re
 import sys
 import json
 import time
-
-import pyxnat
+import sys
+import argparse
 
 import fmri_qa_functions as qa
 import t1_qa_functions as t1qa
+import sibispy
+from sibispy import sibislogger as slog
 
 # Define command line options for this script
-from optparse import OptionParser
-parser = OptionParser()
-parser.add_option("-v", "--verbose", action="store_true", dest="verbose", default=False, help="Verbose operation.")
-parser.add_option("-f", "--force-updates", action="store_true", dest="force_updates", default=False, help="Force updates of QA analyses for all phantom scan experiments.")
-parser.add_option("-a", "--check-all", action="store_true", dest="check_all", default=False, help="Check all phantom sessions, regardless of date.")
-parser.add_option("--exclude-adni", action="store_true", dest="exclude_adni", default=False, help="Exclude all (structural) ADNI phantom scans.")
-parser.add_option("--exclude-fbirn", action="store_true", dest="exclude_fbirn", default=False, help="Exclude all (functional) fBIRN phantom scans.")
-parser.add_option("--subj-label", action="store", dest="subj_label", default=None, help="Limit processing by subject_label, e.g., C-70019-F-2-20160513")
-(options, args) = parser.parse_args()
+formatter = argparse.RawDescriptionHelpFormatter
+default = 'default: %(default)s'
+parser = argparse.ArgumentParser(prog="redcap_form_locker.py",
+                                 description=__doc__,
+                                 formatter_class=formatter)
+parser.add_argument("-v", "--verbose", action="store_true", dest="verbose", default=False, help="Verbose operation.")
+parser.add_argument("-f", "--force-updates", action="store_true", dest="force_updates", default=False, help="Force updates of QA analyses for all phantom scan experiments.")
+parser.add_argument("-a", "--check-all", action="store_true", dest="check_all", default=False, help="Check all phantom sessions, regardless of date.")
+parser.add_argument("--exclude-adni", action="store_true", dest="exclude_adni", default=False, help="Exclude all (structural) ADNI phantom scans.")
+parser.add_argument("--exclude-fbirn", action="store_true", dest="exclude_fbirn", default=False, help="Exclude all (functional) fBIRN phantom scans.")
+parser.add_argument("--subj-label", action="store", dest="subj_label", default=None, help="Limit processing by subject_label, e.g., C-70019-F-2-20160513")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+parser.add_argument("-t","--time-log-dir",
+                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    action="store",
+                    default=None)
+
+args = parser.parse_args()
+print args
+slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT', 'phantom_qa', args.time_log_dir)
+slog.startTimer1()
+
+counter_records = 0
+counter_uploads = 0
 
 # Create interface using stored configuration
-interface = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+session = sibispy.Session()
+if not session.configure() :
+    if args.verbose:
+        print "Error: session configure file was not found"
+
+    sys.exit()
+
+# Create interface using stored configuration
+interface = session.connect_server('xnat',True)
+if not xnat :
+    if args.verbose:
+        print "Error: Could not connect to XNAT"
+
+    sys.exit()
 interface._memtimeout = 0
 
 # Date format for XNAT dates
@@ -47,7 +77,7 @@ try:
     if options.verbose:
         print 'Script was last run %s' % creation_date
 except:
-    # If we cannot get last script run date from server, leave at epoch (Jan 1, 1970)    
+    # If we cannot get last script run date from server, leave at epoch (Jan 1, 1970)
     if options.verbose:
         print 'Unable to retrieve date of last script run from server.'
 
@@ -57,6 +87,7 @@ str_date_last_checked = time.strftime( xnat_date_format, date_last_checked )
 
 def process_fbirn(phantom_subjects_IDs):
     for [phantom, project, label] in phantom_subject_IDs:
+        counter_records += 1
         # For each phantom subject (one per project), get the IDs and last_modified dates of all its imaging sessions
         phantom_sessions = interface.select('xnat:mrSessionData',
                                             ['xnat:mrSessionData/SESSION_ID', 'xnat:mrSessionData/LABEL',
@@ -64,15 +95,18 @@ def process_fbirn(phantom_subjects_IDs):
             .where([('xnat:mrSessionData/LABEL', '=', label)]).items()
         # Iterate over all imaging sessions
         for [session, label, last_modified] in phantom_sessions:
+            counter_uploads += 1
             if (last_modified > str_date_last_checked) or options.force_updates \
                     or options.check_all or options.subj_label:
                 if options.verbose:
                     print 'Running fBIRN phantom QA for session {0} in project {1}'.format(session, project)
                 qa.process_phantom_session(interface, project, phantom, session,
                                            label, force_updates=options.force_updates)
+    slog.takeTimer1("script_time","{'records': " + str(counter_records) + ",'uploads': " + str(counter_uploads) + "}")
 
 def process_adni(phantom_subjects_IDs):
     for [phantom, project, label] in phantom_subject_IDs:
+        counter_records += 1
         # For each phantom subject (one per project), get the IDs and last_modified dates of all its imaging sessions
         phantom_sessions = interface.select('xnat:mrSessionData',
                                             ['xnat:mrSessionData/SESSION_ID', 'xnat:mrSessionData/LABEL',
@@ -80,12 +114,14 @@ def process_adni(phantom_subjects_IDs):
             .where([('xnat:mrSessionData/LABEL', '=', label)]).items()
         # Iterate over all imaging sessions
         for [session, label, last_modified] in phantom_sessions:
+            counter_uploads += 1
             if (last_modified > str_date_last_checked) or options.force_updates \
                     or options.check_all or options.subj_label:
                 if options.verbose:
                     print 'Running ADNI phantom QA for session {0} in project {1}'.format(session, project)
                 t1qa.process_phantom_session(interface, project, phantom, session, label,
                                              force_updates=options.force_updates)
+    slog.takeTimer1("script_time","{'records': " + str(counter_records) + ",'uploads': " + str(counter_uploads) + "}")
 
 if options.subj_label:
     # Adjust the constraints for one subject id
@@ -103,6 +139,7 @@ if options.subj_label:
         else:
             print "subject_label did not match re for phantom label '^[A-Z]-00000-P-0' or '^[A-Z]-99999-P-9'"
             sys.exit(1)
+    slog.takeTimer1("script_time","{'records': " + "}")
 
 
 if options.exclude_adni:
