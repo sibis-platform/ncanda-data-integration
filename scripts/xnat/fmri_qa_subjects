@@ -18,7 +18,7 @@ from sibispy import sibislogger as slog
 # Define command line options for this script
 formatter = argparse.RawDescriptionHelpFormatter
 default = 'default: %(default)s'
-parser = argparse.ArgumentParser(prog="redcap_form_locker.py",
+parser = argparse.ArgumentParser(prog="fmri_qa_functions",
                                  description=__doc__,
                                  formatter_class=formatter)
 parser.add_argument("-f", "--force-updates", action="store_true", dest="force_updates", default=False, help="Force updates of QA analyses for all subject scan experiments.")
@@ -82,7 +82,7 @@ for [subject,project] in subject_IDs:
 
     # Iterate over all imaging sessions
     for [session,last_modified] in sessions:
-        if (last_modified > str_date_last_checked) or options.force_updates:
+        if (last_modified > str_date_last_checked) or args.force_updates:
             qa.process_subject_session( interface, project, subject, session, force_updates=options.force_updates )
 
 # Finally, update config stored on the server to have current date/time as the time that this script was last run

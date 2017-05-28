@@ -24,41 +24,13 @@ python redcap_form_locker.py --project ncanda_subject_visit_log
 import os
 import sys
 import datetime
-import ConfigParser
 
 import pandas as pd
 from pandas.io.sql import execute
 
-from sqlalchemy import create_engine
-
 import sibispy
 from sibispy import sibislogger as slog
 
-
-
-def create_connection(cfg):
-    """
-    Create an engine for mysql
-
-    :param cfg: str
-    :return: `sqlalchemy.Engine`
-    """
-    # Get the redcap mysql configuration
-    config = ConfigParser.RawConfigParser()
-    config_path = os.path.expanduser(cfg)
-    config.read(config_path)
-
-    user = config.get('redcap', 'user')
-    passwd = config.get('redcap', 'passwd')
-    db = config.get('redcap', 'db')
-    hostname = config.get('redcap', 'hostname')
-
-    connection_string = "mysql+pymysql://{0}:{1}@{2}/{3}".format(user,
-                                                                 passwd,
-                                                                 hostname,
-                                                                 db)
-    engine = create_engine(connection_string, pool_recycle=3600)
-    return engine
 
 
 def get_project_id(project_name, engine):
@@ -252,14 +224,14 @@ def main(args=None):
         slog.startTimer1()
         session = sibispy.Session()
         if not session.configure() :
-            if verbose:
+            if args.verbose:
                 print "Error: session configure file was not found"
 
             sys.exit(1)
 
         engine = session.connect_server('redcap_mysql_db', True)
         if not engine :
-            if verbose:
+            if args.verbose:
                 print "Error: Could not connect to REDCap mysql db"
 
             sys.exit(1)
