@@ -124,7 +124,6 @@ def process_adni(phantom_subjects_IDs):
 
 
 if args.subj_label:
-    global counter_records, counter_uploads
     # Adjust the constraints for one subject id
     constraints = [('xnat:mrSessionData/LABEL', '=', args.subj_label)]
     # Search XNAT database for all Subjects that have the fBIRN with constraints from parameter
