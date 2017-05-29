@@ -24,13 +24,14 @@ python redcap_form_locker.py --project ncanda_subject_visit_log
 import os
 import sys
 import datetime
-import ConfigParser
 
 import pandas as pd
 from pandas.io.sql import execute
 
 import sibispy
 from sibispy import sibislogger as slog
+
+
 
 def get_project_id(project_name, engine):
     """
@@ -137,13 +138,14 @@ def unlock_form(project_name, arm_name, event_descrip, form_name, engine):
                                   (locked_records.form_name == form_name)]
 
     # generate the list of ids to drop and remove from db table
+    global locked_list
     locked_list = ', '.join([str(i) for i in locked_forms.ld_id.values.tolist()])
     if locked_list:
         sql = 'DELETE FROM redcap_locking_data ' \
               'WHERE redcap_locking_data.ld_id IN ({0});'.format(locked_list)
         execute(sql, engine)
         return True
-    else : 
+    else :
         print "Warning: Nothing to unlock for form '{0}' does not exist".format(form_name)
         return False
 
@@ -164,6 +166,7 @@ def lock_form(project_name, arm_name, event_descrip, form_name, username, outfil
     arm_id = get_arm_id(arm_name, project_id, engine)
     event_id = get_event_id(event_descrip, arm_id, engine)
     # get the pd.Series needed to construct a dataframe
+    global project_records
     project_records = get_project_records(project_name, arm_name,
                                           event_descrip, engine)
     project_id_series = [project_id] * len(project_records)
@@ -181,7 +184,7 @@ def lock_form(project_name, arm_name, event_descrip, form_name, username, outfil
     # first make sure all these forms are unlocked before locking
     unlock_form(project_name, arm_name, event_descrip, form_name, engine)
     # lock all the records for this form by appending entries to locking table
-    # Kilian: Problem this table is created regardless if the form really exists in redcap or not 
+    # Kilian: Problem this table is created regardless if the form really exists in redcap or not
     dataframe.to_sql('redcap_locking_data', engine, if_exists='append', index=False)
     dataframe.record.to_csv(outfile, index=False)
 
@@ -216,19 +219,20 @@ def report_locked_forms(site_id, xnat_id, forms, project_name,
 
 
 def main(args=None):
+    slog.startTimer1()
     if args:
         slog.startTimer1()
         session = sibispy.Session()
         if not session.configure() :
-            if verbose:
+            if args.verbose:
                 print "Error: session configure file was not found"
-            
+
             sys.exit(1)
 
         engine = session.connect_server('redcap_mysql_db', True)
-        if not engine : 
-            if verbose:
-                print "Error: Could not connect to REDCap mysql db" 
+        if not engine :
+            if args.verbose:
+                print "Error: Could not connect to REDCap mysql db"
 
             sys.exit(1)
 
@@ -241,6 +245,7 @@ def main(args=None):
                 print "Attempting to lock form: {0}".format(args.form)
             lock_form(args.project, args.arm, args.event, args.form,
                       args.username, args.outfile, engine)
+            slog.takeTimer1("script_time","{'records': " + str(len(project_records)) + "}")
             if args.verbose:
                 print "The {0} form has been locked".format(args.form)
                 print "Record of locked files: {0}".format(args.outfile)
@@ -249,6 +254,7 @@ def main(args=None):
                 print "Attempting to unlock form: {0}".format(args.form)
             if unlock_form(args.project, args.arm, args.event, args.form, engine) and args.verbose:
                 print "The {0} form has been unlocked".format(args.form)
+                slog.takeTimer1("script_time","{'records': " + str(len(locked_list)) + "}")
         if args.verbose:
             print "Done!"
 
@@ -262,7 +268,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="redcap_form_locker.py",
                                      description=__doc__,
                                      formatter_class=formatter)
-    parser.add_argument("-p", "--project", dest="project", required=True,
+    parser.add_argument("--project", dest="project", required=True,
                         help="Project Name in lowercase_underscore.")
     parser.add_argument("-a", "--arm", dest="arm", required=True,
                         choices=['Standard Protocol'],
@@ -291,6 +297,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    slog.init_log(args.verbose, args.post_to_github,'NCANDA REDCAP', 'redcap_form_locker', args.time_log_dir)
+    slog.init_log(args.verbose, args.post_to_github,'NCANDA REDCap', 'redcap_form_locker', args.time_log_dir)
 
     sys.exit(main(args=args))

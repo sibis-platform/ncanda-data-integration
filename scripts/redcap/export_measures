@@ -92,9 +92,9 @@ if args.datadict_dir:
 # Open a connection with REDCap MySQL server.
 if args.locked_form_report:
     engine = session.connect_server('redcap_mysql_db', True)
-    if not engine : 
-        if verbose:
-            print "Error: Could not connect to REDCap mysql db" 
+    if not engine :
+        if args.verbose:
+            print "Error: Could not connect to REDCap mysql db"
 
         sys.exit(1)
 
@@ -204,10 +204,10 @@ for [key,row] in visit_log_redcap.iterrows():
     if key[0] not in subject_label_to_sid_dict.keys():
         if args.verbose:
             print "Missing XNAT ID for subject",key[0]
-        continue 
-    # only do sessions that are not ignored 
+        continue
+    # only do sessions that are not ignored
     if row['visit_ignore___yes'] :
-        continue 
+        continue
 
     subject_xnat_id = subject_label_to_sid_dict[key[0]]
     visit_date = str(row['visit_date'])
@@ -238,7 +238,7 @@ for [key,row] in visit_log_redcap.iterrows():
                         slog.info(hashlib.sha1('export_measures').hexdigest()[0:6], "Event",key[1],"is not supported yet.",
                                       info = "Add event to ncanda_operations/setup.yml")
                         continue
-                        
+
                     if arm_code:
                         subject_datadir = os.path.join(args.pipelinedir,
                                                        subject_datadir_rel)
@@ -292,14 +292,14 @@ for [key,row] in visit_log_redcap.iterrows():
                                 print "Creating a report of locked forms for: " \
                                       "{0}, {1}, {2}".format(subject_xnat_id, arm_code, visit_code)
                             # Link directory names with names in REDCap mysql
-                            if visit_code == 'baseline' : 
+                            if visit_code == 'baseline' :
                                 visit = "Baseline visit"
                             else :
                                 visit = visit_code.split('_',1)[1] + " visit"
 
                             # Get a dataframe of the locked forms
                             arm = "{0} Protocol".format(arm_code.capitalize())
-                            
+
                             locked_forms = rclocker.report_locked_forms(key[0], subject_xnat_id,
                                                                         forms_by_event_dict[key[1]], 'ncanda_subject_visit_log',
                                                                         arm, visit, engine)
