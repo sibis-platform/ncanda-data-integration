@@ -20,23 +20,27 @@ IMPORT_FLAG=1
 hour=$(date +%H)
 
 # Run QA on fBIRN and ADNI phantom scans
+qa_args="-p"
+if [ ${hour} -eq 0 ]; then
+    qa_args+=" -t /fs/ncanda-share/ncanda-data-log/front-hourly"
+fi  
 if [ ${XNAT_FLAG} == 1 ]; then
-   catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Phantom QA Messages (phantom_qa)" ${SIBIS}/scripts/xnat/phantom_qa
-else 
+   catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Phantom QA Messages (phantom_qa)" ${SIBIS}/scripts/xnat/phantom_qa  ${qa_args}
+else
    if [ ${hour} -eq 0 ]; then
-      echo "front-nightly: Warning: XNAT updates are disabled !"    
+      echo "front-nightly: Warning: XNAT updates are disabled !"
    fi
-fi 
+fi
 
 
 # Import data from the sites' data capture laptops into REDCap and reconcile imported with longitudinal data
 if [ ${IMPORT_FLAG} == 1 ]; then
-  catch_output_email ncanda-admin@sri.com "NCANDA: Laptop Data Import Stage 1 (harvester)" ${SIBIS}/scripts/import/laptops/harvester -p /fs/storage/laptops/ncanda /fs/storage/laptops/imported
-else 
+  catch_output_email ncanda-admin@sri.com "NCANDA: Laptop Data Import Stage 1 (harvester)" ${SIBIS}/scripts/import/laptops/harvester ${qa_args} /fs/storage/laptops/ncanda /fs/storage/laptops/imported
+else
    if [ ${hour} -eq 0 ]; then
-      echo "front-nightly: Warning: Import from laptops  disabled !"    
+      echo "front-nightly: Warning: Import from laptops  disabled !"
    fi
-fi 
+fi
 
 #
 # Previouly front-nighlty
@@ -48,6 +52,4 @@ if [ ${hour} -eq 0 ]; then
     update_args+="--update-all"
 fi
 catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Update Scores (update_summary_scores)" \
-    ${SIBIS}/scripts/redcap/update_summary_scores -p \
-    -t /fs/ncanda-share/ncanda-data-log/front-hourly \
-    ${update_args}
+    ${SIBIS}/scripts/redcap/update_summary_scores ${update_args} ${qa_args}
