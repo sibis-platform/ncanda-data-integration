@@ -17,46 +17,9 @@ from sibispy import sibislogger as slog
 import pandas
 import redcap
 
-# Setup command line parser
-parser = argparse.ArgumentParser(description="Update completion status of forms that contain more than one instrument",
-                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("-v", "--verbose", help="Verbose operation", action="store_true")
-parser.add_argument("--forms", help="Select specific forms to update. Separate multiple forms with commas.", action="store", default=None )
-parser.add_argument("-a", "--update-all", help="Update all summary records, regardless of current completion status (otherwise, only 'Complete' forms will be skipped)", action="store_true")
-parser.add_argument("-n", "--no-upload", help="Do not upload any scores to REDCap server; instead write to CSV file with given path.", action="store")
-parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
-parser.add_argument("-t","--time-log-dir",
-                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
-                    action="store",
-                    default=None)
-args = parser.parse_args()
-
-slog.init_log(args.verbose, args.post_to_github,'NCANDA Redcap: Update Form Status (update_bulk_forms)', 'update_bulk_forms', args.time_log_dir)
-
-slog.startTimer1()
-
-session = sibispy.Session()
-if not session.configure():
-    if args.verbose:
-        print "Error: session configure file was not found"
-
-    sys.exit()
 #
 # Functions 
 #
-
-
-# If connection to redcap server fail, try multiple times
-try:
-    rc_entry = session.connect_server('data_entry', True)
-except Exception, error:
-    slog.info(hashlib.sha1('update_bulk_forms').hexdigest()[0:6],
-    "ERROR: Could not connect to redcap!",
-    script = 'update_bulk_forms',
-    msg=str(error))
-    sys.exit()
-
-form_event_mapping = rc_entry.export_fem(format='df')
 
 # Compute the bulk "Complete" status of a record based on component status values
 def compute_bulk_status( row, field_names, form_complete_field ):
@@ -108,6 +71,44 @@ def process_form( form, complete_field_names ):
 # MAIN  
 #
 
+
+# Setup command line parser
+parser = argparse.ArgumentParser(description="Update completion status of forms that contain more than one instrument",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument("-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument("--forms", help="Select specific forms to update. Separate multiple forms with commas.", action="store", default=None )
+parser.add_argument("-a", "--update-all", help="Update all summary records, regardless of current completion status (otherwise, only 'Complete' forms will be skipped)", action="store_true")
+parser.add_argument("-n", "--no-upload", help="Do not upload any scores to REDCap server; instead write to CSV file with given path.", action="store")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+parser.add_argument("-t","--time-log-dir",
+                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    action="store",
+                    default=None)
+args = parser.parse_args()
+
+slog.init_log(args.verbose, args.post_to_github,'NCANDA Redcap: Update Form Status (update_bulk_forms)', 'update_bulk_forms', args.time_log_dir)
+
+slog.startTimer1()
+
+session = sibispy.Session()
+if not session.configure():
+    if args.verbose:
+        print "Error: session configure file was not found"
+
+    sys.exit()
+
+# If connection to redcap server fail, try multiple times
+try:
+    rc_entry = session.connect_server('data_entry', True)
+except Exception, error:
+    slog.info(hashlib.sha1('update_bulk_forms').hexdigest()[0:6],
+    "ERROR: Could not connect to redcap!",
+    script = 'update_bulk_forms',
+    msg=str(error))
+    sys.exit()
+
+form_event_mapping = rc_entry.export_fem(format='df')
+
 # If list of forms given, only update those
 forms_list = rc_entry.forms
 records_uploaded = 0
@@ -121,7 +122,7 @@ if args.forms:
             print "WARNING: form '%s' does not exist.\n" % form
  
 for form in forms_list:
-    # Does this form have any "_complete" fields, and if you, which ones?
+    # Does this form have any "_complete" fields, and if so, which ones?
     complete_field_names = [ field['field_name'] for field in rc_entry.metadata if re.match( '.*_complete$', field['field_name'] ) and (field['form_name'] == form) and (field['field_type'] == 'dropdown') ]
 
     if len( complete_field_names ) > 0:
@@ -157,8 +158,9 @@ for form in forms_list:
                         slog.info(error_id, "Cannot update '" + err_field + "' field as form is locked",
                                   field = err_field,
                                   value = old_value,
+                                  form = form,
                                   info = "if the current value is unequal to '' and the new value is '' then redcap wont update the form. A possible solution is to select complete for the field.",
-                                  new_value = new_value)
+                                  value_new = new_value)
 
                     else : 
                         remaining_error.append(error)
