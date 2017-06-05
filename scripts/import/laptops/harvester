@@ -89,9 +89,13 @@ def run_converter(site, command):
                     except:
                         error = "Failed importing files into REDCap"
                         slog.info(hashlib.sha1('harvester {}'.format(fi)).hexdigest()[0:6], error,
-                                  file=str(fi))
+                                  file=str(fi),
+                                  command=str(command))
                 else:
-                    print 'NOT A CSV FILE:', fi
+                    slog.info(hashlib.sha1('harvester {}'.format(fi)).hexdigest()[0:6], 'NOT A CSV FILE',
+                              file=str(fi),
+                              command=str(command_array))
+
     except:
         pass
 #
