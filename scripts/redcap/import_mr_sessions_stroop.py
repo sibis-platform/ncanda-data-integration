@@ -21,6 +21,9 @@ bindir = os.path.dirname( os.path.abspath(__file__) )
 # Check a list of experiments for ePrime Stroop files
 def check_for_stroop( xnat, xnat_eid_list, verbose=False ):
     stroop_files = []
+    if verbose : 
+        print "check_for_stroop: " + str(xnat_eid_list)
+
     for xnat_eid in xnat_eid_list:
         experiment = xnat.select.experiment( xnat_eid )
 
@@ -31,6 +34,8 @@ def check_for_stroop( xnat, xnat_eid_list, verbose=False ):
 
     # No matching files - nothing to do
     if len( stroop_files ) == 0:
+        if verbose : 
+            print "check_for_stroop: no stroop"
         return (None, None, None)
 
     # Get first file from list, warn if more files
@@ -39,9 +44,10 @@ def check_for_stroop( xnat, xnat_eid_list, verbose=False ):
         for xnat_eid in xnat_eid_list:
             slog.info(xnat_eid,error)
 	return (None, None, None)
+    if verbose : 
+        print "check_for_stroop: Stroop File: " + str(stroop_files[0])
 
     return stroop_files[0]
-
 
 # Import a Stroop file into REDCap after scoring
 def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, \
