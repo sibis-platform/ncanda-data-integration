@@ -25,7 +25,7 @@ from xnat_email import XnatEmail
 #
 
 # Get a custom variable from XML representation of experiment
-def get_custom_variable(eid,  exp_get, field_name ):
+def get_custom_variable(eid, exp_get, field_name ):
     field_regex = '.*<xnat:field name="%s">(.*?)</xnat:field>' % field_name
     xnat_output = None
     try:
@@ -259,7 +259,9 @@ for eid in experiment_ids:
                   xnat_api_output = xnat_output)
         continue
 
-    if get_custom_variable(eid, exp_get, 'phantommissingoverride') != True :
+    # Do not change to True ! as xnat saves it as 'true' 
+    if get_custom_variable(eid, exp_get, 'phantommissingoverride') != 'true' :
+        print "check phantom"
         count_phantom += 1
         check_experiment(eid, experiment)
 
