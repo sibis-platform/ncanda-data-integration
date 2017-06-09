@@ -60,7 +60,7 @@ def verify_image_count(session, session_label, scan, scantype, manufacturer,
 # Export experiment files to NIFTI
 #
 def export_to_nifti(interface, project, subject, session, session_label,
-                    manufacturer, scanner_model, scan, scantype, verbose=False):
+                    manufacturer, scanner_model, scan, scantype, xnat_dir, analysis_cases_dir, verbose=False):
     if verbose:
         print "Starting export of nifti files for ", project, subject, session, session_label, scan, scantype
 
@@ -72,7 +72,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
     # and comment out the proceeding one 
     # if not xnat_log.exists() or 'dti60b1000' in scantype:
     # if not xnat_log.exists():
-    match = re.match('.*(/fs/storage/XNAT/.*)scan_.*_catalog.xml.*',
+    match = re.match('.*('+ xnat_dir + '/.*)scan_.*_catalog.xml.*',
                      interface.select.experiment(session).scan(scan).get(),
                      re.DOTALL)
     if match:
@@ -179,7 +179,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
                     if 'dti60b1000' in scantype:
                             xml_search_string = os.path.join(temp_dir,'%s_%s' % (scan,scantype), 'image*.nii.xml')
                             xml_file_list = glob.glob(xml_search_string)
-                            cgt.check_diffusion(session_label,session,xml_file_list,manufacturer_u,scanner_model,decimals=2)
+                            cgt.check_diffusion(analysis_cases_dir,session_label,session,xml_file_list,manufacturer_u,scanner_model,decimals=2)
 
             # Clean up - remove temp directory
             shutil.rmtree(temp_dir)

@@ -30,7 +30,7 @@ parser.add_argument("--exclude-fbirn", action="store_true", dest="exclude_fbirn"
 parser.add_argument("--subj-label", action="store", dest="subj_label", default=None, help="Limit processing by subject_label, e.g., C-70019-F-2-20160513")
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
 parser.add_argument("-t","--time-log-dir",
-                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    help="If set then time logs are written to that directory",
                     action="store",
                     default=None)
 
@@ -84,7 +84,7 @@ except:
 str_date_last_checked = time.strftime( xnat_date_format, date_last_checked )
 
 
-def process_fbirn(phantom_subjects_IDs):
+def process_fbirn(phantom_subjects_IDs,xnat_dir):
     global counter_records, counter_uploads
     for [phantom, project, label] in phantom_subject_IDs:
         counter_records += 1
@@ -101,9 +101,9 @@ def process_fbirn(phantom_subjects_IDs):
                 if args.verbose:
                     print 'Running fBIRN phantom QA for session {0} in project {1}'.format(session, project)
                 qa.process_phantom_session(interface, project, phantom, session,
-                                           label, force_updates=args.force_updates)
+                                           label, xnat_dir,force_updates=args.force_updates)
 
-def process_adni(phantom_subjects_IDs):
+def process_adni(phantom_subjects_IDs,xnat_dir):
     global counter_records, counter_uploads
     for [phantom, project, label] in phantom_subject_IDs:
         counter_records += 1
@@ -119,7 +119,7 @@ def process_adni(phantom_subjects_IDs):
                     or args.check_all or args.subj_label:
                 if args.verbose:
                     print 'Running ADNI phantom QA for session {0} in project {1}'.format(session, project)
-                t1qa.process_phantom_session(interface, project, phantom, session, label,
+                t1qa.process_phantom_session(interface, project, phantom, session, label, xnat_dir,
                                              force_updates=options.force_updates)
 
 
@@ -133,9 +133,9 @@ if args.subj_label:
                                            .where(constraints).items()
     for subject_id, project, label in phantom_subject_IDs:
         if re.match('^[A-Z]-00000-P-0', label):
-            process_fbirn(phantom_subject_IDs)
+            process_fbirn(phantom_subject_IDs,session.get_xnat_dir())
         elif re.match('^[A-Z]-99999-P-9',label):
-            process_adni(phantom_subject_IDs)
+            process_adni(phantom_subject_IDs,session.get_xnat_dir())
         else:
             print "subject_label did not match re for phantom label '^[A-Z]-00000-P-0' or '^[A-Z]-99999-P-9'"
             sys.exit(1)
@@ -149,7 +149,7 @@ if args.exclude_adni:
                                            ['xnat:mrSessionData/SUBJECT_ID', 'xnat:mrSessionData/PROJECT',
                                             'xnat:mrSessionData/LABEL']) \
                                            .where(constraints).items()
-    process_fbirn(phantom_subject_IDs)
+    process_fbirn(phantom_subject_IDs,session.get_xnat_dir())
 
 if args.exclude_fbirn:
     # General constraints to get all adni phantoms
@@ -159,7 +159,7 @@ if args.exclude_fbirn:
                                            ['xnat:mrSessionData/SUBJECT_ID', 'xnat:subjectData/PROJECT',
                                             'xnat:mrSessionData/LABEL']) \
                                            .where(constraints).items()
-    process_adni(phantom_subject_IDs)
+    process_adni(phantom_subject_IDs,session.get_xnat_dir())
 
 # Finally, update config stored on the server to have current date/time as the time that this script was last run
 # (but don't update config if we excluded either ADNI of fBIRN phantom scans this time around)

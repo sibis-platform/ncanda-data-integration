@@ -60,7 +60,7 @@ parser.add_argument("-f", "--force-qc-check",
                     action="store_true")
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
 parser.add_argument("-t","--time-log-dir",
-                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    help="If set then time logs are written to that directory",
                     action="store",
                     default=None)
 args = parser.parse_args()
@@ -72,27 +72,27 @@ if args.eid:
 slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT', 'check_new_sessions', args.time_log_dir)
 slog.startTimer1()
 
-session = sibispy.Session()
-if not session.configure() :
+sibis_session = sibispy.Session()
+if not sibis_session.configure() :
     if verbose:
         print "Error: session configure file was not found"
  
     sys.exit()
 
-ifc = session.connect_server('xnat', True)
+ifc = sibis_session.connect_server('xnat', True)
 if not ifc : 
     if verbose:
         print "Error: Could not connect to XNAT" 
 
     sys.exit()
 
-server_address = str(session.get_xnat_server_address())
+server_address = str(sibis_session.get_xnat_server_address())
     
-log_dir = os.path.join(session.get_log_dir(),'check_new_sessions')
+log_dir = os.path.join(sibis_session.get_log_dir(),'check_new_sessions')
 if not os.path.exists(log_dir):
     raise IOError("Please ensure {} exists!".format(log_dir))
 
-sibis_config = session.get_operations_dir()
+sibis_config = sibis_session.get_operations_dir()
 if not os.path.exists(os.path.join(sibis_config, 'special_cases.yml')): 
     raise IOError("Please ensure special_cases.yml file exists at: {}".format(sibis_config))
 
@@ -235,7 +235,7 @@ adni_ids = adni_ids_search.get('subject_id')
 
 
 # Make a direct link to XNAT session
-def make_session_link(server_address,eid, project, label):
+def make_session_link(server_address,eid, project, label,xnat_dir):
     html_list = ['<li>',
                  '<a href=',
                  server_address + '/app/action/DisplayItemAction/',
@@ -252,7 +252,7 @@ def make_session_link(server_address,eid, project, label):
                  label,
                  '</a></li>\n']
     html_link = ''.join(html_list)
-    file_list = ['/fs/ncanda-xnat/archive/',
+    file_list = [os.path.join(xnat_dir, 'archive/'),
                  project,
                  '/arc001/',
                  label,
@@ -687,7 +687,8 @@ for (eid, project, subject, insert_date,
     session_html_link, session_file_link = make_session_link(server_address,
                                                              eid,
                                                              project,
-                                                             session_label)
+                                                             session_label,
+                                                             sibis_sesssion.get_xnat_dir())
 
     # figure out what scans are required for this subject (or phantom) on this
     # platform
@@ -753,6 +754,8 @@ for (eid, project, subject, insert_date,
                 scanner_model,
                 scan,
                 scantype,
+                sibis_session.get_xnat_dir(),
+                sibis_session.get_cases_dir(),
                 verbose=args.verbose)
             if len(error_msg) or niftisWereCreatedFlag:
                 # Remove qc_file as session has to be checked again 

@@ -25,14 +25,15 @@ export SIBIS=`realpath $(dirname $0)/../../`
 
 # At midnight PST, run full update; otherwise, add only previously-missing data
 update_args=""
-hour=$(date +%H)
-if [ ${hour} -ne 0 ]; then
-    update_args+=" --missing-only"
-fi
+# if run hourly then only run full mode at midnight
+# update_args+=" --missing-only"
 
-catch_output_email ncanda-admin@sri.com "NCANDA: Laptop Data Import Stage 2 (update_visit_data)" ${SIBIS}/scripts/import/laptops/update_visit_data -p -t /fs/ncanda-share/ncanda-data-log/back-nightly --max-days-after-visit 120 ${update_args}
 
-catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Update Form Status (update_bulk_forms)" ${SIBIS}/scripts/redcap/update_bulk_forms -p -t /fs/ncanda-share/ncanda-data-log/back-nightly
+LOG_DIR=${SIBIS_PROJECT_DIR}/log/back-nightly
+
+catch_output_email "Import Laptop Data Import (update_visit_data)" ${SIBIS}/scripts/import/laptops/update_visit_data -p -t ${LOG_DIR} --max-days-after-visit 120 ${update_args}
+
+catch_output_email "Update Form Status (update_bulk_forms)" ${SIBIS}/scripts/redcap/update_bulk_forms -p -t ${LOG_DIR}
 
 #
 # Previouly front-nighlty
@@ -44,17 +45,17 @@ catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Update Form Status (upda
 
 if [ ${IMAGE_PROCESS_FLAG} == 1 ]; then
   # Check MR session names etc. in XNAT
-  catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Check Object Names Message (check_object_names)" ${SIBIS}/scripts/xnat/check_object_names -p -t /fs/ncanda-share/ncanda-data-log/back-nightly --send-mail --zip-root /fs/ncanda-share/burn2dvd
+  catch_output_email "XNAT: Check Session Names (check_object_names)" ${SIBIS}/scripts/xnat/check_object_names -p -t ${LOG_DIR} --send-mail --zip-root ${SIBIS_PROJECT_DIR}/burn2dvd
 
   # Check for new or updated sessions and
-  catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Check New Sessions Message (check_new_sessions)" ${SIBIS}/scripts/xnat/check_new_sessions --send-mail-to ncanda-image-qc@sri.com -p -t /fs/ncanda-share/ncanda-data-log/back-nightly
-  # --qc-csv /fs/ncanda-share/beta/image-qc/scan_qc.csv
+  catch_output_email "XNAT: Check New Sessions (check_new_sessions)" ${SIBIS}/scripts/xnat/check_new_sessions --send-mail-to ncanda-image-qc@sri.com -p -t ${LOG_DIR}
+  # --qc-csv ${SIBIS_PROJECT_DIR}/beta/image-qc/scan_qc.csv
 
   # Check whether any MR sessions are missing corresponding phantom scans
-  catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Phantom Scan Messages (check_phantom_scans)" ${SIBIS}/scripts/xnat/check_phantom_scans --check-all -p -t /fs/ncanda-share/ncanda-data-log/back-nightly
+  catch_output_email "XNAT: Check Phantom Scan (check_phantom_scans)" ${SIBIS}/scripts/xnat/check_phantom_scans --check-all -p -t ${LOG_DIR}
 
   # Run fMRI QA on subjects ## Currently disabled because it isn't looked at but takes a long time to run
-  ##catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Subject fMRI QA Messages" ${SIBIS}/scripts/xnat/fmri_qa_subjects
+  ##catch_output_email "XNAT: Subject fMRI QA Messages" ${SIBIS}/scripts/xnat/fmri_qa_subjects
 else 
     echo "back-nightly: Warning: Image data is not updated !"   
 fi 
@@ -64,13 +65,13 @@ fi
 ######################################
 
 # Import data from UPenn into REDCap
-catch_output_email ncanda-admin@sri.com "NCANDA REDCap: WebCNP Import Messages (cnp2redcap)" ${SIBIS}/scripts/import/webcnp/cnp2redcap -p -t /fs/ncanda-share/ncanda-data-log/back-nightly --last-3-months
+catch_output_email "Import WebCNP to REDCap (cnp2redcap)" ${SIBIS}/scripts/import/webcnp/cnp2redcap -p -t ${LOG_DIR} --last-3-months
 
 # Check whether subject birth dates and gender match checksum digit, plus whether all subjects on study arms appear in main arm also
-catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Subject ID Checks (check_subject_ids)" ${SIBIS}/scripts/redcap/check_subject_ids -p -t /fs/ncanda-share/ncanda-data-log/back-nightly
+catch_output_email "REDCap: Subject ID Checks (check_subject_ids)" ${SIBIS}/scripts/redcap/check_subject_ids -p -t ${LOG_DIR}
 
 # Check (and update, if necessary) drinking exception status
-catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Undeclared Drinking Exceptions (check_exceptions)" ${SIBIS}/scripts/redcap/check_exceptions -p -t /fs/ncanda-share/ncanda-data-log/back-nightly --update-fn
+catch_output_email "REDCap: Undeclared Drinking Exceptions (check_exceptions)" ${SIBIS}/scripts/redcap/check_exceptions -p -t ${LOG_DIR} --update-fn
 
 #
 # Original back-nightly
@@ -79,18 +80,18 @@ catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Undeclared Drinking Exce
 if [ ${PIPELINE_UPDATE_FLAG} == 1 ]; then
     if [ ${IMAGE_PROCESS_FLAG} == 1 ]; then
 	# Import data from XNAT into REDCap and feed image analysis pipeline
-	catch_output_email ncanda-admin@sri.com "NCANDA Pipeline Feeder Messages (import_mr_sessions)" ${SIBIS}/scripts/redcap/import_mr_sessions -p --max-days-after-visit 120 --pipeline-root-dir /fs/ncanda-share/pipeline/cases --run-pipeline-script /fs/ncanda-share/pipeline/scripts/bin/ncanda_all_pipelines -t /fs/ncanda-share/ncanda-data-log/back-nightly
+	catch_output_email "REDCap: Import MR to Pipeline (import_mr_sessions)" ${SIBIS}/scripts/redcap/import_mr_sessions -p --max-days-after-visit 120 --pipeline-root-dir ${SIBIS_PROJECT_DIR}/cases --run-pipeline-script ${SIBIS_PROJECT_DIR}/scripts/bin/ncanda_all_pipelines -t ${LOG_DIR}
     fi 
 
     # Export NP/clinical/dempgraphics data into image analysis pipeline directories
     #   This needs to come AFTER "import_mr_sessions", because otherwise we cannot get ages-at-MRI from REDCap for the export.
-    catch_output_email ncanda-admin@sri.com "NCANDA Pipeline REDCap Exporter Messages (export_measures)" ${SIBIS}/scripts/redcap/export_measures --datadict-dir /fs/ncanda-share/pipeline/datadict/redcap --locked_form_report /fs/ncanda-share/pipeline/cases
+    catch_output_email "REDCap: Import REDCap to Pipeline (export_measures)" ${SIBIS}/scripts/redcap/export_measures --datadict-dir ${SIBIS_PROJECT_DIR}/datadict/redcap --locked_form_report ${SIBIS_PROJECT_DIR}/cases
 
     # Update CSV summary files for the working pipeline
-    catch_output_email ncanda-admin@sri.com "NCANDA Pipeline Summaries V2 (update_csv_summaries)" ${SIBIS}/scripts/reporting/update_csv_summaries /fs/ncanda-share/pipeline/cases/ /fs/ncanda-share/pipeline/summaries
+    catch_output_email "Pipeline Summaries (update_csv_summaries)" ${SIBIS}/scripts/reporting/update_csv_summaries ${SIBIS_PROJECT_DIR}/cases/ ${SIBIS_PROJECT_DIR}/summaries
 else 
     echo "back-nightly: Warning: Pipeline is not updated !"   
 fi 
 
 # Remove pyxnat cache directory to conserve space
-catch_output_email ncanda-admin@sri.com "NCANDA Drop pyXNAT Cache Directory" rm -rf /tmp/RestAPI@localhost_8080.xnat /tmp/cache
+catch_output_email "Drop pyXNAT Cache Directory" rm -rf /tmp/RestAPI@localhost_8080.xnat /tmp/cache

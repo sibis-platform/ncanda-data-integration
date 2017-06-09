@@ -6,9 +6,10 @@
 ##
 import codecs
 import re
+from sibispy import sibislogger as slog
 
 # Copy an ePrime (Stroop) file while sanitizing it, i.e., removing personally-identifiable information
-def copy_sanitize( eprime_in, eprime_out ):
+def copy_sanitize(redcap_visit_id,eprime_in, eprime_out ):
     # List of "banned" ePrime log file keys - these are removed from the file while copying
     banned_keys = [ 'name', 'age', 'sessiondate', 'sessiontimeutc', 'subject', 'session', 'clock.information' ]
 
@@ -24,12 +25,13 @@ def copy_sanitize( eprime_in, eprime_out ):
             
             outfile.close()
         except:
-            print "ERROR: failed to open output file",eprime_out
+            slog.info(redcap_visit_id, "ERROR: failed to open output file " + str(eprime_out))
 
         infile.close()
 
     except:
-        print "ERROR: failed to open input file",eprime_in
+        slog.info(redcap_visit_id, "ERROR: failed to open input file " + str(eprime_in))
+
 
 
 # Command line interface, if run directly
@@ -41,4 +43,4 @@ if __name__ == "__main__":
     parser.add_argument( "outfile", help="Output file path")
     args = parser.parse_args()
 
-    copy_sanitize( args.infile, args.outfile )
+    copy_sanitize('sanatize_eprime',args.infile, args.outfile )
