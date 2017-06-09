@@ -12,6 +12,7 @@ catch_output_email()
 {
     local mailto="$1"
     local subject="$2"
+    local server="$3"
 
     shift 2
     local cmd="$*"
@@ -21,7 +22,7 @@ catch_output_email()
     eval ${cmd} &> ${tmpfile}
     if [ -s ${tmpfile} ]; then
 	
-        eval "mailx -r ${SIBIS_ADMIN_EMAIL} -s \"${subject}\" ${mailto} < ${tmpfile}"
+        eval "mailx -r admin -s \"${subject}\" ${server} ${mailto} < ${tmpfile}"
         eval "python ${PYTHONPATH}/sibispy/post_issues_to_github.py --title \"${subject}\" --body ${tmpfile}"
     fi
 
