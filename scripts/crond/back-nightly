@@ -8,12 +8,12 @@
 IMAGE_PROCESS_FLAG=1
 PIPELINE_UPDATE_FLAG=1
 
-
-if [ "`ps -ef | grep crond/back-nightly | grep -v grep`" != "" ]; then 
-   echo "Info: Skipping back-nightly as instance of it is still running"
+# if on instance is running then it is at least has a count of 2 !
+num_scripts=`ps -ef | grep crond/back-nightly | grep -v grep | wc -l`
+if [ $num_scripts -gt 2 ]; then 
+   echo "Info: Not running back-nightly as instance(s) of it are already running"
    exit 0
 fi 
-
 
 # Set the SIBIS environment variable to the data integration repo
 export SIBIS=`realpath $(dirname $0)/../../`
