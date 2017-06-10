@@ -5,6 +5,12 @@
 ##  for the copyright and license terms
 ##
 
+
+if [ "`ps -ef | grep crond/front-hourly | grep -v grep`" != "" ]; then 
+   echo "Info: Not running front-hourly as instance of it is still running"
+   exit 0
+fi 
+
 # Set the SIBIS environment variable to the data integration repo
 export SIBIS=`realpath $(dirname $0)/../../`
 
