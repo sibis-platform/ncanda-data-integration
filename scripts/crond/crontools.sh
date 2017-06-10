@@ -20,7 +20,7 @@ export SIBIS_LAPTOP_DIR="`grep import_dir: ${SIBIS_CONFIG} | cut -d ' ' -f2`/lap
 catch_output_email()
 {
     local mailto=${SIBIS_ADMIN_EMAIL}
-    local subject="{SIBIS_PROJECT_NAME}: $1"
+    local subject="${SIBIS_PROJECT_NAME}: $1"
 
     shift 1
     local cmd="$*"
