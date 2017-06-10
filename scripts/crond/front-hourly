@@ -7,7 +7,7 @@
 
 # if on instance is running then it is at least has a count of 2 !
 num_scripts=`ps -ef | grep crond/front-hourly | grep -v grep | wc -l`
-if [ `ps -ef | grep crond/front-hourly | grep -v grep | wc -l` -gt 2 ]; then 
+if [ ${num_scripts} -gt 2 ]; then 
    echo "Info: Not running front-hourly as instance(s) of it are already running"
    exit 0
 fi 
