@@ -7,7 +7,7 @@
 
 # Run a command, and send its output (stdout and stderr) to a given email address, but only if there is output
 if [ "${SIBIS_CONFIG}" == "" ]; then
-  export SIBIS_CONFIG="~/.sibis-general-config.yml"
+  export SIBIS_CONFIG=~/.sibis-general-config.yml
 fi 
 
 export SIBIS_ADMIN_EMAIL=`grep email: ${SIBIS_CONFIG} | cut -d ' ' -f2`
