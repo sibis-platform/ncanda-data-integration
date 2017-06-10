@@ -17,7 +17,7 @@ IMPORT_FLAG=1
 # Import some useful functions
 . $(dirname $0)/crontools.sh
 
-LOG_DIR=${SIBIS_PROJECT_DIR}/log/front-hourly
+LOG_DIR=${SIBIS_ANALYSIS_DIR}/log/front-hourly
 
 
 hour=$(date +%H)

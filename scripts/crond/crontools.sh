@@ -13,7 +13,7 @@ fi
 export SIBIS_ADMIN_EMAIL=`grep email: ${SIBIS_CONFIG} | cut -d ' ' -f2`
 export SIBIS_PROJECT_NAME=`grep project_name: ${SIBIS_CONFIG} | cut -d ' ' -f2`
 #/fs/ncanda-share
-export SIBIS_PROJECT_DIR=`grep analysis_dir: ${SIBIS_CONFIG} | cut -d ' ' -f2`
+export SIBIS_ANALYSIS_DIR=`grep analysis_dir: ${SIBIS_CONFIG} | cut -d ' ' -f2`
 #/fs/storage/laptops
 export SIBIS_LAPTOP_DIR="`grep import_dir: ${SIBIS_CONFIG} | cut -d ' ' -f2`/laptops"
 

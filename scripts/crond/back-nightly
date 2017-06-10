@@ -29,7 +29,7 @@ update_args=""
 # update_args+=" --missing-only"
 
 
-LOG_DIR=${SIBIS_PROJECT_DIR}/log/back-nightly
+LOG_DIR=${SIBIS_ANALYSIS_DIR}/log/back-nightly
 
 catch_output_email "Import Laptop Data Import (update_visit_data)" ${SIBIS}/scripts/import/laptops/update_visit_data -p -t ${LOG_DIR} --max-days-after-visit 120 ${update_args}
 
@@ -45,11 +45,11 @@ catch_output_email "Update Form Status (update_bulk_forms)" ${SIBIS}/scripts/red
 
 if [ ${IMAGE_PROCESS_FLAG} == 1 ]; then
   # Check MR session names etc. in XNAT
-  catch_output_email "XNAT: Check Session Names (check_object_names)" ${SIBIS}/scripts/xnat/check_object_names -p -t ${LOG_DIR} --send-mail --zip-root ${SIBIS_PROJECT_DIR}/burn2dvd
+  catch_output_email "XNAT: Check Session Names (check_object_names)" ${SIBIS}/scripts/xnat/check_object_names -p -t ${LOG_DIR} --send-mail --zip-root ${SIBIS_ANALYSIS_DIR}/burn2dvd
 
   # Check for new or updated sessions and
   catch_output_email "XNAT: Check New Sessions (check_new_sessions)" ${SIBIS}/scripts/xnat/check_new_sessions --send-mail-to ncanda-image-qc@sri.com -p -t ${LOG_DIR}
-  # --qc-csv ${SIBIS_PROJECT_DIR}/beta/image-qc/scan_qc.csv
+  # --qc-csv ${SIBIS_ANALYSIS_DIR}/beta/image-qc/scan_qc.csv
 
   # Check whether any MR sessions are missing corresponding phantom scans
   catch_output_email "XNAT: Check Phantom Scan (check_phantom_scans)" ${SIBIS}/scripts/xnat/check_phantom_scans --check-all -p -t ${LOG_DIR}
@@ -80,15 +80,15 @@ catch_output_email "REDCap: Undeclared Drinking Exceptions (check_exceptions)" $
 if [ ${PIPELINE_UPDATE_FLAG} == 1 ]; then
     if [ ${IMAGE_PROCESS_FLAG} == 1 ]; then
 	# Import data from XNAT into REDCap and feed image analysis pipeline
-	catch_output_email "REDCap: Import MR to Pipeline (import_mr_sessions)" ${SIBIS}/scripts/redcap/import_mr_sessions -p --max-days-after-visit 120 --pipeline-root-dir ${SIBIS_PROJECT_DIR}/cases --run-pipeline-script ${SIBIS_PROJECT_DIR}/scripts/bin/ncanda_all_pipelines -t ${LOG_DIR}
+	catch_output_email "REDCap: Import MR to Pipeline (import_mr_sessions)" ${SIBIS}/scripts/redcap/import_mr_sessions -p --max-days-after-visit 120 --pipeline-root-dir ${SIBIS_ANALYSIS_DIR}/cases --run-pipeline-script ${SIBIS_ANALYSIS_DIR}/scripts/bin/ncanda_all_pipelines -t ${LOG_DIR}
     fi 
 
     # Export NP/clinical/dempgraphics data into image analysis pipeline directories
     #   This needs to come AFTER "import_mr_sessions", because otherwise we cannot get ages-at-MRI from REDCap for the export.
-    catch_output_email "REDCap: Import REDCap to Pipeline (export_measures)" ${SIBIS}/scripts/redcap/export_measures --datadict-dir ${SIBIS_PROJECT_DIR}/datadict/redcap --locked_form_report ${SIBIS_PROJECT_DIR}/cases
+    catch_output_email "REDCap: Import REDCap to Pipeline (export_measures)" ${SIBIS}/scripts/redcap/export_measures --datadict-dir ${SIBIS_ANALYSIS_DIR}/datadict/redcap --locked_form_report ${SIBIS_ANALYSIS_DIR}/cases
 
     # Update CSV summary files for the working pipeline
-    catch_output_email "Pipeline Summaries (update_csv_summaries)" ${SIBIS}/scripts/reporting/update_csv_summaries ${SIBIS_PROJECT_DIR}/cases/ ${SIBIS_PROJECT_DIR}/summaries
+    catch_output_email "Pipeline Summaries (update_csv_summaries)" ${SIBIS}/scripts/reporting/update_csv_summaries ${SIBIS_ANALYSIS_DIR}/cases/ ${SIBIS_ANALYSIS_DIR}/summaries
 else 
     echo "back-nightly: Warning: Pipeline is not updated !"   
 fi 
