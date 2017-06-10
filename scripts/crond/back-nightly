@@ -9,6 +9,12 @@ IMAGE_PROCESS_FLAG=1
 PIPELINE_UPDATE_FLAG=1
 
 
+if [ "`ps -ef | grep crond/back-nightly | grep -v grep`" != "" ]; then 
+   echo "Info: Skipping back-nightly as instance of it is still running"
+   exit 0
+fi 
+
+
 # Set the SIBIS environment variable to the data integration repo
 export SIBIS=`realpath $(dirname $0)/../../`
 
@@ -23,13 +29,15 @@ export SIBIS=`realpath $(dirname $0)/../../`
 # Previously front-hourly (all code after harvester runs)
 #
 
-# At midnight PST, run full update; otherwise, add only previously-missing data
-update_args=""
-# if run hourly then only run full mode at midnight
-# update_args+=" --missing-only"
-
-
 LOG_DIR=${SIBIS_ANALYSIS_DIR}/log/back-nightly
+# Over the weekend run full version
+Day=$(date +%a)
+if [ "$Day" == "Sat" -o  "$Day" == "Fri" ]; then 
+    update_args=""
+    print "Info: update_visit_data checks all forms"
+else 
+    update_args+=" --missing-only"
+fi 
 
 catch_output_email "Import Laptop Data Import (update_visit_data)" ${SIBIS}/scripts/import/laptops/update_visit_data -p -t ${LOG_DIR} --max-days-after-visit 120 ${update_args}
 
