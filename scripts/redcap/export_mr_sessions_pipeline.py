@@ -56,7 +56,7 @@ def check_file_date(pipeline_file,xnat_file):
 # Returns - True if new files were created, False if not
 #
 
-def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_directory, filename_pattern, xnat_dir verbose=False, timer_label=None):
+def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_directory, filename_pattern, xnat_dir, verbose=False, timer_label=None):
     (subject_label, event_label) = redcap_key
     # List should have at least one "SESSION/SCAN" entry
     if not '/' in session_and_scan_list:
