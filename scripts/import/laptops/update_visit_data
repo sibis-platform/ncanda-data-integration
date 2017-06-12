@@ -238,7 +238,7 @@ def MissingFormChecks(vdate):
                   event_id=key[1],
                   import_visit_dates=records_this_subject[date_label].to_string(),
                   target_visit_date=vdate)
-            print "what" , session_id,  import_complete_records[complete_label][session_id]
+
             return 
 
         if import_complete_records[exclude_label][session_id] :
