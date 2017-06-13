@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 from lxml import objectify
 
+import sibispy
 from sibispy import sibislogger as slog
 
 def read_xml_sidecar(filepath):
@@ -138,12 +139,11 @@ def get_site_scanner(site):
     return site_scanner.get(site)
 
 
-def get_ground_truth_gradients(scanner,scanner_model,decimals):
+def get_ground_truth_gradients(analysis_cases_dir,scanner,scanner_model,decimals):
     """
     Return a dictionary for scanner:gratient
     """
     # Choose arbitrary cases for ground truth
-    test_path = '/fs/ncanda-share/pipeline/cases'
     # Get ground truth for standard baseline
     test_arm = 'standard'
     test_event = 'baseline'
@@ -162,7 +162,7 @@ def get_ground_truth_gradients(scanner,scanner_model,decimals):
     else : 
       return []     
 
-    subject_path = os.path.join(test_path, scanner_subject)
+    subject_path = os.path.join(analysis_cases_dir, scanner_subject)
 
     # Gets files for each scanner
     dti_stack = get_dti_stack(subject_path, arm=test_arm, event=test_event)
@@ -173,14 +173,14 @@ def get_ground_truth_gradients(scanner,scanner_model,decimals):
     return get_all_gradients(scanner_subject + "_" + test_arm + "_" + test_event, dti_stack, decimals)
     # dict(Siemens=siemens_gradients, GE=ge_gradients)
 
-def check_diffusion(session_label,session,xml_file_list,manufacturer,scanner_model,decimals):
+def check_diffusion(analysis_cases_dir,session_label,session,xml_file_list,manufacturer,scanner_model,decimals):
     if len(xml_file_list) == 0 : 
         slog.info(session_label,
                       "Error: check_diffusion : xml_file_list is empty ",
                       session=session)
         return 
 
-    truth_gradient = np.array(get_ground_truth_gradients(manufacturer,scanner_model,decimals))
+    truth_gradient = np.array(get_ground_truth_gradients(analysis_cases_dir,manufacturer,scanner_model,decimals))
     if len(truth_gradient) == 0 :
         slog.info(session_label,
                     'ERROR: check_diffusion: scanner is unknown',
@@ -252,7 +252,7 @@ def main(args=None):
     # Get the gradient tables for all cases and compare to ground truth
 
     slog.startTimer1()
- 
+
     if args.verbose:
       print "Checking cases in " + args.base_dir 
 
@@ -268,7 +268,7 @@ def main(args=None):
         sys.exit(1)
 
     # Demographics from pipeline to grab case to scanner mapping
-    demo_path = '/fs/ncanda-share/pipeline/summaries/redcap/demographics.csv'
+    demo_path = os.path.join(sibis_session.get_summaries_dir(),'/redcap/demographics.csv')
     demographics = pd.read_csv(demo_path, index_col=['subject',
                                                      'arm',
                                                      'visit'])
@@ -312,13 +312,21 @@ def main(args=None):
             continue
 
         xml_file_list = get_dti_stack(case, arm=args.arm, event=args.event)
-        check_diffusion(dti_path,"",xml_file_list,scanner, scanner_model,args.decimals)
+        check_diffusion(sibis_session.get_cases_dir(),dti_path,"",xml_file_list,scanner, scanner_model,args.decimals)
 
     slog.takeTimer1("script_time", "{'records': " + str(len(cases)) + "}")
 
 if __name__ == '__main__':
-    import argparse
 
+    sibis_session = sibispy.Session()
+    if not sibis_session.configure() :
+        if verbose:
+            print "Error: session configure file was not found"
+ 
+        sys.exit()
+
+
+    import argparse 
     formatter = argparse.RawDescriptionHelpFormatter
     default = 'default: %(default)s'
     parser = argparse.ArgumentParser(prog="check_gradient_tables.py",
@@ -329,7 +337,7 @@ if __name__ == '__main__':
                         default='standard')
     parser.add_argument('-b', '--base-dir', dest="base_dir",
                         help="Study base directory. {}".format(default),
-                        default='/fs/ncanda-share/pipeline/cases')
+                        default=sibis_session.get_cases_dir())
     parser.add_argument('-d', '--decimals', dest="decimals",
                         help="Number of decimals. {}".format(default),
                         default=2)
@@ -342,7 +350,7 @@ if __name__ == '__main__':
                         help="Turn on verbose", action='store_true')
     parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.",
                         action = "store_true", default = False)
-    parser.add_argument("-t", "--time-log-dir",help = "If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+    parser.add_argument("-t", "--time-log-dir",help = "If set then time logs are written to that directory",
                         action = "store",
                         default = None)
     argv = parser.parse_args()

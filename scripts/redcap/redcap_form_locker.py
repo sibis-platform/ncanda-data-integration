@@ -293,7 +293,7 @@ if __name__ == "__main__":
     parser.add_argument("-v", "--verbose", dest="verbose",
                         help="Turn on verbose", action='store_true')
     parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
-    parser.add_argument("-t","--time-log-dir", help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)", action="store", default=None)
+    parser.add_argument("-t","--time-log-dir", help="If set then time logs are written to that directory", action="store", default=None)
 
     args = parser.parse_args()
 

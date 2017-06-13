@@ -165,7 +165,7 @@ parser.add_argument( "ssaga_type", help="SSAGA type, e.g., 'youth' or 'parent'."
 parser.add_argument( "outdir", help="Output directory. All CSV files are created in this directory")
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
 parser.add_argument("-t","--time-log-dir",
-                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    help="If set then time logs are written to that directory",
                     action="store",
                     default=None)
 args = parser.parse_args()

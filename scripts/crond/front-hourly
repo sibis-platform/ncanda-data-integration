@@ -5,6 +5,13 @@
 ##  for the copyright and license terms
 ##
 
+# if on instance is running then it is at least has a count of 2 !
+num_scripts=`ps -ef | grep crond/front-hourly | grep -v grep | wc -l`
+if [ ${num_scripts} -gt 2 ]; then 
+   echo "Info: Not running front-hourly as instance(s) of it are already running"
+   exit 0
+fi 
+
 # Set the SIBIS environment variable to the data integration repo
 export SIBIS=`realpath $(dirname $0)/../../`
 
@@ -17,6 +24,9 @@ IMPORT_FLAG=1
 # Import some useful functions
 . $(dirname $0)/crontools.sh
 
+LOG_DIR=${SIBIS_ANALYSIS_DIR}/log/front-hourly
+
+
 hour=$(date +%H)
 
 # Run QA on fBIRN and ADNI phantom scans
@@ -27,10 +37,10 @@ if [ -f /.dockerenv ]; then
     container_mail_server="-S smtp=\"$SMTP_SERVER\"";
 fi
 if [ ${hour} -eq 0 ]; then
-    qa_args+=" -t /fs/ncanda-share/ncanda-data-log/front-hourly"
+    qa_args+=" -t ${LOG_DIR}"
 fi  
 if [ ${XNAT_FLAG} == 1 ]; then
-   catch_output_email ncanda-admin@sri.com "NCANDA XNAT: Phantom QA Messages (phantom_qa)" "${container_mail_server}" /${SIBIS}/scripts/xnat/phantom_qa  ${qa_args}
+   catch_output_email "XNAT: QA Phantoms (phantom_qa)" "${container_mail_server}" ${SIBIS}/scripts/xnat/phantom_qa  ${qa_args}
 else
    if [ ${hour} -eq 0 ]; then
       echo "front-nightly: Warning: XNAT updates are disabled !"
@@ -40,7 +50,7 @@ fi
 
 # Import data from the sites' data capture laptops into REDCap and reconcile imported with longitudinal data
 if [ ${IMPORT_FLAG} == 1 ]; then
-  catch_output_email ncanda-admin@sri.com "NCANDA: Laptop Data Import Stage 1 (harvester)" ${container_mail_server} ${SIBIS}/scripts/import/laptops/harvester ${qa_args} /fs/storage/laptops/ncanda /fs/storage/laptops/imported
+  catch_output_email "Import Laptop Data Stage 1 (harvester)" "${container_mail_server}" ${SIBIS}/scripts/import/laptops/harvester ${qa_args} ${SIBIS_LAPTOP_DIR}/ncanda ${SIBIS_LAPTOP_DIR}/imported
 else
    if [ ${hour} -eq 0 ]; then
       echo "front-nightly: Warning: Import from laptops  disabled !"
@@ -56,6 +66,4 @@ update_args=""
 if [ ${hour} -eq 0 ]; then
     update_args+="--update-all"
 fi
-catch_output_email ncanda-admin@sri.com "NCANDA REDCap: Update Scores (update_summary_scores)" \
-    ${container_mail_server} \
-    ${SIBIS}/scripts/redcap/update_summary_scores ${update_args} ${qa_args}
+catch_output_email "REDCap: Update Scores (update_summary_scores)" "${container_mail_server}" ${SIBIS}/scripts/redcap/update_summary_scores ${update_args} ${qa_args}

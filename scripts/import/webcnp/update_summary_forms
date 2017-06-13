@@ -33,7 +33,7 @@ parser.add_argument( "--records-per-upload", help="Maximum number of records to 
 parser.add_argument( "-n", "--no-upload", help="Do not upload any data to REDCap server; instead write to CSV file with given path.", action="store")
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
 parser.add_argument("-t","--time-log-dir",
-                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    help="If set then time logs are written to that directory",
                     action="store",
                     default=None)
 args = parser.parse_args()

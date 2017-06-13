@@ -135,7 +135,7 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
 
 
 # Process a phantom MR imaging session
-def process_phantom_session( interface, project, subject, session, label, force_updates=False ):
+def process_phantom_session( interface, project, subject, session, label, xnat_dir,force_updates=False ):
     # Get the experiment object
     experiment = interface.select.experiment( session )
     # First, see if the QA files are already there
@@ -150,7 +150,7 @@ def process_phantom_session( interface, project, subject, session, label, force_
             [scan_type,quality] = experiment.scan( scan ).attrs.mget( ['type', 'quality'] )
             if ('mprage' in scan_type) or ('t1spgr' in scan_type):
                 # Extract the DICOM file directory from the XML representation
-                match = re.match( '.*(/fs/storage/XNAT/.*)scan_.*_catalog.xml.*', experiment.scan( scan ).get(), re.DOTALL )
+                match = re.match( '.*('+ xnat_dir + '/.*)scan_.*_catalog.xml.*', experiment.scan( scan ).get(), re.DOTALL )
                 if match:
                     dicom_path = match.group(1)
 

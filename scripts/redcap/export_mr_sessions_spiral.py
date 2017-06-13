@@ -37,7 +37,7 @@ def export_spiral_files(redcap_visit_id, xnat, redcap_key, resource_location, to
             stroop_file_tmp = xnat.select.experiment(stroop[0]).resource(stroop[1]).file(stroop[2]).get_copy(os.path.join( tmpdir, stroop[2]))
 
             from sanitize_eprime import copy_sanitize
-            copy_sanitize(stroop_file_tmp, stroop_file_out)
+            copy_sanitize(redcap_visit_id,stroop_file_tmp, stroop_file_out)
             shutil.rmtree(tmpdir)
 
             result = True

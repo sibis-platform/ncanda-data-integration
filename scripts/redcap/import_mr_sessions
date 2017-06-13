@@ -498,7 +498,7 @@ parser.add_argument("-n", "--no-upload",
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
 
 parser.add_argument("-t","--time-log-dir",
-                    help="If set then time logs are written to that directory (e.g. /fs/ncanda-share/ncanda-data-log/crond)",
+                    help="If set then time logs are written to that directory",
                     action="store",
                     default=None)
 
@@ -694,6 +694,7 @@ records_uploaded = 0
 index = 0
 # timer is just run once for dicom conversion if timer log dir is set 
 runTimerForImportToPipeline=True
+xnat_dir = session.get_xnat_dir()
 for [key, row] in mr_sessions_redcap.iterrows():
     index +=1 
     subject_label = key[0]
@@ -778,7 +779,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
 
                 # Check if pipeline directory given and export imaging series there
                 if args.pipeline_root_dir and (this_subject_data['exclude'] != 1):
-                    if mrpipeline.export_and_queue( redcap_visit_id, xnat, xnat_data, key, args.pipeline_root_dir, run_pipeline_script=args.run_pipeline_script, stroop=(stroop_eid,stroop_resource,stroop_file), verbose=args.verbose , timerFlag = runTimerForImportToPipeline) :
+                    if mrpipeline.export_and_queue( redcap_visit_id, xnat, xnat_data, key, args.pipeline_root_dir, xnat_dir, run_pipeline_script=args.run_pipeline_script,stroop=(stroop_eid,stroop_resource,stroop_file), verbose=args.verbose , timerFlag = runTimerForImportToPipeline) :
                         # only run timer once - otherwise collect too much data
                         runTimerForImportToPipeline = False
 
