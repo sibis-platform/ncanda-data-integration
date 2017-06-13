@@ -21,7 +21,7 @@ catch_output_email()
 {
     local mailto=${SIBIS_ADMIN_EMAIL}
     local subject="${SIBIS_PROJECT_NAME}: $1"
-    local server="$3"
+    local server="$2"
 
     shift 2
     local cmd="$*"
