@@ -688,7 +688,7 @@ for (eid, project, subject, insert_date,
                                                              eid,
                                                              project,
                                                              session_label,
-                                                             sibis_sesssion.get_xnat_dir())
+                                                             sibis_session.get_xnat_dir())
 
     # figure out what scans are required for this subject (or phantom) on this
     # platform
