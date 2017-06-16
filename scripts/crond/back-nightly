@@ -8,13 +8,6 @@
 IMAGE_PROCESS_FLAG=1
 PIPELINE_UPDATE_FLAG=1
 
-# if on instance is running then it is at least has a count of 2 !
-num_scripts=`ps -ef | grep crond/back-nightly | grep -v grep | wc -l`
-if [ $num_scripts -gt 2 ]; then 
-   echo "Info: Not running back-nightly as instance(s) of it are already running"
-   exit 0
-fi 
-
 # Set the SIBIS environment variable to the data integration repo
 export SIBIS=`realpath $(dirname $0)/../../`
 
@@ -34,10 +27,14 @@ LOG_DIR=${SIBIS_ANALYSIS_DIR}/log/back-nightly
 Day=$(date +%a)
 if [ "$Day" == "Sat" -o  "$Day" == "Fri" ]; then 
     update_args=""
-    print "Info: update_visit_data checks all forms"
+    echo "Info: update_visit_data checks all forms"
 else 
     update_args+=" --missing-only"
 fi 
+
+# DEBUGGING right now 
+update_args+=" --missing-only"
+
 
 catch_output_email "Import Laptop Data Import (update_visit_data)" ${SIBIS}/scripts/import/laptops/update_visit_data -p -t ${LOG_DIR} --max-days-after-visit 120 ${update_args}
 
@@ -67,6 +64,18 @@ if [ ${IMAGE_PROCESS_FLAG} == 1 ]; then
 else 
     echo "back-nightly: Warning: Image data is not updated !"   
 fi 
+
+#
+#
+# if on instance is running then it is at least has a count of 2 !
+num_scripts=`ps -ef | grep crond/back-nightly | grep -v grep | wc -l`
+if [ $num_scripts -gt 2 ]; then 
+   echo "Info: Not running all of back-nightly as instance(s) of it are already running"
+   exit 0
+fi 
+
+
+
  
 ######################################
 # REDCap / NP / Clinical Data Related
