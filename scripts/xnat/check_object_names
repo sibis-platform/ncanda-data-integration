@@ -16,6 +16,7 @@ import pyxnat
 import sys
 
 import sibispy
+from sibispy import sibis_email 
 from sibispy import sibislogger as slog
 
 session = sibispy.Session()
@@ -253,9 +254,7 @@ def validate_new_and_outstanding( ifc, project, objects_to_check, date_last_chec
 ifc = session.connect_server('xnat', True)
 
 # Set up email object to contact users and admin
-from xnat_email import XnatEmail
-
-email = XnatEmail( ifc, session.get_email())
+email = sibis_email.xnat_email(session)
 
 # Experiments to check from last run - these should be the ones we flagged last time and stored on the server for reconsideration
 objects_to_check = []
