@@ -96,7 +96,7 @@ def to_redcap(session, form_name, subject_id, event, timelabel, upload_records, 
         id_label = '%s_missing' % form_name
 
     error_label = subject_id +"-"+ event + "-" + form_name 
-    import_response =  session.redcap_import_record(error_label,subject_id,event,timelabel,upload_records,record_id) 
+    import_response =  session.redcap_import_record(error_label,subject_id,event,timelabel,[upload_records],record_id) 
  
     if verbose :
         print "... done" 
