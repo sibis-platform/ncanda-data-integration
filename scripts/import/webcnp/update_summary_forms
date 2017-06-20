@@ -11,6 +11,7 @@ import datetime
 import numpy as np
 import pandas
 import sys 
+import hashlib
 
 import sibispy
 from sibispy import sibislogger as slog
@@ -143,7 +144,7 @@ for key, row in summary_records.iterrows():
             if len( records_this_visit ) > 1:
                 # Not unique - warning
                 error = 'WARNING: More than one CNP record found for subject %s, event %s, visit date %s - selecting the latest record' % (key[0],key[1],visit_date)
-                slog.info( hashlib.sha1('update_summary_forms').hexdigest()[0:6], error,
+                slog.info( "DuplicateRecords-" + hashlib.sha1(error).hexdigest()[0:6], error,
                            records_this_visit = str(records_this_visit.index.tolist()))
 
             # Unique record - copy data from imported project to summary form
@@ -208,8 +209,8 @@ else:
         to_index = min( from_index + args.records_per_upload, len(summary_records) )
         if args.verbose:
             print "Uploading records",from_index,"to",to_index-1
-
-        import_response = rc_summary.import_records( summary_records[from_index:to_index], overwrite='overwrite' )
+        
+        import_response =  session.redcap_import_record("ImportToDataEntry", "", "", True, summary_records[from_index:to_index]
 
         # Count uploaded records
         if 'count' in import_response.keys():

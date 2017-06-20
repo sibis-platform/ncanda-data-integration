@@ -8,7 +8,6 @@
 import os
 import re
 import sys
-import hashlib
 import datetime
 import argparse
 
@@ -96,10 +95,8 @@ def to_redcap(session, form_name, subject_id, event, timelabel, upload_records, 
         print "to_redcap: ", form_name, subject_id, event, timelabel, record_id 
         id_label = '%s_missing' % form_name
 
-    sha = hashlib.sha1(str(upload_records)).hexdigest()
-    error_label = subject_id +"-"+ event + "-" + form_name +"-{}".format(sha[0:6])
-
-    import_response =  session.redcap_import_record(error_label,subject_id,event,timelabel,upload_records,record_id)   
+    error_label = subject_id +"-"+ event + "-" + form_name 
+    import_response =  session.redcap_import_record(error_label,subject_id,event,timelabel,upload_records,record_id) 
  
     if verbose :
         print "... done" 
