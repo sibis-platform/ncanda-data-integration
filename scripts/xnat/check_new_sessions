@@ -644,6 +644,7 @@ if False:
     sessions_to_check = sessions_to_check[4000:]
     print "DEBUG: Checking " + str(len(sessions_to_check)) + " sessions." 
 
+xnat_dir = sibis_session.get_xnat_dir()
 index = 0
 for (eid, project, subject, insert_date,
      session_label, last_modified) in sessions_to_check:
@@ -688,7 +689,7 @@ for (eid, project, subject, insert_date,
                                                              eid,
                                                              project,
                                                              session_label,
-                                                             sibis_session.get_xnat_dir())
+                                                             xnat_dir)
 
     # figure out what scans are required for this subject (or phantom) on this
     # platform
@@ -754,7 +755,7 @@ for (eid, project, subject, insert_date,
                 scanner_model,
                 scan,
                 scantype,
-                sibis_session.get_xnat_dir(),
+                xnat_dir,
                 sibis_session.get_cases_dir(),
                 verbose=args.verbose)
             if len(error_msg) or niftisWereCreatedFlag:
@@ -857,7 +858,7 @@ for (eid, project, subject, insert_date,
 # Make links for all "new" sessions, i.e., those inserted after the
 # "last checked" date
 new_session_links = [
-    make_session_link(server_address,eid, project, label)
+    make_session_link(server_address,eid, project, label,xnat_dir)
     for (eid, project, subject,
          insert_date, label, last_modified) in new_sessions
     if insert_date >= str_date_last_checked]
