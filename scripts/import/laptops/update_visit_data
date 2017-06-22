@@ -14,6 +14,7 @@ import argparse
 import pandas
 import redcap
 import requests
+import hashlib 
 
 import sibispy
 from sibispy import sibislogger as slog
@@ -104,11 +105,11 @@ def to_redcap(session, form_name, subject_id, event, timelabel, upload_records, 
     # If there were any errors, try to print them as well as possible
     if import_response:
         if 'error' in import_response.keys():
-            slog.info(error_label, "ERROR: Uploading Data", error_msg = str(import_response['error']))
+            slog.info(error_label + "-" + hashlib.sha1(str(import_response['error'])).hexdigest()[0:6], "ERROR: Uploading Data", error_msg = str(import_response['error']))
         if 'fields' in import_response.keys():
-            slog.info(error_label, "Info: something wrong with fields ! Not sure what to do !", fields =  str(import_response['fields']))
+            slog.info(error_label + "-" + hashlib.sha1(str(import_response['fields'])).hexdigest()[0:6], "Info: something wrong with fields ! Not sure what to do !", fields =  str(import_response['fields']))
         if 'records' in import_response.keys():
-            slog.info(error_label, "Info: something wrong with redcords ! Not sure what to do !", records =  str(import_response['records']))
+            slog.info(error_label + "-" + hashlib.sha1(str(import_response['records'])).hexdigest()[0:6], "Info: something wrong with redcords ! Not sure what to do !", records =  str(import_response['records']))
         # Finally, print upload status if so desired
         if 'count' in import_response.keys():
             return import_response['count']
