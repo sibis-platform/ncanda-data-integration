@@ -923,7 +923,7 @@ if args.send_mail_to:
     from sibispy import sibis_email 
     email = sibis_email.xnat_email(sibis_session)
     email.send('%s XNAT - MRI Session Report' % sibis_session.get_project_name(),
-               email._xnat_admin_email,
+               email._admin_email,
                args.send_mail_to.split(','),
                html)
 elif args.verbose:
