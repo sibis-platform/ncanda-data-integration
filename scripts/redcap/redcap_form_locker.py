@@ -95,7 +95,7 @@ def get_locked_records(project_name, arm_name, event_descrip, engine, site_id=No
     return locked_forms
 
 
-def get_project_records(project_name, arm_name, event_descrip, engine):
+def get_project_records(project_name, arm_name, event_descrip, engine, subject_id = None ):
     """
     Get a dataframe of records for a specific event
 
@@ -111,12 +111,18 @@ def get_project_records(project_name, arm_name, event_descrip, engine):
     sql = "SELECT DISTINCT record " \
           "FROM redcap.redcap_data AS rd " \
           "WHERE rd.project_id = {0} " \
-          "AND rd.event_id = {1};".format(project_id, event_id)
+          "AND rd.event_id = {1}".format(project_id, event_id)
+    if subject_id :
+        sql +=  " AND rd.record = '{0}';".format(subject_id)
+    else :
+        sql +=";"
+        
     records = pd.read_sql(sql, engine)
+    
     return records
 
 
-def unlock_form(project_name, arm_name, event_descrip, form_name, engine):
+def unlock_form(project_name, arm_name, event_descrip, form_name, engine, subject_id = None):
     """
     Unlock a given form be removing records from table
 
@@ -125,6 +131,7 @@ def unlock_form(project_name, arm_name, event_descrip, form_name, engine):
     :param event_descrip: str
     :param form_name: str
     :param engine: `sqlalchemy.Engine`
+    :param subject_id: str
     :return: None
     """
     # get ids needed for unlocking
@@ -136,6 +143,8 @@ def unlock_form(project_name, arm_name, event_descrip, form_name, engine):
     locked_forms = locked_records[(locked_records.project_id == project_id) &
                                   (locked_records.event_id == event_id) &
                                   (locked_records.form_name == form_name)]
+    if subject_id : 
+        locked_forms = locked_forms[(locked_forms.record == subject_id)]
 
     # generate the list of ids to drop and remove from db table
     global locked_list
@@ -146,10 +155,9 @@ def unlock_form(project_name, arm_name, event_descrip, form_name, engine):
         execute(sql, engine)
         return True
     else :
-        print "Warning: Nothing to unlock for form '{0}' does not exist".format(form_name)
         return False
 
-def lock_form(project_name, arm_name, event_descrip, form_name, username, outfile, engine):
+def lock_form(project_name, arm_name, event_descrip, form_name, username, outfile, engine, subject_id = None):
     """
     Lock all records for a given form for a project and event
 
@@ -168,7 +176,8 @@ def lock_form(project_name, arm_name, event_descrip, form_name, username, outfil
     # get the pd.Series needed to construct a dataframe
     global project_records
     project_records = get_project_records(project_name, arm_name,
-                                          event_descrip, engine)
+                                          event_descrip, engine, subject_id)
+        
     project_id_series = [project_id] * len(project_records)
     event_id_series = [event_id] * len(project_records)
     form_name_series = [form_name] * len(project_records)
@@ -182,7 +191,7 @@ def lock_form(project_name, arm_name, event_descrip, form_name, username, outfil
 
     dataframe = pd.DataFrame(data=locking_records)
     # first make sure all these forms are unlocked before locking
-    unlock_form(project_name, arm_name, event_descrip, form_name, engine)
+    unlock_form(project_name, arm_name, event_descrip, form_name, engine, subject_id)
     # lock all the records for this form by appending entries to locking table
     # Kilian: Problem this table is created regardless if the form really exists in redcap or not
     dataframe.to_sql('redcap_locking_data', engine, if_exists='append', index=False)
@@ -200,7 +209,7 @@ def report_locked_forms(site_id, xnat_id, forms, project_name,
     :param site_id: str (e.g., X-12345-G-6)
     :param xnat_id: str (e.g., NCANDA_S12345)
     :param forms: list
-    :param project_name: str (e.g., data_entry)
+    :param project_name: str (e.g., ncanda_subject_visit_log)
     :param arm_name: str (e.g., Standard)
     :param event_descrip: str (e.g., Baseline)
     :param engine: `sqlalchemy.Engine`
@@ -219,46 +228,61 @@ def report_locked_forms(site_id, xnat_id, forms, project_name,
 
 
 def main(args=None):
+    if not args:
+        return 
+    
     slog.startTimer1()
-    if args:
-        slog.startTimer1()
-        session = sibispy.Session()
-        if not session.configure() :
-            if args.verbose:
-                print "Error: session configure file was not found"
-
-            sys.exit(1)
-
-        engine = session.connect_server('redcap_mysql_db', True)
-        if not engine :
-            if args.verbose:
-                print "Error: Could not connect to REDCap mysql db"
-
-            sys.exit(1)
-
+    session = sibispy.Session()
+    if not session.configure() :
         if args.verbose:
-            print "Connected to REDCap using: {0}".format(engine)
-        if args.unlock and args.lock:
-            raise Exception("Only specify --lock or --unlock, not both!")
-        if args.lock and not args.unlock:
-            if args.verbose:
-                print "Attempting to lock form: {0}".format(args.form)
-            lock_form(args.project, args.arm, args.event, args.form,
-                      args.username, args.outfile, engine)
-            slog.takeTimer1("script_time","{'records': " + str(len(project_records)) + "}")
-            if args.verbose:
-                print "The {0} form has been locked".format(args.form)
-                print "Record of locked files: {0}".format(args.outfile)
-        if args.unlock and not args.lock:
-            if args.verbose:
-                print "Attempting to unlock form: {0}".format(args.form)
-            if unlock_form(args.project, args.arm, args.event, args.form, engine) and args.verbose:
-                print "The {0} form has been unlocked".format(args.form)
-                slog.takeTimer1("script_time","{'records': " + str(len(locked_list)) + "}")
-        if args.verbose:
-            print "Done!"
+            print "Error: session configure file was not found"
 
-        slog.takeTimer1("script_time")
+        sys.exit(1)
+
+    engine = session.connect_server('redcap_mysql_db', True)
+    if not engine :
+        if args.verbose:
+            print "Error: Could not connect to REDCap mysql db"
+
+        sys.exit(1)
+
+    if args.verbose:
+        print "Connected to REDCap using: {0}".format(engine)
+
+    if args.unlock and args.lock:
+        raise Exception("Only specify --lock or --unlock, not both!")
+
+    if args.lock:
+        if args.verbose:
+            print "Attempting to lock form: {0}".format(args.form)
+        lock_form(args.project, args.arm, args.event, args.form,
+                  args.username, args.outfile, engine , subject_id = args.subject_id)
+        slog.takeTimer1("script_time","{'records': " + str(len(project_records)) + "}")
+        if args.verbose:
+            print "The {0} form has been locked".format(args.form)
+            print "Record of locked files: {0}".format(args.outfile)
+
+    elif args.unlock:
+        if args.verbose:
+            print "Attempting to unlock form: {0}".format(args.form)
+
+        if not unlock_form(args.project, args.arm, args.event, args.form, engine, subject_id = args.subject_id):
+            print "Warning: Nothing to unlock ! Form '{0}' might not exist".format(args.form)
+        elif args.verbose:
+            print "The {0} form has been unlocked".format(args.form)
+
+    elif args.report:
+        if args.verbose:
+            print "Attempting to create a report for form {0} and subject_id {1} ".format(args.form,args.subject_id)
+        print report_locked_forms(args.subject_id, args.subject_id, [ args.form ], args.project, args.arm, args.event, engine)
+
+    else :
+        raise Exception("Please specify --lock, --unlock, or --report!")
+            
+    if args.verbose:
+        print "Done!"
+
+    slog.takeTimer1("script_time")
 
 if __name__ == "__main__":
     import argparse
@@ -281,15 +305,16 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--outfile", dest="outfile",
                         default=os.path.join('/tmp', 'locked_records.csv'),
                         help="Path to write locked records file. {0}".format(default))
+    parser.add_argument("-s", "--subject_id", default=None, help="REDCap subject ID")
     parser.add_argument("-u", "--username", dest="username", required=True,
                         help="User Name with locking permissions")
     parser.add_argument("--lock", dest="lock", action="store_true",
                         help="Lock form")
     parser.add_argument("--unlock", dest="unlock", action="store_true",
                         help="Lock forms")
-    parser.add_argument("-c", "--config", dest="config",
-                        default=os.path.expanduser('~/.server_config/redcap-mysql.cfg'),
-                        help="Path to config file. {0}".format(default))
+    parser.add_argument("--report", dest="report", action="store_true",
+                        help="Generate a report for subject")
+
     parser.add_argument("-v", "--verbose", dest="verbose",
                         help="Turn on verbose", action='store_true')
     parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
