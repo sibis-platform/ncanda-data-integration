@@ -18,6 +18,34 @@ from sibispy import sibislogger as slog
 
 import scoring
 
+#
+# Functions 
+#
+
+# Find all matching fields from a list of field names that match a list of given regular expression patterns
+def get_matching_fields(field_list, pattern_list):
+    matches = set()
+    for field_pattern in pattern_list:
+        pattern_matches = [field for field in field_list if re.match(field_pattern, field)]
+        if len(pattern_matches) > 0:
+            matches.update(pattern_matches)
+        else:
+            # If no matches, assume this is a "complete" field and simply add the pattern itself
+            matches.update([field_pattern])
+    return matches
+
+
+def mark_missing(row, instrument):
+    if row['%s_missing' % instrument] > 0:
+        return 0
+    else:
+        return row['%s_complete' % instrument]
+
+
+#
+# Main 
+#
+
 # Setup command line parser
 parser = argparse.ArgumentParser(description="Update longitudinal project forms"
                                              " from data imported from the data capture laptops",
@@ -27,6 +55,9 @@ parser.add_argument("-v", "--verbose",
                     action="store_true")
 parser.add_argument("-i", "--instruments",
                     help="Select specific instruments to update. Separate multiple forms with commas.",
+                    action="store", default=None)
+parser.add_argument("-s", "--subject_id",
+                    help="Only run for specific subject.",
                     action="store", default=None)
 parser.add_argument("-a", "--update-all",
                     help="Update all summary records, regardless of current completion status "
@@ -84,26 +115,6 @@ if args.instruments:
         else:
             print "WARNING: no instrument with name '%s' defined.\n" % inst
 
-
-# Find all matching fields from a list of field names that match a list of given regular expression patterns
-def get_matching_fields(field_list, pattern_list):
-    matches = set()
-    for field_pattern in pattern_list:
-        pattern_matches = [field for field in field_list if re.match(field_pattern, field)]
-        if len(pattern_matches) > 0:
-            matches.update(pattern_matches)
-        else:
-            # If no matches, assume this is a "complete" field and simply add the pattern itself
-            matches.update([field_pattern])
-    return matches
-
-
-def mark_missing(row, instrument):
-    if row['%s_missing' % instrument] > 0:
-        return 0
-    else:
-        return row['%s_complete' % instrument]
-
 # Import scoring module - this has a list of all scoring instruments with input fields, scoring functions, etc.
 for instrument in instrument_list:
     if args.verbose:
@@ -111,12 +122,15 @@ for instrument in instrument_list:
 
     # Get fields in the summary project for this instrument
     fields_list = ['%s_complete' % instrument]
-    record_ids = rc_summary.export_records(fields=fields_list, event_name='unique', format='df')
+    if args.subject_id:
+        record_ids = rc_summary.export_records(fields=fields_list, records=[args.subject_id],event_name='unique', format='df')
+    else : 
+        record_ids = rc_summary.export_records(fields=fields_list,event_name='unique', format='df')
 
     # Get events for which this instrument is present, and drop all records from other events
     instrument_events_list = form_event_mapping[form_event_mapping['form_name'] == scoring.output_form[instrument]]['unique_event_name'].tolist()
-    record_ids = record_ids[record_ids.index.map(lambda x: x[1] in instrument_events_list)]
 
+    record_ids = record_ids[record_ids.index.map(lambda x: x[1] in instrument_events_list)]
     # Unless instructed otherwise, drop all records that already exist
     if not args.update_all:
         record_ids = record_ids[record_ids['%s_complete' % instrument].map(lambda x: True if str(x) == 'nan' else x < 1)]
@@ -140,13 +154,11 @@ for instrument in instrument_list:
                 imported.append(rc_summary.export_records(fields=import_fields,
                                                           records=records_this_event[idx:idx + 50],
                                                           events=[event_name], event_name='unique', format='df'))
-
         try:
             scored_records = scoring.functions[instrument](pandas.concat(imported), demographics)
         except Exception as e:
             error = "ERROR: scoring failed for instrument", instrument
-            slog.info(hashlib.sha1('update_summary_scores {}'.format(instrument)).hexdigest()[0:6], error,
-                      exception=str(e))
+            slog.info(instrument + "-" + hashlib.sha1(str(e)).hexdigest()[0:6], error, exception=str(e))
             continue
 
         if args.verbose:
@@ -155,22 +167,16 @@ for instrument in instrument_list:
         if args.no_upload:
             scored_records.to_csv(args.no_upload)
         else:
-            try:
-                uploaded = rc_summary.import_records(scored_records,
-                                                     overwrite='overwrite')
-                count_uploaded += 1
-            except redcap.RedcapError as e:
-                slog.info(instrument,
-                    "ERROR: Field is located on a form that is locked",
-                    script='update_summary_scores',
-                    msg=str(e))
-                continue
+            uploaded = session.redcap_import_record(instrument, None, None, 'upload_instruments', scored_records)
+            if not uploaded : 
+                continue 
 
-            if args.verbose:
-                if 'count' in uploaded.keys() and uploaded['count'] > 0:
+            if 'count' in uploaded.keys() and uploaded['count'] > 0:
+                count_uploaded += uploaded['count']               
+                if args.verbose:
                     print 'Updated', uploaded['count'], 'records of "%s"' % instrument
-                else:
-                    print 'No updates for instrument "%s"' % instrument, uploaded
+            elif args.verbose:
+                print 'No updates for instrument "%s"' % instrument, uploaded
     else:
         if args.verbose:
             print 'No unscored records instrument "%s"' % instrument
