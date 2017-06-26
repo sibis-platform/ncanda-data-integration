@@ -196,7 +196,7 @@ for eid in experiments_to_check:
 
 # All sessions to check - previously flagged plus updated
 sessions_to_check = sorted(list(set(new_sessions + previous_sessions)),
-                           key=lambda tupl: tupl[0])
+                           key=lambda tupl: tupl[3])
 if args.verbose:
     print 'Checking a total of %d experiments' % len(sessions_to_check)
 
