@@ -227,7 +227,7 @@ def MissingFormChecks(vdate):
         if not import_complete_records[complete_label][session_id]:
             # the form exists but is incomplete 
             slog.info(session_id, "Error: The status of the form '%s' of record '%s' in the Import project is incomplete while it is unverified or complete in the Entry project!" % (form_name,session_id),
-                  info = "Change status of form or change visit date to include records in the search that have not_incomplete status",
+                  info = "Change status of form, change visit date to include records in the search that have not incomplete status, or simply exclude record!",
                   entry_subject_id=key[0],
                   form_name=form_name,
                   event_id=key[1],
@@ -310,7 +310,7 @@ parser.add_argument("-t","--time-log-dir",
 args = parser.parse_args()
 
 
-slog.init_log(args.verbose, args.post_to_github,'NCANDA Import: Update Form Status', 'update_visit_data', args.time_log_dir)
+slog.init_log(args.verbose, args.post_to_github,'NCANDA Import-Laptops: Update Form Status', 'update_visit_data', args.time_log_dir)
 slog.startTimer1()
 
 #Create a session object to connect to different projects
