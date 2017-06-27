@@ -227,7 +227,6 @@ def MissingFormChecks(vdate):
         if not import_complete_records[complete_label][session_id]:
             # the form exists but is incomplete 
             slog.info(session_id, "Error: The status of the form '%s' of record '%s' in the Import project is incomplete while it is unverified or complete in the Entry project!" % (form_name,session_id),
-                  info = "Change status of form, change visit date to include records in the search that have not incomplete status, or simply exclude record!",
                   entry_subject_id=key[0],
                   form_name=form_name,
                   event_id=key[1],
