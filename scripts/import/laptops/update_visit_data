@@ -235,11 +235,12 @@ def MissingFormChecks(vdate):
             return 
 
         if import_complete_records[exclude_label][session_id] :
-            slog.info(session_id, 'Error: The form in the Import project is excluded while it is not in the entry project!',
+            slog.info(session_id, 'Error: The form in the Import project is excluded while it is not excluded in the entry project!',
                   entry_subject_id=key[0],
                   form_name=form_name,
                   event_id=key[1],
                   import_visit_dates=records_this_subject[date_label].to_string(),
+                  info = "If that is on purpose and 'Manually Entered' flag exists in the form, please set it to 'yes' in the record of the entry project",  
                   target_visit_date=vdate)
             return 
 
@@ -480,11 +481,17 @@ for form_prefix, form_name in forms.iteritems():
         # hierarchical form and we should just use the given form name
         summary_form_name = form_name
     instrument_events_list = form_event_mapping[form_event_mapping['form_name'] == summary_form_name ]['unique_event_name'].tolist()
+
     entry_form_data = entry_data[ entry_data.index.map( lambda x: x[1] in instrument_events_list ) ]
 
     # Drop all records that have been marked as permanently missing
     missing_label = '%s_missing' % form_prefix
     entry_form_data = entry_form_data[entry_form_data[missing_label] != 1]
+
+    # Drop all forms that have been manually entered 
+    manual_label = '%s_manual' % form_prefix
+    if  manual_label in  entry_form_data.columns : 
+        entry_form_data = entry_form_data[entry_form_data[manual_label] != 1]
 
     # Drop all entry project records when doing "missing only", or else unless "update all",
     # drop records where this form is already marked "Completed"
