@@ -297,7 +297,7 @@ parser.add_argument("--reset-disappeared",
                          " record was previously assigned but can no longer be found.",
                     action="store_true")
 parser.add_argument("--study-id",
-                    help="Limit processing to subject id (e.g., A-00000-F-1)",
+                    help="Limit processing to subject id (e.g., A-00000-F-1) - multiple ones seperate them by ',' (e.g., 'A-00000-F-1,A-00002-F-2') ",
                     action="store",
                     default=None)
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
@@ -374,7 +374,7 @@ entry_data_fields += ['study_id', 'dob', 'redcap_event_name', 'visit_date', 'exc
 
 # Get list of existing records
 if args.study_id:
-    entry_data = redcap_project.export_records(records=[args.study_id], fields=entry_data_fields,
+    entry_data = redcap_project.export_records(records=args.study_id.split(','), fields=entry_data_fields,
                                           event_name='unique',
                                           format='df')
 else:
@@ -415,13 +415,13 @@ for form_prefix, form_name in forms.iteritems():
     complete_label = '%s_complete' % form_name
     exclude_label = '%s_exclude' % form_prefix
     fields_list = [complete_label, exclude_label]
+
     if args.study_id :
         subject_id_label = '%s_subject_id' % form_prefix
         fields_list.append(subject_id_label)
 
     # ==> Export data from laptops for this form from REDCap.
     import_complete_records = import_project.export_records( fields = fields_list, format='df' )
-
     # First, get "complete" and "exclude" fields for this form for all records to
     # find which ones actually have data and are not excluded.
     # Drop all empty form records (labelled 'incomplete')
@@ -430,7 +430,16 @@ for form_prefix, form_name in forms.iteritems():
     complete_records = complete_records[ complete_records[exclude_label] != 1 ]
     if args.study_id :
         # only works if record_id is correctly labelled which is not always the case 
-        complete_records = complete_records[map(lambda (record_id,record_subject_id): args.study_id in record_id or args.study_id.strip() == str(record_subject_id).strip(), zip(complete_records.index.tolist(),complete_records[subject_id_label].tolist()))]
+        s_records = pandas.DataFrame()
+        for sid in args.study_id.split(',') :
+            sidr = complete_records[map(lambda (record_id,record_subject_id): sid in record_id or args.study_id.strip() == str(record_subject_id).strip(), zip(complete_records.index.tolist(),complete_records[subject_id_label].tolist()))]
+            if len(sidr) :
+                if len(s_records) : 
+                    s_records.append(sidr)
+                else :
+                    s_records = sidr
+                
+        complete_records = s_records 
         if args.verbose:
             print "Record list from Import project:", str(complete_records.index.tolist())
 
