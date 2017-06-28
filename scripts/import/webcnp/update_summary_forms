@@ -211,7 +211,7 @@ else:
         if args.verbose:
             print "Uploading records",from_index,"to",to_index-1
         
-        import_response =  session.redcap_import_record(error_label, "", "", True, summary_records[from_index:to_index])
+        import_response =  session.redcap_import_record(error_label, "", "", "UploadRecords", summary_records[from_index:to_index])
         if import_response :
             # Count uploaded records
             if 'count' in import_response.keys():
