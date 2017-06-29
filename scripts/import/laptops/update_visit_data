@@ -371,6 +371,8 @@ form_event_mapping = redcap_project.export_fem(format='df')
 # Get record IDs, visit labels, visit dates, and completion status for all laptop forms
 entry_data_fields = [('%s_complete' % form) for form in form_names] + [('%s_missing' % form) for form in form_prefixes] + [('%s_record_id' % form) for form in form_prefixes]
 entry_data_fields += ['study_id', 'dob', 'redcap_event_name', 'visit_date', 'exclude', 'sleep_date']
+entry_data_fields += ['parentreport_manual'] 
+
 
 # Get list of existing records
 if args.study_id:
@@ -445,8 +447,14 @@ for form_prefix, form_name in forms.iteritems():
 
     records = complete_records.index.tolist()
     if len(records) == 0:
-        if args.verbose:
-            print "No imported records for form",form_name
+        error_id = form_name 
+        if args.study_id :
+            error_id += "-" + hashlib.sha1(args.study_id).hexdigest()[0:6] 
+
+        # if you stop here then missing data might be not discovered 
+        slog.info(error_id, "Warning: stop processing as no records in import project for this form",
+                  info = "If study_id_list is not empty then please add a study_id to the list that contains a record of that form so that all study_ids are fully processed, i.e., checked for missing data!", 
+                  study_id_list = args.study_id)
         continue
 
     # Next, export actual records, making sure we get everything as string,
@@ -462,8 +470,8 @@ for form_prefix, form_name in forms.iteritems():
                                                          forms=forms,
                                                          format=return_format,
                                                          df_kwargs=df_kwargs).applymap(nan_to_empty))
-
     imported_records = pandas.concat(returned_records)
+
     if args.verbose:
         print "Form {} has {} records in import project.".format(forms, len(imported_records))
 
@@ -499,7 +507,7 @@ for form_prefix, form_name in forms.iteritems():
 
     # Drop all forms that have been manually entered 
     manual_label = '%s_manual' % form_prefix
-    if  manual_label in  entry_form_data.columns : 
+    if  manual_label in  entry_form_data.columns :
         entry_form_data = entry_form_data[entry_form_data[manual_label] != 1]
 
     # Drop all entry project records when doing "missing only", or else unless "update all",
