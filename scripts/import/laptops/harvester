@@ -13,6 +13,8 @@ import sys
 
 from sibispy import sibislogger as slog
 import hashlib
+updated_files = []
+import pysvn
 
 # Setup command line parser
 parser = argparse.ArgumentParser(description="Harvest incoming data files from "
@@ -48,10 +50,15 @@ parser.add_argument("-t","--time-log-dir",
                     help="If set then time logs are written to that directory",
                     action="store",
                     default=None)
+parser.add_argument("--date",
+                    help="If set then uploads all entries during that time period, e.g. {2017-06-29}:{2017-07-03} uploads everything that was in the svn repository from 2017-06-29 to 2017-07-03",
+                    action="store",
+                    default=None)
+
 args = parser.parse_args()
 
 # Setup logging
-slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: Harvester Message', 'harvester', args.time_log_dir)
+slog.init_log(args.verbose, args.post_to_github,'NCANDA Import-Laptop: harvester message', 'harvester', args.time_log_dir)
 slog.startTimer1()
 
 # Figure out where this script is, so we can get path to other scripts.
@@ -85,12 +92,13 @@ def run_converter(site, command):
                         if args.time_log_dir:
                             command_array += ["-t", args.time_log_dir]
                         command_array += ['--data-access-group', site, fi]
+                        
                         subprocess.call(command_array)
                     except:
                         error = "Failed importing files into REDCap"
                         slog.info(hashlib.sha1('harvester {}'.format(fi)).hexdigest()[0:6], error,
                                   file=str(fi),
-                                  command=str(command))
+                                  command=str(command_array))
                 else:
                     slog.info(hashlib.sha1('harvester {}'.format(fi)).hexdigest()[0:6], 'NOT A CSV FILE',
                               file=str(fi),
@@ -120,7 +128,7 @@ def handle_file( path, site, filename):
     # Is this a Stroop file (Note: the "_100SD-" is signifigant as some MRI
     # Stroop files will include "_100SDMirror" in the filename)?
     elif re.match('^NCANDAStroopMtS_3cycles_7m53stask_100SD-[^/]*\.txt$', filename):
-        run_converter(site, [os.path.join( bindir, "stroop2csv")] + overwrite + [path, os.path.join(args.outdir, site, "stroop")])
+        run_converter(site, [os.path.join( bindir, "stroop2csv")] + overwrite + post_to_github + [path, os.path.join(args.outdir, site, "stroop")])
         try:
             subprocess.check_output([os.path.join(bindir, "eprime2redcap"), path, 'stroop_log_file'])
         except:
@@ -170,36 +178,57 @@ def handle_file_update( path ):
 #
 # Callback: catch files added and updated since last svn update
 #
-updated_files = []
-import pysvn
 def notify( event_dict ):
     global updated_files
     if event_dict['kind'] == pysvn.node_kind.file:
         if event_dict['action'] == pysvn.wc_notify_action.update_add or event_dict['action'] == pysvn.wc_notify_action.update_update or event_dict['action'] == pysvn.wc_notify_action.restore:
             updated_files.append( event_dict['path'] )
 
+#
 # Main function: perform svn update and catch all resulting events
-try:
-    client = pysvn.Client()
-    client.callback_notify = notify
-    client.update( args.svndir )
-except pysvn._pysvn.ClientError as e:
-    slog.info(hashlib.sha1('harvester').hexdigest()[0:6],
+#
+if args.verbose :
+    print "Run svn update ..." 
+
+if args.date : 
+   cmd ='cd {}; svn diff --summarize -r {} | grep -v "D     "  | tr " " "," | cut -d, -f8 | grep "\." | tr "\n" ","'.format( args.svndir, args.date )
+   process = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+   out_std,out_err = process.communicate()
+   if out_err :
+       slog.info(hashlib.sha1('harvester' + out_err).hexdigest()[0:6],
+                 "ERROR: Failed to update files in range " + args.date + ". Continued without them!",
+                 script='harvester',
+                 msg=out_err)
+   else :
+       if out_std :
+           for fName in out_std[:-1].split(',') :
+               updated_files.append(os.path.join(args.svndir,fName))               
+        
+elif args.file_to_upload:
+    updated_files.append(args.file_to_upload)
+
+else : 
+    try:
+        client = pysvn.Client()
+        client.callback_notify = notify
+        client.update( args.svndir )
+    except pysvn._pysvn.ClientError as e:
+        slog.info(hashlib.sha1('harvaster' + str(e)).hexdigest()[0:6],
                   "ERROR: Failed to create a Client for pysvn",
                   script='harvester',
                   msg=str(e))
-    sys.exit(1)
+        sys.exit(1)
 
+if args.verbose :
+    print "... done " 
+    print "Files to be uploaded :\n" + "\n".join(updated_files)
+    print "Number of records uploading: ", len(updated_files)
+ 
 # Append single file to upload
-if args.file_to_upload:
-    updated_files.append(args.file_to_upload)
 
 # Process all updated or added files
 for file in updated_files:
     handle_file_update( file )
-
-if args.verbose: 
-    print "Records uploaded: "  + str(len(updated_files))
 
 slog.takeTimer1("script_time","{'records': " + str(len(updated_files)) + "}")
 
