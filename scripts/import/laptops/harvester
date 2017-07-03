@@ -136,7 +136,7 @@ def handle_file( path, site, filename):
         run_converter( site, [ os.path.join( bindir, "pasat2csv" ) ] + overwrite + [ path, os.path.join( args.outdir, site, "pasat" ) ] )
     # Is this a SSAGA (Blaise) database?
     elif re.match( '^NSSAGA_v3\.bdb$', filename ) or re.match( '.*\.[Aa][Ss][Cc]$', filename ):
-        command_array = [site, os.path.join(bindir, 'blaise2csv')]
+        command_array = [os.path.join(bindir, 'blaise2csv')]
         if args.time_log_dir:
             command_array += ["-t", args.time_log_dir]
         if args.post_to_github:
@@ -148,7 +148,7 @@ def handle_file( path, site, filename):
         else:
             slog.info(subject_label, 'ERROR: could not determine whether the path contains Youth or Parent SSAGA',
                       path=str(path))
-        run_converter(command_array)
+        run_converter(site,command_array)
 
 #
 # Function: handle updated file by dispatching to the correct subhandler
