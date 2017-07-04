@@ -82,7 +82,7 @@ try:
     response = project.import_file( record=record_id, event=args.event, field=args.tofield, fname=os.path.basename(args.infile), fobj=file )
 except redcap.RedcapError:
     # Your import didn't work
-    sys.exit( "ERROR: file upload did not work" )
+    sys.exit( "ERROR: file upload did not work for file {} with record id {}".format(args.infile,record_id) )
     pass
 finally:
     file.close()
