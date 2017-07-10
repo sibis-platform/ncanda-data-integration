@@ -292,10 +292,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="redcap_form_locker.py",
                                      description=__doc__,
                                      formatter_class=formatter)
-    parser.add_argument("--project", dest="project", required=True,
-                        help="Project Name in lowercase_underscore.")
-    parser.add_argument("-a", "--arm", dest="arm", required=True,
-                        choices=['Standard Protocol'],
+    parser.add_argument("--project", dest="project", required=False,
+                        help="Project Name in lowercase_underscore.", default='ncanda_subject_visit_log')
+    parser.add_argument("-a", "--arm", dest="arm", required=False,
+                        choices=['Standard Protocol'],default='Standard Protocol',
                         help="Arm Name as appears in UI")
     parser.add_argument("-e", "--event", dest="event", required=True,
                         choices=['Baseline visit', '1y visit', '2y visit'],
