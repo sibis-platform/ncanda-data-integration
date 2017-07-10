@@ -117,6 +117,7 @@ if args.instruments:
 
 # Import scoring module - this has a list of all scoring instruments with input fields, scoring functions, etc.
 for instrument in instrument_list:
+    slog.startTimer2()
     if args.verbose:
         print 'Scoring instrument', instrument
 
@@ -167,7 +168,7 @@ for instrument in instrument_list:
         if args.no_upload:
             scored_records.to_csv(args.no_upload)
         else:
-            uploaded = session.redcap_import_record(instrument, None, None, 'upload_instruments', scored_records)
+            uploaded = session.redcap_import_record(instrument, None, None, None, scored_records)
             if not uploaded : 
                 continue 
 
@@ -175,8 +176,11 @@ for instrument in instrument_list:
                 count_uploaded += uploaded['count']               
                 if args.verbose:
                     print 'Updated', uploaded['count'], 'records of "%s"' % instrument
+                slog.takeTimer2(instrument + "_time","{'uploads': " +  str(uploaded['count']) + "}")
+
             elif args.verbose:
                 print 'No updates for instrument "%s"' % instrument, uploaded
+
     else:
         if args.verbose:
             print 'No unscored records instrument "%s"' % instrument
