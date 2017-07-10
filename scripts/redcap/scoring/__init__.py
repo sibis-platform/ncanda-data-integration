@@ -5,22 +5,24 @@
 ##  for the copyright and license terms
 ##
 
+import os
+import glob
+import stat
+import sys
+import imp
+from sibispy import sibislogger as slog
+
 fields_list = dict()
 functions = dict()
 output_form = dict()
 instrument_list = []
 
-import os
 module_dir = os.path.dirname(os.path.abspath(__file__))
 
-import glob
-import stat
 instruments = [ os.path.basename( d ) for d in glob.glob( os.path.join( module_dir, '*' ) ) if stat.S_ISDIR( os.stat( d ).st_mode ) and os.path.exists( os.path.join( d, '__init__.py' ) ) ]
 
-import sys
 sys.path.append( os.path.abspath( os.path.dirname( __file__ ) ) )
 
-import imp
 for i in instruments:
 #    try:
         module_found = imp.find_module( i, [module_dir] )
@@ -30,5 +32,16 @@ for i in instruments:
         fields_list[i] =  module.input_fields
         functions[i] = module.compute_scores
         output_form[i] = module.output_form
-#    except:
-#        sys.exit( "ERROR: could not import scoring module '%s'" % i )
+
+def compute_scores(instrument,input_data,demographics):
+    try:
+        scoresDF = functions[instrument](input_data, demographics)   
+    except Exception as e:
+        error = "ERROR: scoring failed for instrument", instrument
+        slog.info(instrument + "-" + hashlib.sha1(str(e)).hexdigest()[0:6], error, exception=str(e))
+        return pandas.DataFrame()
+
+    # remove nan entries as they corrupt data ingest (REDCAP cannot handle it correctly) and superfluous zeros
+    # this gave an error as it only works for float values to replace 
+    return scoresDF.astype(object).fillna('')   
+    # return scoresDF(lambda x: '' if math.isnan(x) else x )

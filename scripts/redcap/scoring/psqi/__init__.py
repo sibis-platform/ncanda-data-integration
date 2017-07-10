@@ -72,8 +72,5 @@ def compute_scores( data, demographics ):
     outfield_list = [ 'psqi_complete' ] + R2rc.values()
 
     returnDF= scores[ outfield_list ]
-    # remove nan entries as they corrupt data ingest (REDCAP cannot handle it correctly) and superfluous zeros
-    # this gave an error 
-    # returnDF.fillna('',inplace=True)
-    # so worked with this way  
+    # remove nan entries as they corrupt data ingest (REDCAP cannot handle it correctly) and superfluous zeros as these should all be integer scores 
     return returnDF.applymap(lambda x: '' if math.isnan(x) else '{0:g}'.format(float(x)))
