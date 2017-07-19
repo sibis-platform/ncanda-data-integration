@@ -106,7 +106,6 @@ demographics = rc_summary.export_records(fields=demographics_fields, event_name=
 demographics = pandas.concat([demographics.xs(event, level=1) for event in ['baseline_visit_arm_1', 'baseline_visit_arm_4']])
 
 # If list of forms given, only update those
-instrument_list = scoring.instrument_list
 if args.instruments:
     instrument_list = []
     for inst in args.instruments.split(','):
@@ -114,6 +113,8 @@ if args.instruments:
             instrument_list.append(inst)
         else:
             print "WARNING: no instrument with name '%s' defined.\n" % inst
+else : 
+    instrument_list = scoring.instrument_list
 
 # Import scoring module - this has a list of all scoring instruments with input fields, scoring functions, etc.
 for instrument in instrument_list:
