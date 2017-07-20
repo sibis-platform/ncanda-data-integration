@@ -62,7 +62,7 @@ def sum_nonna(data):
 #
 def compute_scores( data, demographics ):
     # Get rid of all records that don't have YR2
-    data.dropna( axis=1, subset=['youth_report_2_complete'] )
+    data.dropna( axis=0, subset=['youth_report_2_complete'] )
     data = data[ data['youth_report_2_complete'] > 0 ]
     data = data[ ~(data['youthreport2_missing'] > 0) ]
 

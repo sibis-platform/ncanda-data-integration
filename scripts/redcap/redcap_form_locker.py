@@ -252,32 +252,36 @@ def main(args=None):
     if args.unlock and args.lock:
         raise Exception("Only specify --lock or --unlock, not both!")
 
-    if args.lock:
-        if args.verbose:
-            print "Attempting to lock form: {0}".format(args.form)
-        lock_form(args.project, args.arm, args.event, args.form,
-                  args.username, args.outfile, engine , subject_id = args.subject_id)
-        slog.takeTimer1("script_time","{'records': " + str(len(project_records)) + "}")
-        if args.verbose:
-            print "The {0} form has been locked".format(args.form)
-            print "Record of locked files: {0}".format(args.outfile)
+    for event_desc in args.event.split(',') :
+        if args.verbose: 
+            print "Visit: {0}".format(event_desc)
 
-    elif args.unlock:
-        if args.verbose:
-            print "Attempting to unlock form: {0}".format(args.form)
+        if args.lock:
+            if args.verbose:
+                print "Attempting to lock form: {0}".format(args.form)
+            lock_form(args.project, args.arm, event_desc, args.form,
+                          args.username, args.outfile, engine , subject_id = args.subject_id)
+            slog.takeTimer1("script_time","{'records': " + str(len(project_records)) + "}")
+            if args.verbose:
+                print "The {0} form has been locked".format(args.form)
+                print "Record of locked files: {0}".format(args.outfile)
 
-        if not unlock_form(args.project, args.arm, args.event, args.form, engine, subject_id = args.subject_id):
-            print "Warning: Nothing to unlock ! Form '{0}' might not exist".format(args.form)
-        elif args.verbose:
-            print "The {0} form has been unlocked".format(args.form)
+        elif args.unlock:
+            if args.verbose:
+                print "Attempting to unlock form: {0}".format(args.form)
 
-    elif args.report:
-        if args.verbose:
-            print "Attempting to create a report for form {0} and subject_id {1} ".format(args.form,args.subject_id)
-        print report_locked_forms(args.subject_id, args.subject_id, [ args.form ], args.project, args.arm, args.event, engine)
+            if not unlock_form(args.project, args.arm, event_desc, args.form, engine, subject_id = args.subject_id):
+                print "Warning: Nothing to unlock ! Form '{0}' might not exist".format(args.form)
+            elif args.verbose:
+                print "The {0} form has been unlocked".format(args.form)
 
-    else :
-        raise Exception("Please specify --lock, --unlock, or --report!")
+        elif args.report:
+            if args.verbose:
+                print "Attempting to create a report for form {0} and subject_id {1} ".format(args.form,args.subject_id)
+            print report_locked_forms(args.subject_id, args.subject_id, [ args.form ], args.project, args.arm, event_desc, engine)
+
+        else :
+            raise Exception("Please specify --lock, --unlock, or --report!")
             
     if args.verbose:
         print "Done!"
@@ -292,14 +296,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="redcap_form_locker.py",
                                      description=__doc__,
                                      formatter_class=formatter)
-    parser.add_argument("--project", dest="project", required=True,
-                        help="Project Name in lowercase_underscore.")
-    parser.add_argument("-a", "--arm", dest="arm", required=True,
-                        choices=['Standard Protocol'],
+    parser.add_argument("--project", dest="project", required=False,
+                        help="Project Name in lowercase_underscore.", default='ncanda_subject_visit_log')
+    parser.add_argument("-a", "--arm", dest="arm", required=False,
+                        choices=['Standard Protocol'],default='Standard Protocol',
                         help="Arm Name as appears in UI")
-    parser.add_argument("-e", "--event", dest="event", required=True,
+    parser.add_argument("-e", "--event", dest="event", required=False,
                         choices=['Baseline visit', '1y visit', '2y visit'],
-                        help="Event Name in as appears in UI")
+                        help="Event Name in as appears in UI seperated with comma (if multiple ones)", default='Baseline visit,1y visit,2y visit')
     parser.add_argument("-f", "--form", dest="form", required=True,
                         help="Form Name in lowercase_underscore")
     parser.add_argument("-o", "--outfile", dest="outfile",

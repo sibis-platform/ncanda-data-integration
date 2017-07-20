@@ -57,7 +57,7 @@ parser.add_argument("-i", "--instruments",
                     help="Select specific instruments to update. Separate multiple forms with commas.",
                     action="store", default=None)
 parser.add_argument("-s", "--subject_id",
-                    help="Only run for specific subject.",
+                    help="Only run for specific subject (multiple subject seperate with ',') .",
                     action="store", default=None)
 parser.add_argument("-a", "--update-all",
                     help="Update all summary records, regardless of current completion status "
@@ -106,7 +106,6 @@ demographics = rc_summary.export_records(fields=demographics_fields, event_name=
 demographics = pandas.concat([demographics.xs(event, level=1) for event in ['baseline_visit_arm_1', 'baseline_visit_arm_4']])
 
 # If list of forms given, only update those
-instrument_list = scoring.instrument_list
 if args.instruments:
     instrument_list = []
     for inst in args.instruments.split(','):
@@ -114,9 +113,12 @@ if args.instruments:
             instrument_list.append(inst)
         else:
             print "WARNING: no instrument with name '%s' defined.\n" % inst
+else : 
+    instrument_list = scoring.instrument_list
 
 # Import scoring module - this has a list of all scoring instruments with input fields, scoring functions, etc.
 for instrument in instrument_list:
+    slog.startTimer2()
     if args.verbose:
         print 'Scoring instrument', instrument
 
@@ -154,20 +156,20 @@ for instrument in instrument_list:
                 imported.append(rc_summary.export_records(fields=import_fields,
                                                           records=records_this_event[idx:idx + 50],
                                                           events=[event_name], event_name='unique', format='df'))
-        try:
-            scored_records = scoring.functions[instrument](pandas.concat(imported), demographics)
-        except Exception as e:
-            error = "ERROR: scoring failed for instrument", instrument
-            slog.info(instrument + "-" + hashlib.sha1(str(e)).hexdigest()[0:6], error, exception=str(e))
+       
+        scored_records = scoring.compute_scores(instrument,pandas.concat(imported), demographics) 
+        len_scored_records = len(scored_records)
+    
+        if not len_scored_records : 
             continue
 
         if args.verbose:
-            print len(scored_records), 'scored records to upload'
+            print len_scored_records, 'scored records to upload'
 
         if args.no_upload:
             scored_records.to_csv(args.no_upload)
         else:
-            uploaded = session.redcap_import_record(instrument, None, None, 'upload_instruments', scored_records)
+            uploaded = session.redcap_import_record(instrument, None, None, None, scored_records)
             if not uploaded : 
                 continue 
 
@@ -175,8 +177,11 @@ for instrument in instrument_list:
                 count_uploaded += uploaded['count']               
                 if args.verbose:
                     print 'Updated', uploaded['count'], 'records of "%s"' % instrument
+                slog.takeTimer2(instrument + "_time","{'uploads': " +  str(uploaded['count']) + "}")
+
             elif args.verbose:
                 print 'No updates for instrument "%s"' % instrument, uploaded
+
     else:
         if args.verbose:
             print 'No unscored records instrument "%s"' % instrument

@@ -7,7 +7,7 @@
 
 import re
 import pandas
-
+import math
 import RwrapperNew
 
 #
@@ -41,9 +41,10 @@ for field in [ 'PSQIDURAT', 'PSQIDISTB', 'PSQILATEN' ,'PSQIDAYDYS', 'PSQIHSE', '
 #
 # Scoring function - take requested data (as requested by "input_fields") for each (subject,event), and demographics (date of birth, gender) for each subject.
 #
+
 def compute_scores( data, demographics ):
     # Get rid of all records that don't have YR2
-    data.dropna( axis=1, subset=['youth_report_2_complete'] )
+    data.dropna( axis=0, subset=['youth_report_2_complete'] )
     data = data[ data['youth_report_2_complete'] > 0 ]
     data = data[ ~(data['youthreport2_missing'] > 0) ]
 
@@ -69,5 +70,7 @@ def compute_scores( data, demographics ):
 
     # Return the computed scores - this is what will be imported back into REDCap
     outfield_list = [ 'psqi_complete' ] + R2rc.values()
-    return scores[ outfield_list ]
 
+    returnDF= scores[ outfield_list ]
+    # remove nan entries as they corrupt data ingest (REDCAP cannot handle it correctly) and superfluous zeros as these should all be integer scores 
+    return returnDF.applymap(lambda x: '' if math.isnan(x) else '{0:g}'.format(float(x)))
