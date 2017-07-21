@@ -66,7 +66,7 @@ var_list=['ssaga_youth_as2b','ssaga_youth_as2a','ssaga_youth_as6b',
 # This determines the name of the form in REDCap where the results are posted.
 #
 output_form = 'clinical'
-outfield_list =['ssaga_highrisk_complete','ssaga_youth_externalizing','ssaga_parent_externalizing','ssaga_youth_assx_minage',
+outfield_list =['shr_complete','ssaga_youth_externalizing','ssaga_parent_externalizing','ssaga_youth_assx_minage',
 	'ssaga_parent_assx_minage','ssaga_cdsx_onset','highrisk_ssaga_extern_tot','highrisk_blaise_extern']
 
 # this is to sum up all non-na in a row
@@ -260,7 +260,7 @@ def compute( record ):
 
    compute_highrisk_blaise_extern(record)
 
-   record['shr_complete'] = record['ssaga_youth_complete'] and record['ssaga_parent_complete'] and record['limesurvey_ssaga_youth_complete'] and record['limesurvey_ssaga_parent_complete'] and record['youth_report_1_complete']
+   record['shr_complete'] = int(record['ssaga_youth_complete'] and record['ssaga_parent_complete'] and record['limesurvey_ssaga_youth_complete'] and record['limesurvey_ssaga_parent_complete'] and record['youth_report_1_complete'])
 
    return record[ outfield_list ]
 
