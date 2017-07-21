@@ -34,14 +34,6 @@ def get_matching_fields(field_list, pattern_list):
             matches.update([field_pattern])
     return matches
 
-
-def mark_missing(row, instrument):
-    if row['%s_missing' % instrument] > 0:
-        return 0
-    else:
-        return row['%s_complete' % instrument]
-
-
 #
 # Main 
 #
@@ -93,9 +85,8 @@ if not session.configure():
 try:
     rc_summary =  session.connect_server('data_entry', True)
 except Exception as e:
-    slog.info(hashlib.sha1('update_summary_scores').hexdigest()[0:6],
-    "ERROR: Could not connect to redcap!: {0}".format(e),
-    script = 'update_summary_scores')
+    slog.info(hashlib.sha1("update_summary_scores  {0}".format(e)).hexdigest()[0:6],
+              "ERROR: Could not connect to redcap!: {0}".format(e))
     sys.exit()
 
 form_event_mapping = rc_summary.export_fem(format='df')
@@ -123,19 +114,34 @@ for instrument in instrument_list:
         print 'Scoring instrument', instrument
 
     # Get fields in the summary project for this instrument
-    fields_list = ['%s_complete' % instrument]
+    
+    instrument_complete = '%s_complete' % instrument
     if args.subject_id:
-        record_ids = rc_summary.export_records(fields=fields_list, records=[args.subject_id],event_name='unique', format='df')
+        record_ids = rc_summary.export_records(fields=[instrument_complete], records=[args.subject_id],event_name='unique', format='df')
     else : 
-        record_ids = rc_summary.export_records(fields=fields_list,event_name='unique', format='df')
+        record_ids = rc_summary.export_records(fields=[instrument_complete],event_name='unique', format='df')
 
     # Get events for which this instrument is present, and drop all records from other events
     instrument_events_list = form_event_mapping[form_event_mapping['form_name'] == scoring.output_form[instrument]]['unique_event_name'].tolist()
 
     record_ids = record_ids[record_ids.index.map(lambda x: x[1] in instrument_events_list)]
+    if not len(record_ids):
+        if args.verbose : 
+            print "No records to score" 
+
+        sys.exit()
+
     # Unless instructed otherwise, drop all records that already exist
     if not args.update_all:
-        record_ids = record_ids[record_ids['%s_complete' % instrument].map(lambda x: True if str(x) == 'nan' else x < 1)]
+        try :  
+            records_complete = record_ids[instrument_complete]
+        except Exception as e:
+            slog.info(hashlib.sha1("update_summary_scores  {0}".format(e)).hexdigest()[0:6],
+                      "ERROR: %s missing in instrument %s: %s" % (instrument_complete,instrument,str(e)))
+            continue 
+
+
+        record_ids = record_ids[records_complete.map(lambda x: True if str(x) == 'nan' else x < 1)]
 
     if len(record_ids):
         if args.verbose:

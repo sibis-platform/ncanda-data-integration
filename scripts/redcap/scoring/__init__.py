@@ -10,6 +10,8 @@ import glob
 import stat
 import sys
 import imp
+import hashlib
+import pandas
 from sibispy import sibislogger as slog
 
 fields_list = dict()

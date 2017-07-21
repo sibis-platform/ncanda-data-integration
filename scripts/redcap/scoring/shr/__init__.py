@@ -55,12 +55,6 @@ input_fields = { 'ssaga_youth' : ['ssaga_youth_as2b','ssaga_youth_as2a','ssaga_y
 
             'youthreport1' : ['youthreport1_cddr16', 'youth_report_1_complete', 'youthreport1_missing']}
  
-# name list
-##var_list=['as2b','as2a','as6b','as9','as11','as14','as14b','as15','as16','as17a','as18b','as19','as20','as1_ao15','as1_ao16',
-##          'as1_ao17','as1_ao18','as1_ao19','as1_ao20','as2_ao15','as2_ao16','as2_ao17','as2_ao18','as2_ao19','as2_ao20',
-##          'asa1_ao14','asa2_ao14','asa_ao2','as_ao10','as_ao9','asb_ao2','asc1_ao14','asc1_ao6','asc2_ao14','asc2_ao6',
-##          'complete','missing']
-
 var_list=['ssaga_youth_as2b','ssaga_youth_as2a','ssaga_youth_as6b',
                   'ssaga_youth_as9','ssaga_youth_as11','ssaga_youth_as14','ssaga_youth_as14b','ssaga_youth_as15',
                    'ssaga_youth_as16',
@@ -96,16 +90,15 @@ def safe_float( strng ):
 
 
 #
-
-def compute( record ):    
-#ssaga_youth_externalizing##
+def compute_highrisk_ssaga_extern_tot (record) :
+   # ======================================================================
+   # ssaga_youth_externalizing
+   # ======================================================================
    ssaga_youth_externalizing  = 0
    
    if (((record['ssaga_youth_complete'] > 0) and ( record['ssaga_youth_missing'] != '1'))
  	 or ((record['limesurvey_ssaga_youth_complete'] > 0) and ( record['lssaga3_youth_missing'] != '1'))):
-      #record['ssaga_highrisk_complete']= int(record['ssaga_youth_complete'])
-      #if (record['limesurvey_ssaga_youth_complete'] >0): 
-	#record['ssaga_highrisk_complete']= int(record['limesurvey_ssaga_youth_complete']) 
+
       for f in ['ssaga_youth_as2b','ssaga_youth_as2a','ssaga_youth_as6b','ssaga_youth_as9','ssaga_youth_as11',
 		'ssaga_youth_as14','ssaga_youth_as14b','ssaga_youth_as15','ssaga_youth_as16','ssaga_youth_as17a','ssaga_youth_as18b',
                 'ssaga_youth_as19','ssaga_youth_as20','lssaga3_youth_as2b','lssaga3_youth_as2a','lssaga3_youth_as6b',
@@ -115,19 +108,18 @@ def compute( record ):
             ssaga_youth_externalizing += 1
       if safe_float(record['ssaga_youth_as10a']) > 0 or safe_float(record['lssaga3_youth_as10a']) > 0:
          ssaga_youth_externalizing += 1
-   if ssaga_youth_externalizing ==0:
+   if ssaga_youth_externalizing == 0:
       ssaga_youth_externalizing = None
+
    record['ssaga_youth_externalizing'] = ssaga_youth_externalizing
 
-###ssaga_parent_externalizing##
+   # ======================================================================
+   # ssaga_parent_externalizing
+   # ======================================================================
    ssaga_parent_externalizing  = 0
    
    if (((record['ssaga_parent_complete'] > 0) and ( record['ssaga_parent_missing'] != '1'))
  	 or ((record['limesurvey_ssaga_parent_complete'] > 0) and ( record['lssaga3_parent_missing'] != '1'))):
-      #if safe_float(record['ssaga_highrisk_complete']) < record['ssaga_parent_complete']:
-	#record['ssaga_highrisk_complete']= int(record['ssaga_parent_complete'])
-      #if safe_float(record['ssaga_highrisk_complete']) < record['limesurvey_ssaga_parent_complete']:
-	#record['ssaga_highrisk_complete']= int(record['limesurvey_ssaga_parent_complete'])
       for f in ['ssaga_parent_as2b','ssaga_parent_as2a','ssaga_parent_as6b','ssaga_parent_as9','ssaga_parent_as11',
 		'ssaga_parent_as14','ssaga_parent_as14b','ssaga_parent_as15','ssaga_parent_as16','ssaga_parent_as17a','ssaga_parent_as18b',
                'ssaga_parent_as19','ssaga_parent_as20','lssaga3_parent_as2b','lssaga3_parent_as2a','lssaga3_parent_as6b',
@@ -139,11 +131,26 @@ def compute( record ):
          ssaga_parent_externalizing += 1
    if ssaga_parent_externalizing ==0:
         ssaga_parent_externalizing = None
+
    record['ssaga_parent_externalizing'] = ssaga_parent_externalizing
-##
-##
-### ssaga_youth_assx_minage
-###Compute minimum age of onset for endorsement of conduct disorder symptoms
+
+   # ======================================================================
+   # highrisk_ssaga_extern_tot
+   # One or more externalizing symptoms endorsed on parent or teen SSAGA
+   # 0='No'; 1='Yes'
+   # ======================================================================
+   highrisk_ssaga_extern_tot = None
+   if record['ssaga_youth_externalizing'] >= 1 or record['ssaga_parent_externalizing'] >=1 :
+      highrisk_ssaga_extern_tot = 1
+   if record['ssaga_youth_externalizing'] == 0 and record['ssaga_parent_externalizing'] ==0 :
+      highrisk_ssaga_extern_tot = 0
+   record['highrisk_ssaga_extern_tot']= highrisk_ssaga_extern_tot
+
+def compute_highrisk_blaise_extern( record ) : 
+   # ======================================================================
+   # ssaga_youth_assx_minage
+   # Compute minimum age of onset for endorsement of conduct disorder symptoms
+   # ======================================================================
    ssaga_youth_assx_minage  = 999
    
    if (((record['ssaga_youth_complete'] > 0) and ( record['ssaga_youth_missing'] != '1'))
@@ -168,10 +175,11 @@ def compute( record ):
    if ssaga_youth_assx_minage == 999:
       ssaga_youth_assx_minage = None
    record['ssaga_youth_assx_minage'] = ssaga_youth_assx_minage
-##
-##
-### ssaga_parent_assx_minage
-###Compute minimum age of onset for endorsement of conduct disorder symptoms
+
+   # ======================================================================
+   # ssaga_parent_assx_minage
+   # Compute minimum age of onset for endorsement of conduct disorder symptoms
+   # ======================================================================
    ssaga_parent_assx_minage  = 999
   
    if (((record['ssaga_parent_complete'] > 0) and ( record['ssaga_parent_missing'] != '1'))
@@ -197,12 +205,11 @@ def compute( record ):
        ssaga_parent_assx_minage = None
    record['ssaga_parent_assx_minage'] = ssaga_parent_assx_minage
 
-
-  
-## #ssaga_cdsx_onset
-###Create a variable that indicated whether onset of Conduct Disorder symptoms occurred BEFORE onset of regular drinking
-###0 - NEGATIVE; 1- POSITIVE
-##   
+   # ======================================================================
+   # ssaga_cdsx_onset
+   # Create a variable that indicated whether onset of Conduct Disorder symptoms occurred BEFORE onset of regular drinking
+   # 0 - NEGATIVE; 1- POSITIVE
+   # ======================================================================
    ssaga_cdsx_onset = None
    if safe_float(record['youthreport1_cddr16']) >0 :
 	if (safe_float(record['ssaga_parent_assx_minage']) < safe_float(record['youthreport1_cddr16']) or 
@@ -222,38 +229,20 @@ def compute( record ):
        else:
                 ssaga_cdsx_onset = 0
 
-  # if safe_float(record['youthreport1_cddr16']) ==0 and record['ssaga_youth_assx_minage'] >0:
-  #    ssaga_cdsx_onset = 1
-  # if safe_float(record['youthreport1_cddr16']) ==0 and record['ssaga_parent_assx_minage'] >0:
-  #    ssaga_cdsx_onset = 1
    if safe_float(record['ssaga_parent_assx_minage']) ==0 and safe_float(record['ssaga_youth_assx_minage']) ==0:
       ssaga_cdsx_onset = None
  
    record['ssaga_cdsx_onset'] = ssaga_cdsx_onset
-##
-###Create 'highrisk_ssaga_extern_tot', 'One or more externalizing symptoms endorsed on parent or teen SSAGA'
-###0='No'; 1='Yes'
-   highrisk_ssaga_extern_tot = None
-   if record['ssaga_youth_externalizing'] >= 1 or record['ssaga_parent_externalizing'] >=1 :
-      highrisk_ssaga_extern_tot = 1
-   if record['ssaga_youth_externalizing'] == 0 and record['ssaga_parent_externalizing'] ==0 :
-      highrisk_ssaga_extern_tot = 0
-   record['highrisk_ssaga_extern_tot']= highrisk_ssaga_extern_tot
-##
-##############################################
-###Create 'highrisk_blaise_extern' - 'Age of >endorsement of Externalizing Symptoms on SSAGA prior to regular drinking using Blaise Count variables'
-###Compute a High Risk variable if onset of CD symptoms were prior to onset of regular drinking and participant endorsed 1 or more symptoms**.
-###This will be more conservative than the 'ssaga_cdsx_onset' because it required endorsement of more severe symptoms**.
-###But this variable uses only the youth report SSAGA, NOT the parent SSAGA
+
+   # ======================================================================
+   # highrisk_blaise_extern
+   # Age of >endorsement of Externalizing Symptoms on SSAGA prior to regular drinking using Blaise Count variables
+   # Compute a High Risk variable if onset of CD symptoms were prior to onset of regular drinking and participant endorsed 1 or more symptoms**.
+   # This will be more conservative than the 'ssaga_cdsx_onset' because it required endorsement of more severe symptoms**.
+   # But this variable uses only the youth report SSAGA, NOT the parent SSAGA
+   # ======================================================================
    highrisk_blaise_extern = None
-   #if record['ssaga_cdsx_onset'] ==1 and safe_float(record['ssaga_youth_asd4asx_cleanordirty']) >0 :
-   #   highrisk_blaise_extern = 1
-   #else:
-   #   highrisk_blaise_extern = 0	
-   #if record['ssaga_cdsx_onset'] ==1 and safe_float(record['ssaga_youth_asd4csx_cleanordirty']) >0 :   
-   #  highrisk_blaise_extern = 1
-   #else:
-   #   highrisk_blaise_extern = 0
+
    if safe_float(record['ssaga_cdsx_onset']) ==0:
       highrisk_blaise_extern = 0
       if record['ssaga_cdsx_onset'] == None or str(record['ssaga_cdsx_onset'])  == 'nan':
@@ -265,13 +254,15 @@ def compute( record ):
 
    record['highrisk_blaise_extern']= highrisk_blaise_extern
 
+def compute( record ):    
 
-   #print record['youthreport1_cddr16']
-   #record['aaa']=record['youthreport1_cddr16']
-   record['ssaga_highrisk_complete'] = '1'
+   compute_highrisk_ssaga_extern_tot(record)
+
+   compute_highrisk_blaise_extern(record)
+
+   record['shr_complete'] = record['ssaga_youth_complete'] and record['ssaga_parent_complete'] and record['limesurvey_ssaga_youth_complete'] and record['limesurvey_ssaga_parent_complete'] and record['youth_report_1_complete']
+
    return record[ outfield_list ]
-
-   
 
 
 def compute_scores( data, demographics ):
