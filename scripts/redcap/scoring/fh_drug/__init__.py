@@ -108,7 +108,7 @@ def compute( record ):
         record['fh_drug_density'] = first_degree + 0.5 * second_degree
 
     # Set it to the lowest status among the two forms 
-    record['fh_drug_complete'] = str( record['parent_report_complete'] and record['youth_report_1_complete'] )
+    record['fh_drug_complete'] = str( record[['parent_report_complete','youth_report_1_complete']].min(axis=1))
 
     return record[ outfield_list ]
 
