@@ -81,8 +81,6 @@ def compute( record ):
             if record[f] == '1':
                 second_degree += 1
 
-        record['fh_alc_complete'] = str( record['youth_report_1_complete'] )
-
     # check parent report second
     if (record['parent_report_complete'] > 0) and ( 'parentreport_missing' != '1' ):
         first_degree_pr = safe_float( record['parentreport_pfhi3b_pfhi3k_1'] ) + safe_float( record['parentreport_pfhi3b_pfhi3l_1'] )
@@ -101,17 +99,16 @@ def compute( record ):
         if (second_degree == None) or (second_degree_pr > second_degree):
             second_degree = second_degree_pr
 
-        if record['fh_alc_complete'] == '':
-            record['fh_alc_complete'] = str( record['parent_report_complete'] )
-
     # Make classification based on maximum of youth/parent reported relative counts
-    if (record['fh_alc_complete'] != ''):
-        if ( first_degree != None ) and ( second_degree != None ):
-            if ( first_degree >= 1 or second_degree >= 2 ):
-                record['fh_alc'] = 'P'
-            else:
-                record['fh_alc'] = 'N'
-            record['fh_alc_density'] = first_degree + 0.5 * second_degree
+    if ( first_degree != None ) and ( second_degree != None ):
+        if ( first_degree >= 1 or second_degree >= 2 ):
+            record['fh_alc'] = 'P'
+        else:
+            record['fh_alc'] = 'N'
+        record['fh_alc_density'] = first_degree + 0.5 * second_degree
+
+    # Set it to the lowest status among the two forms 
+    record['fh_alc_complete'] = str( record['parent_report_complete'] and record['youth_report_1_complete'] )
 
     return record[ outfield_list ]
 

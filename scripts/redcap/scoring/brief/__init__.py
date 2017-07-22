@@ -35,7 +35,7 @@ input_fields = { 'youthreport2' : [ 'youthreport2_brief_sec1_brief1', 'youthrepo
                                     'youthreport2_brief_sec10_brief69', 'youthreport2_brief_sec10_brief70', 'youthreport2_brief_sec11_brief71', 'youthreport2_brief_sec11_brief72', 
                                     'youthreport2_brief_sec11_brief73', 'youthreport2_brief_sec11_brief74', 'youthreport2_brief_sec11_brief75', 'youthreport2_brief_sec11_brief76', 
                                     'youthreport2_brief_sec11_brief77', 'youthreport2_brief_sec12_brief78', 'youthreport2_brief_sec12_brief79', 'youthreport2_brief_sec12_brief80', 
-                                    'youthreport2_date_interview' ] }
+                                    'youthreport2_date_interview', 'youth_report_2_complete' ] }
 
 output_form = 'brief'
 
@@ -128,6 +128,6 @@ def compute_scores( data, demographics ):
         data[ labels[13]+'_t' ][key] = lookup_global[labels[13]+'_t'][lookup_key]      
         data[ labels[13]+'_p' ][key] = lookup_global[labels[13]+'_p'][lookup_key]      
 
-    data['brief_complete'] = '1'
+    data['brief_complete'] = data['youth_report_2_complete']
 
     return data[['%s_%s' % (label,score) for score in ['raw','t','p'] for label in labels if label != '']+['brief_age','brief_neg','brief_incon','brief_complete']]

@@ -260,7 +260,7 @@ def compute( record ):
 
    compute_highrisk_blaise_extern(record)
 
-   record['shr_complete'] = int(record['ssaga_youth_complete'] and record['ssaga_parent_complete'] and record['limesurvey_ssaga_youth_complete'] and record['limesurvey_ssaga_parent_complete'] and record['youth_report_1_complete'])
+   record['shr_complete'] = int(record[['ssaga_youth_complete','ssaga_parent_complete','limesurvey_ssaga_youth_complete','limesurvey_ssaga_parent_complete','youth_report_1_complete']].min(axis=1))
 
    return record[ outfield_list ]
 

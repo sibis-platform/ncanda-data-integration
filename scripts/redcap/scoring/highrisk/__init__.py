@@ -311,6 +311,6 @@ def compute_scores( data, demographics ):
     # Finally, convert everything to strings (and nan to emptry string) to avoid validation errors
     for outfield in outfield_list:
         data[outfield] = data[outfield].map( lambda x: str(int(x)) if str(x) != 'nan' else '' )
+    data['highrisk_complete'] = data[['youth_report_1_complete','parent_report_complete','ssaga_youth_complete','ssaga_parent_complete']].min(axis=1)
 
-    data['highrisk_complete'] = '1'
     return data[ outfield_list ]
