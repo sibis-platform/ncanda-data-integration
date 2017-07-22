@@ -92,6 +92,7 @@ ssaga_parent_assx_minage
 ssaga_parent_externalizing 
 ssaga_youth_assx_minage 
 ssaga_youth_externalizing
+shr_complete
 ssq_complete
 ssq_score
 tipi_agv
