@@ -25,7 +25,7 @@ export SIBIS=`realpath $(dirname $0)/../../`
 LOG_DIR=${SIBIS_ANALYSIS_DIR}/log/back-nightly
 # Over the weekend run full version
 Day=$(date +%a)
-if [ "$Day" == "Sat" -o  "$Day" == "Fri" ]; then 
+if [ "$Day" == "Fri" ]; then 
     update_args=""
     echo "Info: update_visit_data checks all forms"
 else 
@@ -35,8 +35,13 @@ fi
 # DEBUGGING right now 
 update_args+=" --missing-only"
 
+num_scripts=`ps -ef | grep scripts/import/laptops/update_visit_data | grep -v grep | wc -l`
 
-catch_output_email "Import Laptop Data Import (update_visit_data)" ${SIBIS}/scripts/import/laptops/update_visit_data -p -t ${LOG_DIR} --max-days-after-visit 120 ${update_args}
+if [ $num_scripts == 0 ]; then 
+   catch_output_email "Import Laptop Data Import (update_visit_data)" ${SIBIS}/scripts/import/laptops/update_visit_data -p -t ${LOG_DIR} --max-days-after-visit 120 ${update_args}
+else 
+   echo "Info: skipped update_visit_data in back-nightly as instance(s) of it are already running"
+fi 
 
 catch_output_email "Update Form Status (update_bulk_forms)" ${SIBIS}/scripts/redcap/update_bulk_forms -p -t ${LOG_DIR}
 
@@ -67,7 +72,7 @@ fi
 
 #
 #
-# if on instance is running then it is at least has a count of 2 !
+# if on instance is running then it is at least has a count of 2 ! Not sure why
 num_scripts=`ps -ef | grep crond/back-nightly | grep -v grep | wc -l`
 if [ $num_scripts -gt 2 ]; then 
    echo "Info: Not running all of back-nightly as instance(s) of it are already running"
@@ -97,7 +102,7 @@ catch_output_email "REDCap: Undeclared Drinking Exceptions (check_exceptions)" $
 if [ ${PIPELINE_UPDATE_FLAG} == 1 ]; then
     if [ ${IMAGE_PROCESS_FLAG} == 1 ]; then
 	# Import data from XNAT into REDCap and feed image analysis pipeline
-	catch_output_email "REDCap: Import MR to Pipeline (import_mr_sessions)" ${SIBIS}/scripts/redcap/import_mr_sessions -p --max-days-after-visit 120 --pipeline-root-dir ${SIBIS_ANALYSIS_DIR}/cases --run-pipeline-script ${SIBIS_ANALYSIS_DIR}/scripts/bin/ncanda_all_pipelines -t ${LOG_DIR}
+	catch_output_email "REDCap: Import MR to Pipeline (import_mr_sessions)" ${SIBIS}/scripts/redcap/import_mr_sessions -p --max-days-after-visit 120 --pipeline-root-dir ${SIBIS_ANALYSIS_DIR}/cases --run-pipeline-script ${SIBIS_ANALYSIS_DIR}/scripts/image_processing/bin/ncanda_all_pipelines -t ${LOG_DIR}
     fi 
 
     # Export NP/clinical/dempgraphics data into image analysis pipeline directories
