@@ -87,7 +87,6 @@ ses_parent_yoe
 sise_complete
 sise_score
 ssaga_cdsx_onset
-ssaga_highrisk_complete
 ssaga_parent_assx_minage 
 ssaga_parent_externalizing 
 ssaga_youth_assx_minage 
