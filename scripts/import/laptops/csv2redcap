@@ -120,9 +120,12 @@ def process_file(fname):
         slog.info(hashlib.sha1('import-laptops-csv2redcap' + str(err_msg)).hexdigest()[0:6], "Upload error to redcap",
                   error_msg=str(err_msg),
                   record_list =str(record_list), 
-                  cmd_args = str(sys.argv))
+                  cmd_args = str(sys.argv),
+                  file_name = fname)
+        failed.append(fname)
+        return 
+
         
-                  
     # If there were any errors, try to print them as well as possible
     if 'error' in import_response.keys():
         error = "Upload error"
