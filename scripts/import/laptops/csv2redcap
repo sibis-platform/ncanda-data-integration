@@ -113,8 +113,16 @@ def process_file(fname):
         record_list.append(record)
 
     # Upload new data to REDCap
-    import_response = project.import_records(record_list, overwrite='overwrite')
+    try: 
+        import_response = project.import_records(record_list, overwrite='overwrite')
 
+    except Exception as err_msg: 
+        slog.info(hashlib.sha1('import-laptops-csv2redcap' + str(err_msg)).hexdigest()[0:6], "Upload error to redcap",
+                  error_msg=str(err_msg),
+                  record_list =str(record_list), 
+                  cmd_args = str(sys.argv))
+        
+                  
     # If there were any errors, try to print them as well as possible
     if 'error' in import_response.keys():
         error = "Upload error"
