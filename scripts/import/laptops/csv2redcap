@@ -158,8 +158,8 @@ for f in args.csvfile:
 
 # Print failures
 if len(failed) > 0:
-    slog.log(hashlib.sha1('import-laptops-csv2redcap {}'.format(' '.join(failed))).hexdigest()[0:6], "ERROR uploading file(s)",
-             files_not_uploaded = str(failed) )
+    slog.info(hashlib.sha1('import-laptops-csv2redcap {}'.format(' '.join(failed))).hexdigest()[0:6], "ERROR uploading file(s)", 
+              files_not_uploaded = str(failed) )
     sys.exit()
 
 slog.takeTimer1("script_time","{'records': " + str(records) +  ", 'uploads': " +  str(uploaded) + "}")
