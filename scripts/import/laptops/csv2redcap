@@ -117,13 +117,12 @@ def process_file(fname):
         import_response = project.import_records(record_list, overwrite='overwrite')
 
     except Exception as err_msg: 
-        slog.info(hashlib.sha1('import-laptops-csv2redcap' + str(err_msg)).hexdigest()[0:6], "Upload error to redcap",
+        slog.info( str(args.data_access_group) + "-" + hashlib.sha1('import-laptops-csv2redcap' + str(err_msg)).hexdigest()[0:6], "Upload error to redcap",
                   error_msg=str(err_msg),
                   record_list =str(record_list), 
-                  cmd_args = str(sys.argv),
+                  cmd = " ".join(sys.argv),
                   file_name = fname)
-        failed.append(fname)
-        return 
+        return False
 
         
     # If there were any errors, try to print them as well as possible
@@ -150,16 +149,21 @@ def process_file(fname):
     else:
         failed.append(fname)
 
+    return True
+
 # Process all files from the command line
 uploaded = 0 
 records = 0
+uploadedFlag=True
 for f in args.csvfile:
-    process_file(f)
+    uploadedFlag &= process_file(f)
+    
 
 # Print failures
 if len(failed) > 0:
     slog.info(hashlib.sha1('import-laptops-csv2redcap {}'.format(' '.join(failed))).hexdigest()[0:6], "ERROR uploading file(s)", 
               files_not_uploaded = str(failed) )
     sys.exit()
-
-slog.takeTimer1("script_time","{'records': " + str(records) +  ", 'uploads': " +  str(uploaded) + "}")
+# Only take timer if all were uploaded
+if uploadedFlag: 
+    slog.takeTimer1("script_time","{'records': " + str(records) +  ", 'uploads': " +  str(uploaded) + "}")
