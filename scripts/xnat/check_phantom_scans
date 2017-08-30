@@ -99,7 +99,7 @@ def check_experiment(session, eid, experiment):
                   info = "Please check if eid still exists in xnat. If not ignore error and otherwise run ./check_phantom_scans -e " + eid )
         return False
 
-    subject_label_match = re.match(subject_id_pattern_nophantom, session.xnat_get_subject_attribute(prj,sid,label))
+    subject_label_match = re.match(subject_id_pattern_nophantom, session.xnat_get_subject_attribute(prj,sid,'label'))
     if subject_label_match:
         # This is a dictionary that maps subjects who changed sites to the correct phantom.
         with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
