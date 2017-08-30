@@ -79,7 +79,7 @@ def find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified,
 
 
 # Check one experiment for matching phantom scans
-def check_experiment(eid, experiment):
+def check_experiment(session, eid, experiment):
     try:
         experiment_last_modified = experiment.attrs.get('last_modified')
         if experiment_last_modified == '':
@@ -99,7 +99,7 @@ def check_experiment(eid, experiment):
                   info = "Please check if eid still exists in xnat. If not ignore error and otherwise run ./check_phantom_scans -e " + eid )
         return False
 
-    subject_label_match = re.match(subject_id_pattern_nophantom, ifc.select.project(prj).subject(sid).label())
+    subject_label_match = re.match(subject_id_pattern_nophantom, session.xnat_get_subject_attribute(prj,sid,label))
     if subject_label_match:
         # This is a dictionary that maps subjects who changed sites to the correct phantom.
         with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
@@ -116,7 +116,13 @@ def check_experiment(eid, experiment):
             else : 
                 phantom_label = "%s-99999-P-9" % subject_label_match.group(1)
 
-            phantom_id = ifc.select.project(prj).subject( phantom_label ).attrs.get('ID')
+            phantom_id = session.xnat_get_subject_attribute(prj,phantom_label,'ID')
+            if not phantom_id :
+                slog.info(phantom_label,"Could not get phantom id", project_id=prj)
+                return False
+
+
+                
             phantom_scans = ifc.array.experiments(experiment_type='xnat:mrSessionData', constraints={ 'xnat:mrSessionData/subject_id':phantom_id, 'date': edate})
             # handle check for phantoms on the same day but wrong scanner
             eids = phantom_scans.get('ID', always_list=True)
@@ -143,9 +149,9 @@ def check_experiment(eid, experiment):
                           error_msg = str(e) )
     return True    
 
-#
+# =============================================================
 # MAIN Section
-#
+# =============================================================
 parser = argparse.ArgumentParser()
 parser.add_argument("-m", "--send-mail",
                     action="store_true",
@@ -261,7 +267,7 @@ for eid in experiment_ids:
     # Do not change to True ! as xnat saves it as 'true' 
     if get_custom_variable(eid, exp_get, 'phantommissingoverride') != 'true' :
         count_phantom += 1
-        check_experiment(eid, experiment)
+        check_experiment(session, eid, experiment)
 
 if args.sendmail:
     email.send_all(ifc)
