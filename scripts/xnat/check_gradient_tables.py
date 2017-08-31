@@ -80,7 +80,7 @@ def get_cases(cases_root, arm, event, case=None):
   
     return case_list
 
-def get_dti_stack(case, arm=None, event=None):
+def get_dti_stack(sequence_label, case, arm=None, event=None):
     if arm:
         path = os.path.join(case, arm)
     else:
@@ -90,7 +90,7 @@ def get_dti_stack(case, arm=None, event=None):
     else:
         path = os.path.join(path, '*')
 
-    path = os.path.join(path, 'diffusion/native/dti60b1000/*.xml')
+    path = os.path.join(path, 'diffusion/native',sequence_label,'*.xml')
     return glob.glob(path)
 
 
@@ -139,7 +139,7 @@ def get_site_scanner(site):
     return site_scanner.get(site)
 
 
-def get_ground_truth_gradients(analysis_cases_dir,scanner,scanner_model,decimals):
+def get_ground_truth_gradients(analysis_cases_dir,scanner,scanner_model,sequence_label,decimals):
     """
     Return a dictionary for scanner:gratient
     """
@@ -162,10 +162,13 @@ def get_ground_truth_gradients(analysis_cases_dir,scanner,scanner_model,decimals
     else : 
       return []     
 
+    if sequence_label == 'dti30b400' : 
+        test_event = 'followup_3y'
+
     subject_path = os.path.join(analysis_cases_dir, scanner_subject)
 
     # Gets files for each scanner
-    dti_stack = get_dti_stack(subject_path, arm=test_arm, event=test_event)
+    dti_stack = get_dti_stack(sequence_label,subject_path, arm=test_arm, event=test_event)
 
     dti_stack.sort()
 
@@ -173,14 +176,14 @@ def get_ground_truth_gradients(analysis_cases_dir,scanner,scanner_model,decimals
     return get_all_gradients(scanner_subject + "_" + test_arm + "_" + test_event, dti_stack, decimals)
     # dict(Siemens=siemens_gradients, GE=ge_gradients)
 
-def check_diffusion(analysis_cases_dir,session_label,session,xml_file_list,manufacturer,scanner_model,decimals):
+def check_diffusion(analysis_cases_dir,session_label,session,xml_file_list,manufacturer,scanner_model,sequence_label,decimals):
     if len(xml_file_list) == 0 : 
         slog.info(session_label,
                       "Error: check_diffusion : xml_file_list is empty ",
                       session=session)
         return 
 
-    truth_gradient = np.array(get_ground_truth_gradients(analysis_cases_dir,manufacturer,scanner_model,decimals))
+    truth_gradient = np.array(get_ground_truth_gradients(analysis_cases_dir,manufacturer,scanner_model,sequence_label,decimals))
     if len(truth_gradient) == 0 :
         slog.info(session_label,
                     'ERROR: check_diffusion: scanner is unknown',
@@ -219,10 +222,11 @@ def check_diffusion(analysis_cases_dir,session_label,session,xml_file_list,manuf
 
     if errorsFrame:
         slog.info(session_label,
-                      "Errors in dti601000 gradients for new sessions after comparing with ground_truth.",
+                      "Errors in gradients of " + sequence_label + " after comparing with ground_truth.",
                       frames=str(errorsFrame),
                       actualGradients=str(errorsActual),
                       expectedGradients=str(errorsExpected),
+                      sequence = sequence_label,
                       session=session)
 
     xml_file = open(xml_file_list[0], 'r')
@@ -231,11 +235,15 @@ def check_diffusion(analysis_cases_dir,session_label,session,xml_file_list,manuf
             match = re.match('.*<phaseEncodeDirectionSign>(.+)'
                              '</phaseEncodeDirectionSign>.*',
                              line)
-            if match and match.group(1).upper() != 'NEG':
-                slog.info(session_label,
+            if sequence_label == "dti601000" : 
+                if match and match.group(1).upper() != 'NEG':
+                    slog.info(session_label, 
                               "dti601000 has wrong PE sign (expected NEG).",
                               actual_sign=str(match.group(1).upper()),
                               session=session)
+            else : 
+                print "Check for sequence " +  sequence_label  + " not defined !"
+                sys.exit()
 
     except AttributeError as error:
         slog.info(session_label, "Error: parsing XML files failed.",
@@ -277,7 +285,7 @@ def main(args=None):
 
     for case in cases:
         # Get the case's site
-        dti_path = os.path.join(case, args.arm, args.event,'diffusion/native/dti60b1000')
+        dti_path = os.path.join(case, args.arm, args.event,'diffusion/native',args.sequence)
         if not os.path.exists(dti_path) :
             if args.verbose:
                 print "Warning: " + dti_path + " does not exist!"
@@ -311,8 +319,8 @@ def main(args=None):
                       event=str(args.event))
             continue
 
-        xml_file_list = get_dti_stack(case, arm=args.arm, event=args.event)
-        check_diffusion(sibis_session.get_cases_dir(),dti_path,"",xml_file_list,scanner, scanner_model,args.decimals)
+        xml_file_list = get_dti_stack(args.sequence, case, arm=args.arm, event=args.event)
+        check_diffusion(sibis_session.get_cases_dir(),dti_path,"",xml_file_list,scanner, scanner_model,args.sequence, args.decimals)
 
     slog.takeTimer1("script_time", "{'records': " + str(len(cases)) + "}")
 
@@ -350,6 +358,9 @@ if __name__ == '__main__':
                         help="Turn on verbose", action='store_true')
     parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.",
                         action = "store_true", default = False)
+    parser.add_argument('-s', '--sequence',
+                        help="Type of sequence to check: dti6b500pepolar, dti30b400, dti60b1000 . {}".format(default),
+                        default='dti60b1000')
     parser.add_argument("-t", "--time-log-dir",help = "If set then time logs are written to that directory",
                         action = "store",
                         default = None)

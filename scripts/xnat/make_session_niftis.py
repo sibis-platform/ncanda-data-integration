@@ -179,7 +179,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
                     if 'dti60b1000' in scantype:
                             xml_search_string = os.path.join(temp_dir,'%s_%s' % (scan,scantype), 'image*.nii.xml')
                             xml_file_list = glob.glob(xml_search_string)
-                            cgt.check_diffusion(analysis_cases_dir,session_label,session,xml_file_list,manufacturer_u,scanner_model,decimals=2)
+                            cgt.check_diffusion(analysis_cases_dir,session_label,session,xml_file_list,manufacturer_u,scanner_model,'dti60b1000',decimals=2)
 
             # Clean up - remove temp directory
             shutil.rmtree(temp_dir)
