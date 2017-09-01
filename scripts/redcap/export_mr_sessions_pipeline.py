@@ -405,13 +405,18 @@ def export_to_workdir( redcap_visit_id, xnat, session_data, pipeline_workdir, re
     # Export diffusion data
     pipeline_workdir_diffusion_main = os.path.join( pipeline_workdir, 'diffusion' );
     pipeline_workdir_diffusion_native = os.path.join(pipeline_workdir_diffusion_main, 'native' );
-    if session_data['mri_series_dti6b500pepolar'] != '' and session_data['mri_series_dti60b1000'] != '' :
+    if session_data['mri_series_dti6b500pepolar'] != '' and session_data['mri_series_dti60b1000'] != '':
         new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_dti6b500pepolar'], os.path.join( pipeline_workdir_diffusion_native, 'dti6b500pepolar' ), 'dti6-%n.nii', xnat_dir, verbose=verbose ) or new_files_created
 
         new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_dti60b1000'], os.path.join( pipeline_workdir_diffusion_native, 'dti60b1000' ), 'dti60-%n.nii', xnat_dir, verbose=verbose ) or new_files_created
 
+        if session_data['mri_series_dti30b400'] != '' :
+            new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_dti30b400'], os.path.join( pipeline_workdir_diffusion_native, 'dti30b400' ), 'dti30-%n.nii', xnat_dir, verbose=verbose ) or new_files_created
+
         if session_data['mri_series_dti_fieldmap'] != '':
             new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_dti_fieldmap'], os.path.join( pipeline_workdir_diffusion_native, 'fieldmap' ), 'fieldmap-%T%N.nii', xnat_dir, verbose=verbose ) or new_files_created
+        
+
     else :
         delete_workdir(pipeline_workdir_diffusion_main,redcap_visit_id,verbose)
 
