@@ -146,24 +146,23 @@ def get_ground_truth_gradients(analysis_cases_dir,scanner,scanner_model,sequence
     # Choose arbitrary cases for ground truth
     # Get ground truth for standard baseline
     test_arm = 'standard'
-    test_event = 'baseline'
-
     scanner_u = scanner.upper()
+
     if scanner_u == 'SIEMENS': 
         if scanner_model.split('_',1)[0].upper() == "PRISMA" :
             scanner_subject = 'NCANDA_S00689'
-            test_event = 'followup_2y'
+            test_event = 'followup_3y'
         else :
+            # PRISMA was updated before including dti30b400 in the acquisition protocol
             scanner_subject = 'NCANDA_S00061'
+            test_event = 'baseline'
 
     elif scanner_u == 'GE': 
         scanner_subject = 'NCANDA_S00033'
+        test_event = 'followup_4y'
 
     else : 
       return []     
-
-    if sequence_label == 'dti30b400' : 
-        test_event = 'followup_3y'
 
     subject_path = os.path.join(analysis_cases_dir, scanner_subject)
 
@@ -181,7 +180,7 @@ def check_diffusion(analysis_cases_dir,session_label,session,xml_file_list,manuf
         slog.info(session_label,
                       "Error: check_diffusion : xml_file_list is empty ",
                       session=session)
-        return 
+        return False
 
     truth_gradient = np.array(get_ground_truth_gradients(analysis_cases_dir,manufacturer,scanner_model,sequence_label,decimals))
     if len(truth_gradient) == 0 :
@@ -189,13 +188,16 @@ def check_diffusion(analysis_cases_dir,session_label,session,xml_file_list,manuf
                     'ERROR: check_diffusion: scanner is unknown',
                      session=session,
                      scanner=manufacturer)
-        return 
+        return False
 
     xml_file_list.sort()
 
     errorsFrame = list()
     errorsExpected = list()
     errorsActual = list()
+
+    errorFlag = False
+
     try:
         evaluated_gradients = get_all_gradients(session_label,xml_file_list, decimals)
 
@@ -212,48 +214,74 @@ def check_diffusion(analysis_cases_dir,session_label,session,xml_file_list,manuf
                           number_of_frames=str(len(evaluated_gradients)),
                           expected=str(len(truth_gradient)),
                           session=session)
+            errorFlag = True
 
     except AttributeError as error:
         slog.info(session_label, "Error: parsing XML files failed.",
                       xml_file_list=str(xml_file_list),
                       error_msg=str(error),
                       session=session)
-        return
+        return False
 
     if errorsFrame:
         slog.info(session_label,
-                      "Errors in gradients of " + sequence_label + " after comparing with ground_truth.",
-                      frames=str(errorsFrame),
-                      actualGradients=str(errorsActual),
-                      expectedGradients=str(errorsExpected),
-                      sequence = sequence_label,
-                      session=session)
+                  "Errors in gradients of " + sequence_label + " after comparing with ground_truth.",
+                  frames=str(errorsFrame),
+                  actualGradients=str(errorsActual),
+                  expectedGradients=str(errorsExpected),
+                  sequence = sequence_label,
+                  session=session)
+        errorFlag = True
 
+    # Check phase encoding
     xml_file = open(xml_file_list[0], 'r')
-    try:
+    try:        
+        matchedFlag=False
         for line in xml_file:
             match = re.match('.*<phaseEncodeDirectionSign>(.+)'
                              '</phaseEncodeDirectionSign>.*',
                              line)
-            if sequence_label == "dti601000" : 
-                if match and match.group(1).upper() != 'NEG':
-                    slog.info(session_label, 
-                              "dti601000 has wrong PE sign (expected NEG).",
+            if match :
+                matchedFlag=True 
+                if sequence_label == "dti60b1000" or sequence_label == "dti30b400" : 
+                    if match.group(1).upper() != 'NEG':
+                        slog.info(session_label, 
+                              sequence_label + " has wrong PE sign (expected NEG).",
                               actual_sign=str(match.group(1).upper()),
                               session=session)
-            else : 
-                print "Check for sequence " +  sequence_label  + " not defined !"
-                sys.exit()
+                        errorFlag = True
+                elif sequence_label == "dti6b500pepolar" : 
+                    if match.group(1).upper() != 'POS':
+                        slog.info(session_label, 
+                                  "dti6b500pepolar has wrong PE sign (expected POS).",
+                              actual_sign=str(match.group(1).upper()),
+                              session=session)
+                        errorFlag = True
+
+                else : 
+                    slog.info(session_label,  "Check for sequence " +  sequence_label  + " not defined !",
+                              session=session)
+                    errorFlag = True
+                    break
+ 
+        # XML File did not include phase encoding
+        if not matchedFlag : 
+            slog.info(session_label + "-" + hashlib.sha1(xml_file_list[0]).hexdigest()[0:6], 
+                      "tag 'phaseEncodeDirectionSign' missing in dicom hearder",
+                      xml_file = xml_file_list[0],
+                      session=session)
+            errorFlag = True
 
     except AttributeError as error:
         slog.info(session_label, "Error: parsing XML files failed.",
                       xml_file=xml_file_list[0],
                       error=str(error),
                       session=session)
+        errorFlag = True
     finally:
         xml_file.close()
 
-    return
+    return errorFlag
 
                      
 def main(args=None):

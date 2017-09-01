@@ -17,44 +17,6 @@ import check_gradient_tables as cgt
 import time 
 import sys 
 
-#
-# Verify image count in temp directory created by dcm2image
-#
-
-expected_images = dict()
-expected_images['GE'] = {'ncanda-t1spgr-v1': [1],
-                         'ncanda-mprage-v1': [1],
-                         'ncanda-t2fse-v1': [1],
-                         'ncanda-dti6b500pepolar-v1': [8],
-                         'ncanda-dti60b1000-v1': [62],
-                         'ncanda-grefieldmap-v1': [6],
-                         'ncanda-rsfmri-v1': [274, 275]}
-
-expected_images['SIEMENS'] = {'ncanda-t1spgr-v1': [1],
-                              'ncanda-mprage-v1': [1],
-                              'ncanda-t2fse-v1': [1],
-                              'ncanda-dti6b500pepolar-v1': [7],
-                              'ncanda-dti60b1000-v1': [62],
-                              'ncanda-grefieldmap-v1': [1, 2],
-                              'ncanda-rsfmri-v1': [274, 275]}
-
-
-# Make sure we have the right number of volumes for a given series
-def verify_image_count(session, session_label, scan, scantype, manufacturer,
-                       images_created):
-    if manufacturer in expected_images.keys():
-        if scantype in expected_images[manufacturer].keys():
-            imgrange = expected_images[manufacturer][scantype]
-            if not images_created in imgrange:
-                error = 'WARNING: Number of frames in archive differ from the standard'
-                slog.info(session_label, error,
-                              session=session,
-                              scan_number=scan,
-                              scan_type=scantype,
-                              actual_frame_number=images_created,
-                              manufacturer=manufacturer,
-                              expected_frame_number=str(expected_images[manufacturer][scantype]))
-
 
 #
 # Export experiment files to NIFTI
@@ -110,6 +72,7 @@ def export_to_nifti(interface, project, subject, session, session_label,
                 # check time stamp - if newer than there is nothing to do
                 nifti_time = time.strftime('%Y-%m-%d %H:%m:%S',time.gmtime(os.path.getmtime(nifti_log_search[0])))
                 dicom_time = time.strftime('%Y-%m-%d %H:%m:%S',time.gmtime(os.path.getmtime(dicom_file_list[0])))
+
                 if nifti_time > dicom_time  :
                     if verbose:
                         print("... nothing to do as nifti files are up to date")
@@ -168,19 +131,9 @@ def export_to_nifti(interface, project, subject, session, session_label,
                                 zip_path, session))
 
             # Verify image counts for various series
-            images_created = len(glob.glob('%s/*/*.nii.gz' % temp_dir))
+            # images_created = len(glob.glob('%s/*/*.nii.gz' % temp_dir))
 
-            if images_created > 0:
-                    # only use first part of string so GE Manufacturer is turned into GE
-                    manufacturer_u = manufacturer.split(' ',1)[0].upper()
-                    verify_image_count(session, session_label, scan, scantype,
-                                       manufacturer_u, images_created)
-
-                    if 'dti60b1000' in scantype:
-                            xml_search_string = os.path.join(temp_dir,'%s_%s' % (scan,scantype), 'image*.nii.xml')
-                            xml_file_list = glob.glob(xml_search_string)
-                            cgt.check_diffusion(analysis_cases_dir,session_label,session,xml_file_list,manufacturer_u,scanner_model,'dti60b1000',decimals=2)
-
+            
             # Clean up - remove temp directory
             shutil.rmtree(temp_dir)
 
