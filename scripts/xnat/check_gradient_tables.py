@@ -155,7 +155,7 @@ def get_ground_truth_gradients(analysis_cases_dir,scanner,scanner_model,sequence
         else :
             # PRISMA was updated before including dti30b400 in the acquisition protocol
             scanner_subject = 'NCANDA_S00061'
-            test_event = 'baseline'
+            test_event = 'followup_4y'
 
     elif scanner_u == 'GE': 
         scanner_subject = 'NCANDA_S00033'
@@ -210,9 +210,10 @@ def check_diffusion(analysis_cases_dir,session_label,session,xml_file_list,manuf
                     errorsActual.append(frame)
                     errorsExpected.append(truth_gradient[idx])
         else:
-            slog.info(session_label,"ERROR: Incorrect number of frames.",
+            slog.info(session_label +"-"+ sequence_label,"ERROR: Incorrect number of frames.",
                           number_of_frames=str(len(evaluated_gradients)),
                           expected=str(len(truth_gradient)),
+                          sequence = sequence_label,
                           session=session)
             errorFlag = True
 
@@ -236,13 +237,12 @@ def check_diffusion(analysis_cases_dir,session_label,session,xml_file_list,manuf
     # Check phase encoding
     xml_file = open(xml_file_list[0], 'r')
     try:        
-        matchedFlag=False
         for line in xml_file:
-            match = re.match('.*<phaseEncodeDirectionSign>(.+)'
+            match = re.match('.*<>(.+)'
                              '</phaseEncodeDirectionSign>.*',
                              line)
+            # KP: I believe only Siemens scans include the directional sign 
             if match :
-                matchedFlag=True 
                 if sequence_label == "dti60b1000" or sequence_label == "dti30b400" : 
                     if match.group(1).upper() != 'NEG':
                         slog.info(session_label, 
@@ -264,13 +264,13 @@ def check_diffusion(analysis_cases_dir,session_label,session,xml_file_list,manuf
                     errorFlag = True
                     break
  
-        # XML File did not include phase encoding
-        if not matchedFlag : 
-            slog.info(session_label + "-" + hashlib.sha1(xml_file_list[0]).hexdigest()[0:6], 
-                      "tag 'phaseEncodeDirectionSign' missing in dicom hearder",
-                      xml_file = xml_file_list[0],
-                      session=session)
-            errorFlag = True
+        # Only siemens scans include the tag 
+        #if not matchedFlag : 
+        #    slog.info(session_label, 
+        #              "tag 'phaseEncodeDirectionSign' missing in dicom hearder",
+        #              xml_file = xml_file_list[0],
+        #              session=session)
+        #    errorFlag = True
 
     except AttributeError as error:
         slog.info(session_label, "Error: parsing XML files failed.",
@@ -281,7 +281,7 @@ def check_diffusion(analysis_cases_dir,session_label,session,xml_file_list,manuf
     finally:
         xml_file.close()
 
-    return errorFlag
+    return not errorFlag
 
                      
 def main(args=None):
@@ -304,7 +304,7 @@ def main(args=None):
         sys.exit(1)
 
     # Demographics from pipeline to grab case to scanner mapping
-    demo_path = os.path.join(sibis_session.get_summaries_dir(),'/redcap/demographics.csv')
+    demo_path = os.path.join(sibis_session.get_summaries_dir(),'redcap/demographics.csv')
     demographics = pd.read_csv(demo_path, index_col=['subject',
                                                      'arm',
                                                      'visit'])

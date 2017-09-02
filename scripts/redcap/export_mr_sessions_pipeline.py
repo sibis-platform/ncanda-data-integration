@@ -366,6 +366,8 @@ def delete_workdir(workdir,redcap_visit_id,verbose=False):
     if os.path.exists(workdir):
         if verbose :
             print "Deleting " + workdir
+        print "DEBUGGING: Note executed: delete_workdir: ",workdir,redcap_visit_id
+        return 
 
         try :
             shutil.rmtree(workdir)            

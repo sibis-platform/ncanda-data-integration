@@ -200,6 +200,11 @@ def get_fieldmap_scans( usable_scans_list, for_scan, scannerMfg,redcap_visit_id,
         
     return matched_fieldmaps
 
+def get_eid_from_scan_list(session_and_scan, sType):
+    if sType in session_and_scan.keys(): 
+        return session_and_scan[sType][0]
+    return None
+
 #
 # Encode session and scan in a single string
 #
@@ -328,14 +333,13 @@ def get_xnat_data(redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_date, dat
     # closes to "visit_date" if there is more than one for a given type
     scans_by_type = get_scans_by_type(usable_scans_list, visit_date, redcap_visit_id)
 
-    result['mri_series_t1'] = encode_session_and_scan(scans_by_type, ['t1spgr', 'mprage'])
-
+    result['mri_series_t2'] = encode_session_and_scan(scans_by_type, ['t2fse'])
     # Make sure sessions are from the same experiment 
-    t1_eid = result['mri_series_t1'][0]
-    result['mri_series_t2'] = encode_session_and_scan(scans_by_type, ['t2fse'], t1_eid)
+    struct_eid = get_eid_from_scan_list(scans_by_type,'t2fse')
+    result['mri_series_t1'] = encode_session_and_scan(scans_by_type, ['t1spgr', 'mprage'],struct_eid)
 
     result['mri_series_dti6b500pepolar'] = encode_session_and_scan(scans_by_type, ['dti6b500pepolar'])
-    dti_eid = result['mri_series_dti6b500pepolar'][0]
+    dti_eid = get_eid_from_scan_list(scans_by_type,'dti6b500pepolar')
 
     # Get fieldmap series for the DTI and the rs-fMRI scans
     if 'dti60b1000' in scans_by_type.keys():

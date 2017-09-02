@@ -9,6 +9,7 @@ import os
 import re
 import csv
 import sys
+import glob
 import time
 import argparse
 import datetime
@@ -20,6 +21,8 @@ import sibispy
 from sibispy import sibislogger as slog
 
 import make_session_niftis
+import check_gradient_tables as cgt
+
 
 #============================================================
 # Definitions 
@@ -176,7 +179,7 @@ def check_physio(ifc, eid):
     return False
 
 
-def check_dti(ifc, eid, dti_scans):
+def check_dti(ifc, eid, session_dir, dti_scans, cases_dir, session_label,  manufacturer_u, scanner_model):
     errors = []
     #
     # Checking if parameters match across dti sessions 
@@ -188,22 +191,24 @@ def check_dti(ifc, eid, dti_scans):
     #
     # Check individual sequences 
     #
+    parameters = [] 
     for scan, scantype in dti_scans:
         for sequenceLabel in ['dti6b500pepolar','dti60b1000', 'dti30b400'] :
             if sequenceLabel in scantype:
                 scan_dir = '%s_%s' % (scan,scantype)
                 xml_search_string = os.path.join(session_dir,scan_dir, 'image*.nii.xml')
                 xml_file_list = glob.glob(xml_search_string)
-                if not cgt.check_diffusion(analysis_cases_dir,session_label,session,xml_file_list,manufacturer_u,scanner_model, sequenceLabel, decimals=2):
+                diffusionFlag = cgt.check_diffusion(cases_dir,session_label, eid, xml_file_list,manufacturer_u,scanner_model, sequenceLabel, decimals=2)
+                if not diffusionFlag : 
                     errors.append('gradient check failed for ' + scan_dir)
             
-    xnat_para = experiment.scan(scan).attrs.mget(scan_attrs)
-    xnat_para.append(scan)
-    parameters = [xnat_para]
+                xnat_para = experiment.scan(scan).attrs.mget(scan_attrs)
+                xnat_para.append(scan)
+                parameters += [xnat_para]
 
-    if len(parameters):
+    if len(parameters) > 1:
         te0, fovx0, fovy0, pixx0, pixy0, scan0 = parameters[0]
-        for te, fovx, fovy, pixx, pixy, scan in parameters:
+        for te, fovx, fovy, pixx, pixy, scan in parameters[1:] :
             if te != te0:
                 errors.append('TE mismatch (Scan %s: %s; Scan %s: %s)' % (scan0,te0,scan, te))
 
@@ -264,7 +269,7 @@ def incomplete_scan_check(eid, manufacturer, label, missing_scan_map):
         # only flag that sequence as missing if not there after Feb 1- 2017
         if 'ncanda-dti30b400-v1' in missing_scans and insert_date < dti30b500_check_date :
             missing_scans.remove('ncanda-dti30b400-v1')
-            if missing_scans == [] :
+            if not missing_scans :
                 return False
 
         # Lets see if missing_scans are part of exception  
@@ -519,7 +524,7 @@ def make_session_link(server_address,eid, project, label,xnat_dir):
                  label,
                  '</a></li>\n']
     html_link = ''.join(html_list)
-    file_link = os.path.join(xnat_dir, 'archive', project,'arc001',label,'/RESOURCES/nifti') 
+    file_link = os.path.join(xnat_dir, 'archive', project,'arc001',label,'RESOURCES/nifti') 
 
     return html_link, file_link
 
@@ -737,6 +742,7 @@ if False:
     print "DEBUG: Checking " + str(len(sessions_to_check)) + " sessions." 
 
 xnat_dir = sibis_session.get_xnat_dir()
+cases_dir = sibis_session.get_cases_dir()
 index = 0
 for (eid, project, subject, insert_date,
      session_label, last_modified) in sessions_to_check:
@@ -845,12 +851,9 @@ for (eid, project, subject, insert_date,
                 subject,
                 eid,
                 session_label,
-                manufacturer,
-                scanner_model,
                 scanID,
                 scantype,
                 xnat_dir,
-                sibis_session.get_cases_dir(),
                 verbose=args.verbose)
             if len(error_msg) or niftisWereCreatedFlag:
                 # Remove qc_file as session has to be checked again 
@@ -885,10 +888,10 @@ for (eid, project, subject, insert_date,
         manufacturer_u = manufacturer.split(' ',1)[0].upper()
 
         imageCount = len(glob.glob('%s/%s_%s/*.nii.gz' % (session_dir,scanID,scantype)))
-        errorFlag = errorFlag or not verify_image_count(session, session_label, scanID, scantype,manufacturer_u, imageCount)
+        errorFlag = errorFlag or not verify_image_count(eid, session_label, scanID, scantype,manufacturer_u, imageCount)
 
         # failed dti te comparison
-        failed_dti = check_dti(ifc, eid, session_dir, dti_scans)
+        failed_dti = check_dti(ifc, eid, session_dir, dti_scans, cases_dir, session_label, manufacturer_u,scanner_model)
 
         if len(failed_dti):
             errorFlag = True

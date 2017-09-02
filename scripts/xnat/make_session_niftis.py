@@ -13,7 +13,6 @@ import subprocess
 import numpy
 import re
 from sibispy import sibislogger as slog
-import check_gradient_tables as cgt
 import time 
 import sys 
 
@@ -21,8 +20,7 @@ import sys
 #
 # Export experiment files to NIFTI
 #
-def export_to_nifti(interface, project, subject, session, session_label,
-                    manufacturer, scanner_model, scan, scantype, xnat_dir, analysis_cases_dir, verbose=False):
+def export_to_nifti(interface, project, subject, session, session_label, scan, scantype, xnat_dir, verbose=False):
     if verbose:
         print "Starting export of nifti files for ", project, subject, session, session_label, scan, scantype
 
