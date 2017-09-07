@@ -175,17 +175,22 @@ def get_ground_truth_gradients(analysis_cases_dir,scanner,scanner_model,sequence
     return get_all_gradients(scanner_subject + "_" + test_arm + "_" + test_event, dti_stack, decimals)
     # dict(Siemens=siemens_gradients, GE=ge_gradients)
 
-def check_diffusion(analysis_cases_dir,session_label,xml_file_list,manufacturer,scanner_model,sequence_label,decimals):
+def check_diffusion(analysis_cases_dir,session_label,eid,xml_file_list,manufacturer,scanner_model,scan_id,sequence_label,decimals):
     if len(xml_file_list) == 0 : 
         slog.info(session_label,
-                      "Error: check_diffusion : xml_file_list is empty ")
+                  "Error: check_diffusion : xml_file_list is empty ",
+                  eid = eid,
+                  scan = scan_id)
+
         return False
 
     truth_gradient = np.array(get_ground_truth_gradients(analysis_cases_dir,manufacturer,scanner_model,sequence_label,decimals))
     if len(truth_gradient) == 0 :
         slog.info(session_label,
                   'ERROR: check_diffusion: scanner is unknown',
-                  scanner=manufacturer)
+                  scanner=manufacturer,
+                  eid = eid,
+                  scan = scan_id)
         return False
 
     xml_file_list.sort()
@@ -209,15 +214,19 @@ def check_diffusion(analysis_cases_dir,session_label,xml_file_list,manufacturer,
                     errorsExpected.append(truth_gradient[idx])
         else:
             slog.info(session_label +"-"+ sequence_label,"ERROR: Incorrect number of frames.",
-                          number_of_frames=str(len(evaluated_gradients)),
-                          expected=str(len(truth_gradient)),
-                          sequence = sequence_label)
+                      number_of_frames=str(len(evaluated_gradients)),
+                      expected=str(len(truth_gradient)),
+                      sequence = sequence_label,
+                      eid = eid,
+                      scan = scan_id)
             errorFlag = True
 
     except AttributeError as error:
         slog.info(session_label, "Error: parsing XML files failed.",
-                      xml_file_list=str(xml_file_list),
-                      error_msg=str(error))
+                  xml_file_list=str(xml_file_list),
+                  error_msg=str(error),
+                  eid = eid,
+                  scan = scan_id)
         return False
 
     if errorsFrame:
@@ -226,7 +235,9 @@ def check_diffusion(analysis_cases_dir,session_label,xml_file_list,manufacturer,
                   frames=str(errorsFrame),
                   actualGradients=str(errorsActual),
                   expectedGradients=str(errorsExpected),
-                  sequence = sequence_label)
+                  sequence = sequence_label,
+                  eid = eid,
+                  scan = scan_id)
         errorFlag = True
 
     # Check phase encoding
@@ -241,18 +252,25 @@ def check_diffusion(analysis_cases_dir,session_label,xml_file_list,manufacturer,
                 if sequence_label == "dti60b1000" or sequence_label == "dti30b400" : 
                     if match.group(1).upper() != 'NEG':
                         slog.info(session_label, 
-                              sequence_label + " has wrong PE sign (expected NEG).",
-                              actual_sign=str(match.group(1).upper()))
+                                  sequence_label + " has wrong PE sign (expected NEG).",
+                                  actual_sign=str(match.group(1).upper()),
+                                  eid = eid,
+                                  scan = scan_id)
                         errorFlag = True
                 elif sequence_label == "dti6b500pepolar" : 
                     if match.group(1).upper() != 'POS':
                         slog.info(session_label, 
                                   "dti6b500pepolar has wrong PE sign (expected POS).",
-                              actual_sign=str(match.group(1).upper()))
+                                  actual_sign=str(match.group(1).upper()),
+                                  eid = eid,
+                                  scan = scan_id)
                         errorFlag = True
 
                 else : 
-                    slog.info(session_label,  "Check for sequence " +  sequence_label  + " not defined !")
+                    slog.info(session_label, 
+                              "Check for sequence " +  sequence_label  + " not defined !", 
+                              eid = eid,                   
+                              scan = scan_id)
                     errorFlag = True
                     break
  
@@ -266,8 +284,10 @@ def check_diffusion(analysis_cases_dir,session_label,xml_file_list,manufacturer,
 
     except AttributeError as error:
         slog.info(session_label, "Error: parsing XML files failed.",
-                      xml_file=xml_file_list[0],
-                      error=str(error))
+                  xml_file=xml_file_list[0],
+                  error=str(error),
+                  eid = eid,
+                  scan = scan_id)
         errorFlag = True
     finally:
         xml_file.close()
@@ -339,7 +359,7 @@ def main(args=None):
             continue
 
         xml_file_list = get_dti_stack(args.sequence, case, arm=args.arm, event=args.event)
-        check_diffusion(sibis_session.get_cases_dir(),dti_path,"",xml_file_list,scanner, scanner_model,args.sequence, args.decimals)
+        check_diffusion(sibis_session.get_cases_dir(),dti_path,"",xml_file_list,scanner, scanner_model, "", args.sequence, args.decimals)
 
     slog.takeTimer1("script_time", "{'records': " + str(len(cases)) + "}")
 

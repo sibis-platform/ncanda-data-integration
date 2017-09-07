@@ -91,7 +91,7 @@ required_fbirn = {'ncanda-rsfmri-v1': 1}
 # The nifti image count per session 
 #
 expected_images = dict()
-expected_images['GE'] = {'ncanda-t1spgr-v1': [1],
+expected_images['GE MEDICAL SYSTEMS'] = {'ncanda-t1spgr-v1': [1],
                          'ncanda-mprage-v1': [1],
                          'ncanda-t2fse-v1': [1],
                          'ncanda-dti6b500pepolar-v1': [8],
@@ -185,13 +185,20 @@ def check_physio(experiment,ifc,eid):
     return False
 
 
-def check_dti(experiment, session_dir, dti_scans, cases_dir, session_label,  manufacturer_u, scanner_model):
+def check_dti(experiment, session_dir, dti_scans, cases_dir, session_label, eid, manufacturer_u, scanner_model, incorrect_formatting_map):
     errors = []
     #
     # Checking if parameters match across dti sessions 
     #
     if get_custom_variable(experiment, 'dtimismatchoverride') == 'true':
         return errors
+
+    # filter out all files that have an exception
+    incorrect_formatting_list = []
+    if incorrect_formatting_map:
+        incorrect_formatting_exception = incorrect_formatting_map.get(session_label)
+        if incorrect_formatting_exception:
+            incorrect_formatting_list = str(incorrect_formatting_exception).split(',')
 
     #
     # Check individual sequences 
@@ -200,10 +207,15 @@ def check_dti(experiment, session_dir, dti_scans, cases_dir, session_label,  man
     for scan, scantype in dti_scans:
         for sequenceLabel in ['dti6b500pepolar','dti60b1000', 'dti30b400'] :
             if sequenceLabel in scantype:
+                if scan in incorrect_formatting_list : 
+                    if args.verbose:
+                        print session_label, ": The following scans will not be checked in check_dti: ", scan, scantype
+                    continue
+
                 scan_dir = '%s_%s' % (scan,scantype)
                 xml_search_string = os.path.join(session_dir,scan_dir, 'image*.nii.xml')
                 xml_file_list = glob.glob(xml_search_string)
-                diffusionFlag = cgt.check_diffusion(cases_dir,session_label, xml_file_list,manufacturer_u,scanner_model, sequenceLabel, decimals=2)
+                diffusionFlag = cgt.check_diffusion(cases_dir,session_label, eid, xml_file_list,manufacturer_u,scanner_model, scan, sequenceLabel, decimals=2)
                 if not diffusionFlag : 
                     errors.append('gradient check failed for ' + scan_dir)
             
@@ -242,7 +254,7 @@ def check_for_phantom(label):
             return match
 
 
-def incomplete_scan_check(experiment,manufacturer, session_label, scan_types, missing_scan_map):
+def incomplete_scan_check(experiment,manufacturer, session_label, eid, scan_types, missing_scan_map):
     missing_scans = []
     scan_types_set = set(scan_types)
     ge_scan_types = set(scan_type_dictionary['GE MEDICAL SYSTEMS'])
@@ -269,7 +281,7 @@ def incomplete_scan_check(experiment,manufacturer, session_label, scan_types, mi
                missing_scans.append('ncanda-grefieldmap-v1')
                siemens_gradient_flag = True
     else:
-        slog.info(session_label,'Do not support manufacturer {}'.format(manufacturer))
+        slog.info(session_label,'Do not support manufacturer {}'.format(manufacturer), eid=eid)
         return True
 
     if missing_scans:
@@ -294,9 +306,10 @@ def incomplete_scan_check(experiment,manufacturer, session_label, scan_types, mi
             err_msg += "Note, Siemens scans require two 'ncanda-grefieldmap-v1'" 
 
         slog.info(session_label,
-                      err_msg,
-                      manufacturer=manufacturer,
-                      missing_scans=', '.join(missing_scans))
+                  err_msg,
+                  manufacturer=manufacturer,
+                  missing_scans=', '.join(missing_scans),
+                  eid = eid)  
         return True
 
 def voxelres_get(experiment, scan):
@@ -417,11 +430,45 @@ def frame_check(experiment, manufacturer, scan_list):
                               'scan_id': f[2]})
     return error
 
+# Make sure we have the right number of volumes for a given series
+def image_check(experiment, session_dir, manufacturer, scan_list):
+    error = [] 
+    for scan_id in scan_list:
+        scan_type =  experiment.scan(scan_id).attrs.get('type')
+
+        # Nothing to do 
+        if not scan_type in expected_images[manufacturer].keys():
+            continue 
+
+        imgrange = expected_images[manufacturer][scan_type]
+        searchString = '%s/%s_%s/*.nii.gz' % (session_dir,scan_id,scan_type)
+        imageCount = len(glob.glob(searchString))
+
+        if imageCount not in imgrange:
+            error.append({'scan_type': scan_type,
+                          'scan_id' : scan_id,
+                          'images' : imageCount,
+                          'manufacturer' : manufacturer,
+                          'expected_images' : str(expected_images[manufacturer][scan_type]),
+                          'image_search' :  searchString})
+                           
+    return error
+
 
 # Check dimension of each MRI scan potentially ported to the pipeline folder:  
-def mri_quality_check(experiment, manufacturer, session_label, scan_list, incorrect_formatting_map):
-    errors = []
+def mri_quality_check(experiment, session_dir, manufacturer, session_label, eid, scan_list, incorrect_formatting_map):
+    # only use first part of string so GE Manufacturer is turned into GE
+    # manufacturer_u = manufacturer.split(' ',1)[0].upper()
 
+    if not manufacturer in expected_images.keys():
+        slog.info(session_label, "Error: Manufacturer '" + manufacturer + "' unkwnown", 
+                  manufacturer=str(manufacturer), 
+                  defined=str(expected_images.keys()),
+                  eid =eid)
+
+        return False
+
+    errors = []
     # filter out all files that have an exception
     if incorrect_formatting_map:
         incorrect_formatting_exception = incorrect_formatting_map.get(session_label)
@@ -431,11 +478,15 @@ def mri_quality_check(experiment, manufacturer, session_label, scan_list, incorr
     if incorrect_formatting_exception:
         incorrect_formatting_list = str(incorrect_formatting_exception).split(',')
         if args.verbose:
-            print session_label, ": The following scans will not be checked : ", str(incorrect_formatting_list) 
+            print session_label, ": The following scans will not be checked in mri_quality_check: ", str(incorrect_formatting_list) 
 
         no_exception_list = list(set(scan_list).difference(incorrect_formatting_list))
     else :
         no_exception_list = scan_list
+
+    for e in image_check(experiment, session_dir, manufacturer, no_exception_list):
+        if e:
+            errors.append(e)
 
     for e in frame_check(experiment, manufacturer, no_exception_list):
         if e:
@@ -447,38 +498,12 @@ def mri_quality_check(experiment, manufacturer, session_label, scan_list, incorr
 
     if errors:
         slog.info(session_label,
-                  'ERROR: Failed to match standard frames',
-                  violations=str(errors))
+                  'ERROR: scans in session failed to match standard setting',
+                  violations=str(errors),
+                  eid = eid)
         return False
 
     return True
-
-# Make sure we have the right number of volumes for a given series
-def verify_image_count(session_label, scan, scantype, manufacturer, imageCount):
-    if not manufacturer in expected_images.keys():
-        # not to specify setting for it 
-        raise('Error: Manufacturer ' + manufacturer + ' not in manufacturer list ' + str(expected_images.keys()))
-
-    # Nothing to do 
-    if not scantype in expected_images[manufacturer].keys():
-        return True
-
-    # Confirmed count
-    imgrange = expected_images[manufacturer][scantype]
-    if imageCount in imgrange:
-        return True
-
-    # Image count it wrong
-    error = 'WARNING: Number of frames in archive differ from the standard'
-    slog.info(session_label, error,
-              scan_ID=scan,
-              scan_type=scantype,
-              actual_frame_number=imageCount,
-              manufacturer=manufacturer,
-              expected_frame_number=str(expected_images[manufacturer][scantype]))
-    return False
-                
-
 
 def remove_file(session_label,fileName): 
     # nothing to do 
@@ -732,7 +757,7 @@ adni_ids = adni_ids_search.get('subject_id')
 
 # For debugging
 # Start from where session last broke down 
-if True: 
+if False: 
     # index = 0 
     #for session  in sessions_to_check:
     #    if session[0] == 'NCANDA_E03897' :
@@ -770,7 +795,7 @@ for (eid, project, subject, insert_date,
     if args.force_qc_check:
         remove_file(session_label,qc_file)
     elif os.path.isfile(qc_file):
-        rename_file(qc_file,qc_file_tmp)
+        rename_file(session_label,qc_file,qc_file_tmp)
 
     experiment = sibis_session.xnat_get_experiment(eid)
     if not experiment: 
@@ -909,27 +934,23 @@ for (eid, project, subject, insert_date,
     # ncanda-t1spgr-v1 of phantom has 186 instead of 146 frames
 
     errorFlag = False
+    failed_dti = ""
+
     if not os.path.exists(qc_file_tmp): 
         # Only do if not a phantom scan
         try : 
             if not check_for_phantom(session_label):
-                errorFlag = incomplete_scan_check(experiment, manufacturer, session_label, scan_types, missing_scan_map)
-                errorFlag = errorFlag or not mri_quality_check(experiment, manufacturer, session_label, scan_id_list, incorrect_formatting_map)
+                errorFlag = incomplete_scan_check(experiment, manufacturer, session_label, eid, scan_types, missing_scan_map)
+                errorFlag = errorFlag or not mri_quality_check(experiment, session_dir, manufacturer, session_label, eid, scan_id_list, incorrect_formatting_map)
 
-            # Verify image count 
-            # only use first part of string so GE Manufacturer is turned into GE
-            manufacturer_u = manufacturer.split(' ',1)[0].upper()
-            imageCount = len(glob.glob('%s/%s_%s/*.nii.gz' % (session_dir,scanID,scantype)))
-            errorFlag = errorFlag or not verify_image_count(session_label, scanID, scantype,manufacturer_u, imageCount)
+                manufacturer_u = manufacturer.split(' ',1)[0].upper()
+                failed_dti = check_dti(experiment, session_dir, dti_scans, cases_dir, session_label, eid, manufacturer_u,scanner_model, incorrect_formatting_map)
 
-            # failed dti te comparison
-            failed_dti = check_dti(experiment, session_dir, dti_scans, cases_dir, session_label, manufacturer_u,scanner_model)
-
-            if len(failed_dti):
-                errorFlag = True
-                htmldt.append(''.join([session_html_link,
-                                       session_dir_link,
-                                       ', '.join(failed_dti)]))
+                if len(failed_dti):
+                    errorFlag = True
+                    htmldt.append(''.join([session_html_link,
+                                           session_dir_link,
+                                           ', '.join(failed_dti)]))
         
             # missing physio data
             physio_ok = True
@@ -956,9 +977,8 @@ for (eid, project, subject, insert_date,
 
 
     else:
-        failed_dti = ""
         physio_ok = True
-        rename_file(qc_file_tmp,qc_file)
+        rename_file(session_label,qc_file_tmp,qc_file)
 
         if args.verbose:
             sys.stdout.write("Skipping QC...")
