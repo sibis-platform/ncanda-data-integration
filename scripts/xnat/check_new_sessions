@@ -22,7 +22,7 @@ from sibispy import sibislogger as slog
 
 import make_session_niftis
 import check_gradient_tables as cgt
-
+import hashlib
 
 #============================================================
 # Definitions 
@@ -164,10 +164,16 @@ physio = ['PPGData_epiRT', 'PPGTrig_epiRT','RESPData_epiRT', 'RESPTrig_epiRT',
 #============================================================
 
 # checking if the sites have sent physiology data
-def check_physio(ifc, eid):
-    experiment = ifc.select.experiment(eid)
-    if get_custom_variable(experiment, 'physioproblemoverride') == 'true':
-        return True
+def check_physio(experiment,ifc,eid):
+    try : 
+        if get_custom_variable(experiment, 'physioproblemoverride') == 'true':
+            return True
+
+    except Exception as err_msg: 
+        slog.info(eid + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not retrieve physioproblemoverride',
+                  err_msg = str(err_msg))
+        return False
+
 
     for resource in experiment.resources().get():
         json_path = '/data/experiments/{}/resources/{}/files?format=json'
@@ -179,12 +185,11 @@ def check_physio(ifc, eid):
     return False
 
 
-def check_dti(ifc, eid, session_dir, dti_scans, cases_dir, session_label,  manufacturer_u, scanner_model):
+def check_dti(experiment, session_dir, dti_scans, cases_dir, session_label,  manufacturer_u, scanner_model):
     errors = []
     #
     # Checking if parameters match across dti sessions 
     #
-    experiment = ifc.select.experiment(eid)
     if get_custom_variable(experiment, 'dtimismatchoverride') == 'true':
         return errors
 
@@ -198,13 +203,17 @@ def check_dti(ifc, eid, session_dir, dti_scans, cases_dir, session_label,  manuf
                 scan_dir = '%s_%s' % (scan,scantype)
                 xml_search_string = os.path.join(session_dir,scan_dir, 'image*.nii.xml')
                 xml_file_list = glob.glob(xml_search_string)
-                diffusionFlag = cgt.check_diffusion(cases_dir,session_label, eid, xml_file_list,manufacturer_u,scanner_model, sequenceLabel, decimals=2)
+                diffusionFlag = cgt.check_diffusion(cases_dir,session_label, xml_file_list,manufacturer_u,scanner_model, sequenceLabel, decimals=2)
                 if not diffusionFlag : 
                     errors.append('gradient check failed for ' + scan_dir)
             
-                xnat_para = experiment.scan(scan).attrs.mget(scan_attrs)
-                xnat_para.append(scan)
-                parameters += [xnat_para]
+                try : 
+                    xnat_para = experiment.scan(scan).attrs.mget(scan_attrs)
+                    xnat_para.append(scan)
+                    parameters += [xnat_para]
+
+                except Exception as err_msg:
+                    errors.append('could not retrieve scan parameters for ' + scan_dir)
 
     if len(parameters) > 1:
         te0, fovx0, fovy0, pixx0, pixy0, scan0 = parameters[0]
@@ -233,10 +242,8 @@ def check_for_phantom(label):
             return match
 
 
-def incomplete_scan_check(eid, manufacturer, label, missing_scan_map):
+def incomplete_scan_check(experiment,manufacturer, session_label, scan_types, missing_scan_map):
     missing_scans = []
-    sess_type = 'xnat:mrSessionData/scans/scan/type'
-    scan_types = ifc.select.experiment(eid).attrs.get(sess_type)
     scan_types_set = set(scan_types)
     ge_scan_types = set(scan_type_dictionary['GE MEDICAL SYSTEMS'])
     siemens_scan_types = set(scan_type_dictionary['SIEMENS'])
@@ -262,7 +269,7 @@ def incomplete_scan_check(eid, manufacturer, label, missing_scan_map):
                missing_scans.append('ncanda-grefieldmap-v1')
                siemens_gradient_flag = True
     else:
-        slog.info(eid,'Do not support manufacturer {}'.format(manufacturer))
+        slog.info(session_label,'Do not support manufacturer {}'.format(manufacturer))
         return True
 
     if missing_scans:
@@ -273,28 +280,27 @@ def incomplete_scan_check(eid, manufacturer, label, missing_scan_map):
                 return False
 
         # Lets see if missing_scans are part of exception  
-        missing_scans_exception = missing_scan_map.get(label)
+        missing_scans_exception = missing_scan_map.get(session_label)
         if missing_scans_exception:
             missing_scans_exception_list = missing_scans_exception.split(',')
             missing_scans = list(set(missing_scans).difference(missing_scans_exception_list))
             if missing_scans == [] : 
                 if args.verbose:
-                    print label, ": All missing scans are excepted!" 
+                    print session_label, ": All missing scans are excepted!" 
                 return False
  
         err_msg = 'ERROR: Missing scans from Session!'
         if siemens_gradient_flag :
             err_msg += "Note, Siemens scans require two 'ncanda-grefieldmap-v1'" 
 
-        slog.info(label,
+        slog.info(session_label,
                       err_msg,
-                      xnat_id=eid,
                       manufacturer=manufacturer,
                       missing_scans=', '.join(missing_scans))
         return True
 
-def voxelres_get(eid, scan):
-        scan_info = ifc.select.experiment(eid).scan(scan).get()
+def voxelres_get(experiment, scan):
+        scan_info = experiment.scan(scan).get()
         field_regex = '.*<xnat:voxelRes (.*?)/>'
         match = re.match(field_regex, scan_info, flags=re.DOTALL)
         if match:
@@ -303,12 +309,12 @@ def voxelres_get(eid, scan):
                           match.group(1),
                           flags=re.DOTALL)
 
-def voxelRes_check(eid, manufacturer, scan_list):
+def voxelRes_check(experiment, manufacturer, scan_list):
     voxel_res = []
     error = []
     for scan in scan_list:
-        scan_res = [ifc.select.experiment(eid).scan(scan).attrs.get('type'),
-                    voxelres_get(eid, scan),scan]
+        scan_res = [experiment.scan(scan).attrs.get('type'),
+                    voxelres_get(experiment, scan),scan]
         voxel_res.append(scan_res)
 
     if manufacturer == 'GE MEDICAL SYSTEMS':
@@ -351,12 +357,12 @@ def voxelRes_check(eid, manufacturer, scan_list):
 
     return error
 
-def frame_check(eid, manufacturer, scan_list):
+def frame_check(experiment, manufacturer, scan_list):
     frames = []
     error = []
 
     for scan in scan_list:
-        frame = ifc.select.experiment(eid).scan(scan).attrs.mget(['type','frames'])
+        frame = experiment.scan(scan).attrs.mget(['type','frames'])
         frame.append(scan)
         frames.append(frame)
 
@@ -413,47 +419,42 @@ def frame_check(eid, manufacturer, scan_list):
 
 
 # Check dimension of each MRI scan potentially ported to the pipeline folder:  
-def mri_quality_check(eid, manufacturer, label, incorrect_formatting_map):
+def mri_quality_check(experiment, manufacturer, session_label, scan_list, incorrect_formatting_map):
     errors = []
-
-    # get scan list
-    scan_id = 'xnat:mrSessionData/scans/scan/id'
-    scan_list = ifc.select.experiment(eid).attrs.get(scan_id)
 
     # filter out all files that have an exception
     if incorrect_formatting_map:
-        incorrect_formatting_exception = incorrect_formatting_map.get(label)
+        incorrect_formatting_exception = incorrect_formatting_map.get(session_label)
     else : 
         incorrect_formatting_exception = None
 
     if incorrect_formatting_exception:
         incorrect_formatting_list = str(incorrect_formatting_exception).split(',')
         if args.verbose:
-            print label, ": The following scans will not be checked : ", str(incorrect_formatting_list) 
+            print session_label, ": The following scans will not be checked : ", str(incorrect_formatting_list) 
 
         no_exception_list = list(set(scan_list).difference(incorrect_formatting_list))
     else :
         no_exception_list = scan_list
 
-    for e in frame_check(eid, manufacturer, no_exception_list):
+    for e in frame_check(experiment, manufacturer, no_exception_list):
         if e:
             errors.append(e)
         
-    for e in voxelRes_check(eid, manufacturer,  no_exception_list):
+    for e in voxelRes_check(experiment, manufacturer,  no_exception_list):
         if e:
             errors.append(e)
 
     if errors:
-        slog.info(label,
+        slog.info(session_label,
                   'ERROR: Failed to match standard frames',
-                  xnat_experiment_id=eid,
                   violations=str(errors))
         return False
 
     return True
 
 # Make sure we have the right number of volumes for a given series
-def verify_image_count(session, session_label, scan, scantype, manufacturer, imageCount):
+def verify_image_count(session_label, scan, scantype, manufacturer, imageCount):
     if not manufacturer in expected_images.keys():
         # not to specify setting for it 
         raise('Error: Manufacturer ' + manufacturer + ' not in manufacturer list ' + str(expected_images.keys()))
@@ -470,7 +471,6 @@ def verify_image_count(session, session_label, scan, scantype, manufacturer, ima
     # Image count it wrong
     error = 'WARNING: Number of frames in archive differ from the standard'
     slog.info(session_label, error,
-              session=session,
               scan_ID=scan,
               scan_type=scantype,
               actual_frame_number=imageCount,
@@ -480,34 +480,34 @@ def verify_image_count(session, session_label, scan, scantype, manufacturer, ima
                 
 
 
-def remove_file(fileName): 
+def remove_file(session_label,fileName): 
     # nothing to do 
     if not os.path.isfile(fileName):
         return
     try :  
         os.remove(fileName)
     except Exception as err_msg: 
-        slog.info(eid,'ERROR: Could not remove file - please check access rights! - stopped processing',
+        slog.info(session_label + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not remove file - please check access rights! - stopped processing',
                   fileName = fileName,
                   error_msg=str(err_msg))
         sys.exit("Stopped due to access file issues!")
 
 
-def rename_file(oldFileName,newFileName): 
+def rename_file(session_label,oldFileName,newFileName): 
     # nothing to do 
     if not os.path.isfile(oldFileName):
         return 
     try :  
         os.rename(oldFileName,newFileName)
     except Exception as err_msg: 
-        slog.info(eid,'ERROR: Could not rename file - please check access rights! Processing stopped',
+        slog.info(session_label + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not rename file - please check access rights! Processing stopped',
                   oldFileName = oldFileName,
                   newFileName = newFileName,
                   error_msg=str(err_msg))
         sys.exit("Stopped due to access file issues!")
 
 # Make a direct link to XNAT session
-def make_session_link(server_address,eid, project, label,xnat_dir):
+def make_session_link(server_address, eid, project, label,xnat_dir):
     html_list = ['<li>',
                  '<a href=',
                  server_address + '/app/action/DisplayItemAction/',
@@ -732,13 +732,13 @@ adni_ids = adni_ids_search.get('subject_id')
 
 # For debugging
 # Start from where session last broke down 
-if False: 
-    index = 0 
-    for session  in sessions_to_check:
-        if session[0] == 'NCANDA_E03897' :
-            break
-        index += 1
-    sessions_to_check = sessions_to_check[4000:]
+if True: 
+    # index = 0 
+    #for session  in sessions_to_check:
+    #    if session[0] == 'NCANDA_E03897' :
+    #        break
+    #    index += 1
+    sessions_to_check = sessions_to_check[375:]
     print "DEBUG: Checking " + str(len(sessions_to_check)) + " sessions." 
 
 xnat_dir = sibis_session.get_xnat_dir()
@@ -747,6 +747,9 @@ index = 0
 for (eid, project, subject, insert_date,
      session_label, last_modified) in sessions_to_check:
     index +=1 
+    if args.check_all:
+        print "==== ", index, eid
+
     #if index < 3517 :
     #    continue
     #if index == 3519:
@@ -763,23 +766,36 @@ for (eid, project, subject, insert_date,
     qc_file = os.path.join(log_dir,eid + "_passed_qc")
     qc_file_tmp = qc_file + "_"
 
-    remove_file(qc_file_tmp)
+    remove_file(session_label,qc_file_tmp)
     if args.force_qc_check:
-        remove_file(qc_file)
+        remove_file(session_label,qc_file)
     elif os.path.isfile(qc_file):
         rename_file(qc_file,qc_file_tmp)
 
+    experiment = sibis_session.xnat_get_experiment(eid)
+    if not experiment: 
+        experiments_for_next_run.append(eid)
+        remove_file(session_label,qc_file_tmp)
+        continue 
+
     try :
         manufacturer = 'xnat:mrSessionData/scanner/manufacturer'
-        manufacturer = ifc.select.experiment(eid).attrs.get(manufacturer)
+        manufacturer = experiment.attrs.get(manufacturer)
         scanner_model_str = 'xnat:mrSessionData/scanner/model'
-        scanner_model = ifc.select.experiment(eid).attrs.get(scanner_model_str)
+        scanner_model = experiment.attrs.get(scanner_model_str)
+        sess_type = 'xnat:mrSessionData/scans/scan/type'
+        scan_types = experiment.attrs.get(sess_type)
+        scan_id = 'xnat:mrSessionData/scans/scan/id'
+        scan_id_list = experiment.attrs.get(scan_id)
+
     except Exception as err_msg: 
-        slog.info(session_label,'ERROR: Could not retrieve scanner model or manufacturer from xnat - skipping session',
-                  experiment_id = eid,
+        slog.info(session_label,'ERROR: Could not retrieve experiment specific parameters from xnat - skipping session',
                   project = project,
-                  info = "Most likely another app is trying to access xnat at the same time",
-                  error=str(err_msg))
+                  eid = eid,
+                  info = "Most likely network problem or another app is trying to access xnat at the same time",
+                  err_msg=str(err_msg))
+        experiments_for_next_run.append(eid)
+        remove_file(session_label,qc_file_tmp)
         continue
 
     # Link to the session
@@ -811,31 +827,38 @@ for (eid, project, subject, insert_date,
             required_series = required_siemens
 
     # Get quality rating for each scan type
-    scantype_and_quality = [
-        [scan] + ifc.select.experiment(eid).scan(scan).attrs.mget(['type',
-                                                                   'quality'])
-        for scan in ifc.select.experiment(eid).scans('*').get()]
-    final = [
-        scantype for (scan, scantype, quality) in scantype_and_quality
-        if scantype in required_series.keys() and quality in ['usable',
-                                                              'unusable']]
-    usable = [
-        scantype for (scan, scantype, quality) in scantype_and_quality
-        if scantype in required_series.keys() and quality == 'usable']
-    questionable = [
-        scantype for (scan, scantype, quality) in scantype_and_quality
-        if scantype in required_series.keys() and quality == 'questionable']
-    unseen_scans = [
-        scantype for (scan, scantype, quality) in scantype_and_quality
-        if scantype in required_series.keys() and quality in ['unset',
-                                                              'unknown']]
+    try :
+        scantype_and_quality = [
+            [scan] + experiment.scan(scan).attrs.mget(['type','quality'])
+            for scan in experiment.scans('*').get()]
+        final = [
+            scantype for (scan, scantype, quality) in scantype_and_quality
+            if scantype in required_series.keys() and quality in ['usable', 'unusable']]
+        usable = [
+            scantype for (scan, scantype, quality) in scantype_and_quality
+            if scantype in required_series.keys() and quality == 'usable']
+        questionable = [
+            scantype for (scan, scantype, quality) in scantype_and_quality
+            if scantype in required_series.keys() and quality == 'questionable']
+        unseen_scans = [
+            scantype for (scan, scantype, quality) in scantype_and_quality
+            if scantype in required_series.keys() and quality in ['unset','unknown']]
+        dti_scans = [
+            (scan, scantype) for (scan, scantype, quality) in scantype_and_quality
+            if re.match('^ncanda-dti.*-v1$', scantype) and quality != 'unusable']
+        fmri_scans = [
+            (scan, scantype) for (scan, scantype, quality) in scantype_and_quality
+            if re.match('^ncanda-.*fmri.*-v1$', scantype) and quality != 'unusable']
 
-    dti_scans = [
-        (scan, scantype) for (scan, scantype, quality) in scantype_and_quality
-        if re.match('^ncanda-dti.*-v1$', scantype) and quality != 'unusable']
-    fmri_scans = [
-        (scan, scantype) for (scan, scantype, quality) in scantype_and_quality
-        if re.match('^ncanda-.*fmri.*-v1$', scantype) and quality != 'unusable']
+    except Exception as err_msg: 
+        slog.info(session_label + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not retrieve scan specific parameters from xnat - skipping session',
+                  project = project,
+                  eid = eid,
+                  info = "Most likely network problem",
+                  err_msg=str(err_msg))
+        experiments_for_next_run.append(eid)
+        remove_file(session_label,qc_file_tmp)
+        continue
 
     # define QC tag so that scans that passed qc are not checked again 
     # this is done to speed up execution of the script - decided to do 
@@ -845,19 +868,29 @@ for (eid, project, subject, insert_date,
     nifti_export_ok = True
     for (scanID, scantype, quality) in scantype_and_quality:
         if re.match('^ncanda-.*-v[0-9]$', scantype):
-            error_msg, niftisWereCreatedFlag = make_session_niftis.export_to_nifti(
-                ifc,
-                project,
-                subject,
-                eid,
-                session_label,
-                scanID,
-                scantype,
-                xnat_dir,
-                verbose=args.verbose)
+            try : 
+                error_msg, niftisWereCreatedFlag = make_session_niftis.export_to_nifti(
+                    ifc,
+                    project,
+                    subject,
+                    eid,
+                    session_label,
+                    scanID,
+                    scantype,
+                    xnat_dir,
+                    verbose=args.verbose)
+            except Exception as err_msg: 
+                slog.info(session_label + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not generate nifti files - skipping session',
+                          eid = eid,
+                          project = project,
+                          err_msg=str(err_msg))
+                experiments_for_next_run.append(eid)
+                remove_file(session_label,qc_file_tmp)
+                continue 
+
             if len(error_msg) or niftisWereCreatedFlag:
                 # Remove qc_file as session has to be checked again 
-                remove_file(qc_file_tmp)
+                remove_file(session_label,qc_file_tmp)
 
                 if len(error_msg) :
                     nifti_export_ok = False
@@ -877,40 +910,50 @@ for (eid, project, subject, insert_date,
 
     errorFlag = False
     if not os.path.exists(qc_file_tmp): 
-
         # Only do if not a phantom scan
-        if not check_for_phantom(session_label):
-            errorFlag = incomplete_scan_check(eid, manufacturer, session_label, missing_scan_map)
-            errorFlag = errorFlag or not mri_quality_check(eid, manufacturer, session_label, incorrect_formatting_map)
+        try : 
+            if not check_for_phantom(session_label):
+                errorFlag = incomplete_scan_check(experiment, manufacturer, session_label, scan_types, missing_scan_map)
+                errorFlag = errorFlag or not mri_quality_check(experiment, manufacturer, session_label, scan_id_list, incorrect_formatting_map)
 
-        # Verify image count 
-        # only use first part of string so GE Manufacturer is turned into GE
-        manufacturer_u = manufacturer.split(' ',1)[0].upper()
+            # Verify image count 
+            # only use first part of string so GE Manufacturer is turned into GE
+            manufacturer_u = manufacturer.split(' ',1)[0].upper()
+            imageCount = len(glob.glob('%s/%s_%s/*.nii.gz' % (session_dir,scanID,scantype)))
+            errorFlag = errorFlag or not verify_image_count(session_label, scanID, scantype,manufacturer_u, imageCount)
 
-        imageCount = len(glob.glob('%s/%s_%s/*.nii.gz' % (session_dir,scanID,scantype)))
-        errorFlag = errorFlag or not verify_image_count(eid, session_label, scanID, scantype,manufacturer_u, imageCount)
+            # failed dti te comparison
+            failed_dti = check_dti(experiment, session_dir, dti_scans, cases_dir, session_label, manufacturer_u,scanner_model)
 
-        # failed dti te comparison
-        failed_dti = check_dti(ifc, eid, session_dir, dti_scans, cases_dir, session_label, manufacturer_u,scanner_model)
-
-        if len(failed_dti):
-            errorFlag = True
-            htmldt.append(''.join([session_html_link,
-                                   session_dir_link,
-                                   ', '.join(failed_dti)]))
-        
-        # missing physio data
-        physio_ok = True
-        if not isPhantom and len(fmri_scans):
-            physio_ok = check_physio(ifc, eid)
-            if not physio_ok:
+            if len(failed_dti):
                 errorFlag = True
-                htmlphys.append(session_html_link)
+                htmldt.append(''.join([session_html_link,
+                                       session_dir_link,
+                                       ', '.join(failed_dti)]))
+        
+            # missing physio data
+            physio_ok = True
+            if not isPhantom and len(fmri_scans):
+                physio_ok = check_physio(experiment, ifc,eid)
+                if not physio_ok:
+                    errorFlag = True
+                    htmlphys.append(session_html_link)
             
-        # If no error is detected write flag to data drive
-        if not errorFlag:
-            with open(qc_file, 'a'):
-                os.utime(qc_file, None)
+            # If no error is detected write flag to data drive
+            if not errorFlag:
+                with open(qc_file, 'a'):
+                    os.utime(qc_file, None)
+
+        except Exception as err_msg: 
+            slog.info(session_label + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not check quality of session',
+                      project = project,
+                      info = "Most likely network problem",
+                      eid = eid,
+                      error=str(err_msg))
+            experiments_for_next_run.append(eid)
+            remove_file(session_label,qc_file_tmp)
+            continue
+
 
     else:
         failed_dti = ""
