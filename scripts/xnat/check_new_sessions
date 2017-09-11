@@ -594,8 +594,7 @@ parser.add_argument("-M", "--last-month",
                          "last month (more precisely: the last 31 days).",
                     action="store_true")
 parser.add_argument("-e", "--eid",
-                    help="Check all MR sessions that are associated with eid "
-                         "(only for debugging).",
+                    help="Check all MR sessions that are associated with eids. Multiple eids need to be seperated by comma. ",
                     action="store")
 parser.add_argument("--no-update",
                     help="Do not update the persistent data stored on the "
@@ -680,7 +679,7 @@ if not args.check_all:
         # Get list of previously flagged experiments that need to be checked
         # again
         if args.eid:
-            experiments_to_check = [args.eid]
+            experiments_to_check = set(args.eid.split(','))
         else:
             experiments_to_check = set(content[0]['contents'].split(','))
         if args.verbose:
