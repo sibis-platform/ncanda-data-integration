@@ -94,7 +94,7 @@ def get_dti_stack(sequence_label, case, arm=None, event=None):
     return glob.glob(path)
 
 
-def get_all_gradients(session_label, dti_stack, decimals=None):
+def get_all_gradients(session_label, eid, scan_id, dti_stack, decimals=None):
     """
     Parses a list of dti sidecar files for subject.
 
@@ -106,26 +106,36 @@ def get_all_gradients(session_label, dti_stack, decimals=None):
     gradients_as_array = np.asanyarray([])
 
     error_xml_path_list=[] 
-    error_msg=""
+    error_msg=[]
 
     for xml_path in dti_stack:
         xml_sidecar = read_xml_sidecar(xml_path)
         try:
-            gradients_per_frame.append(get_gradient_table(xml_sidecar,
-                                                     decimals=decimals))
-            gradients_as_array = np.asanyarray(gradients_per_frame)
+            gradient_table = get_gradient_table(xml_sidecar,decimals=decimals)
+
         except Exception as e:
             error_xml_path_list.append(xml_path)
-            error_msg=str(e)
+            error_msg.append(str(e))
+            gradient_table = np.zeros((3, 3))
+
+        gradients_per_frame.append(gradient_table)
+
+    gradients_as_array = np.asanyarray(gradients_per_frame)
 
     if error_xml_path_list != [] :
-        slog.info(session_label,
+        slog.info(session_label + "-" + hashlib.sha1(str(error_msg)).hexdigest()[0:6],
                       'ERROR: Could not get gradient table from xml sidecar',
                       script='xnat/check_gradient_tables.py',
                       sidecar=str(xml_sidecar),
                       error_xml_path_list=str(error_xml_path_list),
-                      error_msg=error_msg)
-    return gradients_as_array
+                      error_msg=str(error_msg),
+                      eid = eid,
+                      scan = scan_id)
+        errorFlag = True 
+    else:
+        errorFlag = False
+ 
+    return (gradients_as_array, errorFlag)
 
 def get_site_scanner(site):
     """
@@ -172,7 +182,8 @@ def get_ground_truth_gradients(analysis_cases_dir,scanner,scanner_model,sequence
     dti_stack.sort()
 
     # Parse the xml files to get scanner specific gradients per frame
-    return get_all_gradients(scanner_subject + "_" + test_arm + "_" + test_event, dti_stack, decimals)
+    (gradients, errorFlag) = get_all_gradients(scanner_subject + "_" + test_arm + "_" + test_event, "", sequence_label,dti_stack, decimals) 
+    return gradients
     # dict(Siemens=siemens_gradients, GE=ge_gradients)
 
 def check_diffusion(analysis_cases_dir,session_label,eid,xml_file_list,manufacturer,scanner_model,scan_id,sequence_label,decimals):
@@ -202,7 +213,7 @@ def check_diffusion(analysis_cases_dir,session_label,eid,xml_file_list,manufactu
     errorFlag = False
 
     try:
-        evaluated_gradients = get_all_gradients(session_label,xml_file_list, decimals)
+        (evaluated_gradients,errorFlag) = get_all_gradients(session_label,eid,scan_id,xml_file_list, decimals)
 
         if len(evaluated_gradients) == len(truth_gradient):
             for idx, frame in enumerate(evaluated_gradients):
