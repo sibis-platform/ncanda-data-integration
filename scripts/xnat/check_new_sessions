@@ -768,6 +768,10 @@ if False:
 xnat_dir = sibis_session.get_xnat_dir()
 cases_dir = sibis_session.get_cases_dir()
 index = 0
+creatingNiftiFlag = True 
+if not creatingNiftiFlag: 
+  print "DEBUG: Not creating any new nifti files" 
+
 for (eid, project, subject, insert_date,
      session_label, last_modified) in sessions_to_check:
     index +=1 
@@ -890,38 +894,39 @@ for (eid, project, subject, insert_date,
 
     # Export scans to NIFTI
     nifti_export_ok = True
-    for (scanID, scantype, quality) in scantype_and_quality:
-        if re.match('^ncanda-.*-v[0-9]$', scantype):
-            try : 
-                error_msg, niftisWereCreatedFlag = make_session_niftis.export_to_nifti(
-                    ifc,
-                    project,
-                    subject,
-                    eid,
-                    session_label,
-                    scanID,
-                    scantype,
-                    xnat_dir,
-                    verbose=args.verbose)
-            except Exception as err_msg: 
-                slog.info(session_label + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not generate nifti files - skipping session',
+    if creatingNiftiFlag :  
+        for (scanID, scantype, quality) in scantype_and_quality:
+            if re.match('^ncanda-.*-v[0-9]$', scantype):
+                try : 
+                    error_msg, niftisWereCreatedFlag = make_session_niftis.export_to_nifti(
+                        ifc,
+                        project,
+                        subject,
+                        eid,
+                        session_label,
+                        scanID,
+                        scantype,
+                        xnat_dir,
+                        verbose=args.verbose)
+                except Exception as err_msg: 
+                    slog.info(session_label + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not generate nifti files - skipping session',
                           eid = eid,
                           project = project,
                           err_msg=str(err_msg))
-                experiments_for_next_run.append(eid)
-                remove_file(session_label,qc_file_tmp)
-                continue 
+                    experiments_for_next_run.append(eid)
+                    remove_file(session_label,qc_file_tmp)
+                    continue 
 
-            if len(error_msg) or niftisWereCreatedFlag:
-                # Remove qc_file as session has to be checked again 
-                remove_file(session_label,qc_file_tmp)
+                if len(error_msg) or niftisWereCreatedFlag:
+                    # Remove qc_file as session has to be checked again 
+                    remove_file(session_label,qc_file_tmp)
 
-                if len(error_msg) :
-                    nifti_export_ok = False
-                    htmln.append(''.join([session_html_link,
-                                      session_dir_link,
-                                      ', '.join([scanID, scantype, 'ERROR:']),
-                                      ', ERROR:'.join(error_msg)]))
+                    if len(error_msg) :
+                        nifti_export_ok = False
+                        htmln.append(''.join([session_html_link,
+                                              session_dir_link,
+                                              ', '.join([scanID, scantype, 'ERROR:']),
+                                              ', ERROR:'.join(error_msg)]))
 
     # MRI Session Quality Checks
     if args.verbose:
