@@ -100,6 +100,7 @@ def main(args=None):
 
         print " " 
         print "Mandatory scans that have not yet been quality controlled"
+        pd.set_option('display.max_rows', len(scanCheckList))
         print scanCheckList['scan_type']
 
         sys.exit()
