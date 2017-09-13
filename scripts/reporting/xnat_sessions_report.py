@@ -83,13 +83,27 @@ def main(args=None):
     df = df[df['subject_id'] != 'NCANDA_S00127']
 
     if args.unknown : 
-        print "Sessions that have not yet been quality controlled" 
+        print "Sessions that have not yet been quality controlled"
+        scanCheckList = pd.DataFrame()  
+        required_scans = ['ncanda-mprage-v1','ncanda-t1spgr-v1','ncanda-t2fse-v1','ncanda-dti6b500pepolar-v1','ncanda-dti30b400-v1','ncanda-dti60b1000-v1','ncanda-grefieldmap-v1','ncanda-rsfmri-v1']
+
         for eid in df.experiment_id.drop_duplicates():
             eid_df = df[df.experiment_id == eid]
             eid_df = eid_df[~pd.isnull(eid_df['quality'])] 
             if not len(eid_df[eid_df['quality'] != 'unknown']) :
                 print eid
+            else : 
+                unknownScanDF = eid_df[eid_df['quality'] == 'unknown']
+                mandatoryCheck = unknownScanDF[unknownScanDF['scan_type'].isin(required_scans)]
+                if len(mandatoryCheck) : 
+                    scanCheckList = scanCheckList.append(mandatoryCheck)
+
+        print " " 
+        print "Mandatory scans that have not yet been quality controlled"
+        print scanCheckList['scan_type']
+
         sys.exit()
+
     if args.ignore_window or args.session_notes or args.scan_notes : 
         if args.usable : 
             df = df[df['quality'] == 'usable']
