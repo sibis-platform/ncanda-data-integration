@@ -36,7 +36,7 @@ else
 fi 
 
 # DEBUGGING right now 
-update_args+=" --missing-only"
+# update_args+=" --missing-only"
 
 
 num_scripts=`ps -ef | grep scripts/import/laptops/update_visit_data | grep -v grep | wc -l`
