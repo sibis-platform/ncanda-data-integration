@@ -766,6 +766,9 @@ if False:
     print "DEBUG: Checking " + str(len(sessions_to_check)) + " sessions." 
 
 xnat_dir = sibis_session.get_xnat_dir()
+if not os.path.exists(xnat_dir):  
+    raise IOError("Please ensure {} exists!".format(xnat_dir))
+
 cases_dir = sibis_session.get_cases_dir()
 index = 0
 creatingNiftiFlag = True 
@@ -832,6 +835,7 @@ for (eid, project, subject, insert_date,
                                                              project,
                                                              session_label,
                                                              xnat_dir)
+    
     session_dir_link = session_dir + '<BR>\n'
 
 
