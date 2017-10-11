@@ -22,7 +22,7 @@ export SIBIS=`realpath $(dirname $0)/../../`
 # Previously front-hourly (all code after harvester runs)
 #
 
-LOG_DIR=${SIBIS_ANALYSIS_DIR}/log/back-nightly
+LOG_DIR=${SIBIS_LOG_DIR}/back-nightly
 
 SCRIPT_LABEL="back-nightly"
 
@@ -59,7 +59,7 @@ catch_output_email "${SCRIPT_LABEL}:REDCap: Update Form Status (update_bulk_form
 
 if [ ${IMAGE_PROCESS_FLAG} == 1 ]; then
   # Check MR session names etc. in XNAT
-  catch_output_email "${SCRIPT_LABEL}:XNAT: Check Session Names (check_object_names)" ${SIBIS}/scripts/xnat/check_object_names -p -t ${LOG_DIR} --send-mail --zip-root ${SIBIS_ANALYSIS_DIR}/burn2dvd
+  catch_output_email "${SCRIPT_LABEL}:XNAT: Check Session Names (check_object_names)" ${SIBIS}/scripts/xnat/check_object_names -p -t ${LOG_DIR} --send-mail --zip-root ${SIBIS_DVD_DIR}
 
   # Check for new or updated sessions and
   catch_output_email "${SCRIPT_LABEL}:XNAT: Check New Sessions (check_new_sessions)" ${SIBIS}/scripts/xnat/check_new_sessions --send-mail-to ncanda-image-qc@sri.com -p -t ${LOG_DIR}
@@ -106,15 +106,15 @@ catch_output_email "${SCRIPT_LABEL}:REDCap: Undeclared Drinking Exceptions (chec
 if [ ${PIPELINE_UPDATE_FLAG} == 1 ]; then
     if [ ${IMAGE_PROCESS_FLAG} == 1 ]; then
 	# Import data from XNAT into REDCap and feed image analysis pipeline
-	catch_output_email "${SCRIPT_LABEL}:REDCap: Import MR to Pipeline (import_mr_sessions)" ${SIBIS}/scripts/redcap/import_mr_sessions -p --max-days-after-visit 120 --pipeline-root-dir ${SIBIS_ANALYSIS_DIR}/cases --run-pipeline-script ${SIBIS_ANALYSIS_DIR}/scripts/image_processing/bin/ncanda_all_pipelines -t ${LOG_DIR}
+	catch_output_email "${SCRIPT_LABEL}:REDCap: Import MR to Pipeline (import_mr_sessions)" ${SIBIS}/scripts/redcap/import_mr_sessions -p --max-days-after-visit 120 --pipeline-root-dir ${SIBIS_CASES_DIR} --run-pipeline-script ${SIBIS_IMAGE_SCRIPTS_DIR}/bin/ncanda_all_pipelines -t ${LOG_DIR}
     fi 
 
     # Export NP/clinical/dempgraphics data into image analysis pipeline directories
     #   This needs to come AFTER "import_mr_sessions", because otherwise we cannot get ages-at-MRI from REDCap for the export.
-    catch_output_email "${SCRIPT_LABEL}:REDCap: Import REDCap to Pipeline (export_measures)" ${SIBIS}/scripts/redcap/export_measures --datadict-dir ${SIBIS_ANALYSIS_DIR}/datadict/redcap --locked_form_report ${SIBIS_ANALYSIS_DIR}/cases
+    catch_output_email "${SCRIPT_LABEL}:REDCap: Import REDCap to Pipeline (export_measures)" ${SIBIS}/scripts/redcap/export_measures --datadict-dir ${SIBIS_DATADICT_DIR}/redcap --locked_form_report ${SIBIS_CASES_DIR}
 
     # Update CSV summary files for the working pipeline
-    catch_output_email "${SCRIPT_LABEL}:Reporting: Pipeline Summaries (update_csv_summaries)" ${SIBIS}/scripts/reporting/update_csv_summaries ${SIBIS_ANALYSIS_DIR}/cases/ ${SIBIS_ANALYSIS_DIR}/summaries
+    catch_output_email "${SCRIPT_LABEL}:Reporting: Pipeline Summaries (update_csv_summaries)" ${SIBIS}/scripts/reporting/update_csv_summaries ${SIBIS_CASES_DIR}/ ${SIBIS_SUMMARIES_DIR}
 else 
     echo "back-nightly: Warning: Pipeline is not updated !"   
 fi 

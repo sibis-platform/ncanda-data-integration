@@ -10,13 +10,6 @@ if [ "${SIBIS_CONFIG}" == "" ]; then
   export SIBIS_CONFIG=~/.sibis-general-config.yml
 fi 
 
-export SIBIS_ADMIN_EMAIL=`grep email: ${SIBIS_CONFIG} | cut -d ' ' -f2`
-export SIBIS_PROJECT_NAME=`grep project_name: ${SIBIS_CONFIG} | cut -d ' ' -f2`
-#/fs/ncanda-share
-export SIBIS_ANALYSIS_DIR=`grep analysis_dir: ${SIBIS_CONFIG} | cut -d ' ' -f2`
-#/fs/storage/laptops
-export SIBIS_LAPTOP_DIR="`grep import_dir: ${SIBIS_CONFIG} | cut -d ' ' -f2`/laptops"
-
 catch_output_email()
 {
     local mailto=${SIBIS_ADMIN_EMAIL}
@@ -37,3 +30,23 @@ catch_output_email()
 
     rm -f ${tmpfile}
 }
+
+get_sibis_variable()
+{
+    python $PYTHONPATH/sibispy/session.py get_${1}
+}
+
+
+export SIBIS_ADMIN_EMAIL=`get_sibis_variable email`
+export SIBIS_PROJECT_NAME=`get_sibis_variable project_name`
+export SIBIS_LAPTOP_DIR=`get_sibis_variable laptop_dir`
+export SIBIS_LOG_DIR=`get_sibis_variable log_dir`
+export SIBIS_CASES_DIR=`get_sibis_variable cases_dir`
+export SIBIS_SUMMARIES_DIR=`get_sibis_variable summaries_dir`
+export SIBIS_DVD_DIR=`get_sibis_variable dvd_dir`
+export SIBIS_DATADICT_DIR=`get_sibis_variable datadict_dir`
+
+# Still there for front-hourly 
+export SIBIS_ANALYSIS_DIR=`grep analysis_dir: ${SIBIS_CONFIG} | cut -d ' ' -f2`
+#make sure the following directory is accessible on the cluster !
+export SIBIS_IMAGE_SCRIPTS_DIR=${SIBIS_ANALYSIS_DIR}/scripts/image_processing
