@@ -26,11 +26,19 @@ args = parser.parse_args()
 # Setup logging
 slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: dd2csv Message', 'dd2csv')
 
+#Get experiment_id for logs
+subject_label = str(args.ddfile).split('/')[-2]
+
 # Make a temporary directory
-temp_dir_path = tempfile.mkdtemp()
+# temp_dir_path = tempfile.mkdtemp()
 
 # Read the temporary CSV file
-dd = pandas.read_csv(args.ddfile, sep='\t', header=None, names=['SubjectID', 'FuturePresent', 'Reward', 'HypReal', 'Exp1', 'Exp2', 'Amount', 'Days', 'DelDisc', 'Version', 'Date'])
+try: 
+   dd = pandas.read_csv(args.ddfile, sep='\t', header=None, names=['SubjectID', 'FuturePresent', 'Reward', 'HypReal', 'Exp1', 'Exp2', 'Amount', 'Days', 'DelDisc', 'Version', 'Date'])
+except Exception as err_msg:
+    error = 'Error: could not load file  %s' % args.ddfile
+    slog.info(subject_label, error, cmd = " ".join(sys.argv), err_msg = str(err_msg))
+    sys.exit(1)
 
 # Convert days to integer to avoid comparing floats
 dd['Days'] = dd['Days'].map( int )
@@ -41,20 +49,17 @@ dd = dd[ dd['Reward'] == 'money' ]
 dd = dd[ dd['HypReal'] == 'hyp' ]
 dd = dd[ dd['Exp1'] == 'gain' ]
 
-#Get experiment_id for logs
-subject_label = str(args.ddfile).split('/')[-2]
-
 # Anything still left? If not, this file has nothing for us.
 if len( dd ) == 0:
     error = 'WARNING: no suitable data in file %s' % args.ddfile
-    slog.info(subject_label, error)
+    slog.info(subject_label, error, cmd = " ".join(sys.argv))
     sys.exit(1)
 
 # Make sure all rows have the same "Amount", and it's either 100 or 1000
 amount = dd['Amount'][0]
 if not amount in [100,1000]:
     error = 'WARNING: amount %f is neither 100 nor 1000 in %s' % (amount, args.ddfile)
-    slog.info(subject_label, error)
+    slog.info(subject_label, error, cmd = " ".join(sys.argv))
     sys.exit(1)
 dd = dd[ dd['Amount'] == amount ]
 
@@ -83,7 +88,7 @@ if match_date:
     date = '%s-%02d-%02d' % (match_date.group(3), int(match_date.group(1)), int(match_date.group(2)))
 else:
     error = 'ERROR: %s\nCannot extract date from "%s"' % ( args.ddfile, dd['Date'][0] )
-    slog.info(subject_label, error)
+    slog.info(subject_label, error, cmd = " ".join(sys.argv))
     sys.exit(1)
 
 # Create unique record ID
@@ -116,5 +121,5 @@ if not os.path.exists(filename) or args.overwrite:
     print filename
 
 # Clean up - remove temp directory
-import shutil
-shutil.rmtree(temp_dir_path)
+# import shutil
+# shutil.rmtree(temp_dir_path)
