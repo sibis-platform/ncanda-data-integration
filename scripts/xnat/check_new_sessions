@@ -14,15 +14,15 @@ import time
 import argparse
 import datetime
 import yaml
+import hashlib
 import bisect 
-
 import pyxnat
+
 import sibispy
 from sibispy import sibislogger as slog
-
+from sibispy import check_dti_gradients as chk_dti
 import make_session_niftis
-import check_gradient_tables as cgt
-import hashlib
+
 
 #============================================================
 # Definitions 
@@ -185,7 +185,7 @@ def check_physio(experiment,ifc,eid):
     return False
 
 
-def check_dti(experiment, session_dir, dti_scans, cases_dir, session_label, eid, manufacturer_u, scanner_model, incorrect_formatting_map):
+def check_dti(dti_checker,experiment, session_dir, dti_scans, cases_dir, session_label, eid, manufacturer_u, scanner_model, incorrect_formatting_map):
     errors = []
     #
     # Checking if parameters match across dti sessions 
@@ -215,7 +215,7 @@ def check_dti(experiment, session_dir, dti_scans, cases_dir, session_label, eid,
                 scan_dir = '%s_%s' % (scan,scantype)
                 xml_search_string = os.path.join(session_dir,scan_dir, 'image*.nii.xml')
                 xml_file_list = glob.glob(xml_search_string)
-                diffusionFlag = cgt.check_diffusion(cases_dir,session_label, eid, xml_file_list,manufacturer_u,scanner_model, scan, sequenceLabel, decimals=2)
+                diffusionFlag = dti_checker.check_diffusion(session_label, eid, xml_file_list,manufacturer_u,scanner_model, scan, sequenceLabel)
                 if not diffusionFlag : 
                     errors.append('gradient check failed for ' + scan_dir)
             
@@ -636,7 +636,13 @@ if not ifc :
     sys.exit()
 
 server_address = str(sibis_session.get_xnat_server_address())
-    
+
+dti_checker = chk_dti.check_dti_gradients()
+if not dti_checker.configure(sibis_session,check_decimals=2):
+    if verbose:
+        print "Error: Could not initialize dti_checker" 
+    sys.exit()
+
 log_dir = os.path.join(sibis_session.get_log_dir(),'check_new_sessions')
 if not os.path.exists(log_dir):
     raise IOError("Please ensure {} exists!".format(log_dir))
@@ -952,7 +958,7 @@ for (eid, project, subject, insert_date,
                 errorFlag = errorFlag or not mri_quality_check(experiment, session_dir, manufacturer, session_label, eid, scan_id_list, incorrect_formatting_map)
 
                 manufacturer_u = manufacturer.split(' ',1)[0].upper()
-                failed_dti = check_dti(experiment, session_dir, dti_scans, cases_dir, session_label, eid, manufacturer_u,scanner_model, incorrect_formatting_map)
+                failed_dti = check_dti(dti_checker,experiment, session_dir, dti_scans, cases_dir, session_label, eid, manufacturer_u,scanner_model, incorrect_formatting_map)
 
                 if len(failed_dti):
                     errorFlag = True
