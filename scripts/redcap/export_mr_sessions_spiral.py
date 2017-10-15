@@ -55,9 +55,12 @@ def do_export_spiral_files(redcap_visit_id,xnat, redcap_key, resource_location, 
     # Do the actual export using a temporary directory that is managed by the caller
     # (simplifies its removal regardless of exit taken)
     # print "do_export_spiral_files" , str(xnat), str(resource_location), str(to_directory), str(spiral_nifti_out), xnat_eid, str(resource_id), str(resource_file_bname)
-
     [xnat_eid, resource_id, resource_file_bname] = resource_location.split('/')
-    tmp_file_path = xnat.select.experiment(xnat_eid).resource(resource_id).file(resource_file_bname).get_copy(os.path.join(tmpdir, "pfiles.tar.gz"))
+    try : 
+        tmp_file_path = xnat.select.experiment(xnat_eid).resource(resource_id).file(resource_file_bname).get_copy(os.path.join(tmpdir, "pfiles.tar.gz"))
+    except  Exception as err_msg:
+        slog.info(xnat_eid + "_" +  resource_id, "Error: failed to download from xnat " + resource_file_bname, err_msg = str(err_msg))
+        return False
 
     errcode, stdout, stderr = untar_to_dir(tmp_file_path, tmpdir)
     (subject_label, event_label) = redcap_key
