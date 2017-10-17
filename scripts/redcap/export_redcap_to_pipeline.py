@@ -234,7 +234,7 @@ def export(redcap_project, site, subject, event, subject_data, visit_age,
 
 # Filter potentially confidential fields out of given list, based on project
 #  metadata
-def filter_out_confidential(field_list, metadata_dict):
+def filter_out_confidential(field_list, metadata_dict,export_name):
     filtered_list = []
     for field_name in field_list:
         try:
@@ -247,9 +247,8 @@ def filter_out_confidential(field_list, metadata_dict):
             else:
                 print "WARNING: field '%s' is of type '%s' with " \
                       "validation '%s' - excluding as potentially " \
-                      "confidential." % (field_name,
-                                         field_type,
-                                         field_validation)
+                      "confidential. " % (field_name, field_type, field_validation)
+                print "Info: Ommit warning message by defining field as numeric in redcap or removing it from exports/%s.txt" %(export_name)
         except:
             if '_complete' in field_name:
                 filtered_list.append(field_name)
@@ -274,7 +273,7 @@ def filter_all_forms(redcap_metadata):
     # Filter each form
     for export_name in export_forms.keys():
         export_forms[export_name] = filter_out_confidential(
-            export_forms[export_name], metadata_dict)
+            export_forms[export_name], metadata_dict, export_name)
 
 
 # Make lookup dicts for mapping radio/dropdown codes to labels
