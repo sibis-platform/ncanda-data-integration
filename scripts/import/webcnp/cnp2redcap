@@ -27,14 +27,10 @@ done
 eval set -- "$original_args"
 
 #
-# First, start virtual X server and retrieve XLS file from Penn via Selenium
+# First, retrieve XLS file from Penn via Selenium
 #
-Xvfb +extension RANDR :666 >& /dev/null &
-xpid=$!
-export DISPLAY=:666
 ${bindir}/get_results_selenium $* ${tmpdir} 
-unset DISPLAY
-#kill $xpid
+
 
 #
 # Second, upload CSV file to REDCap
