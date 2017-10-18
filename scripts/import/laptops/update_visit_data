@@ -235,7 +235,7 @@ def MissingFormChecks(vdate,subject_id,event_id,import_complete_records,form_nam
             return 
 
         if import_complete_records[exclude_label][session_id] :
-            slog.info(session_id, 'Error: The form in the Import project is excluded while it is not excluded in the entry project!',
+            slog.info(session_id, "Error: The form '" + form_name + "'in the Import project is excluded while it is not excluded in the entry project!",
                   entry_subject_id=subject_id,
                   form_name=form_name,
                   event_id=event_id,
