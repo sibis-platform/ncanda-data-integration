@@ -245,7 +245,7 @@ def MissingFormChecks(vdate):
             return 
 
             
-    slog.info(session_id, 'WARNING: Previously assigned form seems to have disappered. Not sure what happened - most likely the visit date is wrongly defined!',
+    slog.info(session_id, "WARNING: Previously assigned form '" + form_name + "' seems to have disappered. Not sure what happened - most likely the visit date is wrongly defined!",
                   entry_subject_id=key[0],
                   form_name=form_name,
                   event_id=key[1],
@@ -453,7 +453,7 @@ for form_prefix, form_name in forms.iteritems():
 
         # if you stop here then missing data might be not discovered 
         slog.info(error_id, "Warning: stop processing as no records in import project for this form",
-                  info = "If study_id_list is not empty then please add a study_id to the list that contains a record of that form so that all study_ids are fully processed, i.e., checked for missing data!", 
+                  info = "If study_id_list is not empty then define for the option '--study-id' of 'update_visit_data' a list of study_ids that contains at least one subject with a record of that form so that all study_ids are fully processed, i.e., checked for missing data!", 
                   study_id_list = args.study_id)
         continue
 
