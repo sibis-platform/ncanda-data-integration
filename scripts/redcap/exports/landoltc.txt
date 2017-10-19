@@ -1,5 +1,0 @@
-np_landolt_c
-np_landc_missing
-np_landc_missing_why
-np_landc_nolens_va
-np_landc_lens_va

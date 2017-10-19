@@ -1,8 +1,0 @@
-delayed_discounting_1000
-dd1000_missing
-dd1000_missing_why
-dd1000_age
-dd1000_logk_1d
-dd1000_logk_7d
-dd1000_logk_1mo
-dd1000_logk_6mo

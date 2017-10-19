@@ -1,5 +1,0 @@
-np_ishihara
-np_ishihara_missing
-np_ishihara_missing_why
-np_ishihara_totalerr
-np_ishihara_totalcorr

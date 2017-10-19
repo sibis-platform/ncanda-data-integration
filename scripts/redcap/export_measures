@@ -16,14 +16,10 @@ import yaml
 import pandas
 
 import export_mr_sessions_pipeline as mrpipeline
-import export_redcap_to_pipeline as rcpipeline
-import redcap_form_locker as rclocker
 
 import sibispy
 from sibispy import sibislogger as slog
-
-# Time format
-date_format_ymd = '%Y-%m-%d'
+from sibispy import redcap_to_casesdir
 
 # Setup command line parser
 parser = argparse.ArgumentParser( description="For all subjects and visits in the REDCap database, export demographics, clinical measures, NP test scores, and other configured information into the pipeline directory tree.", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
@@ -52,7 +48,7 @@ uploads = 0
 
 # Open connection with REDCap server
 session = sibispy.Session()
-if not session.configure():
+if not session.configure(ordered_config_load_flag = True):
     if args.verbose:
         print "Error: session configure file was not found"
 
@@ -78,16 +74,21 @@ if not redcap_project :
 
     sys.exit()
 
+red2cas = redcap_to_casesdir.redcap_to_casesdir() 
+if not red2cas.configure(session,redcap_project.metadata) :
+    sys.exit(1)
 
+# Organize REDCap metadata, e.g., filter all confidential fields out of export lists, and make code-to-label lookup dictionaries
+#red.organize_metadata( redcap_project.metadata )
+# now done part as part of the configure statement 
 
 form_event_mapping = redcap_project.export_fem( format='df' )
 
-# Organize REDCap metadata, e.g., filter all confidential fields out of export lists, and make code-to-label lookup dictionaries
-rcpipeline.organize_metadata( redcap_project.metadata )
+
 
 # If a directory for creating data dictionaries is given, make those first
 if args.datadict_dir:
-    rcpipeline.create_datadicts( args.datadict_dir )
+    red2cas.create_all_datadicts(args.datadict_dir)
 
 # Open a connection with REDCap MySQL server.
 if args.locked_form_report:
@@ -136,14 +137,9 @@ def get_subject_next_visit_date( subject, after_visit_date ):
         return None
 
 #
-# Number of days between two dates (signed value is returned - negative if second date is before first)
-#
-def days_between_dates( date_from_str, date_to_str, date_format=date_format_ymd ):
-    return (datetime.datetime.strptime( date_to_str, date_format_ymd ) - datetime.datetime.strptime( date_from_str, date_format_ymd ) ).days
-
-#
 # Main program loop
 #
+# NCANDA SPICIFIC 
 baseline_events = ['baseline_visit_arm_1','baseline_visit_arm_4']
 subject_fields = ['study_id', 'dob',  'exclude', 'enroll_exception',
                   'siblings_enrolled', 'siblings_id1', 'hispanic', 'race',
@@ -221,7 +217,7 @@ for [key,row] in visit_log_redcap.iterrows():
                 error = "Missing or invalid birthdate '%s' for subject %s" % ( subject_dob_str, key[0] )
                 slog.info(str(key[0]), error)
             else:
-                visit_age = days_between_dates( subject_dob_str, visit_date ) / 365.242
+                visit_age = red2cas.days_between_dates( subject_dob_str, visit_date ) / 365.242
 
                 # If exclude flag is set, this will override the excludes value and export excluded subjects
                 if args.exclude:
@@ -233,7 +229,7 @@ for [key,row] in visit_log_redcap.iterrows():
                 if (this_subject_data['exclude'] != excludes):
                     (arm_code,visit_code,subject_datadir_rel) = (None, None, None)
                     try:
-                        (arm_code,visit_code,subject_datadir_rel) = mrpipeline.translate_subject_and_event( subject_xnat_id, key[1] )
+                        (arm_code,visit_code,subject_datadir_rel) = ras2cas.translate_subject_and_event( subject_xnat_id, key[1] )
                     except:
                         slog.info(hashlib.sha1('export_measures').hexdigest()[0:6], "Event",key[1],"is not supported yet.",
                                       info = "Add event to ncanda_operations/setup.yml")
@@ -270,7 +266,7 @@ for [key,row] in visit_log_redcap.iterrows():
                         uploads += 1
 
                         # Export measures from RECap into the pipeline.
-                        rcpipeline.export(redcap_project,
+                        red2cas.export_subject_all_forms(redcap_project,
                                           site,
                                           redcap_subject,
                                           redcap_event,
@@ -304,7 +300,7 @@ for [key,row] in visit_log_redcap.iterrows():
                                                                         forms_by_event_dict[key[1]], 'ncanda_subject_visit_log',
                                                                         arm, visit, engine)
                             filename = os.path.join(os.path.abspath(subject_datadir), 'measures', 'locked_forms.csv')
-                            rcpipeline.safe_csv_export(locked_forms, filename, verbose=args.verbose)
+                            sibis_utils.safe_dataframe_to_csv(locked_forms, filename, verbose=args.verbose)
                             if args.verbose:
                                 print "If locked form report changed from existing version than updated: {0}".format(filename)
 

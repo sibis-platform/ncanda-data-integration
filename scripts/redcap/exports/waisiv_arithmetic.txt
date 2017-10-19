@@ -1,4 +1,0 @@
-waisiv_arithmetic
-rec_wais4_arith_miss
-rec_wais4_arith_rawscore
-rec_wais4_arith_scaled

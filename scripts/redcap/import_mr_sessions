@@ -20,6 +20,7 @@ import pandas as pd
 
 import sibispy
 from sibispy import sibislogger as slog
+from sibispy import sibis_utils
 from sibispy import redcap_to_casesdir 
 # import export_redcap_to_pipeline as rcpipeline
 
@@ -30,8 +31,7 @@ import export_mr_sessions_pipeline as mrpipeline
 #
 # GLOBAL VARIABLES 
 # 
-date_format_ymd = '%Y-%m-%d'
-today = time.strftime(date_format_ymd)
+today = time.strftime(sibis_utils.date_format_ymd)
 
 ncanda_scan_types = [ 't1spgr', 'mprage', 't2fse', 'dti6b500pepolar', 'dti30b400', 'dti60b1000', 'rsfmri' ]
 
@@ -139,21 +139,14 @@ def get_usable_scans_list( xnat, xnat_eid_list ):
     return result
 
 #
-# Number of days between two dates (signed value is returned - negative if second date is before first)
-#
-def days_between_dates( date_from_str, date_to_str, date_format=date_format_ymd ):
-    return (datetime.datetime.strptime( date_to_str, date_format_ymd ) - datetime.datetime.strptime( date_from_str, date_format_ymd ) ).days
-
-
-#
 # Get scans from a list, selected by type
 #
 
-def get_scans_by_type( usable_scans_list, visit_date, redcap_visit_id):
+def get_scans_by_type( red2cas, usable_scans_list, visit_date, redcap_visit_id):
     result = dict()
     for type in ncanda_scan_types:
           # Get list of scans for this type; as we go, compute and sort by number of days between visit date and scan date
-        scans = sorted( [ (eid, scan, days_between_dates(visit_date,xnat_sessions_dict[eid][0])) for (scan_type,eid,scan) in usable_scans_list if re.match( '^ncanda-%s-v1$' % type, scan_type ) ], key=lambda x: abs(x[2]) )
+        scans = sorted( [ (eid, scan, red2cas.days_between_dates(visit_date,xnat_sessions_dict[eid][0])) for (scan_type,eid,scan) in usable_scans_list if re.match( '^ncanda-%s-v1$' % type, scan_type ) ], key=lambda x: abs(x[2]) )
 
         # Changed logic here should generally just be one scan across all sessions
         # if (len( scans ) == 1) or (len( scans ) > 1 and scans[0][2] < scans[1][2]): 
@@ -224,7 +217,7 @@ def encode_session_and_scan( session_and_scan, type_list, match_eid = None ):
 #  Returned result is a dictionary of keys and values to enter into the REDCap record for this subject/visit
 #
 
-def get_xnat_data(redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_date, date_of_birth,
+def get_xnat_data(red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_date, date_of_birth,
                   next_visit_date, mri_inspection_completed, verbose=None):
     subject = redcap_key[0]
     event = redcap_key[1]
@@ -258,7 +251,7 @@ def get_xnat_data(redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_date, dat
 
     # First, see if this subject is in the XNAT database and has a scan session
     # for the given date or later
-    visit_date_plusNd = (datetime.datetime.strptime( visit_date, date_format_ymd) + datetime.timedelta(args.max_days_after_visit)).strftime(date_format_ymd)
+    visit_date_plusNd = (datetime.datetime.strptime( visit_date, sibis_utils.date_format_ymd) + datetime.timedelta(args.max_days_after_visit)).strftime(sibis_utils.date_format_ymd)
     # If we have a date for the next visit, and it's earlier than +N days (could
     # be for "Recovery" final visit), then use that date instead
     if next_visit_date and next_visit_date < visit_date_plusNd:
@@ -334,7 +327,7 @@ def get_xnat_data(redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_date, dat
     usable_scans_list = get_usable_scans_list(xnat, xnat_eid_list)
     # Now each of the standard NCANDA scans from the usable list - select
     # closes to "visit_date" if there is more than one for a given type
-    scans_by_type = get_scans_by_type(usable_scans_list, visit_date, redcap_visit_id)
+    scans_by_type = get_scans_by_type(red2cas,usable_scans_list, visit_date, redcap_visit_id)
 
     result['mri_series_t2'] = encode_session_and_scan(scans_by_type, ['t2fse'])
     # Make sure sessions are from the same experiment 
@@ -372,12 +365,12 @@ def get_xnat_data(redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_date, dat
     # Get date and age for DTI scan (use DTI60 because DTI6 may be bad or missing, and fieldmap used instead)
     if 'dti60b1000' in scans_by_type.keys():
         result['mri_dti_date'] = xnat_sessions_dict[scans_by_type['dti60b1000'][0]][0]
-        result['mri_dti_age'] = str(days_between_dates( date_of_birth, result['mri_dti_date']) / 365.242)
+        result['mri_dti_age'] = str(red2cas.days_between_dates( date_of_birth, result['mri_dti_date']) / 365.242)
 
     # Get date and age for resting-state fMRI scan
     if 'rsfmri' in scans_by_type.keys():
         result['mri_rsfmri_date'] = xnat_sessions_dict[scans_by_type['rsfmri'][0]][0]
-        result['mri_rsfmri_age'] = str(days_between_dates(date_of_birth, result['mri_rsfmri_date']) / 365.242)
+        result['mri_rsfmri_age'] = str(red2cas.days_between_dates(date_of_birth, result['mri_rsfmri_date']) / 365.242)
 
     # Get the uri's for the spiral task and spiral resting state
     (result['mri_eid_spiral_stroop'], result['mri_eid_spiral_rest']) = get_spiral_uris(xnat_eid_list)
@@ -393,7 +386,7 @@ def get_xnat_data(redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_date, dat
     if t1w_experiment_data:
         # Compute age at T1w scan
         result['mri_t1_date'] = t1w_experiment_data[0]
-        result['mri_t1_age'] = str(days_between_dates( date_of_birth, t1w_experiment_data[0]) / 365.242)
+        result['mri_t1_age'] = str(red2cas.days_between_dates( date_of_birth, t1w_experiment_data[0]) / 365.242)
 
         # Find ADNI phantom scan in appropriate date range (either same day or within 24h)
         # Found same-day phantom scan?
@@ -403,9 +396,9 @@ def get_xnat_data(redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_date, dat
             result['mri_adni_phantom_eid'] = phantom_scans[0]
         else:
             # No - look one day before and after
-            this_date = datetime.datetime.strptime( t1w_experiment_data[0], date_format_ymd)
-            tomorrow = (this_date + datetime.timedelta(1)).strftime(date_format_ymd)
-            yesterday = (this_date - datetime.timedelta(1)).strftime(date_format_ymd)
+            this_date = datetime.datetime.strptime( t1w_experiment_data[0], sibis_utils.date_format_ymd)
+            tomorrow = (this_date + datetime.timedelta(1)).strftime(sibis_utils.date_format_ymd)
+            yesterday = (this_date - datetime.timedelta(1)).strftime(sibis_utils.date_format_ymd)
 
             # Search for all sessions on previous day after given time, or next day before given time (we already know there isn't a scan on the same date)
             phantom_scans = get_phantom_scans_for_date_24h(yesterday, tomorrow, t1w_experiment_data[1])
@@ -771,9 +764,10 @@ for [key, row] in mr_sessions_redcap.iterrows():
                 sid, pid = subject_project_dict[subject_label]
                 pipe_id = sid
 
-            visit_age = days_between_dates( this_subject_data['dob'], visit_date ) / 365.242
+            visit_age = red2cas.days_between_dates( this_subject_data['dob'], visit_date ) / 365.242
             next_visit_date = get_subject_next_visit_date(key[0], visit_date)
-            xnat_data = get_xnat_data(key,
+            xnat_data = get_xnat_data(red2cas,
+                                      key,
                                       xnat,
                                       sid,
                                       pid,

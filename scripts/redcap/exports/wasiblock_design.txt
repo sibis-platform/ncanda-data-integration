@@ -1,4 +1,0 @@
-wasiblock_design
-rec_wasi_miss
-rec_wasi_rawscore
-rec_wasi_tscore

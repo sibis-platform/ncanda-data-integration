@@ -1,6 +1,0 @@
-np_edinburgh_handedness_inventory
-np_ehi_missing
-np_ehi_missing_why
-np_ehi_lh
-np_ehi_rh
-np_ehi_result

@@ -1,3 +1,0 @@
-taylor_complex_figure_times_pdf_uploads
-rec_taylor_miss
-rec_taylor_elapsedtime
