@@ -15,11 +15,12 @@ import hashlib
 import yaml
 import pandas
 
-import export_mr_sessions_pipeline as mrpipeline
-
 import sibispy
 from sibispy import sibislogger as slog
 from sibispy import redcap_to_casesdir
+from sibispy import sibis_utils
+
+import redcap_form_locker as rclocker
 
 # Setup command line parser
 parser = argparse.ArgumentParser( description="For all subjects and visits in the REDCap database, export demographics, clinical measures, NP test scores, and other configured information into the pipeline directory tree.", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
@@ -176,7 +177,7 @@ if args.events:
     visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: key[1] in events ) ]
 
 # Filter out events not yet supported by the pipeline exporter
-visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: key[1] in mrpipeline.event_lookup.keys() ) ]
+visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: key[1] in red2cas.get_event_dictionary().keys() ) ]
 
 forms_by_event_dict = dict()
 for event in redcap_project.events:
@@ -199,6 +200,7 @@ if args.verbose:
 for [key,row] in visit_log_redcap.iterrows():
     if key[0] not in subject_label_to_sid_dict.keys():
         if args.verbose:
+            # there is no xnat id over entire study for this subject , thus no subhect id to write to casesdir, thus ignore  
             print "Missing XNAT ID for subject",key[0]
         continue
     # only do sessions that are not ignored
@@ -229,10 +231,10 @@ for [key,row] in visit_log_redcap.iterrows():
                 if (this_subject_data['exclude'] != excludes):
                     (arm_code,visit_code,subject_datadir_rel) = (None, None, None)
                     try:
-                        (arm_code,visit_code,subject_datadir_rel) = ras2cas.translate_subject_and_event( subject_xnat_id, key[1] )
-                    except:
-                        slog.info(hashlib.sha1('export_measures').hexdigest()[0:6], "Event",key[1],"is not supported yet.",
-                                      info = "Add event to ncanda_operations/setup.yml")
+                        (arm_code,visit_code,subject_datadir_rel) = red2cas.translate_subject_and_event( subject_xnat_id, key[1] )
+                    except: 
+                        slog.info("export_measures-" + key[0], "ERROR: Event " + key[1] + " is not supported yet.",
+                                      info = "Add event to ncanda_operations/sibis-sys-config.yml")
                         continue
 
                     if arm_code:
@@ -284,9 +286,6 @@ for [key,row] in visit_log_redcap.iterrows():
                         # Write report of forms locked for this subject, arm,
                         # visit
                         if args.locked_form_report and arm_code == 'standard':
-                            if args.verbose:
-                                print "Creating a report of locked forms for: " \
-                                      "{0}, {1}, {2}".format(subject_xnat_id, arm_code, visit_code)
                             # Link directory names with names in REDCap mysql
                             if visit_code == 'baseline' :
                                 visit = "Baseline visit"
@@ -301,7 +300,5 @@ for [key,row] in visit_log_redcap.iterrows():
                                                                         arm, visit, engine)
                             filename = os.path.join(os.path.abspath(subject_datadir), 'measures', 'locked_forms.csv')
                             sibis_utils.safe_dataframe_to_csv(locked_forms, filename, verbose=args.verbose)
-                            if args.verbose:
-                                print "If locked form report changed from existing version than updated: {0}".format(filename)
 
 slog.takeTimer1("script_time","{'records': " + str(len(visit_log_redcap)) + ", 'uploads': " +  str(uploads) + "}")
