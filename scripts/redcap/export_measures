@@ -167,11 +167,6 @@ if args.site:
     sites = args.site.lower().split( ',' )
     visit_log_redcap = visit_log_redcap[ visit_log_redcap['redcap_data_access_group'].map( lambda dag: dag in sites ) ]
 
-forms_by_event_dict = dict()
-for event in redcap_project.events:
-    event_id = event['unique_event_name']
-    forms_by_event_dict[event_id] = set( form_event_mapping[form_event_mapping['unique_event_name'] == event_id ]['form_name'].tolist() )
-
 # Filter out all excluded subjects
 if args.exclude:
     visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: False if subject_data['exclude'][key[0]] != 1 else True ) ]
@@ -186,6 +181,11 @@ if args.events:
 
 # Filter out events not yet supported by the pipeline exporter
 visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: key[1] in mrpipeline.event_lookup.keys() ) ]
+
+forms_by_event_dict = dict()
+for event in redcap_project.events:
+    event_id = event['unique_event_name']
+    forms_by_event_dict[event_id] = set( form_event_mapping[form_event_mapping['unique_event_name'] == event_id ]['form_name'].tolist() )
 
 # Limit to selected export files
 if args.export:
