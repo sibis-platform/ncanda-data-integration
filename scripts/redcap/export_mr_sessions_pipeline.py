@@ -13,6 +13,7 @@ import shutil
 import sys
 import tempfile 
 from sibispy import sibislogger as slog
+from sibispy import redcap_to_casesdir
 
 from export_mr_sessions_spiral import export_spiral_files
 
@@ -465,45 +466,20 @@ def export_to_workdir( redcap_visit_id, xnat, session_data, pipeline_workdir, re
 #
 # Translate subject code (ID) and REDCap event name to arm and visit name for file system
 #
-event_lookup = {
-# Standard arm
-    'baseline_visit_arm_1' :    ( 'standard', 'baseline' ),
-    '1y_visit_arm_1' :          ( 'standard', 'followup_1y' ),
-    '2y_visit_arm_1' :          ( 'standard', 'followup_2y' ),
-    '3y_visit_arm_1' :          ( 'standard', 'followup_3y' ),
-    '4y_visit_arm_1' :          ( 'standard', 'followup_4y' ),
-# Recovery arm
-    'recovery_baseline_arm_2' : ( 'recovery', 'baseline' ),
-    'recovery_final_arm_2' :    ( 'recovery', 'final' ),
-# Maltreated arm
-    'baseline_visit_arm_4' :    ( 'maltreated', 'baseline' ),
-    '1y_visit_arm_4' :          ( 'maltreated', 'followup_1y' ),
-    '2y_visit_arm_4' :          ( 'maltreated', 'followup_2y' ),
-    '3y_visit_arm_4' :          ( 'maltreated', 'followup_3y' ),
-    '4y_visit_arm_4' :          ( 'maltreated', 'followup_4y' ),}
-
-def translate_subject_and_event( subject_code, event_label ):
-    # What Arm and Visit of the study is this event?
-    if event_label in event_lookup.keys():
-        (arm_code,visit_code) = event_lookup[event_label]
-    else:
-        raise Exception( "Cannot determine study Arm and Visit from event %s" % event_label )
-
-    pipeline_workdir_rel = os.path.join( subject_code, arm_code, visit_code )
-    return (arm_code,visit_code,pipeline_workdir_rel)
 
 #
 # Export MR session and run pipeline if so instructed
 #
-def export_and_queue( redcap_visit_id, xnat, session_data, redcap_key, pipeline_root_dir, xnat_dir,stroop=(None,None,None), run_pipeline_script=None, verbose=False, timerFlag = False ):
+def export_and_queue(red2cas, redcap_visit_id, xnat, session_data, redcap_key, pipeline_root_dir, xnat_dir,stroop=(None,None,None), run_pipeline_script=None, verbose=False, timerFlag = False ):
     (subject_label, event_label) = redcap_key
     # Put together pipeline work directory for this subject and visit
     subject_code = session_data['mri_xnat_sid']
     (arm_code,visit_code,pipeline_workdir_rel) = (None, None, None)
     try:
-        (arm_code,visit_code,pipeline_workdir_rel) = translate_subject_and_event( subject_code, event_label )
+        (arm_code,visit_code,pipeline_workdir_rel) = red2cas.translate_subject_and_event( subject_code, event_label )
     except:
-        print "Event",event_label,"is not supported yet."
+        slog.info(redcap_visit_id, "ERROR: Event " + event_label + "is not supported yet.")
+        return None
 
     if arm_code != None:
         pipeline_workdir = os.path.join( pipeline_root_dir, pipeline_workdir_rel )

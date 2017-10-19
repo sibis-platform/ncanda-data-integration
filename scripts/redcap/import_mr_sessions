@@ -14,15 +14,18 @@ import argparse
 import ast
 
 import yaml
-import sibispy
-from sibispy import sibislogger as slog
 import pyxnat
 import redcap
 import pandas as pd
 
+import sibispy
+from sibispy import sibislogger as slog
+from sibispy import redcap_to_casesdir 
+# import export_redcap_to_pipeline as rcpipeline
+
 import import_mr_sessions_stroop as stroop
 import export_mr_sessions_pipeline as mrpipeline
-import export_redcap_to_pipeline as rcpipeline
+
 
 #
 # GLOBAL VARIABLES 
@@ -522,7 +525,7 @@ slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages
 slog.startTimer1()
 
 session = sibispy.Session() 
-if not session.configure() :
+if not session.configure(ordered_config_load_flag = True) :
     if args.verbose:
         print "Error: session configure file was not found"
  
@@ -562,7 +565,13 @@ with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
 form_event_mapping = redcap_project.export_fem( format='df' )
 
 # Organize REDCap metadata, e.g., filter all confidential fields out of export lists, and make code-to-label lookup dictionaries
-rcpipeline.organize_metadata( redcap_project.metadata )
+# rcpipeline.organize_metadata( redcap_project.metadata )
+# Replaced by 
+
+red2cas = redcap_to_casesdir.redcap_to_casesdir() 
+if not red2cas.configure(session,redcap_project.metadata) :
+    sys.exit(1)
+
 
 #
 # Get subject and project IDs
@@ -790,7 +799,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
 
                 # Check if pipeline directory given and export imaging series there
                 if args.pipeline_root_dir and (this_subject_data['exclude'] != 1):
-                    if mrpipeline.export_and_queue( redcap_visit_id, xnat, xnat_data, key, args.pipeline_root_dir, xnat_dir, run_pipeline_script=args.run_pipeline_script,stroop=(stroop_eid,stroop_resource,stroop_file), verbose=args.verbose , timerFlag = runTimerForImportToPipeline) :
+                    if mrpipeline.export_and_queue(red2cas, redcap_visit_id, xnat, xnat_data, key, args.pipeline_root_dir, xnat_dir, run_pipeline_script=args.run_pipeline_script,stroop=(stroop_eid,stroop_resource,stroop_file), verbose=args.verbose , timerFlag = runTimerForImportToPipeline) :
                         # only run timer once - otherwise collect too much data
                         runTimerForImportToPipeline = False
 
