@@ -48,12 +48,12 @@ for partfile in glob.glob( '*.csv.part' ):
 # Check if config file exists - read user name and password if it does, bail otherwise
 sibis_session = sibispy.Session()
 if not sibis_session.configure() :
-    slog("get_results_selenium","Error: session configure file was not found")
+    slog.info("get_results_selenium","Error: session configure file was not found")
     sys.exit()
 
 browser = sibis_session.connect_server('browser_penncnp', True)
 if not browser: 
-    slog("get_results_selenium","Error: could not connect to penncnp")
+    slog.info("get_results_selenium","Error: could not connect to penncnp")
     sys.exit()
 
 # Wait for export form and fill appropriately
