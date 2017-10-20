@@ -481,45 +481,30 @@ def export_and_queue(red2cas, redcap_visit_id, xnat, session_data, redcap_key, p
         slog.info(redcap_visit_id, "ERROR: Event " + event_label + "is not supported yet.")
         return None
 
-    if arm_code != None:
-        pipeline_workdir = os.path.join( pipeline_root_dir, pipeline_workdir_rel )
+    if not arm_code:
+        return None 
 
+    pipeline_workdir = os.path.join( pipeline_root_dir, pipeline_workdir_rel )
+    
+    if verbose:
+        print subject_label,'/',subject_code,'/',event_label,'to',pipeline_workdir
+
+    new_files_created = export_to_workdir(redcap_visit_id,xnat, session_data, pipeline_workdir, redcap_key, xnat_dir, stroop=stroop, verbose=verbose, timerFlag= timerFlag)
+
+    if new_files_created and run_pipeline_script:
         if verbose:
-            print subject_label,'/',subject_code,'/',event_label,'to',pipeline_workdir
-
-        new_files_created = export_to_workdir(redcap_visit_id,xnat, session_data, pipeline_workdir, redcap_key, xnat_dir, stroop=stroop, verbose=verbose, timerFlag= timerFlag)
-
-        if new_files_created and run_pipeline_script:
-            if verbose:
-                print 'Submitting script',run_pipeline_script,'to process',pipeline_workdir
-            just_pipeline_script=os.path.basename(run_pipeline_script)
-
-            sge_env = os.environ.copy()
-            sge_env['SGE_ROOT'] = '/opt/sge' 
-            qsub_args= [ '/opt/sge/bin/lx-amd64/qsub','-S','/bin/bash','-o','/dev/null','-j','y','-pe','smp','4','-l','h_vmem=32G','-N', '%s-%s-%s-Nightly' % (subject_code,visit_code,just_pipeline_script) ]
-            qsub_exe = 'cd %s; %s %s' % ( pipeline_root_dir,run_pipeline_script,pipeline_workdir_rel)
-            cmd_str='echo "%s" | %s\n' % (qsub_exe," ".join(qsub_args)) 
-            qsub_command = subprocess.Popen( qsub_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=sge_env)
-            (stdoutdata, stderrdata) = qsub_command.communicate(qsub_exe)
-
-            if verbose and (stdoutdata != None):
-                print stdoutdata
+            print 'Submitting script',run_pipeline_script,'to process',pipeline_workdir
+        just_pipeline_script=os.path.basename(run_pipeline_script)
+        qsub_exe = 'cd %s; %s %s' % ( pipeline_root_dir,run_pipeline_script,pipeline_workdir_rel)
+        red2cas.schedule_cluster_job(qsub_exe,'%s-%s-%s-Nightly' % (subject_code,visit_code,just_pipeline_script),log_file='/tmp/ncanda_test_nightly.txt', verbose)
             
-            # keep a log to make sure it is working 
-            if verbose:
-               print cmd_str
+    # It is very important to clear the PyXNAT cache, lest we run out of disk space and shut down all databases in the process
+    try:
+        xnat.cache.clear()
+    except:
+        slog.info("export_mr_sessions_pipeline","WARNING: clearing PyXNAT cache threw an exception - are you running multiple copies of this script?")
 
-            with open("/tmp/ncanda_test_nightly.txt", "a") as myfile:
-               myfile.write(cmd_str)
-               myfile.write(stdoutdata) 
-            
-        # It is very important to clear the PyXNAT cache, lest we run out of disk space and shut down all databases in the process
-        try:
-            xnat.cache.clear()
-        except:
-            slog.info("export_mr_sessions_pipeline","WARNING: clearing PyXNAT cache threw an exception - are you running multiple copies of this script?")
-
-        return new_files_created
+    return new_files_created
         
 
 #
