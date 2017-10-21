@@ -111,7 +111,7 @@ if [ ${PIPELINE_UPDATE_FLAG} == 1 ]; then
 
     # Export NP/clinical/dempgraphics data into image analysis pipeline directories
     #   This needs to come AFTER "import_mr_sessions", because otherwise we cannot get ages-at-MRI from REDCap for the export.
-    catch_output_email "${SCRIPT_LABEL}:REDCap: Import REDCap to Pipeline (export_measures)" ${SIBIS}/scripts/redcap/export_measures --datadict-dir ${SIBIS_DATADICT_DIR}/redcap --locked_form_report ${SIBIS_CASES_DIR}
+    catch_output_email "${SCRIPT_LABEL}:REDCap: Import REDCap to Pipeline (export_measures)" ${SIBIS}/scripts/redcap/export_measures -p --datadict-dir ${SIBIS_DATADICT_DIR}/redcap --locked_form_report ${SIBIS_CASES_DIR}
 
     # Update CSV summary files for the working pipeline
     catch_output_email "${SCRIPT_LABEL}:Reporting: Pipeline Summaries (update_csv_summaries)" ${SIBIS}/scripts/reporting/update_csv_summaries ${SIBIS_CASES_DIR}/ ${SIBIS_SUMMARIES_DIR}
