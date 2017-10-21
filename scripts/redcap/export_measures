@@ -19,8 +19,7 @@ import sibispy
 from sibispy import sibislogger as slog
 from sibispy import redcap_to_casesdir
 from sibispy import sibis_utils
-
-import redcap_form_locker as rclocker
+from sibispy import redcap_locking_data
 
 # Setup command line parser
 parser = argparse.ArgumentParser( description="For all subjects and visits in the REDCap database, export demographics, clinical measures, NP test scores, and other configured information into the pipeline directory tree.", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
@@ -71,13 +70,25 @@ with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
 redcap_project = session.connect_server('data_entry', True)
 if not redcap_project :
     if args.verbose:
-        print "Error: Could not connect to Redcap"
+        slog.info("export_measures","Error: Could not connect to Redcap")
 
     sys.exit()
 
 red2cas = redcap_to_casesdir.redcap_to_casesdir() 
 if not red2cas.configure(session,redcap_project.metadata) :
     sys.exit(1)
+
+
+if not session.connect_server('redcap_mysql_db', True) :
+    if args.verbose:
+        slog.info("export_measures","Error: Could not connect to redcap mysql db")
+
+    sys.exit(1)
+
+red_lock = redcap_locking_data.redcap_locking_data()
+red_lock.configure(session)
+
+forms = list(redcap_project.forms)
 
 # Organize REDCap metadata, e.g., filter all confidential fields out of export lists, and make code-to-label lookup dictionaries
 #red.organize_metadata( redcap_project.metadata )
@@ -295,9 +306,7 @@ for [key,row] in visit_log_redcap.iterrows():
                             # Get a dataframe of the locked forms
                             arm = "{0} Protocol".format(arm_code.capitalize())
 
-                            locked_forms = rclocker.report_locked_forms(key[0], subject_xnat_id,
-                                                                        forms_by_event_dict[key[1]], 'ncanda_subject_visit_log',
-                                                                        arm, visit, engine)
+                            locked_forms = red_lock.report_locked_forms(key[0], subject_xnat_id, forms, 'ncanda_subject_visit_log', arm, visit)
                             filename = os.path.join(os.path.abspath(subject_datadir), 'measures', 'locked_forms.csv')
                             sibis_utils.safe_dataframe_to_csv(locked_forms, filename, verbose=args.verbose)
 
