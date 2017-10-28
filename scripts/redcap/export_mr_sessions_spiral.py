@@ -10,7 +10,6 @@ import json
 import shutil
 import fnmatch
 import tempfile
-import subprocess
 
 from sibispy import sibislogger as slog
 
@@ -62,7 +61,7 @@ def do_export_spiral_files(redcap_visit_id,xnat, redcap_key, resource_location, 
         slog.info(xnat_eid + "_" +  resource_id, "Error: failed to download from xnat " + resource_file_bname, err_msg = str(err_msg))
         return False
 
-    errcode, stdout, stderr = untar_to_dir(tmp_file_path, tmpdir)
+    errcode, stdout, stderr = sutils.untar(tmp_file_path, tmpdir)
     (subject_label, event_label) = redcap_key
 
     if errcode != 0:
@@ -100,7 +99,7 @@ def do_export_spiral_files(redcap_visit_id,xnat, redcap_key, resource_location, 
         if not os.path.exists(spiral_dir_out):
             os.makedirs(spiral_dir_out)
         # Now try to make the NIfTI
-        errcode, stdout, stderr = make_nifti_from_spiral(spiral_E_files[0], spiral_nifti_out)
+        errcode, stdout, stderr = sutils.make_nifti_from_spiral(spiral_E_files[0], spiral_nifti_out)
         if not os.path.exists(spiral_nifti_out):
             error="Unable to make NIfTI from resource file, please try running makenifti manually"
             slog.info(redcap_visit_id, error,
@@ -120,34 +119,9 @@ def do_export_spiral_files(redcap_visit_id,xnat, redcap_key, resource_location, 
     if len(physio_files) == 1:
         spiral_physio_out = os.path.join(to_directory, 'native', 'physio')
         shutil.copyfile(physio_files[0], spiral_physio_out)
-        gzip(spiral_physio_out)
+        return sutils.gzip('-9',spiral_physio_out)
+
     return True
-
-
-def make_nifti_from_spiral(spiral_file, outfile):
-    cmd = "makenifti -s 0 %s %s" % (spiral_file, outfile[:-7])
-
-    errcode, stdout, stderr = call_shell_program(cmd)
-    if os.path.exists(outfile[:-3]):
-        gzip(outfile[:-3])
-    return errcode, stdout, stderr
-
-
-def call_shell_program(cmd):
-    process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    out, err = process.communicate()
-    return process.returncode, out, err
-
-
-def untar_to_dir(tarfile, out_dir):
-    cmd = "tar -xzf %(tarfile)s --directory=%(out_dir)s"
-
-    cmd = cmd % {'tarfile':tarfile,
-                 'out_dir':out_dir
-                 }
-
-    errcode, stdout, stderr = call_shell_program(cmd)
-    return errcode, stdout, stderr
 
 
 def glob_for_files_recursive(root_dir, pattern):
@@ -158,6 +132,3 @@ def glob_for_files_recursive(root_dir, pattern):
     return match_files
 
 
-def gzip(infile):
-    cmd = 'gzip -9 %s' % infile
-    call_shell_program(cmd)

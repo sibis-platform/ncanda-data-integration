@@ -10,9 +10,9 @@ import os
 import os.path
 import tempfile
 import shutil
-import subprocess
 
 from sibispy import sibislogger as slog
+from sibispy import utils as sutil
 
 # QA metric thresholds - defines a general threshold, either upper or lower.
 #  Having this as a class makes it easier to put all thresholds, upper and lower, into a single table.
@@ -49,8 +49,7 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
 
     # Make XML file as wrapper for the DICOM files
     bxh_file = '%s.bxh' % session[7:]
-    subprocess.call('dicom2bxh %s/* %s >& /dev/null' % ( dicom_path, bxh_file ), shell=True)
-    if not os.path.exists( bxh_file ):
+    if (not sutil.dicom2bxh(dicom_path, bxh_file)) or (not os.path.exists( bxh_file )):
         error = "ERROR: BXH file was not created from DICOM files"
         slog.info(session,error,
                   bxh_file = bxh_file,
@@ -103,8 +102,7 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
 
     # Convert QA results from html to pdf
     summary_file_path = '%s/QA-Summary.pdf' % temp_dir
-    subprocess.call( 'htmldoc --quiet --webpage --no-title --no-toc --compression=9 --outfile %s %s/index.html' % (summary_file_path,html_dir), shell=True )
-    if os.path.exists( summary_file_path ):
+    if sutils.htmldoc('htmldoc --quiet --webpage --no-title --no-toc --compression=9 --outfile %s %s/index.html' % (summary_file_path,html_dir)) and os.path.exists( summary_file_path ):
         # Upload QA files to XNAT as file resources
         try:
             qa_file = interface.select.project( project ).subject( subject ).experiment( session ).resource('QA').file( 'QA-Summary.pdf' )
@@ -155,11 +153,11 @@ def run_subject_qa( interface, project, subject, session, scan_number, dicom_pat
 
     # Make XML file as wrapper for the DICOM files
     bxh_file = '%s/dicoms.bxh' % temp_dir
-    subprocess.call( 'dicom2bxh %s/* %s >& /dev/null' % ( dicom_path, bxh_file ), shell=True )
-    if not os.path.exists( bxh_file ):
+    if (not sutil.dicom2bxh(dicom_path, bxh_file)) or (not os.path.exists( bxh_file )):
         error = "ERROR: BXH file was not created from DICOM files"
-        slog.info(dicom_path,error,
-                  bxh_file = bxh_file)
+        slog.info(session,error,
+                  bxh_file = bxh_file,
+                  dicom_path = dicom_path)
     return
 
     # Run the PERL QA script and capture its output
@@ -173,8 +171,7 @@ def run_subject_qa( interface, project, subject, session, scan_number, dicom_pat
 
     # Convert QA results from html to pdf
     summary_file_path = '%s/QA-Summary.pdf' % temp_dir
-    subprocess.call( 'htmldoc --webpage --browserwidth 1024 --no-title --no-toc --compression=9 --outfile %s %s/index.html >& /dev/null' % (summary_file_path,html_dir), shell=True )
-    if os.path.exists( summary_file_path ):
+    if sutils.htmldoc('--webpage --browserwidth 1024 --no-title --no-toc --compression=9 --outfile %s %s/index.html >& /dev/null' % (summary_file_path,html_dir)) and os.path.exists( summary_file_path ):
         # Upload QA files to XNAT as file resources
         try:
             qa_file = interface.select.project( project ).subject( subject ).experiment( session ).resource('QA').file( 'QA-%s-Summary.pdf' % scan_number )

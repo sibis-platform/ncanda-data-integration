@@ -18,7 +18,7 @@ import pandas
 import sibispy
 from sibispy import sibislogger as slog
 from sibispy import redcap_to_casesdir
-from sibispy import sibis_utils
+from sibispy import utils as sutils
 from sibispy import redcap_locking_data
 
 # Setup command line parser
@@ -308,6 +308,6 @@ for [key,row] in visit_log_redcap.iterrows():
 
                             locked_forms = red_lock.report_locked_forms(key[0], subject_xnat_id, forms, 'ncanda_subject_visit_log', arm, visit)
                             filename = os.path.join(os.path.abspath(subject_datadir), 'measures', 'locked_forms.csv')
-                            sibis_utils.safe_dataframe_to_csv(locked_forms, filename, verbose=args.verbose)
+                            sutils.safe_dataframe_to_csv(locked_forms, filename, verbose=args.verbose)
 
 slog.takeTimer1("script_time","{'records': " + str(len(visit_log_redcap)) + ", 'uploads': " +  str(uploads) + "}")

@@ -7,11 +7,10 @@
 
 import re
 import tempfile
-import subprocess
 import shutil
 import os.path
 import pandas
-from sibispy import sibis_utils as sutils
+from sibispy import utils as sutils
 
 # Label translation function - LimeSurvey to SRI/old REDCap style
 def label_to_sri( prefix, ls_label ):

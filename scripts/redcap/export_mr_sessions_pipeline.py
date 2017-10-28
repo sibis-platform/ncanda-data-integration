@@ -8,11 +8,11 @@
 import re
 import os
 import glob
-import subprocess
 import shutil
 import sys
 import tempfile 
 from sibispy import sibislogger as slog
+from sibispy import utils as sutils
 from sibispy import redcap_to_casesdir
 
 from export_mr_sessions_spiral import export_spiral_files
@@ -123,28 +123,18 @@ def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_
             if os.path.exists(nii_file):
                 os.remove(nii_file)
 
-    dcm2image_output = None
     if len( dicom_path_list ):
         temp_dir = tempfile.mkdtemp()
         # to_path_pattern = os.path.join( to_directory, filename_pattern )
         tmp_path_pattern = os.path.join(temp_dir, filename_pattern )
-        dcm2image_output = ""
         if timer_label :
             slog.startTimer2() 
 
-        try:
-            dcm2image_command = 'cmtk dcm2image --tolerance 1e-3 --write-single-slices --no-progress -rxO %s %s 2>&1' % ( tmp_path_pattern, ' '.join( dicom_path_list ) )
-
-            if ( verbose ):
-                print dcm2image_command
-
-            dcm2image_output = subprocess.check_output( dcm2image_command, shell=True )
-
-        except:
+        args= '--tolerance 1e-3 --write-single-slices --no-progress -rxO %s %s 2>&1' % ( tmp_path_pattern, ' '.join( dicom_path_list ))
+        if not sutils.dcm2image(args) :
             slog.info(redcap_visit_id + "_" + scan,"Error: Unable to create dicom file",
                           experiment_site_id=session,
-                          cmd=dcm2image_command,
-                          output=dcm2image_output)
+                          cmd=sutils.dcm2image_cmd + args)
             shutil.rmtree(temp_dir)
             return False
 
@@ -244,9 +234,7 @@ def copy_adni_phantom_xml( xnat, xnat_eid, to_directory ):
 # Compress physio file in pipeline workdir
 #
 def gzip_physio( physio_file_path ):
-    try:
-        subprocess.check_call( [ 'gzip', '-9f', physio_file_path ] )
-    except:
+    if not sutils.gzip('-9f',physio_file_path) : 
         error = "ERROR: unable to compress physio file"
         slog.info(physio_file_path,error)
 

@@ -9,10 +9,10 @@ import os
 import re
 import shutil
 import tempfile
-import subprocess
 import hashlib
 
 from sibispy import sibislogger as slog
+from sibispy import utils as sutils
 
 # Check the phantom XML file for various thresholds
 def check_xml_file( xml_file, project, session, label ):
@@ -88,8 +88,7 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
 
     # Create NIFTI file from the DICOM files
     nii_file = 't1.nii.gz'
-    subprocess.call( 'cmtk dcm2image --tolerance 1e-3 -rO %s %s >& /dev/null' % ( nii_file, dicom_path ), shell=True )
-    if not os.path.exists( nii_file ):
+    if (not sutils.dcm2image('--tolerance 1e-3 -rO %s %s >& /dev/null' % ( nii_file, dicom_path ))) or (not os.path.exists( nii_file )):
         error = "ERROR: NIFTI file was not created from DICOM files experiment"
         slog.info('{}/{}'.format(project,session),error,
                          session = session,
@@ -108,8 +107,7 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
     # Run the PERL QA script and capture its output
     xml_file = 'phantom.xml'
     lbl_file = 'phantom.nii.gz'
-    subprocess.call( 'cmtk detect_adni_phantom --tolerant --refine-xform --erode-snr 15 --write-labels %s %s %s' % ( lbl_file, nii_file, xml_file ), shell=True )
-    if not os.path.exists( xml_file ) or not os.path.exists( lbl_file ):
+    if (sutils.detect_adni_phantom('--tolerant --refine-xform --erode-snr 15 --write-labels %s %s %s' % ( lbl_file, nii_file, xml_file))) or (not os.path.exists( xml_file )) or (not os.path.exists( lbl_file )):
         error = "ERROR: mandatory output file (either xml or label image) was not created from file %s, experiment %s/%s/%s" % ( nii_file,project,session,label )
         slog.info('{}/{}/{}'.format(project,session,label),error,
                        nii_file=nii_file,

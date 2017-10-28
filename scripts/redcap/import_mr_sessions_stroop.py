@@ -9,8 +9,8 @@ import os
 import re
 import tempfile
 import shutil
-import subprocess
 from sibispy import sibislogger as slog
+from sibispy import utils as sutils
 
 #
 # Check for Stroop data (ePrime log file) in given XNAT session
@@ -61,11 +61,12 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, \
     stroop_file_path = experiment.resource( stroop_resource ).file( stroop_file ).get_copy( os.path.join( tempdir, stroop_file ) )
 
     # Convert downloaded Stroop file to CSV scores file
-    added_files = []
-    try:
-        added_files = subprocess.check_output( [ os.path.join( import_bindir, "stroop2csv" ), '--mr-session', '--record', redcap_key[0], '--event', redcap_key[1], stroop_file_path, tempdir ] )
-    except:
-        pass
+    cmd = str(os.path.join( import_bindir, "stroop2csv" )) +  ' --mr-session --record ' +  redcap_key[0] + ' --event ' + redcap_key[1] + str(stroop_file_path) + ' ' + str(tempdir) 
+    (ecode,sout, serr) = sutils.call_shell_program(cmd)
+    if ecode: 
+        slog.info(str(redcap_key[0]) + "-" +  str(redcap_key[1]), "Error: import_stroop_to_redcap: failed to run stroop2csv!", cmd = str(cmd), stderr = str(serr), stdout = str(sout))
+
+    added_files = sout
 
     if len( added_files ):
         if not no_upload:
@@ -74,29 +75,35 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, \
                 if re.match( '.*\.csv$', file ):
                     if verbose:
                         print "Uploading ePrime Stroop scores",file
-                    command_array = [ os.path.join( bindir, 'csv2redcap' ) ]
+                    cmd = str(os.path.join( bindir, 'csv2redcap' )) 
                     if post_to_github:
-                        command_array += ["-p"]
+                        cmd += " -p"
                     if time_log_dir:
-                        command_array += ["-t", time_log_dir]
+                        cmd += " -t " + str(time_log_dir)
 
-                    command_array += [ file ]
-                    subprocess.call( command_array )
+                    cmd += " " + str(file) 
+                    (ecode,sout, serr) = sutils.call_shell_program(cmd)
+                    if ecode: 
+                        slog.info(str(redcap_key[0]) + "-" + str(redcap_key[1]), "Error: import_stroop_to_redcap: failed to run csv2redcap!", cmd = str(cmd), stderr = str(serr), stdout = str(sout))
+
             # Upload original ePrime file for future reference
-            cmd_array = [ os.path.join( import_bindir, "eprime2redcap" ) ]
+            cmd = str(os.path.join( import_bindir, "eprime2redcap" ))
             if post_to_github: 
-                cmd_array += ["-p"]
+                cmd += " -p" 
 
-            cmd_array += ['--project', 'data_entry', '--record' , redcap_key[0], '--event', redcap_key[1], stroop_file_path, 'mri_stroop_log_file' ] 
+            cmd += ' --project data_entry --record ' + str(redcap_key[0]) + ' --event ' + str(redcap_key[1]) + ' ' + str(stroop_file_path) +  ' mri_stroop_log_file' ] 
                 
             if verbose:
                 print "Uploading ePrime Stroop file",stroop_file_path
                 # print " ".join(cmd_array)
 
-            subprocess.check_output(cmd_array)
+            (ecode,sout, serr) = sutils.call_shell_program(cmd)
+            if ecode: 
+                slog.info(str(redcap_key[0]) + "-" +  str(redcap_key[1]), "Error: import_stroop_to_redcap: failed to run eprime2redcap!", cmd = str(cmd), stderr = str(serr), stdout = str(sout))
+
     else:
         error = "ERROR: could not convert Stroop file %s:%s" % ( redcap_key[0], stroop_file )
-        slog.info(redcap_key[0], error,
+        slog.info(str(redcap_key[0]) + '-' +  str(redcap_key[1]), error,
                       stroop_file = stroop_file)
 
     shutil.rmtree( tempdir )

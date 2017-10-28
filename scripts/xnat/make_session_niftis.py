@@ -9,12 +9,13 @@ import glob
 import shutil
 import zipfile
 import tempfile
-import subprocess
 import numpy
 import re
-from sibispy import sibislogger as slog
 import time 
 import sys 
+
+from sibispy import sibislogger as slog
+from sibispy import utils as sutils
 
 
 #
@@ -87,27 +88,18 @@ def export_to_nifti(interface, project, subject, session, session_label, scan, s
             temp_dir = tempfile.mkdtemp()
             zip_path = '%s/%s_%s.zip' % (temp_dir, scan, scantype)
 
-            log_filename = '%s/%s_%s/dcm2image.log' % (
-                temp_dir, scan, scantype)
-            dcm2image_command = 'cmtk dcm2image --tolerance 1e-3 ' \
-                                '--write-single-slices --no-progress ' \
-                                '-rvxO %s/%s_%s/image%%n.nii %s 2>&1' % (
-                                    temp_dir, scan, scantype, dicom_path)
+            args = '--tolerance 1e-3 --write-single-slices --no-progress -rvxO %s/%s_%s/image%%n.nii %s 2>&1' % (temp_dir, scan, scantype, dicom_path)
 
-            output = ""
-            try:
-                output = subprocess.check_output(dcm2image_command,
-                                                     shell=True)
-            except:
-                error_msg.append(
-                    "The following command failed %s with the following output %s" % (dcm2image_command,output))
+            if not sutils.dcm2image(args) : 
+                error_msg.append("The following command failed: %s" % (sutils.dcm2image_cmd + args))
 
             if len(error_msg) == 0:
-                    output_file = open(log_filename, 'w')
-                    try:
-                        output_file.writelines(output)
-                    finally:
-                        output_file.close()
+                # log_filename = '%s/%s_%s/dcm2image.log' % (temp_dir, scan, scantype)
+                # output_file = open(log_filename, 'w')
+                # try:
+                #     output_file.writelines(output)
+                # finally:
+                #     output_file.close()
 
                     try:
                         fzip = zipfile.ZipFile(zip_path, 'w')

@@ -20,7 +20,7 @@ import pandas as pd
 
 import sibispy
 from sibispy import sibislogger as slog
-from sibispy import sibis_utils
+from sibispy import utils as sutils
 from sibispy import redcap_to_casesdir 
 # import export_redcap_to_pipeline as rcpipeline
 
@@ -31,7 +31,7 @@ import export_mr_sessions_pipeline as mrpipeline
 #
 # GLOBAL VARIABLES 
 # 
-today = time.strftime(sibis_utils.date_format_ymd)
+today = time.strftime(sutils.date_format_ymd)
 
 ncanda_scan_types = [ 't1spgr', 'mprage', 't2fse', 'dti6b500pepolar', 'dti30b400', 'dti60b1000', 'rsfmri' ]
 
@@ -251,7 +251,7 @@ def get_xnat_data(red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_
 
     # First, see if this subject is in the XNAT database and has a scan session
     # for the given date or later
-    visit_date_plusNd = (datetime.datetime.strptime( visit_date, sibis_utils.date_format_ymd) + datetime.timedelta(args.max_days_after_visit)).strftime(sibis_utils.date_format_ymd)
+    visit_date_plusNd = (datetime.datetime.strptime( visit_date, sutils.date_format_ymd) + datetime.timedelta(args.max_days_after_visit)).strftime(sutils.date_format_ymd)
     # If we have a date for the next visit, and it's earlier than +N days (could
     # be for "Recovery" final visit), then use that date instead
     if next_visit_date and next_visit_date < visit_date_plusNd:
@@ -396,9 +396,9 @@ def get_xnat_data(red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_
             result['mri_adni_phantom_eid'] = phantom_scans[0]
         else:
             # No - look one day before and after
-            this_date = datetime.datetime.strptime( t1w_experiment_data[0], sibis_utils.date_format_ymd)
-            tomorrow = (this_date + datetime.timedelta(1)).strftime(sibis_utils.date_format_ymd)
-            yesterday = (this_date - datetime.timedelta(1)).strftime(sibis_utils.date_format_ymd)
+            this_date = datetime.datetime.strptime( t1w_experiment_data[0], sutils.date_format_ymd)
+            tomorrow = (this_date + datetime.timedelta(1)).strftime(sutils.date_format_ymd)
+            yesterday = (this_date - datetime.timedelta(1)).strftime(sutils.date_format_ymd)
 
             # Search for all sessions on previous day after given time, or next day before given time (we already know there isn't a scan on the same date)
             phantom_scans = get_phantom_scans_for_date_24h(yesterday, tomorrow, t1w_experiment_data[1])
