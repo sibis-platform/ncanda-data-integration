@@ -11,6 +11,7 @@ import subprocess
 import shutil
 import os.path
 import pandas
+from sibispy import sibis_utils as sutils
 
 # Label translation function - LimeSurvey to SRI/old REDCap style
 def label_to_sri( prefix, ls_label ):
@@ -36,16 +37,16 @@ def runscript( row, Rscript=None, scores_key=None ):
     pandas.DataFrame( row ).T.to_csv( data_csv )
 
     module_dir = os.path.dirname(os.path.abspath(__file__))
-    try:
-        Routput = subprocess.check_output( [ '/usr/bin/Rscript', os.path.join( module_dir, Rscript ), data_csv, scores_csv ],stderr=subprocess.STDOUT )
-    except subprocess.CalledProcessError as e:
-        print "R failed with error",e
-        print Routput
+
+    (errcode, stdout, stderr) = sutils.Rscript(str(os.path.join( module_dir, Rscript )) + " " +  data_csv + " " scores_csv)
+    if errcode : 
+        print "R failed with error", stderr
+        print stdout
         return
         
-    scores = pandas.read_csv( scores_csv, index_col=0 )
-    scores_df = pandas.Series( name = row.name, data = scores.to_dict()[scores_key] )
+    scores = pandas.read_csv( scores_csv, index_col=None )
     shutil.rmtree( tmpdir )
-
-    return scores_df
-
+    if scores_key : 
+        return pandas.Series( name = row.name, data = scores.to_dict()[scores_key] )
+    else : 
+        return scores.ix[0]

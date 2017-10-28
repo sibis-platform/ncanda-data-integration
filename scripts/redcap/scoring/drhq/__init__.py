@@ -7,7 +7,7 @@
 
 import pandas
 
-import RwrapperNew
+import Rwrapper
 
 #
 # Variables from surveys needed for DRHQ
@@ -20,7 +20,7 @@ lime_fields = [ "dhr_sec2 [dhr7_1]", "dhr_sec2 [dhr8_1]", "dhr_sec2 [dhr9_1]", "
 # Dictionary to recover LimeSurvey field names from REDCap names
 rc2lime = dict()
 for field in lime_fields:
-    rc2lime[RwrapperNew.label_to_sri( 'youthreport2', field )] = field
+    rc2lime[Rwrapper.label_to_sri( 'youthreport2', field )] = field
 
 # REDCap fields names
 input_fields = { 'youthreport2' : [ 'youth_report_2_complete',  'youthreport2_missing' ] + rc2lime.keys() }
@@ -49,13 +49,13 @@ def compute_scores( data, demographics ):
         return pandas.DataFrame()
 
     # Replace all column labels with the original LimeSurvey names
-    data.columns = RwrapperNew.map_labels( data.columns, rc2lime )
+    data.columns = Rwrapper.map_labels( data.columns, rc2lime )
 
     # Call the scoring function for all table rows
-    scores = data.apply( RwrapperNew.runscript, axis=1, Rscript='drhq/DRHQ.R' )
+    scores = data.apply( Rwrapper.runscript, axis=1, Rscript='drhq/DRHQ.R' )
 
     # Replace all score columns with REDCap field names
-    scores.columns = RwrapperNew.map_labels( scores.columns, R2rc )
+    scores.columns = Rwrapper.map_labels( scores.columns, R2rc )
 
     # Simply copy completion status from the input surveys
     scores['drhq_complete'] = data['youth_report_2_complete'].map( int )
