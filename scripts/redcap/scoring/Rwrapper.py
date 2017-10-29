@@ -37,7 +37,7 @@ def runscript( row, Rscript=None, scores_key=None ):
 
     module_dir = os.path.dirname(os.path.abspath(__file__))
 
-    (errcode, stdout, stderr) = sutils.Rscript(str(os.path.join( module_dir, Rscript )) + " " +  data_csv + " " scores_csv)
+    (errcode, stdout, stderr) = sutils.Rscript(str(os.path.join( module_dir, Rscript )) + " " +  data_csv + " " + scores_csv)
     if errcode : 
         print "R failed with error", stderr
         print stdout
