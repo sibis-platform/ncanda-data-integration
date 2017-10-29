@@ -258,6 +258,14 @@ if not match.group(1) in surveys.keys():
 survey_id = match.group(1)
 
 # Read the input CSV file from LimeSurvey
-data = pandas.read_csv( args.infile, dtype=object )
+try : 
+  data = pandas.read_csv( args.infile, dtype=object )
+except Exception, err_msg: 
+   slog.info(subject_label, "Error: could not read file !" , 
+             err_msg = str(err_msg),
+             cmd = " ".join(sys.argv),
+             filename=str(args.infile)) 
+   sys.exit(1)
+  
 
 handle_survey( survey_id, data )
