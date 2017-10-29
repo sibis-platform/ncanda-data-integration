@@ -10,14 +10,15 @@ import tempfile
 import shutil
 import re
 import os
-import subprocess
 import pandas
 import string
 import sys
 import hashlib
+import subprocess
 
 import ssaga
 from sibispy import sibislogger as slog
+from sibispy import utils as sutils
 
 #
 # Score SSAGA using SAS scripts
@@ -33,12 +34,8 @@ def score_ssaga( filename_asc ):
         os.makedirs( '/tmp/ssaga' )
     shutil.copy( filename_asc, '/tmp/ssaga/NSSAGA_v3_ASC' )
 
-    sas_path = os.path.join( os.path.expanduser("~"), '.wine', 'drive_c', 'Program Files', 'SAS', 'SAS 9.1', 'sas.exe' )
     for sas_script in ['crtpreNSSAGA_v3.sas', 'crtNSSAGA.sas', 'crtalldx.sas', 'toCSV.sas']:
-        sas_script_path = 'S:\\%s' % sas_script
-        try:
-            subprocess.check_call( ['wine', sas_path, '-SYSIN', sas_script_path, '-NOSPLASH'], stderr=devnull )
-        except:
+        if not sutils.sas(sas_script) : 
             error = 'ERROR: SAS script cannot be run for this file'
             slog.info(hashlib.sha1("blaise2csv {} {}".format(sas_script, filename_asc)).hexdigest()[0:6],error,
                         sas_script=str(sas_script),
@@ -140,9 +137,7 @@ def process_blaise( infile ):
     # Run Manipula
     olddir = os.getcwd()
     os.chdir( tempdir )
-    try:
-        subprocess.check_call( ['wine', os.path.join( os.path.expanduser("~"), 'src', 'manipula', 'Manipula.exe' ), 'crtNSSAGA_v3.man' ], stderr=devnull )
-    except:
+    if not sutils.manipula('crtNSSAGA_v3.man') : 
         sys.exit( 'ERROR: could not run wine/Manipula' )
 
     # Finally, hand ASC file to scoring and extractor function
