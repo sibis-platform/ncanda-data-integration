@@ -91,7 +91,7 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, \
             if post_to_github: 
                 cmd += " -p" 
 
-            cmd += ' --project data_entry --record ' + str(redcap_key[0]) + ' --event ' + str(redcap_key[1]) + ' ' + str(stroop_file_path) +  ' mri_stroop_log_file' ] 
+            cmd += ' --project data_entry --record ' + str(redcap_key[0]) + ' --event ' + str(redcap_key[1]) + ' ' + str(stroop_file_path) +  ' mri_stroop_log_file' 
                 
             if verbose:
                 print "Uploading ePrime Stroop file",stroop_file_path
