@@ -6,8 +6,7 @@
 ##
 
 import pandas
-
-import Rwrapper
+from sibispy import utils as sutils
 
 #
 # Variables from surveys needed for HSS
@@ -22,7 +21,7 @@ lime_fields = [ "Hssweek_sec1 [hssweek2]", "Hssweek_sec1 [hssweek3]", "Hssweek_s
 # Dictionary to recover LimeSurvey field names from REDCap names
 rc2lime = dict()
 for field in lime_fields:
-    rc2lime[Rwrapper.label_to_sri( 'youthreport2', field )] = field
+    rc2lime[sutils.label_to_limesurvey_to_redcap( 'youthreport2', field )] = field
 
 # REDCap fields names
 input_fields = { 'youthreport2' : [ 'youth_report_2_complete',  'youthreport2_missing' ] + rc2lime.keys() }
@@ -51,13 +50,13 @@ def compute_scores( data, demographics ):
         return pandas.DataFrame()
 
     # Replace all column labels with the original LimeSurvey names
-    data.columns = Rwrapper.map_labels( data.columns, rc2lime )
+    data.columns = sutils.map_labels_to_dict( data.columns, rc2lime )
 
     # Call the scoring function for all table rows
-    scores = data.apply( Rwrapper.runscript, axis=1, Rscript='hss/HSS.R', scores_key='HSS.ary' )
+    scores = data.apply( sutils.run_rscript, axis=1, Rscript='hss/HSS.R', scores_key='HSS.ary' )
 
     # Replace all score columns with REDCap field names
-    scores.columns = Rwrapper.map_labels( scores.columns, R2rc )
+    scores.columns = sutils.map_labels_to_dict( scores.columns, R2rc )
 
     # Simply copy completion status from the input surveys
     scores['hss_complete'] = data['youth_report_2_complete'].map( int )

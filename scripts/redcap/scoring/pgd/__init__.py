@@ -6,8 +6,8 @@
 ##
 
 import pandas
+from sibispy import utils as sutils
 
-import Rwrapper
 
 #
 # Variables from surveys needed for PGD
@@ -20,7 +20,7 @@ lime_fields = [ "PGD_sec1 [pgd1]", "PGD_sec1 [pgd2]", "PGD_sec1 [pgd3]", "PGD_se
 # Dictionary to recover LimeSurvey field names from REDCap names
 rc2lime = dict()
 for field in lime_fields:
-    rc2lime[Rwrapper.label_to_sri( 'youthreport2', field )] = field
+    rc2lime[sutils.label_to_limesurvey_to_redcap( 'youthreport2', field )] = field
 
 # REDCap fields names
 input_fields = { 'mrireport' : [ 'youth_report_2_complete',  'youthreport2_missing' ] + rc2lime.keys() }
@@ -49,13 +49,13 @@ def compute_scores( data, demographics ):
         return pandas.DataFrame()
 
     # Replace all column labels with the original LimeSurvey names
-    data.columns = Rwrapper.map_labels( data.columns, rc2lime )
+    data.columns = sutils.map_labels_to_dict( data.columns, rc2lime )
 
     # Call the scoring function for all table rows
-    scores = data.apply( Rwrapper.runscript, axis=1, Rscript='pgd/PGD.R' )
+    scores = data.apply( sutils.run_rscript, axis=1, Rscript='pgd/PGD.R' )
 
     # Replace all score columns with REDCap field names
-    scores.columns = Rwrapper.map_labels( scores.columns, R2rc )
+    scores.columns = sutils.map_labels_to_dict( scores.columns, R2rc )
 
     # Simply copy completion status from the input surveys
     scores['pgd_complete'] = data['youth_report_2_complete'].map( int )
