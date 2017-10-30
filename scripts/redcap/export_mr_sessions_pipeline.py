@@ -13,7 +13,6 @@ import sys
 import tempfile 
 from sibispy import sibislogger as slog
 from sibispy import utils as sutils
-from sibispy import redcap_to_casesdir
 
 from export_mr_sessions_spiral import export_spiral_files
 
