@@ -102,9 +102,10 @@ def export_t1t2_to_zip( experiment, experiment_label,xnat_dir):
 
         # Create ZIP file
         zipfile = os.path.join( outdir, experiment_label+'.zip' )
-        if not sutils.zip(basedir,zipfile,' '.join(scan_dirs_rel)): 
+        (ecode,sout,eout) = sutils.zip(basedir,zipfile,' '.join(scan_dirs_rel)): 
+        if ecode: 
             error = 'ERROR: unable to create ZIP file from these directories'
-            slog.info(zipfile, error,scan_dirs = ' '.join( scan_dirs ))
+            slog.info(zipfile, error,scan_dirs = ' '.join( scan_dirs ), err_msg = str(eout))
             try:
                 os.remove(zipfile)
             except:
