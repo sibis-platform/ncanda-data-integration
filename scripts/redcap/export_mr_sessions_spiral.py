@@ -119,7 +119,8 @@ def do_export_spiral_files(redcap_visit_id,xnat, redcap_key, resource_location, 
     if len(physio_files) == 1:
         spiral_physio_out = os.path.join(to_directory, 'native', 'physio')
         shutil.copyfile(physio_files[0], spiral_physio_out)
-        return sutils.gzip('-9',spiral_physio_out)
+        (ecode, sout, eout) = sutils.gzip('-9 ' + str(spiral_physio_out))
+        return not ecode
 
     return True
 

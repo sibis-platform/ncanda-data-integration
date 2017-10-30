@@ -90,8 +90,9 @@ def export_to_nifti(interface, project, subject, session, session_label, scan, s
 
             args = '--tolerance 1e-3 --write-single-slices --no-progress -rvxO %s/%s_%s/image%%n.nii %s 2>&1' % (temp_dir, scan, scantype, dicom_path)
 
-            if not sutils.dcm2image(args) : 
-                error_msg.append("The following command failed: %s" % (sutils.dcm2image_cmd + args))
+            (ecode, sout, eout) = sutils.dcm2image(args)
+            if ecode:  
+                error_msg.append("The following command failed: %s" % (sutils.dcm2image_cmd + args + " ! msg : " + str(eout)))
 
             if len(error_msg) == 0:
                 # log_filename = '%s/%s_%s/dcm2image.log' % (temp_dir, scan, scantype)

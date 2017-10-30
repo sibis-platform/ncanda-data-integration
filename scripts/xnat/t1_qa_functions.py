@@ -88,13 +88,15 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
 
     # Create NIFTI file from the DICOM files
     nii_file = 't1.nii.gz'
-    if (not sutils.dcm2image('--tolerance 1e-3 -rO %s %s >& /dev/null' % ( nii_file, dicom_path ))) or (not os.path.exists( nii_file )):
+    (ecode, sout, eout) = sutils.dcm2image('--tolerance 1e-3 -rO %s %s >& /dev/null' % ( nii_file, dicom_path ))
+    if ecode or (not os.path.exists( nii_file )):
         error = "ERROR: NIFTI file was not created from DICOM files experiment"
         slog.info('{}/{}'.format(project,session),error,
-                         session = session,
-                         project = project,
-                         nii_file = nii_file,
-                         dicom_path = dicom_path)
+                  session = session,
+                  project = project,
+                  nii_file = nii_file,
+                  err_msg = str(eout),
+                  dicom_path = dicom_path)
         return
 
     # Upload NIFTI file

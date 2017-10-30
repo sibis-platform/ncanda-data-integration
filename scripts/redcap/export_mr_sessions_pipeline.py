@@ -131,10 +131,12 @@ def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_
             slog.startTimer2() 
 
         args= '--tolerance 1e-3 --write-single-slices --no-progress -rxO %s %s 2>&1' % ( tmp_path_pattern, ' '.join( dicom_path_list ))
-        if not sutils.dcm2image(args) :
+        (ecode, sout, eout) = sutils.dcm2image(args)
+        if ecode :
             slog.info(redcap_visit_id + "_" + scan,"Error: Unable to create dicom file",
-                          experiment_site_id=session,
-                          cmd=sutils.dcm2image_cmd + args)
+                      experiment_site_id=session,
+                      cmd=sutils.dcm2image_cmd + " " + args,
+                      err_msg = str(eout))
             shutil.rmtree(temp_dir)
             return False
 
@@ -234,9 +236,10 @@ def copy_adni_phantom_xml( xnat, xnat_eid, to_directory ):
 # Compress physio file in pipeline workdir
 #
 def gzip_physio( physio_file_path ):
-    if not sutils.gzip('-9f',physio_file_path) : 
+    (ecode,sout,eout) = sutils.gzip('-9f ' + str(physio_file_path))
+    if ecode : 
         error = "ERROR: unable to compress physio file"
-        slog.info(physio_file_path,error)
+        slog.info(physio_file_path,error, err_msg = str(eout))
 
 #
 # Copy physio files (cardio and respiratory) for resting-state fMRI session
