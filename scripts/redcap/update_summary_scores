@@ -16,7 +16,6 @@ import redcap
 import sibispy
 from sibispy import sibislogger as slog
 
-import scoring
 
 #
 # Functions 
@@ -78,8 +77,18 @@ if not session.configure():
     if args.verbose:
         print "Error: session configure file was not found"
 
-    sys.exit()
+    sys.exit(1)
 
+scoring_script_dir =  session.get_redcap_summary_scoring()
+if not scoring_script_dir or not os.path.exists(scoring_script_dir) : 
+    if args.verbose:
+        print "Error: redcap_summary_scoring dir was not found"
+
+    sys.exit(1)
+
+# add  scoring directory to search path used by python
+sys.path.append(os.path.join(scoring_script_dir,"../"))
+import redcap_summary_scoring as scoring
 
 # If connection to redcap server fail, try multiple times
 try:
