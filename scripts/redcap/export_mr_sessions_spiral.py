@@ -12,7 +12,7 @@ import fnmatch
 import tempfile
 
 from sibispy import sibislogger as slog
-
+from sibispy import utils as sutils
 
 def export_spiral_files(redcap_visit_id, xnat, redcap_key, resource_location, to_directory, stroop=(None, None, None), verbose=None):
     if verbose:
