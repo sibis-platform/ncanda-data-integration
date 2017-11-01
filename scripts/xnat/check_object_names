@@ -31,14 +31,14 @@ server_address = str(session.get_xnat_server_address())
 parser = argparse.ArgumentParser( description="Find new MR sessions in XNAT, check for missing and duplicate scans, and list all sessions with questionable scans." )
 parser.add_argument("-v", "--verbose", action="store_true", default=False, help="Verbose operation.")
 parser.add_argument("-m", "--send-mail", action="store_true", default=False, help="Send emails with problem reports to users and site admin.")
-parser.add_argument("-e", "--eidlist", default =False, action='store',help="Allows for a subset of scans to be selected for export - write to file with eid in each line")
+parser.add_argument("-e", "--eidlist", default =False, action='store',help="Allows for a subset of scans to be selected for export - seperate eids by comma")
 parser.add_argument( "-a", "--check-all", help="Check all subjects and sessions, regardless of date.", action="store_true")
 parser.add_argument( "-W", "--last-week", help="Check all subjects and sessions that were modified within the last week.", action="store_true")
 parser.add_argument( "-M", "--last-month", help="Check all subjects and sessions that were modified within the last month (more precisely: the last 31 days).", action="store_true")
 parser.add_argument( "--no-update", help="Do not update the persistent data stored on the XNAT server (e.g., last run date, list of flagged sessions).", action="store_true")
 parser.add_argument("--zip-root", default='/var/tmp/burn2dvd', help="Root directory to create ZIP archives with T1w and T2w DICOM files for clinical reading.")
 parser.add_argument("--zip-none", action="store_true", default=False, help="Do not create any ZIP archives (T1w and T2w DICOM files for clinical reading).")
-parser.add_argument("--zip-all", action="store_true", default=False, help="Create ZIP archives (T1w and T2w DICOM files for clinical reading) for all sessions, regardless of whether or not they have been processed before.")
+parser.add_argument("--zip-all", action="store_true", default=False, help="Create ZIP archives (T1w and T2w DICOM files for clinical reading) for all sessions listed in eidlist, regardless of whether or not they have been processed before.")
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
 parser.add_argument("-t","--time-log-dir",
                     help="If set then time logs are written to that directory",
@@ -102,10 +102,11 @@ def export_t1t2_to_zip( experiment, experiment_label,xnat_dir):
 
         # Create ZIP file
         zipfile = os.path.join( outdir, experiment_label+'.zip' )
+
         (ecode,sout,eout) = sutils.zip(basedir,zipfile,' '.join(scan_dirs_rel)) 
         if ecode: 
             error = 'ERROR: unable to create ZIP file from these directories'
-            slog.info(zipfile, error,scan_dirs = ' '.join( scan_dirs ), err_msg = str(eout))
+            slog.info(zipfile, error,scan_dirs = ' '.join( scan_dirs ), err_msg = str(eout), eid = str(experiment.id()))
             try:
                 os.remove(zipfile)
             except:
@@ -119,8 +120,7 @@ def export_t1t2_to_zip( experiment, experiment_label,xnat_dir):
                 experiment.attrs.set( 'xnat:mrSessionData/fields/field[name=datetodvd]/field', date_today )
             except:
                 error = "ERROR: failed to set DateToDVD field on experiment - removing archive file"
-                slog.info(experiment_label,error,
-                              zipfile = zipfile)
+                slog.info(experiment_label,error,zipfile = zipfile,eid = str(experiment.id()))
                 os.remove( zipfile )
 
     return len( scan_dirs ) > 0
@@ -134,7 +134,7 @@ experiment_label_pattern = '^[A-FX]-[0-9]{5}-[MFPT]-[0-9]-20[0-9]{2}[01][0-9][0-
 #
 # Check an experiment (MR session)
 #
-def validate_experiment( ifc, project, sid, slabel, eid, elabel, edate, einsert, xnat_dir):
+def validate_experiment( ifc, project, sid, slabel, eid, elabel, edate, einsert, xnat_dir,objects_force_write):
     if args.verbose:
         print "INFO: checking experiment %s (%s)" % (elabel,eid)
 
@@ -153,15 +153,15 @@ def validate_experiment( ifc, project, sid, slabel, eid, elabel, edate, einsert,
             if not 'P' in slabel:
                 experiment = ifc.select.project( project ).subject( sid ).experiment( eid )
                 edvddate = get_custom_variables( experiment, [ 'DateToDVD' ] )[0]
-                if args.zip_all or (edvddate == None) or not re.match( '^2[0,1][0-9]{2}-[0-1][0-9]-[0-3][0-9]$', edvddate ):
-                    if not args.zip_none:
+                if (eid in objects_force_write) or (edvddate == None) or not re.match( '^2[0,1][0-9]{2}-[0-1][0-9]-[0-3][0-9]$', edvddate ):
+                    if args.zip_none:
+                        check_again.append( eid )
+                    else :
                         # Export T1/T2 DICOM files; returns "True" if any exist
                         if export_t1t2_to_zip( experiment, elabel,xnat_dir ):
                             # so check again until DatetoDVD is filled in with a date 
                             # not sure this is the best logic
                             check_again.append( eid )
-                    else:
-                        check_again.append( eid )
         else:
             check_again.append( eid )
             if args.send_mail:
@@ -209,7 +209,7 @@ def validate_subject( ifc, sid, slabel, sinsert ):
 experiment_list = []
 subject_list = []
 
-def validate_new_and_outstanding( ifc, project, objects_to_check, date_last_checked,xnat_dir):
+def validate_new_and_outstanding( ifc, project, objects_to_check, objects_force_write, date_last_checked,xnat_dir):
     # Get all subjects and sessions from XNAT - this speeds things up a lot
     subject_list = ifc.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID','xnat:subjectData/SUBJECT_LABEL','xnat:subjectData/INSERT_USER','xnat:subjectData/INSERT_DATE'] ).where( [ ('xnat:subjectData/PROJECT','LIKE', '%'+project+'%') ] )
     experiment_list = ifc.select( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/LABEL','xnat:mrSessionData/SUBJECT_ID','xnat:mrSessionData/DATE','xnat:mrSessionData/INSERT_USER','xnat:mrSessionData/LAST_MODIFIED'] ).where( [ ('xnat:mrSessionData/PROJECT','LIKE', '%'+project+'%') ] )
@@ -236,7 +236,7 @@ def validate_new_and_outstanding( ifc, project, objects_to_check, date_last_chec
             for eid, elabel, sid, edate, einsert, emodified in experiment_list.items():
                 if (eid in objects_to_check) or (emodified > date_last_checked):
                     if sid in subject_lookup.keys():
-                        check_again += validate_experiment(ifc, project, sid, subject_lookup[sid], eid, elabel, edate, einsert,xnat_dir)
+                        check_again += validate_experiment(ifc, project, sid, subject_lookup[sid], eid, elabel, edate, einsert,xnat_dir,objects_force_write)
                     else:
                         error = 'ERROR: cannot determine (unique) label'
                         slog.info(eid, error,
@@ -255,6 +255,8 @@ email = sibis_email.xnat_email(session)
 
 # Experiments to check from last run - these should be the ones we flagged last time and stored on the server for reconsideration
 objects_to_check = []
+
+objects_force_write = []
 
 # Date format for XNAT dates and current date and time
 xnat_date_format = '%Y-%m-%d %H:%M:%S'
@@ -275,25 +277,32 @@ if not args.check_all:
         if args.verbose:
             print 'Script was last run %s' % creation_date
 
-        if args.eidlist:
-            with open(args.eidlist,'r') as f:
-                eidlist = f.read().split()
-            objects_to_check = eidlist
-        else :
-            # Get list of previously flagged experiments that need to be checked again
-            # Remove new line at the last element as otherwise dropped from list 
-            objects_to_check_list =  content[0]['contents'][0:-1]
-            # Only check if not NONE
-            if objects_to_check_list != "NONE": 
-                objects_to_check = set( objects_to_check_list.split( ',' ) )
+        # Get list of previously flagged experiments that need to be checked again
+        # Remove new line at the last element as otherwise dropped from list 
+        objects_to_check_list =  content[0]['contents'][0:-1]
+        # Only check if not NONE
+        if objects_to_check_list != "NONE": 
+            objects_to_check = objects_to_check_list.split( ',' ) 
 
-        if args.verbose:
-            print 'Re-checking %d previously flagged objects' % len( objects_to_check )
-
-    except:
+    except Exception as e:
         # If we cannot get last script run date from server, leave at epoch (Jan 1, 1970)
         if args.verbose:
             print 'Unable to retrieve date of last script run and list of flagged projects from server.'
+            print e 
+
+
+
+    if args.eidlist:
+        added_checks = set(args.eidlist.split( ',' ) )
+        objects_to_check +=  added_checks
+        if args.zip_all: 
+            objects_force_write = set(added_checks)
+
+    objects_to_check  = set(objects_to_check)
+
+    if args.verbose:
+        print 'Re-checking %d previously flagged objects' % len( objects_to_check )
+
 
 # If "last week" option is used, override last checked date
 if args.last_week:
@@ -310,7 +319,7 @@ str_date_last_checked = time.strftime( xnat_date_format, date_last_checked )
 project_ids = ifc.select.projects().get()
 check_again = []
 for pid in project_ids:
-    check_again += validate_new_and_outstanding( ifc, pid, objects_to_check, str_date_last_checked,session.get_xnat_dir() )
+    check_again += validate_new_and_outstanding( ifc, pid, objects_to_check, objects_force_write, str_date_last_checked,session.get_xnat_dir() )
 
 if args.send_mail:
     email.send_all()
