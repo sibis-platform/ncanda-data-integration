@@ -61,7 +61,7 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, \
     stroop_file_path = experiment.resource( stroop_resource ).file( stroop_file ).get_copy( os.path.join( tempdir, stroop_file ) )
 
     # Convert downloaded Stroop file to CSV scores file
-    cmd = str(os.path.join( import_bindir, "stroop2csv" )) +  ' --mr-session --record ' +  redcap_key[0] + ' --event ' + redcap_key[1] + str(stroop_file_path) + ' ' + str(tempdir) 
+    cmd = str(os.path.join( import_bindir, "stroop2csv" )) +  ' --mr-session --record ' +  redcap_key[0] + ' --event ' + redcap_key[1] + " " + str(stroop_file_path) + ' ' + str(tempdir) 
     (ecode,sout, serr) = sutils.call_shell_program(cmd)
     if ecode: 
         slog.info(str(redcap_key[0]) + "-" +  str(redcap_key[1]), "Error: import_stroop_to_redcap: failed to run stroop2csv!", cmd = str(cmd), stderr = str(serr), stdout = str(sout))
