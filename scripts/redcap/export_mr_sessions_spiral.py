@@ -62,17 +62,14 @@ def do_export_spiral_files(redcap_visit_id,xnat, redcap_key, resource_location, 
         return False
 
     errcode, stdout, stderr = sutils.untar(tmp_file_path, tmpdir)
-    (subject_label, event_label) = redcap_key
-
     if errcode != 0:
         error="ERROR: Unable to un-tar resource file. File is likely corrupt."
         slog.info(redcap_visit_id, error,
                      tempfile_path=tmp_file_path,
                      xnat_eid=xnat_eid,
-                     spiral_tar_file=resource_location)
-        if verbose:
-            print "StdErr:\n{}".format(stderr)
-            print "StdOut:\n{}".format(stdout)
+                     spiral_tar_file=resource_location,
+                     err_msg = str(stderr),
+                     err_cod = str(errcode))
         return False
 
     spiral_E_files = glob_for_files_recursive(tmpdir, pattern="E*P*.7")
@@ -103,11 +100,11 @@ def do_export_spiral_files(redcap_visit_id,xnat, redcap_key, resource_location, 
         if not os.path.exists(spiral_nifti_out):
             error="Unable to make NIfTI from resource file, please try running makenifti manually"
             slog.info(redcap_visit_id, error,
-                         xnat_eid=xnat_eid,
-                         spiral_file=spiral_E_files[0])
-            if verbose:
-                print "StdErr:\n{}".format(stderr)
-                print "StdOut:\n{}".format(stdout)
+                      xnat_eid=xnat_eid,
+                      spiral_file=spiral_E_files[0],
+                      ecode = str(errcode),   
+                      eout = str(stderr),
+                      sout = str(stdout))
             return False
     else:
         error = "ERROR: no spiral data file found"
