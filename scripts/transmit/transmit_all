@@ -6,7 +6,7 @@
 ##
 
 bindir=`dirname $0`
-
 $bindir/transmit_xnat
+exit 
 $bindir/transmit_dbs
 $bindir/transmit_svn

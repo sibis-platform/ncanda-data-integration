@@ -6,7 +6,7 @@
 ##
 
 # Root directory of the XNAT storage file system
-XNAT_DATA_ROOT=/data/XNAT
+XNAT_DATA_ROOT=/fs/storage/xnat
 
 # Path of the S3 history database file
 DBFILE=${HOME}/xnat_archive.sqlite

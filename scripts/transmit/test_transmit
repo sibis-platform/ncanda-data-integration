@@ -1,0 +1,72 @@
+#!/bin/bash -l
+
+##
+##  See COPYING file distributed along with the ncanda-data-integration package
+##  for the copyright and license terms
+##
+
+
+# Current date in seconds since 0:00 a.m., 1-1-1970.
+CURRENT_DATE_EPOCH=`date +%s`
+
+# Convert number of days to seconds
+days_to_seconds() { expr $1 \* 86400; }
+
+# Maturation period - sessions older than this threshold will be transmitted
+ARCHIVE_AFTER=`days_to_seconds 7`
+
+# Time after which files are migrated to Glacier (this happens automatically - we only need this here to tell the script how long we can modify uploaded data in S3)
+#  As a matter of fact, the actual time configured in S3 should be at least 1 day more than the value set here.
+GLACIER_AFTER=`days_to_seconds 28`
+
+# Time after which files migrated to Glacier can be replaced with updated versions (this avoids early deletion fees)
+GLACIER_REPLACE_AFTER=`days_to_seconds 120`
+
+# Session name matching pattern - sessions not matching this will be skipped
+MATCH_SESSION="[A-EX]-[0-9]{5}-[MFPT]-[0-9]-20[1,2][0-9][0,1][0-9][0,1,2,3][0-9](-[0-9]?)?"
+
+# Flag for S3 database update (if set, database is also uploaded to S3 at the end of the script)
+DB_UPDATE_FLAG=0
+
+# gtar --help  
+gtar 
+# aespipe --help 
+aespipe
+# s3cmd --help 
+s3cmd
+
+mysqldump 
+
+/bin/su -h
+
+sqlite3 
+
+# Root directory of the XNAT storage file system
+XNAT_DATA_ROOT=/fs/storage/xnat
+if [ ! -d $XNAT_DATA_ROOT ] ; then 
+  echo "ERROR: Missing $XNAT_DATA_ROOT"
+fi 
+
+# Path of the S3 history database file
+DBFILE=${HOME}/xnat_archive.sqlite
+if [ ! -f $DBFILE ] ; then 
+  echo "ERROR: Missing $DBFILE"
+fi 
+
+
+
+DIR=${HOME}/aes/keys 
+if [ ! -d $DIR ] ; then 
+  echo "ERROR: Missing $DIR"
+fi 
+
+DIR=/fs/storage/laptops/
+if [ ! -d $DIR ] ; then 
+  echo "ERROR: Missing $DIR"
+fi 
+
+DIR=/fs/storage/redcap/
+if [ ! -d $DIR ] ; then 
+  echo "ERROR: Missing $DIR" 
+fi 
+

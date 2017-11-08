@@ -20,9 +20,10 @@ upload_to_s3()
     fi
 }
 
-if cd /mnt/svn; then
+DIR=/fs/storage/laptops/
+if cd $DIR; then
     gtar --xz -cf - ncanda* | aespipe -P ${HOME}/aes/keys -e aes256 > /var/tmp/subversion.tar.gz.aes
     upload_to_s3 /var/tmp/subversion.tar.gz.aes
 else
-    echo "ERROR: /mnt/svn is not available - Subversion repositories not archived"
+    echo "ERROR: $DIR is not available - Subversion repositories not archived"
 fi
