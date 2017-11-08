@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash -l 
 
 ##
 ##  See COPYING file distributed along with the ncanda-data-integration package
