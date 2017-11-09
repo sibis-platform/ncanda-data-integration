@@ -219,7 +219,7 @@ def batch(iterable, n=1):
 #
 # Check why form is missing
 #
-def MissingFormChecks(vdate,subject_id,event_id,import_complete_records,form_name,incomplete_records_list):
+def MissingFormChecks(vdate, date_on_or_after , date_before ,subject_id,event_id,import_complete_records,form_name,incomplete_records_list):
     # Note the first part of the session_id can be different from the subject_id - subject_id is what to go by if defined
     session_id = "{}-{}".format(subject_id, vdate)
     if session_id in import_complete_records.index :
@@ -227,21 +227,23 @@ def MissingFormChecks(vdate,subject_id,event_id,import_complete_records,form_nam
         if not import_complete_records[complete_label][session_id]:
             # the form exists but is incomplete 
             slog.info(session_id, "Error: The status of the form '%s' in the Import project is incomplete while it is unverified or complete in the Entry project!" % (form_name),
-                  entry_subject_id=subject_id,
-                  form_name=form_name,
-                  event_id=event_id,
-                  import_visit_dates_of_not_incomplete_records=incomplete_records_list.to_string(),
-                  target_visit_date=vdate)
+                      entry_subject_id=subject_id,
+                      form_name=form_name,
+                      event_id=event_id,
+                      import_visit_dates_of_not_incomplete_records=incomplete_records_list.to_string(),
+                      target_visit_date=vdate,
+                      date_range=str([date_on_or_after , date_before]) )
             return 
 
         if import_complete_records[exclude_label][session_id] :
             slog.info(session_id, "Error: The form '" + form_name + "'in the Import project is excluded while it is not excluded in the entry project!",
-                  entry_subject_id=subject_id,
-                  form_name=form_name,
-                  event_id=event_id,
-                  import_visit_dates=records_this_subject[date_label].to_string(),
-                  info = "If that is on purpose and 'Manually Entered' flag exists in the form, please set it to 'yes' in the record of the entry project",  
-                  target_visit_date=vdate)
+                      entry_subject_id=subject_id,
+                      form_name=form_name,
+                      event_id=event_id,
+                      import_visit_dates=records_this_subject[date_label].to_string(),
+                      info = "If that is on purpose and 'Manually Entered' flag exists in the form, please set it to 'yes' in the record of the entry project",  
+                      target_visit_date=vdate,
+                      date_range=str([date_on_or_after , date_before]))
             return 
 
             
@@ -547,12 +549,12 @@ for form_prefix, form_name in forms.iteritems():
                 date_before = next_visit_date
 
             # Select records in permissible range
-            records_this_visit = records_this_subject[ records_this_subject['%s_date' % form_prefix] >= date_on_or_after ]
-            records_this_visit = records_this_visit[ records_this_visit['%s_date' % form_prefix] < date_before ]
+            records_this_visit = records_this_subject[ records_this_subject[date_label] >= date_on_or_after ]
+            records_this_visit = records_this_visit[ records_this_visit[date_label] < date_before ]
             # First, treat the case where we have MORE THAN ONE record in the search window
             if (len( records_this_visit ) > 1):
                 # Sort records by date difference from visit date
-                records_this_visit['days_from_visit'] = records_this_visit['%s_date' % form_prefix].map( lambda d: abs( days_between_dates( visit_date, d ) ) )
+                records_this_visit['days_from_visit'] = records_this_visit[date_label].map( lambda d: abs( days_between_dates( visit_date, d ) ) )
                 records_this_visit.sort( columns = 'days_from_visit', inplace = True )
                 records_this_visit_samedays= records_this_visit[records_this_visit['days_from_visit'] == records_this_visit.ix[0]['days_from_visit']]
                 
@@ -580,7 +582,7 @@ for form_prefix, form_name in forms.iteritems():
             # We absolutely have no records to assign - check now if one had been assigned
             # previously and somehow disappeared
             elif (entry_form_data[complete_label][key] > 0) and (entry_form_data[missing_label][key] != 1):
-                MissingFormChecks(visit_date,key[0],key[1],import_complete_records,form_name,records_this_subject[date_label])
+                MissingFormChecks(visit_date,date_on_or_after , date_before,key[0],key[1],import_complete_records,form_name,records_this_subject[date_label])
 
                 if args.reset_disappeared:
                     total_uploaded += add_empty_to_upload( session, form_prefix, form_name, key[0], key[1] )
@@ -593,7 +595,7 @@ for form_prefix, form_name in forms.iteritems():
                 total_records += 1
                 # Select all records within given maximum number of days after visit date
                 form_target_date = (datetime.datetime.strptime(sleep_date, date_format_ymd) + datetime.timedelta(forms_date_increments[form_prefix])).strftime(date_format_ymd)
-                records_this_visit = records_this_subject[records_this_subject['%s_date' % form_prefix] == form_target_date]
+                records_this_visit = records_this_subject[records_this_subject[date_label] == form_target_date]
 
                 # Make sure there is only one, unique record
                 if len(records_this_visit) > 1:
@@ -609,7 +611,7 @@ for form_prefix, form_name in forms.iteritems():
                 elif len(records_this_visit) == 1:
                     total_uploaded += add_to_upload(session, form_prefix, form_name, key[0], key[1], records_this_visit.ix[0], subject_age, args.verbose)
                 elif (entry_form_data[complete_label][key] > 0) and (entry_form_data[missing_label][key] != 1):
-                    MissingFormChecks(form_target_date,key[0],key[1],import_complete_records,form_name,records_this_subject[date_label])
+                    MissingFormChecks(form_target_date,date_on_or_after , date_before , key[0],key[1],import_complete_records,form_name,records_this_subject[date_label])
 
                     if args.reset_disappeared:
                         total_uploaded += add_empty_to_upload(session, form_prefix, form_name, key[0], key[1])
