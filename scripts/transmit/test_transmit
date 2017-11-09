@@ -28,18 +28,17 @@ MATCH_SESSION="[A-EX]-[0-9]{5}-[MFPT]-[0-9]-20[1,2][0-9][0,1][0-9][0,1,2,3][0-9]
 # Flag for S3 database update (if set, database is also uploaded to S3 at the end of the script)
 DB_UPDATE_FLAG=0
 
-# gtar --help  
-gtar 
-# aespipe --help 
-aespipe
-# s3cmd --help 
-s3cmd
+gtar --help > /dev/null
 
-mysqldump 
+aespipe --help > /dev/null
 
-/bin/su -h
+s3cmd --help > /dev/null
 
-sqlite3 
+mysqldump --help > /dev/null
+
+/bin/su -h > /dev/null
+
+sqlite3 --version > /dev/null
 
 # Root directory of the XNAT storage file system
 XNAT_DATA_ROOT=/fs/storage/xnat
@@ -55,9 +54,9 @@ fi
 
 
 
-DIR=${HOME}/aes/keys 
-if [ ! -d $DIR ] ; then 
-  echo "ERROR: Missing $DIR"
+FILE=${HOME}/aes/keys 
+if [ ! -f $FILE ] ; then 
+  echo "ERROR: Missing $FILE"
 fi 
 
 DIR=/fs/storage/laptops/
