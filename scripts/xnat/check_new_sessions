@@ -809,7 +809,8 @@ for (eid, project, subject, insert_date,
     elif os.path.isfile(qc_file):
         rename_file(session_label,qc_file,qc_file_tmp)
 
-    experiment = sibis_session.xnat_get_experiment(eid)
+    # Important to call it with project and subject label so that later it is stored in right location 
+    experiment = sibis_session.xnat_get_experiment(eid,project,subject)
     if not experiment: 
         experiments_for_next_run.append(eid)
         remove_file(session_label,qc_file_tmp)
@@ -908,16 +909,14 @@ for (eid, project, subject, insert_date,
         for (scanID, scantype, quality) in scantype_and_quality:
             if re.match('^ncanda-.*-v[0-9]$', scantype):
                 try : 
-                    error_msg, niftisWereCreatedFlag = make_session_niftis.export_to_nifti(
-                        ifc,
-                        project,
-                        subject,
-                        eid,
-                        session_label,
-                        scanID,
-                        scantype,
-                        xnat_dir,
-                        verbose=args.verbose)
+                    error_msg, niftisWereCreatedFlag = make_session_niftis.export_to_nifti(experiment,
+                                                                                           subject,
+                                                                                           eid,
+                                                                                           session_label,
+                                                                                           scanID,
+                                                                                           scantype,
+                                                                                           xnat_dir,
+                                                                                           verbose=args.verbose)
                 except Exception as err_msg: 
                     slog.info(session_label + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not generate nifti files - skipping session',
                           eid = eid,
