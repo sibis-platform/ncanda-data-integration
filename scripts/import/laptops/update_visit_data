@@ -438,7 +438,8 @@ for form_prefix, form_name in forms.iteritems():
         # only works if record_id is correctly labelled which is not always the case 
         s_records = pandas.DataFrame(columns =  complete_records.columns)
         for sid in args.study_id.split(',') :
-            sidr = complete_records[map(lambda (record_id,record_subject_id): sid in record_id or args.study_id.strip() == str(record_subject_id).strip(), zip(complete_records.index.tolist(),complete_records[subject_id_label].tolist()))]
+            sids = sid.strip() 
+            sidr = complete_records[map(lambda (record_id,record_subject_id): sids in record_id or sids == str(record_subject_id).strip(), zip(complete_records.index.tolist(),complete_records[subject_id_label].tolist()))]
             if len(sidr) :
                 s_records = s_records.append(sidr)
 
