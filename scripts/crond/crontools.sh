@@ -25,7 +25,7 @@ catch_output_email()
 	
         eval "mailx -r ${SIBIS_ADMIN_EMAIL} -s \"${subject}\" ${mailto} < ${tmpfile}"
 	# Issues are now directly posted to github by program - os if their is an issue with github do not post it again as it gets confusing 
-        # eval "python ${PYTHONPATH}/sibispy/post_issues_to_github.py --title \"${subject}\" --body ${tmpfile}"
+        # eval "python ${SIBIS_PYTHON_PATH}/sibispy/post_issues_to_github.py --title \"${subject}\" --body ${tmpfile}"
     fi
 
     rm -f ${tmpfile}
@@ -33,7 +33,7 @@ catch_output_email()
 
 get_sibis_variable()
 {
-    python $PYTHONPATH/sibispy/session.py get_${1}
+    python $SIBIS_PYTHON_PATH/sibispy/session.py get_${1}
 }
 
 
