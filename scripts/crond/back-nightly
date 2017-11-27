@@ -78,7 +78,7 @@ fi
 #
 #
 # if on instance is running then it is at least has a count of 2 ! Not sure why
-num_scripts=`ps -ef | grep crond/back-nightly | grep -v grep | wc -l`
+num_scripts=`ps -ef | grep crond/back-nightly | grep -v grep | grep -v " vi " | grep -v " emacs " | wc -l`
 if [ $num_scripts -gt 2 ]; then 
    echo "${SCRIPT_LABEL}:Info: Not running all of script as instance(s) of it are already running"
    exit 0
