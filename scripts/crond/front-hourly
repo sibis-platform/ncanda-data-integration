@@ -14,9 +14,12 @@ fi
 
 # Set the SIBIS environment variable to the data integration repo
 export SIBIS=`realpath $(dirname $0)/../../`
+export SCRIPT_LABEL="front-hourly"
+
 
 XNAT_FLAG=1
 IMPORT_FLAG=1
+
 
 
 [ -r $HOME/.bashrc ] && . $HOME/.bashrc
@@ -25,7 +28,6 @@ IMPORT_FLAG=1
 . $(dirname $0)/crontools.sh
 
 LOG_DIR=${SIBIS_ANALYSIS_DIR}/log/front-hourly
-SCRIPT_LABEL="front-hourly"
 
 hour=$(date +%H)
 
