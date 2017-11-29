@@ -48,8 +48,8 @@ if [ ! -e ${VALID_CONTAINER_LOG} ]; then
 fi
 
 VALID_CONTAINER=`cat ${VALID_CONTAINER_LOG}`
-if [ "$VALID_CONTAINER" != "${DOCKER_CONTAINER_ID}" ]; then  
-    echo "crontools.sh:Error: Trying to run '${SCRIPT_LABEL}' from container '${DOCKER_CONTAINER_ID}' but only allowed from container '${VALID_CONTAINER}' !"
+if [ "$VALID_CONTAINER" != "${DOCKER_CONTAINER_NAME}" ]; then  
+    echo "crontools.sh:Error: Trying to run '${SCRIPT_LABEL}' from container '${DOCKER_CONTAINER_NAME}' but only allowed from container '${VALID_CONTAINER}' !"
     exit 1
 fi 
     
