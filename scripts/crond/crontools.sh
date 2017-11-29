@@ -6,10 +6,10 @@
 ##
 
 # Run a command, and send its output (stdout and stderr) to a given email address, but only if there is output
-if [ "${SIBIS_CONFIG}" == "" ]; then
-  export SIBIS_CONFIG=~/.sibis-general-config.yml
-fi 
 
+#
+# Functions
+#
 catch_output_email()
 {
     local mailto=${SIBIS_ADMIN_EMAIL}
@@ -36,6 +36,29 @@ get_sibis_variable()
     python $SIBIS_PYTHON_PATH/sibispy/session.py get_${1}
 }
 
+#
+# Check that this is run in the right container
+#
+
+
+VALID_CONTAINER_LOG=$(dirname $0)/valid_container_version.log
+if [ ! -e ${VALID_CONTAINER_LOG} ]; then 
+    echo "crontools.sh:Error: ${VALID_CONTAINER_LOG} is not defined!"
+    exit 1
+fi
+
+VALID_CONTAINER=`cat ${VALID_CONTAINER_LOG}`
+if [ $VALID_CONTAINER != "${CONTAINER_VERSION}" ]; then  
+    echo "crontools.sh:Error: Trying to run ${SCRIPT_LABEL} from container ${CONTAINER_VERSION} but only allowed from container ${VALID_CONTAINER}!"
+    exit 1
+fi 
+    
+#
+# Set Variables
+#
+if [ "${SIBIS_CONFIG}" == "" ]; then
+  export SIBIS_CONFIG=~/.sibis-general-config.yml
+fi 
 
 export SIBIS_ADMIN_EMAIL=`get_sibis_variable email`
 export SIBIS_PROJECT_NAME=`get_sibis_variable project_name`
