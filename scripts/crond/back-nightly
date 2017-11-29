@@ -11,6 +11,7 @@ PIPELINE_UPDATE_FLAG=1
 
 # Set the SIBIS environment variable to the data integration repo
 export SIBIS=`realpath $(dirname $0)/../../`
+export SCRIPT_LABEL="back-nightly"
 
 # When generating a release do not update pipeline
 # exit 0
@@ -25,13 +26,11 @@ export SIBIS=`realpath $(dirname $0)/../../`
 
 LOG_DIR=${SIBIS_LOG_DIR}/back-nightly
 
-SCRIPT_LABEL="back-nightly"
-
 # Over the weekend run full version
 Day=$(date +%a)
 if [ "$Day" == "Fri" ]; then 
     update_args=""
-    echo "Info: update_visit_data checks all forms"
+    echo "${SCRIPT_LABEL}:Info: update_visit_data checks all forms"
 else 
     update_args+=" --missing-only"
 fi 
@@ -39,13 +38,13 @@ fi
 # DEBUGGING right now 
 # update_args+=" --missing-only"
 
-
-num_scripts=`ps -ef | grep scripts/import/laptops/update_visit_data | grep -v grep | wc -l`
-
-if [ $num_scripts == 0 ]; then 
-   catch_output_email "${SCRIPT_LABEL}:Import Laptop: Data Import (update_visit_data)" ${SIBIS}/scripts/import/laptops/update_visit_data -p -t ${LOG_DIR} --max-days-after-visit 120 ${update_args}
+run_scripts=`ps -ef | grep [s]cripts/import/laptops/update_visit_data | grep -v vi | grep -v emacs`
+if [ `echo $?` == 0 ]; then 
+   num_scripts=`printf "$run_scripts\n" | wc -l`
+   echo "${SCRIPT_LABEL}:Info: skipped update_visit_data as %num_scripts instance(s) of it are already running:"
+   printf "$run_scripts"
 else 
-   echo "Info: skipped update_visit_data in back-nightly as instance(s) of it are already running"
+   catch_output_email "${SCRIPT_LABEL}:Import Laptop: Data Import (update_visit_data)" ${SIBIS}/scripts/import/laptops/update_visit_data -p -t ${LOG_DIR} --max-days-after-visit 120 ${update_args}
 fi 
 
 catch_output_email "${SCRIPT_LABEL}:REDCap: Update Form Status (update_bulk_forms)" ${SIBIS}/scripts/redcap/update_bulk_forms -p -t ${LOG_DIR}
@@ -78,13 +77,17 @@ fi
 #
 #
 # if on instance is running then it is at least has a count of 2 ! Not sure why
-num_scripts=`ps -ef | grep crond/back-nightly | grep -v grep | grep -v " vi " | grep -v " emacs " | wc -l`
-if [ $num_scripts -gt 2 ]; then 
-   echo "${SCRIPT_LABEL}:Info: Not running all of script as instance(s) of it are already running"
-   exit 0
+run_scripts=`ps -ef | grep [c]rond/back-nightly | grep /bin/bash`
+if [ `echo $?` == 0 ]; then
+    num_scripts=`printf "$run_scripts\n" | wc -l`
+    if [ $num_scripts -gt 1 ]; then 
+	echo "${SCRIPT_LABEL}:Info: Not running all of back-nightly as $num_scripts instances of it are already running:"
+	printf "$run_scripts"
+	exit 0
+    fi 
+else 
+   echo "${SCRIPT_LABEL}:Warning: No back-nightly running ! Something is wrong with querry"
 fi 
-
-
 
  
 ######################################
@@ -122,3 +125,6 @@ fi
 
 # Remove pyxnat cache directory to conserve space
 catch_output_email "${SCRIPT_LABEL}:Drop pyXNAT Cache Directory" rm -rf /tmp/RestAPI@localhost_8080.xnat /tmp/cache
+
+echo "${SCRIPT_LABEL}:Info: Completed back nightly" 
+
