@@ -38,19 +38,21 @@ get_sibis_variable()
 
 #
 # Check that this is run in the right container
-#
+# avoided by sourcing with option force
+# 
 
+if [ "$1" != "force" ]; then 
+    VALID_CONTAINER_LOG=$(dirname $0)/valid_container_version.log
+    if [ ! -e ${VALID_CONTAINER_LOG} ]; then 
+	echo "crontools.sh:Error: ${VALID_CONTAINER_LOG} is not defined!"
+	exit 1 
+    fi
 
-VALID_CONTAINER_LOG=$(dirname $0)/valid_container_version.log
-if [ ! -e ${VALID_CONTAINER_LOG} ]; then 
-    echo "crontools.sh:Error: ${VALID_CONTAINER_LOG} is not defined!"
-    exit 1
-fi
-
-VALID_CONTAINER=`cat ${VALID_CONTAINER_LOG}`
-if [ "$VALID_CONTAINER" != "${DOCKER_CONTAINER_NAME}" ]; then  
-    echo "crontools.sh:Error: Trying to run '${SCRIPT_LABEL}' from container '${DOCKER_CONTAINER_NAME}' but only allowed from container '${VALID_CONTAINER}' !"
-    exit 1
+    VALID_CONTAINER=`cat ${VALID_CONTAINER_LOG}`
+    if [ "$VALID_CONTAINER" != "${DOCKER_CONTAINER_NAME}" ]; then  
+	echo "crontools.sh:Error: Trying to run '${SCRIPT_LABEL}' from container '${DOCKER_CONTAINER_NAME}' but only allowed from container '${VALID_CONTAINER}' !"
+	exit 1
+    fi 
 fi 
     
 #
@@ -62,7 +64,6 @@ fi
 
 export SIBIS_ADMIN_EMAIL=`get_sibis_variable email`
 export SIBIS_PROJECT_NAME=`get_sibis_variable project_name`
-export SIBIS_LAPTOP_DIR=`get_sibis_variable laptop_dir`
 export SIBIS_LOG_DIR=`get_sibis_variable log_dir`
 export SIBIS_CASES_DIR=`get_sibis_variable cases_dir`
 export SIBIS_SUMMARIES_DIR=`get_sibis_variable summaries_dir`

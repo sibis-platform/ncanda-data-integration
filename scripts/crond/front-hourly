@@ -47,7 +47,7 @@ fi
 
 # Import data from the sites' data capture laptops into REDCap and reconcile imported with longitudinal data
 if [ ${IMPORT_FLAG} == 1 ]; then
-  catch_output_email "${SCRIPT_LABEL}:Import Laptop: Data Stage 1 (harvester)" ${SIBIS}/scripts/import/laptops/harvester ${qa_args} ${SIBIS_LAPTOP_DIR}/ncanda ${SIBIS_LAPTOP_DIR}/imported
+  catch_output_email "${SCRIPT_LABEL}:Import Laptop: Data Stage 1 (harvester)" ${SIBIS}/scripts/import/laptops/harvester ${qa_args}
 else
    if [ ${hour} -eq 0 ]; then
       echo "${SCRIPT_LABEL}: Warning: Import from laptops  disabled !"
