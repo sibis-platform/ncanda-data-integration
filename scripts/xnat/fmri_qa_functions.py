@@ -102,7 +102,7 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
 
     # Convert QA results from html to pdf
     summary_file_path = '%s/QA-Summary.pdf' % temp_dir
-    if sutils.htmldoc('htmldoc --quiet --webpage --no-title --no-toc --compression=9 --outfile %s %s/index.html' % (summary_file_path,html_dir)) and os.path.exists( summary_file_path ):
+    if sutils.htmldoc('--quiet --webpage --no-title --no-toc --compression=9 --outfile %s %s/index.html' % (summary_file_path,html_dir)) and os.path.exists( summary_file_path ):
         # Upload QA files to XNAT as file resources
         try:
             qa_file = interface.select.project( project ).subject( subject ).experiment( session ).resource('QA').file( 'QA-Summary.pdf' )

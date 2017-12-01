@@ -80,7 +80,7 @@ fi
 run_scripts=`ps -ef | grep [c]rond/back-nightly | grep /bin/bash`
 if [ `echo $?` == 0 ]; then
     num_scripts=`printf "$run_scripts\n" | wc -l`
-    if [ $num_scripts -gt 1 ]; then 
+    if [ $num_scripts -gt 2 ]; then 
 	echo "${SCRIPT_LABEL}:Info: Not running all of back-nightly as $num_scripts instances of it are already running:"
 	printf "$run_scripts"
 	exit 0
