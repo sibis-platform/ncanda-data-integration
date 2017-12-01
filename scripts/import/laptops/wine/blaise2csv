@@ -17,8 +17,8 @@ import hashlib
 import subprocess
 
 import ssaga
-from sibispy import sibislogger as slog
-from sibispy import utils as sutils
+import sibis_wine
+
 
 #
 # Score SSAGA using SAS scripts
@@ -35,9 +35,9 @@ def score_ssaga( filename_asc ):
     shutil.copy( filename_asc, '/tmp/ssaga/NSSAGA_v3_ASC' )
 
     for sas_script in ['crtpreNSSAGA_v3.sas', 'crtNSSAGA.sas', 'crtalldx.sas', 'toCSV.sas']:
-        if not sutils.sas(sas_script) : 
+        if not sibis_wine.sas(sas_script) : 
             error = 'ERROR: SAS script cannot be run for this file'
-            slog.info(hashlib.sha1("blaise2csv {} {}".format(sas_script, filename_asc)).hexdigest()[0:6],error,
+            sibis_wine.log(hashlib.sha1("blaise2csv {} {}".format(sas_script, filename_asc)).hexdigest()[0:6],error,
                         sas_script=str(sas_script),
                         filename_asc=str(filename_asc))
             shutil.rmtree( '/tmp/ssaga' )
@@ -129,16 +129,12 @@ def process_blaise( infile ):
     # Copy all necessary Blaise files into temporary directory
     tempdir = tempfile.mkdtemp()
 
-    for suffix in ['bdb', 'bdm', 'bfi', 'bjk', 'bla', 'bmi', 'bpk', 'bxi']:
-        shutil.copy( re.sub( 'bdb$', suffix, infile ), tempdir )
-    for suffix in ['man', 'msu', 'msx']:
-        shutil.copy( os.path.join( os.path.expanduser("~"), 'src', 'manipula', 'crtNSSAGA_v3.%s' % suffix ), tempdir )
+    if not sibis_wine.manipula(tempdir,infile) : 
+        sys.exit( 'ERROR: could not run wine/Manipula' )
 
     # Run Manipula
     olddir = os.getcwd()
     os.chdir( tempdir )
-    if not sutils.manipula('crtNSSAGA_v3.man') : 
-        sys.exit( 'ERROR: could not run wine/Manipula' )
 
     # Finally, hand ASC file to scoring and extractor function
     process_ascfile( 'NSSAGA_v3_asc' )
@@ -165,8 +161,8 @@ parser.add_argument("-t","--time-log-dir",
                     default=None)
 args = parser.parse_args()
 
-slog.init_log(args.verbose, args.post_to_github,'NCANDA Import Laptop', 'blaise2csv', args.time_log_dir)
-slog.startTimer1()
+# slog.init_log(args.verbose, args.post_to_github,'NCANDA Import Laptop', 'blaise2csv', args.time_log_dir)
+# slog.startTimer1()
 
 # Determine directory name - create if it doesn't exist
 output_directory = os.path.join( args.outdir, args.ssaga_type )
@@ -196,4 +192,4 @@ if not args.no_xvfb:
     Xvfb.terminate()
 devnull.close()
 
-slog.takeTimer1("script_time","")
+# slog.takeTimer1("script_time","")

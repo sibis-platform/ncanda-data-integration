@@ -1,0 +1,15 @@
+SETTINGS
+  DESCRIPTION = 'BLAISE to ASCII'
+  INPUTPATH = '.\'
+  OUTPUTPATH= '.\'
+
+USES
+  InputMeta '.\NSSAGA_V3'
+
+
+INPUTFILE InputFile1: InputMeta ('NSSAGA_v3', BLAISE)
+
+OUTPUTFILE OutputFile1: InputMeta ('NSSAGA_v3_asc', ASCII)
+
+MANIPULATE
+  OutputFile1.WRITE
