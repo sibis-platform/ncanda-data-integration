@@ -24,6 +24,7 @@ def call_shell_program(cmd):
 
 def sas(sas_script) :
     sas_path = os.path.join( os.path.expanduser("~"), '.wine', 'drive_c', 'Program Files', 'SAS', 'SAS 9.1', 'sas.exe' )
+    # points to ncanda-data-integration/ssaga/sas
     sas_script_path = 'S:\\%s' % sas_script
     return call_shell_program(['wine',sas_path,'-SYSIN', sas_script_path,'-NOSPLASH','-NOLOGO','-NOTERMINAL'])
 
