@@ -198,7 +198,7 @@ if args.verbose :
     print "Run svn update ..." 
 
 if args.date : 
-   cmd ='cd {}; svn diff --summarize -r {} | grep -v "D     "  | tr " " "," | cut -d, -f8 | grep "\." | tr "\n" ","'.format( svndir, args.date )
+   cmd ='cd {}; svn diff --no-auth-cache --username {} --password \'{}\' --summarize -r {} | grep -v "D     "  | tr " " "," | cut -d, -f8 | grep "\." | tr "\n" ","'.format( svndir, session.api['svn_laptop']['user'], session.api['svn_laptop']['password'], args.date )
    process = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
    out_std,out_err = process.communicate()
    if out_err :
