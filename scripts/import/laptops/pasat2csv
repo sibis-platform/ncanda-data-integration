@@ -5,26 +5,40 @@
 ##  for the copyright and license terms
 ##
 
+import tempfile
+import pandas
+import sibispy
+from sibispy import sibislogger as slog
+from sibispy import utils as sutils
+import hashlib
+import sys
+
 # Setup command line parser
 import argparse
 parser = argparse.ArgumentParser( description="Convert PASAT results database to CSV files (one output file per subject; only new files will be created)" )
 parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
 parser.add_argument( "--overwrite", help="Overwrite existing CSV files.", action="store_true")
 parser.add_argument( "mdbfile", help="Input .mdb database file.")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
 parser.add_argument( "outdir", help="Output directory. All CSV files are created in this directory")
 args = parser.parse_args()
 
+slog.init_log(args.verbose, args.post_to_github,'NCANDA Import', 'import-laptops-pasat2csv', None)
+
 # Make a temporary directory
-import tempfile
 temp_dir_path = tempfile.mkdtemp()
 
 # Create a temporary CSV file by dumping MDB contents using "mdb-export" (via MDB Tools)
-import subprocess
 temp_csv = "%s/pasat.csv" % (temp_dir_path)
-subprocess.call( "mdb-export %s MainStressor_bb > %s" % (args.mdbfile, temp_csv), shell=True )
+(ecode,cout,cerr) = sutils.mdb_export("%s MainStressor_bb > %s" % (args.mdbfile, temp_csv))
+if ecode :
+   slog.info(hashlib.sha1(str(cerr)).hexdigest()[0:6], "mdb-export failed!",
+             error_msg=str(cerr),
+             cmd = " ".join(sys.argv))
+   sys.exit(1)
+
 
 # Read the temporary CSV file
-import pandas
 pasat_csv = pandas.read_csv( temp_csv ).sort( columns=['ID'], ascending=False )
 
 # Drop the columns we know we don't want
