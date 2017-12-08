@@ -481,6 +481,9 @@ parser.add_argument("--study-id",
                     help="Limit processing to subject id (e.g., A-00000-F-1)",
                     action="store",
                     default=None)
+parser.add_argument("--event",help = "When called in combination with --study-id, only process a specific event (e.g. baseline_visit_arm_1 or 1y_visit_arm_1)",
+                    action="store",
+                    default=None)
 parser.add_argument("--pipeline-root-dir",
                     help="Root directory of the image analysis pipeline. Newly detected imaging series will be converted to NIFTI files and put here for processing. ",
                     action="store")
@@ -661,8 +664,11 @@ if args.study_id:
     visit_log_redcap = visit_log_redcap.xs(args.study_id)
     visit_log_redcap.reset_index(inplace=True)
     visit_log_redcap['study_id'] = args.study_id
+    if args.event : 
+        visit_log_redcap =  visit_log_redcap[ visit_log_redcap['redcap_event_name'] == args.event ] 
     visit_log_redcap.set_index(['study_id', 'redcap_event_name'],
                                inplace=True)
+
 
 # Select only events that have the "MRI Session Report" form
 mri_events_list = form_event_mapping[form_event_mapping['form_name'] == 'mr_session_report' ]['unique_event_name'].tolist()
