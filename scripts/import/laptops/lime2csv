@@ -16,17 +16,9 @@ import pandas
 from sibispy import sibislogger as slog
 import recover_yn_variables as recyn
 
-# Setup command line parser
-parser = argparse.ArgumentParser( description="Convert LimeSurvey CSV to CSV for REDCap import (only new files will be created, existing ones will be skipped)" )
-parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
-parser.add_argument( "--overwrite", help="Overwrite existing CSV files.", action="store_true")
-parser.add_argument( "infile", help="Input .csv LimeSurvey file.")
-parser.add_argument( "outdir", help="Output directory. All CSV files are created in this directory")
-parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
-args = parser.parse_args()
-
-# Setup logging
-slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: lime2csv Message', 'lime2csv')
+#
+# Functions andd variables
+#
 
 # Label translation function - LimeSurvey to SRI/REDCap style
 def label_to_sri( prefix, ls_label ):
@@ -126,7 +118,7 @@ def make_record_id( row, this_survey ):
     return '%s-%s' % ( row['%s_subject_id' % this_survey], row['date'] )
         
 # Handle a survey - can be called several times per input file if multiple instruments have been mangled into one survey
-def handle_survey( survey_id, data ):
+def handle_survey( survey_id, data, verbose ):
     (this_survey,this_survey_long,label_exceptions) = surveys[survey_id]
 
     # If this is LimeSurvey SSAGA, figure out if it is Youth or Parent survey
@@ -233,6 +225,7 @@ def handle_survey( survey_id, data ):
         os.makedirs( survey_dir )
 
     # Fix up and export every row (i.e., every subject)
+    wroteFile=False
     for row_index, row in data.iterrows():
         # Determine file name, only proceed if file does not exist already
         filename = os.path.join( survey_dir, '%s.csv' % row['record_id'] )
@@ -240,6 +233,28 @@ def handle_survey( survey_id, data ):
             pandas.DataFrame( row ).transpose().to_csv( filename, index=False, quoting=csv.QUOTE_ALL )
             # Print filename so we can get a list of updated files by capturing stdout
             print filename
+            wroteFile = True
+            
+    if verbose and not wroteFile: 
+        print "No files were transformed into a csv one"  
+
+
+#
+# Main 
+# 
+
+# Setup command line parser
+parser = argparse.ArgumentParser( description="Convert LimeSurvey CSV to CSV for REDCap import (only new files will be created, existing ones will be skipped)" )
+parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument( "--overwrite", help="Overwrite existing CSV files.", action="store_true")
+parser.add_argument( "infile", help="Input .csv LimeSurvey file.")
+parser.add_argument( "outdir", help="Output directory. All CSV files are created in this directory")
+parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+args = parser.parse_args()
+
+# Setup logging
+slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: lime2csv Message', 'lime2csv')
+
 
 # Figure out which survey type this is - bail if unknown
 match = re.match( '.*survey_([0-9]{5})_subjid_([^_]*)_([0-9]{8})_([0-9]{10})\.csv', args.infile )
@@ -268,4 +283,4 @@ except Exception, err_msg:
    sys.exit(1)
   
 
-handle_survey( survey_id, data )
+handle_survey( survey_id, data, args.verbose)
