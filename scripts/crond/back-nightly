@@ -123,8 +123,17 @@ else
     echo "back-nightly: Warning: Pipeline is not updated !"   
 fi 
 
+# should be moved back to front-hourly when new server is installed 
+update_args=""
+if [ "$Day" == "Fri" ]; then 
+    update_arg+="--update-all"
+fi
+catch_output_email "${SCRIPT_LABEL}:REDCap: Update Scores (update_summary_scores)" $SIBIS_PYTHON_PATH/sibispy/cmds/redcap_update_summary_scores.py ${update_args} -p 
+
+
+
 # Remove pyxnat cache directory to conserve space
 catch_output_email "${SCRIPT_LABEL}:Drop pyXNAT Cache Directory" rm -rf /tmp/RestAPI@localhost_8080.xnat /tmp/cache
 
-echo "${SCRIPT_LABEL}:Info: Completed back nightly" 
+# echo "${SCRIPT_LABEL}:Info: Completed back nightly" 
 
