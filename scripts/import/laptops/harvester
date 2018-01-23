@@ -65,8 +65,8 @@ if not session.configure() :
 if not session.connect_server('svn_laptop', True) : 
     sys.exit()
 
-svndir = os.path.join(session.get_laptop_dir(),'ncanda')
-outdir = os.path.join(session.get_laptop_dir(),'imported')
+svndir = os.path.join(session.get_laptop_svn_dir())
+outdir = os.path.join(session.get_laptop_imported_dir())
 
 # Figure out where this script is, so we can get path to other scripts.
 
