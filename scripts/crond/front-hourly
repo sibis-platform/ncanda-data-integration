@@ -6,10 +6,16 @@
 ##
 
 # if on instance is running then it is at least has a count of 2 !
-num_scripts=`ps -ef | grep crond/front-hourly | grep -v grep | wc -l`
-if [ ${num_scripts} -gt 2 ]; then 
-   echo "Info: Not running front-hourly as instance(s) of it are already running"
-   exit 0
+num_scripts=`ps -ef | grep [c]rond/front-hourly | grep /bin/bash`
+if [ `echo $?` == 0 ]; then
+    num_scripts=`printf "$run_scripts\n" | wc -l`
+    if [ $num_scripts -gt 2 ]; then 
+	echo "Info: Not running front-hourly as instance(s) of it are already running"
+	printf $run_scripts
+	exit 0
+    fi 
+else 
+   echo "${SCRIPT_LABEL}:Warning: No front-hourly running ! Something is wrong with querry"
 fi 
 
 # Set the SIBIS environment variable to the data integration repo
@@ -63,5 +69,5 @@ update_args=""
 if [ ${hour} -eq 0 ]; then
     update_args+="--update-all"
 fi
-# catch_output_email "${SCRIPT_LABEL}:REDCap: Update Scores (update_summary_scores)" $SIBIS_PYTHON_PATH/sibispy/cmds/redcap_update_summary_scores.py ${update_args} ${qa_args}
+catch_output_email "${SCRIPT_LABEL}:REDCap: Update Scores (update_summary_scores)" $SIBIS_PYTHON_PATH/sibispy/cmds/redcap_update_summary_scores.py ${update_args} ${qa_args}
 
