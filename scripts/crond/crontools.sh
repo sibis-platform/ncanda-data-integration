@@ -42,7 +42,8 @@ get_sibis_variable()
 # 
 
 if [ "$1" != "force" ]; then 
-    VALID_CONTAINER_LOG=$(dirname $0)/valid_container_version.log
+    VALID_CONTAINER_LOG=$(dirname $0)/valid_container_${SCRIPT_LABEL}.log
+
     if [ ! -e ${VALID_CONTAINER_LOG} ]; then 
 	echo "crontools.sh:Error: ${VALID_CONTAINER_LOG} is not defined!"
 	exit 1 
