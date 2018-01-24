@@ -94,8 +94,12 @@ if os.path.exists(output_filename):
     if args.overwrite:
         pass
     else:
-        errMsg = "Warning: output file {} already exists. Scores are not updated!".format(output_filename)
-        slog.info(hashlib.sha1('stroop2csv {}'.format(errMsg)).hexdigest()[0:6], errMsg)
+        if args.verbose : 
+            errMsg = "Warning: output file {} already exists. Scores are not updated!".format(output_filename)
+            slog.info(hashlib.sha1('stroop2csv {}'.format(errMsg)).hexdigest()[0:6], errMsg)
+        else: 
+            errMsg = 0
+
         sys.exit(errMsg)
 
 # convert response time to integer
