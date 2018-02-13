@@ -58,6 +58,9 @@ def process_form( form, complete_field_names ):
     if not args.update_all:
         records = records[ records[form_complete_field].map( str ) != '2' ]
 
+    # print "Hey", records.columns.values
+    # sys.exit()
+
     previous = records[ [form_complete_field] ]
     records[form_complete_field] = records.apply( compute_bulk_status, axis=1, args = (complete_field_names, form_complete_field) ).map( lambda x: str( x ) if not str( x ) == 'nan' else '' )
 
@@ -107,6 +110,11 @@ except Exception, error:
     msg=str(error))
     sys.exit()
 
+if not rc_entry : 
+    if args.verbose :
+        print "ERROR: Failed to connect to server!"
+    sys.exit(1)
+    
 form_event_mapping = rc_entry.export_fem(format='df')
 
 # If list of forms given, only update those
