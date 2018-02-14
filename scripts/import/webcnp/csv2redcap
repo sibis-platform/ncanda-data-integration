@@ -56,6 +56,11 @@ except Exception as e:
                   msg=str(e))
     sys.exit(1)
 
+if not redcap: 
+    if args.verbose:
+        print "ERROR:Could not connect to redcap server!"
+    sys.exit(1)
+
 
 # Read input file
 data = pandas.io.parsers.read_csv( args.infile )

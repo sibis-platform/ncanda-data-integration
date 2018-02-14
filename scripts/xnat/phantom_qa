@@ -14,6 +14,7 @@ import argparse
 import fmri_qa_functions as qa
 import t1_qa_functions as t1qa
 import sibispy
+import hashlib 
 from sibispy import sibislogger as slog
 
 # Define command line options for this script
@@ -164,6 +165,12 @@ if args.exclude_fbirn:
 # Finally, update config stored on the server to have current date/time as the time that this script was last run
 # (but don't update config if we excluded either ADNI of fBIRN phantom scans this time around)
 if not args.exclude_fbirn and not args.exclude_adni:
-    content = interface._exec( uri='%s?inbody=true' % config_uri, method='PUT', body=now_str, headers={'content-type':'text/plain'} )
+    try : 
+        content = interface._exec( uri='%s?inbody=true' % config_uri, method='PUT', body=now_str, headers={'content-type':'text/plain'} )
+    except Exception as err_msg: 
+        slog.info(hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not write to xnat',
+                  err_msg = str(err_msg))
+        sys.exit(1) 
+
 
 slog.takeTimer1("script_time","{'records': " + str(counter_records) + ",'uploads': " + str(counter_uploads) + "}")
