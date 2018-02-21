@@ -40,8 +40,14 @@ except Exception as err_msg:
     slog.info(subject_label, error, cmd = " ".join(sys.argv), err_msg = str(err_msg))
     sys.exit(1)
 
-# Convert days to integer to avoid comparing floats
-dd['Days'] = dd['Days'].map( int )
+#
+# Check correctness of file format 
+#
+dd = dd.dropna(axis=0, how='all')
+if len( dd ) == 0:
+    error = 'Error: file %s is empty or of the wrong format' % args.ddfile
+    slog.info(subject_label, error, cmd = " ".join(sys.argv))
+    sys.exit(1)
 
 # Check if this file has the right number of rows.
 dd = dd[ dd['FuturePresent'] == 'future' ]
@@ -63,8 +69,16 @@ if not amount in [100,1000]:
     sys.exit(1)
 dd = dd[ dd['Amount'] == amount ]
 
+#
+# Prepare for import into redcap  
+# 
+
 # Now drop the columns we know we don't want anymore
 dd = dd.drop(['FuturePresent', 'Reward', 'HypReal', 'Exp1', 'Exp2'], axis=1)
+
+# Convert days to integer to avoid comparing floats
+dd['Days'] = dd['Days'].map( int )
+
 
 # Make proper subject ID
 entered_id = dd['SubjectID'][0].upper()
