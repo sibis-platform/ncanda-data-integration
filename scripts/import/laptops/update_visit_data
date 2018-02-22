@@ -563,6 +563,7 @@ for form_prefix, form_name in forms.iteritems():
                                   form_name = form_name,
                                   event_id = key[1],
                                   visit_date = visit_date,
+                                  serach_range = "[" + str(date_on_or_after) + "," + str(date_before)+  ")",
                                   records = str(records_this_visit_samedays.index.tolist()))
                 else:
                     # Unique by proximity to visit_date - upload record that is closest
