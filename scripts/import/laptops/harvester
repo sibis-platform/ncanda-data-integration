@@ -93,27 +93,33 @@ def run_converter(site, command,verbose):
 
         for fi in added_files.strip().split('\n'):
             if re.match('.*\.csv$', fi):
-                try:
-                    if verbose:
-                        print "Importing", fi, "into REDCap"
-
-                    command_array = [os.path.join(bindir, 'csv2redcap')]
-                    if args.force_upload:
-                        command_array += ['--force-update']
-                    if args.post_to_github:
-                        command_array += ["-p"]
-                    if args.time_log_dir:
-                        command_array += ["-t", args.time_log_dir]
-
-                    command_array += ['--data-access-group', site, fi]
-                        
-                    subprocess.call(command_array)
-
-                except:
-                    error = "Failed importing files into REDCap"
-                    slog.info(hashlib.sha1('harvester {}'.format(fi)).hexdigest()[0:6], error,
+                if os.path.basename(fi).split('-')[0] == 'NOID' : 
+                    slog.info("harvester-" + hashlib.sha1(str(fi)).hexdigest()[0:6], 'converter_cmd created file that does not contain subject ID and thus cannot be uploaded to redcap',
                               file=str(fi),
-                              command=str(command_array))
+                              converter_cmd=" ".join(command), 
+                              harvester_cmd=" ".join(sys.argv)) 
+                else : 
+                    try:
+                        if verbose:
+                            print "Importing", fi, "into REDCap"
+
+                        command_array = [os.path.join(bindir, 'csv2redcap')]
+                        if args.force_upload:
+                            command_array += ['--force-update']
+                        if args.post_to_github:
+                            command_array += ["-p"]
+                        if args.time_log_dir:
+                            command_array += ["-t", args.time_log_dir]
+
+                        command_array += ['--data-access-group', site, fi]
+                        
+                        subprocess.call(command_array)
+
+                    except:
+                        error = "Failed importing files into REDCap"
+                        slog.info(hashlib.sha1('harvester {}'.format(fi)).hexdigest()[0:6], error,
+                                  file=str(fi),
+                                  command=str(command_array))
             else:
                 slog.info("harvester-" + hashlib.sha1(str(fi)).hexdigest()[0:6], 'NOT A CSV FILE',
                           file=str(fi),
