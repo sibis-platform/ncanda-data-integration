@@ -465,7 +465,7 @@ def export_and_queue(red2cas, redcap_visit_id, xnat, session_data, redcap_key, p
     try:
         (arm_code,visit_code,pipeline_workdir_rel) = red2cas.translate_subject_and_event( subject_code, event_label )
     except:
-        slog.info(redcap_visit_id, "ERROR: Event " + event_label + "is not supported yet.")
+        slog.info(redcap_visit_id, "ERROR: Event " + event_label + " is not supported yet.")
         return None
 
     if not arm_code:

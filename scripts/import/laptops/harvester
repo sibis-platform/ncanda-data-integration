@@ -114,6 +114,8 @@ def run_converter(site, command,verbose):
                         command_array += ['--data-access-group', site, fi]
                         
                         subprocess.call(command_array)
+                        if verbose: 
+                            print "Running: " + ' '.join(command_array)
 
                     except:
                         error = "Failed importing files into REDCap"
