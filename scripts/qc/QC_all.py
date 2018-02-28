@@ -1,6 +1,15 @@
 
 # coding: utf-8
 
+# To run this script, you will need the following:
+# 
+# 1. An Anaconda / Miniconda distribution allowing you to create a virtual environment.
+# 2. Install the virtual environment specified in `environment.yml` (you can create it with `conda env create -f environment.yml`, or -- if you have access to the SRI cluster -- you can use the existing `ncanda-1.0.0` environment there.)
+# 3. `source activate ncanda-1.0.0`
+# 
+# Finally, run `jupyter notebook --ip=127.0.0.1 QC_all.ipynb` (which will open the notebook) and then run all the notebook's cells, or run `python QC_all.py` (which will only run the code and print to `stdout`).
+# 
+
 # In[ ]:
 
 import pandas as pd
@@ -67,7 +76,7 @@ data_all = get_data_for_event(api, qc_event)
 # Save the intermediate product if needed
 save_to_csv = False
 if save_to_csv:
-    [df.to_csv("data_20180215/" + form + '.csv') for form, df in data_all.items()]
+    [df.to_csv("data_20180226/" + form + '.csv') for form, df in data_all.items()]
 
 
 # In[ ]:
@@ -80,6 +89,22 @@ def merge_df_from_forms(form_names, data_all):
     All data frames in the dictionary are assumed to be sharing their index."""
     selected_forms = itemgetter(*form_names)(data_all)
     return reduce(lambda x, y: pd.merge(x, y, left_index=True, right_index=True), selected_forms)
+
+
+# # Metadata / notes / dates
+# A data frame to later left-join in order to check that there's no documented reason for the flagged concern.
+
+# In[ ]:
+
+all_meta = {form: data_all[form].filter(regex=r'_date$|_notes?$') for form in forms_for_qc}
+
+
+# In[ ]:
+
+meta_df = reduce(lambda x, y: pd.merge(x, y, left_index=True, right_index=True), 
+                 all_meta.values())
+notes_df = meta_df.filter(regex=r'_notes?$')
+dates_df = meta_df.filter(regex=r'_date$')
 
 
 # # Presence check: visit
@@ -304,7 +329,8 @@ def checker(flags_dict, data_dict):
         if form_name not in flags_dict or form_name not in data_dict:
             return None
         else:
-            return data_dict[form_name].loc[flags_dict[form_name]]
+            return pd.merge(notes_df, data_dict[form_name].loc[flags_dict[form_name]],
+                            how='right', left_index=True, right_index=True)
     return check_form
 check_form = checker(all_flags, data_all)
 
