@@ -66,6 +66,7 @@ all_forms = {
 # corresponding Standard visit)
 recovery_baseline_event = 'recovery_baseline_arm_2'
 
+# Only right now relavent for sleep arm 
 forms_date_increments = {
     # PLUS, Evening and Presleep forms same date as entered, Morning form next
     # day
@@ -247,7 +248,7 @@ def MissingFormChecks(vdate, date_on_or_after , date_before ,subject_id,event_id
             return 
 
             
-    slog.info(session_id, "WARNING: Previously assigned form '" + form_name + "' seems to have disappered. Not sure what happened - most likely the visit date is wrongly defined!",
+    slog.info(session_id, "WARNING: Previously assigned form '" + form_name + "' seems to have disappered. Not sure what happened - most likely the visit date has changed so that entrie does not fall within window anymore!",
                   entry_subject_id=subject_id,
                   form_name=form_name,
                   event_id=event_id,
@@ -371,10 +372,18 @@ summary_fields_yn = [field['field_name'] for field in redcap_project.metadata if
 form_event_mapping = redcap_project.export_fem(format='df')
 
 # Get record IDs, visit labels, visit dates, and completion status for all laptop forms
-entry_data_fields = [('%s_complete' % form) for form in form_names] + [('%s_missing' % form) for form in form_prefixes] + [('%s_record_id' % form) for form in form_prefixes]
-entry_data_fields += ['study_id', 'dob', 'redcap_event_name', 'visit_date', 'exclude', 'sleep_date']
-entry_data_fields += ['parentreport_manual'] 
+entry_data_fields = [('%s_complete' % form) for form in form_names] + [('%s_missing' % form) for form in form_prefixes] + [('%s_record_id' % form) for form in form_prefixes] + [('%s_date' % form) for form in form_prefixes]
+entry_data_fields += ['study_id', 'dob', 'redcap_event_name', 'visit_date', 'exclude'] 
 
+for form_id in forms_date_increments :
+    if all_forms[form_id] in form_names :
+        entry_data_fields += ['sleep_date']
+        break 
+
+if 'parent_report' in form_names : 
+  entry_data_fields + ['parentreport_manual'] 
+
+# Not needed - automatically filled in later 
 
 # Get list of existing records
 if args.study_id:
@@ -526,11 +535,60 @@ for form_prefix, form_name in forms.iteritems():
         records_this_subject = imported_records[ imported_records[subject_label] == key[0] ].drop( [subject_label], axis=1 )
 
 
-         # Arms 1/3 - Get the visit date for this record
+        # Arm 3 - For sleep data, get the visit date for this record
+        if key[1].endswith('arm_3') :
+            sleep_date = str(row['sleep_date'])
+            subject_age = get_subject_age(key[0], sleep_date)
+            if (sleep_date != 'nan') and (subject_age != ''):
+                total_records += 1
+                # Select all records within given maximum number of days after visit date
+                form_target_date = (datetime.datetime.strptime(sleep_date, date_format_ymd) + datetime.timedelta(forms_date_increments[form_prefix])).strftime(date_format_ymd)
+                records_this_visit = records_this_subject[records_this_subject[date_label] == form_target_date]
+                # Make sure there is only one, unique record
+                if len(records_this_visit) > 1:
+                    # Not unique - bail
+                    error = 'More than one record found for subject on event with same visit date'
+                    slog.info("{}-{}".format(key[0], form_target_date), error,
+                                 subject_id=key[0],
+                                 form_name=form_name,
+                                 event_id=key[1],
+                                 visit_date=form_target_date)
+                    if args.verbose:
+                        print records_this_visit
+                elif len(records_this_visit) == 1:
+                    total_uploaded += add_to_upload(session, form_prefix, form_name, key[0], key[1], records_this_visit.ix[0], subject_age, args.verbose)
+                elif (entry_form_data[complete_label][key] > 0) and (entry_form_data[missing_label][key] != 1):
+                    errorMSG = "WARNING: Previously assigned form '" + form_name + "' seems to have disappered."
+                    if form_target_date != entry_form_data[date_label][key] :
+                        slog.info("{}-{}".format(key[0], form_target_date), errorMSG,
+                                  subject_id=key[0],
+                                  form_name=form_name,
+                                  event_id=key[1],
+                                  info = "'Form target date' does not match anymore the administration date on the form! If the visit date of the sleep study was changed contact site if it is ok to change the date of form in import project!",
+                                  form_target_date=form_target_date,
+                                  form_date=entry_form_data[date_label][key])
+
+                    else :
+                        slog.info("{}-{}".format(key[0], form_target_date), errorMSG,
+                                  subject_id=key[0],
+                                  form_name=form_name,
+                                  event_id=key[1],
+                                  info = "Not sure what happened - it is not a date problem !",
+                                  form_target_date=form_target_date,
+                                  form_date=entry_form_data[date_label][key])
+
+
+                    if args.reset_disappeared:
+                        total_uploaded += add_empty_to_upload(session, form_prefix, form_name, key[0], key[1])
+            continue 
+        
+        # Process everything but sleep arm             
         visit_date = str(row['visit_date'])
         subject_age = get_subject_age( key[0], visit_date )
         if (visit_date != 'nan') and (subject_age != ''):
             total_records += 1
+
+            # Kilian : Change this later for plus so assigned according to webcnp or mri_report depending which one of them was not acquired on visit_date 
 
             # For Recovery Baseline, extend search window back in time to capture and
             # duplicate data from most recent standard visit
@@ -586,42 +644,7 @@ for form_prefix, form_name in forms.iteritems():
                 if args.reset_disappeared:
                     total_uploaded += add_empty_to_upload( session, form_prefix, form_name, key[0], key[1] )
 
-        # Arm 3 - For sleep data, get the visit date for this record
-        if form_prefix in forms_date_increments.keys():
-            sleep_date = str(row['sleep_date'])
-            subject_age = get_subject_age(key[0], sleep_date)
-            if (sleep_date != 'nan') and (subject_age != ''):
-                total_records += 1
-                # Select all records within given maximum number of days after visit date
-                form_target_date = (datetime.datetime.strptime(sleep_date, date_format_ymd) + datetime.timedelta(forms_date_increments[form_prefix])).strftime(date_format_ymd)
-                records_this_visit = records_this_subject[records_this_subject[date_label] == form_target_date]
-                # Make sure there is only one, unique record
-                if len(records_this_visit) > 1:
-                    # Not unique - bail
-                    error = 'More than one record found for subject on event with same visit date'
-                    slog.info("{}-{}".format(key[0], form_target_date), error,
-                                 subject_id=key[0],
-                                 form_name=form_name,
-                                 event_id=key[1],
-                                 visit_date=form_target_date)
-                    if args.verbose:
-                        print records_this_visit
-                elif len(records_this_visit) == 1:
-                    total_uploaded += add_to_upload(session, form_prefix, form_name, key[0], key[1], records_this_visit.ix[0], subject_age, args.verbose)
-                elif (entry_form_data[complete_label][key] > 0) and (entry_form_data[missing_label][key] != 1):
-                    # if you cannot find something on the proper date look up in the visit window of the main arm  
-                    if (visit_date == 'nan') :
-                        slog.info("{}-{}".format(key[0], form_target_date), "WARNING: Previously assigned form '" + form_name + "' seems to have disappered.",
-                                  subject_id=key[0],
-                                  form_name=form_name,
-                                  event_id=key[1],
-                                  info = "Not sure what happened but most likely the visit date is wrongly defined or changed!",
-                                  visit_date=form_target_date)
-                    else : 
-                        MissingFormChecks(form_target_date,date_on_or_after, date_before , key[0],key[1],import_complete_records,form_name,records_this_subject[date_label])
 
-                    if args.reset_disappeared:
-                        total_uploaded += add_empty_to_upload(session, form_prefix, form_name, key[0], key[1])
 
     # Anything to upload?
     if args.verbose:
