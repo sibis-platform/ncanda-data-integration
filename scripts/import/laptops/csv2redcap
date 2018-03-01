@@ -118,10 +118,11 @@ def process_file(fname):
 
     except Exception as err_msg: 
         slog.info( str(args.data_access_group) + "-" + hashlib.sha1('import-laptops-csv2redcap' + str(err_msg)).hexdigest()[0:6], "Upload error to redcap",
-                  error_msg=str(err_msg),
-                  record_list =str(record_list), 
-                  cmd = " ".join(sys.argv),
-                  file_name = fname)
+                   error_msg=str(err_msg),
+                   record_list =str(record_list), 
+                   cmd = " ".join(sys.argv),
+                   file_name = fname,
+                   project=args.project)
         return False
 
         
