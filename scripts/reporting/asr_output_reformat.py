@@ -14,19 +14,15 @@ import numpy as np
 import pandas
 from pandas import DataFrame
 
-
-
-
-print 'Please Specify a file name: ASR, YSR, CBC'
-excel = pandas.ExcelFile('Aseba_Raw_And_Scored_Data_Combined.xlsx')
-data = excel.parse("ASR_18_59")
-
+data = pandas.read_excel('aseba_prep/new_script/asr_scored_partial.xlsx', 
+			 sheet_name=0)  # return first sheet
 
 today=time.strftime("%m%d%Y")
-myfile_name='asr_outcome_reformate_'+today+'.csv'
+myfile_name='aseba_prep/asr_outcome_reformate_'+today+'.csv'
 data = data.rename(columns={
     'asr_middlename': 'subject',
     'asr_lastname': 'visit',
+    'asr_firstname': 'study_id',
     'Personal_Strengths_Total':'asr_strength_raw',
     'Personal_Strengths_TScore':'asr_strength_t',
     'Personal_Strengths_Percentile':'asr_strength_pct',
@@ -164,7 +160,7 @@ namelist=['strength_raw',
 colnames2out=list()
 for i in namelist:
     colnames2out.append('asr_'+str(i))
-colnames_out=['subject','arm','visit','Age','asr_firstname']+colnames2out
+colnames_out = ['subject', 'arm', 'visit'] + colnames2out
 
 # Modify the metadata columns
 data['arm'] = 'standard'
