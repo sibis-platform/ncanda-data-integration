@@ -12,13 +12,12 @@ import subprocess
 import sys
 
 from sibispy import sibislogger as slog
-from sibispy import utils as sutils
 import sibispy 
 
 import hashlib
 updated_files = []
 import pysvn
-
+import datetime 
 # Setup command line parser
 parser = argparse.ArgumentParser(description="Harvest incoming data files from "
                                              "SVN repository, call correct converter "
@@ -43,6 +42,7 @@ parser.add_argument("--file-to-upload",
                     help="Absolute file path for path to CSV file.")
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true",
                     default=False)
+parser.add_argument("--only-converter-post-to-github", help="Do not double post issues to GitHub that are produced by commands called during conversion..", action="store_true", default=False)
 parser.add_argument("-t","--time-log-dir",
                     help="If set then time logs are written to that directory",
                     action="store",
@@ -51,6 +51,11 @@ parser.add_argument("--date",
                     help="If set then uploads all entries during that time period, e.g. {2017-06-29}:{2017-07-03} uploads everything that was in the svn repository from 2017-06-29 to 2017-07-03",
                     action="store",
                     default=None)
+
+parser.add_argument("--last-week",
+                    help="If set then uploads all entries during the last week", 
+                    action="store_true",
+                    default=False)
 
 args = parser.parse_args()
 
@@ -73,7 +78,7 @@ outdir = os.path.join(session.get_laptop_imported_dir())
 bindir = os.path.dirname(os.path.realpath(__file__))
 
 
-def run_converter(site, command,verbose):
+def run_converter(site, subject_label, command,verbose):
     """
     Conversion tool.
 
@@ -83,18 +88,20 @@ def run_converter(site, command,verbose):
     """
     if verbose:
         print "Running", ' '.join(command)
-    try:
+
+    filesProcessed = 0 
+    try : 
         added_files = subprocess.check_output(command)
         if not len(added_files):
             if verbose : 
                 print "No files were transferred to csv" 
-            return 
+            return filesProcessed 
 
 
         for fi in added_files.strip().split('\n'):
             if re.match('.*\.csv$', fi):
                 if os.path.basename(fi).split('-')[0] == 'NOID' : 
-                    slog.info("harvester-" + hashlib.sha1(str(fi)).hexdigest()[0:6], 'converter_cmd created file that does not contain subject ID and thus cannot be uploaded to redcap',
+                    slog.info(subject_label + "-" +  hashlib.sha1('harvester {}'.format(fi)).hexdigest()[0:6], 'converter_cmd created file that does not contain subject ID and thus cannot be uploaded to redcap',
                               file=str(fi),
                               converter_cmd=" ".join(command), 
                               harvester_cmd=" ".join(sys.argv)) 
@@ -113,25 +120,37 @@ def run_converter(site, command,verbose):
 
                         command_array += ['--data-access-group', site, fi]
                         
-                        subprocess.call(command_array)
                         if verbose: 
                             print "Running: " + ' '.join(command_array)
 
+                        subprocess.call(command_array)
+                        filesProcessed += 1
+
                     except:
                         error = "Failed importing files into REDCap"
-                        slog.info(hashlib.sha1('harvester {}'.format(fi)).hexdigest()[0:6], error,
+                        slog.info(subject_label + "-" +  hashlib.sha1('harvester {}'.format(fi)).hexdigest()[0:6], error,
                                   file=str(fi),
-                                  command=str(command_array))
+                                  converter_cmd=" ".join(command), 
+                                  harvester_cmd=" ".join(sys.argv)) 
             else:
-                slog.info("harvester-" + hashlib.sha1(str(fi)).hexdigest()[0:6], 'NOT A CSV FILE',
+                slog.info(subject_label + "-" +  hashlib.sha1('harvester {}'.format(fi)).hexdigest()[0:6], 'NOT A CSV FILE',
                           file=str(fi),
-                          command=str(command_array))
+                          converter_cmd=" ".join(command), 
+                          harvester_cmd=" ".join(sys.argv)) 
 
     except Exception as emsg:
-        cmd = ' '.join(command)
-        slog.info('harvester-' + hashlib.sha1(str(emsg)).hexdigest()[0:6], 'Failed to transform file into csv',
-                  cmd=str(cmd),
+        if args.only_converter_post_to_github:
+            slog.sibisLogging().info(subject_label + "-" + hashlib.sha1(str(emsg)).hexdigest()[0:6], 'Failed to convert data into redcap conform csv file',
+                  converter_cmd=" ".join(command), 
+                  harvester_cmd=" ".join(sys.argv), 
                   err_msg = str(emsg))
+        else :
+            slog.info(subject_label + "-" + hashlib.sha1(str(emsg)).hexdigest()[0:6], 'Failed to convert data into redcap conform csv file',
+                  converter_cmd=" ".join(command), 
+                  harvester_cmd=" ".join(sys.argv), 
+                  err_msg = str(emsg))
+
+    return filesProcessed
 #
 # Function: hand file to correct converter
 #
@@ -142,7 +161,7 @@ def handle_file( path, site, filename, verbose):
     else:
         overwrite = []
 
-    if args.post_to_github:
+    if args.post_to_github or args.only_converter_post_to_github:
         post_to_github = ["--post-to-github"]
     else:
         post_to_github = []
@@ -150,40 +169,43 @@ def handle_file( path, site, filename, verbose):
     subject_label = path.split('/')[-2]
     # Is this a LimeSurvey file?
     if re.match( '^survey.*\.csv$', filename ):
-        run_converter( site, [ os.path.join( bindir, "lime2csv" ) ] + overwrite + post_to_github + [ path, os.path.join(outdir, site, "limesurvey" ) ], verbose )
+        # Never post to github as ou otherwise get two error messages - one from harvester and one from lime2csv 
+        run_converter( site, subject_label, [ os.path.join( bindir, "lime2csv" ) ] + overwrite + post_to_github + [ path, os.path.join(outdir, site, "limesurvey" ) ], verbose )
     # Is this a Stroop file (Note: the "_100SD-" is signifigant as some MRI
     # Stroop files will include "_100SDMirror" in the filename)?
     elif re.match('^NCANDAStroopMtS_3cycles_7m53stask_100SD-[^/]*\.txt$', filename):
-        run_converter(site, [os.path.join( bindir, "stroop2csv")] + overwrite + post_to_github + [path, os.path.join(outdir, site, "stroop")], verbose)
-        try:
-            subprocess.check_output([os.path.join(bindir, "eprime2redcap"), path, 'stroop_log_file'])
-        except:
-            slog.info(subject_label,
+        filesProcessed = run_converter(site, subject_label, [os.path.join( bindir, "stroop2csv")] + overwrite +  post_to_github + [path, os.path.join(outdir, site, "stroop")], verbose)
+        # Only perform eprime2 redcap if anything was processed 
+        if filesProcessed > 0 : 
+            eprime_cmd = [os.path.join(bindir, "eprime2redcap"), path, 'stroop_log_file']
+            try:
+                subprocess.check_output(eprime_cmd)
+            except:
+                slog.info(subject_label, 
                           "ERROR: could not upload Stroop file",
                           filename=filename,
-                          script='harvester')
+                          converter_cmd=" ".join(eprime_cmd), 
+                          harvester_cmd=" ".join(sys.argv))
     # Is this a Delayed Discounting file?
     # ignoes the V12-All.txt file 
     elif re.match( '.*V12\.txt$', filename ):
-        run_converter( site, [ os.path.join( bindir, "dd2csv" ) ] + overwrite + post_to_github + [ path, os.path.join( outdir, site, "deldisc" ) ], verbose )
+        run_converter( site, subject_label, [ os.path.join( bindir, "dd2csv" ) ] + overwrite + post_to_github + [ path, os.path.join( outdir, site, "deldisc" ) ], verbose )
     # Is this a PASAT (Access) database?
     elif re.match( '^PASAT_Stnd.*\.mdb$', filename ):
-        run_converter( site, [ os.path.join( bindir, "pasat2csv" ) ] + overwrite + [ path, os.path.join( outdir, site, "pasat" ) ], verbose )
+        run_converter( site, subject_label, [ os.path.join( bindir, "pasat2csv" ) ] + overwrite + [ path, os.path.join( outdir, site, "pasat" ) ], verbose )
     # Is this a SSAGA (Blaise) database?
     elif re.match( '^NSSAGA_v3\.bdb$', filename ) or re.match( '.*\.[Aa][Ss][Cc]$', filename ):
-        command_array = [os.path.join(bindir, 'wine/blaise2csv')]
+        command_array = [os.path.join(bindir, 'wine/blaise2csv')] + overwrite + post_to_github
         if args.time_log_dir:
             command_array += ["-t", args.time_log_dir]
-        if args.post_to_github:
-            command_array += ["-p"]
         if 'Youth_SAAGAv3' in path:
-            command_array += overwrite + [ path, 'youth', os.path.join( outdir, site, "ssaga" ) ]
+            command_array += [ path, 'youth', os.path.join( outdir, site, "ssaga" ) ]
         elif 'Parent_SAAGAv3' in path:
-            command_array += overwrite + [ path, 'parent', os.path.join( outdir, site, "ssaga" ) ]
+            command_array += [ path, 'parent', os.path.join( outdir, site, "ssaga" ) ]
         else:
             slog.info(subject_label, 'ERROR: could not determine whether the path contains Youth or Parent SSAGA',
                       path=str(path))
-        run_converter(site,command_array, verbose)
+        run_converter(site, subject_label, command_array, verbose)
     elif verbose : 
         print "Warning: No conversion for file found!"
 
@@ -219,8 +241,17 @@ def notify( event_dict ):
 if args.verbose :
     print "Run svn update ..." 
 
+dated_download = "" 
 if args.date : 
-   cmd ='cd {}; svn diff --no-auth-cache --username {} --password \'{}\' --summarize -r {} | grep -v "D     "  | tr " " "," | cut -d, -f8 | grep "\." | tr "\n" ","'.format( svndir, session.api['svn_laptop']['user'], session.api['svn_laptop']['password'], args.date )
+    dated_download = args.date
+
+if args.last_week : 
+    date_today = datetime.date.today()
+    date_last_week = date_today - datetime.timedelta(weeks=1)
+    dated_download =  "{" + str(date_last_week) + "}:{" + str(date_today) + "}"
+
+if dated_download : 
+   cmd ='cd {}; svn diff --no-auth-cache --username {} --password \'{}\' --summarize -r {} | grep -v "D     "  | tr " " "," | cut -d, -f8 | grep "\." | tr "\n" ","'.format( svndir, session.api['svn_laptop']['user'], session.api['svn_laptop']['password'], dated_download )
    process = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
    out_std,out_err = process.communicate()
    if out_err :
