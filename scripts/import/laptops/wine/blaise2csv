@@ -19,6 +19,15 @@ import subprocess
 import ssaga
 import sibis_wine
 
+def post_issue_and_exit(issue_label, issue_title, **kwargs) : 
+    from sibispy import sibislogger as slog
+    slog.init_log(args.verbose, args.post_to_github,'NCANDA Import-Laptop: blaise2csv Message', 'blaise2csv')
+
+    infoTxt="After this issue is resolved please run 'harvester --file-to-upload " + args.infile + " --overwrite' to insure that data is upload to redcap" 
+    slog.info(issue_label, issue_title, cmd = " ".join(sys.argv), info = infoTxt, **kwargs) 
+  
+    sys.exit(1)
+
 
 #
 # Score SSAGA using SAS scripts
@@ -129,8 +138,9 @@ def process_blaise( infile ):
     # Copy all necessary Blaise files into temporary directory
     tempdir = tempfile.mkdtemp()
 
-    if not sibis_wine.manipula(tempdir,infile) : 
-        sys.exit( 'ERROR: could not run wine/Manipula' )
+    (returncode, out, err) =  sibis_wine.manipula(tempdir,infile) 
+    if returncode : 
+        post_issue_and_exit(hashlib.sha1("blaise2csv {} {}".format(err, infile)).hexdigest()[0:6], 'ERROR: could not run wine/Manipula: ', err_msg = str(err))
 
     # Run Manipula
     olddir = os.getcwd()

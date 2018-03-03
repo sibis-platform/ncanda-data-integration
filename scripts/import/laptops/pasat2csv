@@ -8,10 +8,9 @@
 import tempfile
 import pandas
 import sibispy
-from sibispy import sibislogger as slog
 from sibispy import utils as sutils
 import hashlib
-import sys
+import convert_util
 
 # Setup command line parser
 import argparse
@@ -23,8 +22,6 @@ parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub in
 parser.add_argument( "outdir", help="Output directory. All CSV files are created in this directory")
 args = parser.parse_args()
 
-slog.init_log(args.verbose, args.post_to_github,'NCANDA Import', 'import-laptops-pasat2csv', None)
-
 # Make a temporary directory
 temp_dir_path = tempfile.mkdtemp()
 
@@ -32,11 +29,7 @@ temp_dir_path = tempfile.mkdtemp()
 temp_csv = "%s/pasat.csv" % (temp_dir_path)
 (ecode,cout,cerr) = sutils.mdb_export("%s MainStressor_bb > %s" % (args.mdbfile, temp_csv))
 if ecode :
-   slog.info(hashlib.sha1(str(cerr)).hexdigest()[0:6], "mdb-export failed!",
-             error_msg=str(cerr),
-             cmd = " ".join(sys.argv))
-   sys.exit(1)
-
+   convert_util.post_issue_and_exit('pasat2csv', args.mdbfile, args.verbose, args.post_to_github, hashlib.sha1(str(cerr)).hexdigest()[0:6], "mdb-export failed!", error_msg=str(cerr))
 
 # Read the temporary CSV file
 pasat_csv = pandas.read_csv( temp_csv ).sort( columns=['ID'], ascending=False )

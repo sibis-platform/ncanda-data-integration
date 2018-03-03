@@ -15,7 +15,11 @@ import pandas
 
 import redcap
 import sibispy
-from sibispy import sibislogger as slog
+
+def post_issue_and_exit(issue_label, issue_title, **kwargs):
+    import convert_util
+    convert_util.post_issue_and_exit('eprime2redcap', args.infile, args.verbose, args.post_to_github, issue_label, issue_title, **kwargs)
+
 
 # Setup command line parser
 parser = argparse.ArgumentParser( description="Upload e-Prime Stroop log file to file upload file in REDCap data entry form" )
@@ -29,20 +33,19 @@ parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub in
 args = parser.parse_args()
 
 # Set up session  
-slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages', 'eprime2redcap')
 session = sibispy.Session()
 if not session.configure() :
     if args.verbose:
         print "Error: session configure file was not found"
  
-    sys.exit()
+    sys.exit(1)
 
 project = session.connect_server(args.project) 
 if not project : 
     if args.verbose:
         print "Error: Could not connect to Redcap" 
 
-    sys.exit()
+    sys.exit(1)
 
 file = open( args.infile, 'r').read().decode('utf-16').split("\r\n")
     
@@ -63,7 +66,7 @@ for s in file:
         session = ("0000%s" % match.group(1))[-4:]
 
 if not subject or not session or not date_of_test:
-    sys.exit( "ERROR: no subject, session ID, or test date in Stroop file %s" % args.infile )
+    post_issue_and_exit(hashlib.sha1('harvester' + args.infile).hexdigest()[0:6] , "ERROR: no subject, session ID, or test date in Stroop file %s" % args.infile)
 
 # Reconstruct actual N-CANDA Subject ID
 digit_to_site = { '1': 'A', '2': 'B', '3': 'C', '4': 'D', '5': 'E', '6': 'F', '7': 'G', '8': 'H', '9': 'I', '0': 'J' }
@@ -82,7 +85,7 @@ try:
     response = project.import_file( record=record_id, event=args.event, field=args.tofield, fname=os.path.basename(args.infile), fobj=file )
 except redcap.RedcapError:
     # Your import didn't work
-    sys.exit( "ERROR: file upload did not work for file {} with record id {}".format(args.infile,record_id) )
-    pass
+    post_issue_and_exit(record_id, "ERROR: file upload did not work for file {} with record id {}".format(args.infile,record_id))
+
 finally:
     file.close()

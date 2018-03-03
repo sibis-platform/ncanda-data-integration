@@ -12,8 +12,6 @@ import re
 import csv
 
 import pandas
-
-from sibispy import sibislogger as slog
 import recover_yn_variables as recyn
 
 #
@@ -118,7 +116,7 @@ def make_record_id( row, this_survey ):
     return '%s-%s' % ( row['%s_subject_id' % this_survey], row['date'] )
         
 # Handle a survey - can be called several times per input file if multiple instruments have been mangled into one survey
-def handle_survey( survey_id, data, verbose ):
+def handle_survey(subject_label, survey_id, data, verbose ):
     (this_survey,this_survey_long,label_exceptions) = surveys[survey_id]
 
     # If this is LimeSurvey SSAGA, figure out if it is Youth or Parent survey
@@ -127,7 +125,7 @@ def handle_survey( survey_id, data, verbose ):
 	try:
             typeinter = str( data['typeinter'].ix[0] )
         except:
-            print "ERROR: LimeSurvey SSAGA %s does not have 'typeinter' field" % args.infile
+            post_issue_and_exit("ERROR: " + str(args.infile) + " does contain 'typeinter' field")
 
         if typeinter == '0':
             this_survey+="_parent"
@@ -136,7 +134,7 @@ def handle_survey( survey_id, data, verbose ):
             this_survey+="_youth"
             this_survey_long+="_youth"
         else:
-            sys.exit( "ERROR: LimeSurvey SSAGA %s is neither 'Youth' nor 'Parent' survey, based on 'typeinter' value, '%s'" % (args.infile,typeinter) )
+            post_issue_and_exit("ERROR: %s is neither 'Youth' nor 'Parent' survey as 'typeinter' value is '%s'" % (args.infile,typeinter))
 
     # Bring all all column names into suitable format and prefix them with survey name
     columns = list()
@@ -178,7 +176,7 @@ def handle_survey( survey_id, data, verbose ):
 
     # Check if we managed to get the survey date
     if len( data ) < 1:
-        sys.exit( "ERROR: could not extract valid dated record from file %s" % args.infile )
+        post_issue_and_exit("ERROR: could not extract record with valid date from file %s" % args.infile )
 
     # Compute and set unique record ID    
     data['record_id'] = data.apply( make_record_id, axis=1, this_survey=this_survey )
@@ -238,7 +236,10 @@ def handle_survey( survey_id, data, verbose ):
     if verbose and not wroteFile: 
         print "No files were transformed into a csv one"  
 
-
+def post_issue_and_exit(issue_title, **kwargs):
+    import convert_util
+    convert_util.post_issue_and_exit('lime2csv', args.infile, args.verbose, args.post_to_github,subject_label,issue_title, **kwargs)
+  
 #
 # Main 
 # 
@@ -252,35 +253,21 @@ parser.add_argument( "outdir", help="Output directory. All CSV files are created
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
 args = parser.parse_args()
 
-# Setup logging
-slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: lime2csv Message', 'lime2csv')
-
-
 # Figure out which survey type this is - bail if unknown
 match = re.match( '.*survey_([0-9]{5})_subjid_([^_]*)_([0-9]{8})_([0-9]{10})\.csv', args.infile )
 subject_label = str(args.infile).split('/')[-2]
 if not match:
-    error = "ERROR: file " + str(args.infile) + " cannot be parsed."
-    slog.info(subject_label, error,
-              filename=str(args.infile))
-    sys.exit(1)
+    post_issue_and_exit("ERROR: file " + str(args.infile) + " cannot be parsed.")
+
 if not match.group(1) in surveys.keys():
-    error = "ERROR: survey '%s' is unknown or not supported" % (match.group(1))
-    slog.info(subject_label, error,
-              survey=str(match.group(1)),
-              filename=str(args.infile))
-    sys.exit(1)
+    post_issue_and_exit("ERROR: survey '%s' is unknown or not supported" % (match.group(1)))
+
 survey_id = match.group(1)
 
 # Read the input CSV file from LimeSurvey
 try : 
-  data = pandas.read_csv( args.infile, dtype=object )
+    data = pandas.read_csv( args.infile, dtype=object )
 except Exception, err_msg: 
-   slog.info(subject_label, "Error: could not read file !" , 
-             err_msg = str(err_msg),
-             cmd = " ".join(sys.argv),
-             filename=str(args.infile)) 
-   sys.exit(1)
-  
+    post_issue_and_exit("ERROR: could not read file " + str(args.infile) + " !" , err_msg = str(err_msg))
 
-handle_survey( survey_id, data, args.verbose)
+handle_survey(subject_label, survey_id, data, args.verbose)

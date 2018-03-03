@@ -18,8 +18,12 @@ def log(uid, message, **kwargs):
 
 
 def call_shell_program(cmd):
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (out, err) = process.communicate()
+    try : 
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        (out, err) = process.communicate()
+    except Exception as emsg:
+        return (1,"" ,emsg)
+
     return (process.returncode, out, err)
 
 def sas(sas_script) :

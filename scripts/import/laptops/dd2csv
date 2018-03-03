@@ -7,11 +7,14 @@
 
 import tempfile
 import pandas
-import sys
 import re
 import os
 
-from sibispy import sibislogger as slog
+
+def post_issue_and_exit(issue_title, **kwargs):
+    import convert_util
+    convert_util.post_issue_and_exit('dd2csv', args.ddfile, args.verbose, args.post_to_github, subject_label, issue_title, **kwargs)
+
 
 # Setup command line parser
 import argparse
@@ -23,9 +26,6 @@ parser.add_argument( "outdir", help="Output directory. All CSV files are created
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
 args = parser.parse_args()
 
-# Setup logging
-slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: dd2csv Message', 'dd2csv')
-
 #Get experiment_id for logs
 subject_label = str(args.ddfile).split('/')[-2]
 
@@ -36,18 +36,13 @@ subject_label = str(args.ddfile).split('/')[-2]
 try: 
    dd = pandas.read_csv(args.ddfile, sep='\t', header=None, names=['SubjectID', 'FuturePresent', 'Reward', 'HypReal', 'Exp1', 'Exp2', 'Amount', 'Days', 'DelDisc', 'Version', 'Date'])
 except Exception as err_msg:
-    error = 'Error: could not load file  %s' % args.ddfile
-    slog.info(subject_label, error, cmd = " ".join(sys.argv), err_msg = str(err_msg))
-    sys.exit(1)
-
+    post_issue_and_exit('Error: could not load file  %s' % args.ddfile , err_msg = str(err_msg))
 #
 # Check correctness of file format 
 #
 dd = dd.dropna(axis=0, how='all')
 if len( dd ) == 0:
-    error = 'Error: file %s is empty or of the wrong format' % args.ddfile
-    slog.info(subject_label, error, cmd = " ".join(sys.argv))
-    sys.exit(1)
+    post_issue_and_exit('Error: file %s is empty or of the wrong format' % args.ddfile)
 
 # Check if this file has the right number of rows.
 dd = dd[ dd['FuturePresent'] == 'future' ]
@@ -57,16 +52,13 @@ dd = dd[ dd['Exp1'] == 'gain' ]
 
 # Anything still left? If not, this file has nothing for us.
 if len( dd ) == 0:
-    error = 'WARNING: no suitable data in file %s' % args.ddfile
-    slog.info(subject_label, error, cmd = " ".join(sys.argv))
-    sys.exit(1)
+    post_issue_and_exit('Error: no suitable data in file %s' % args.ddfile)
 
 # Make sure all rows have the same "Amount", and it's either 100 or 1000
 amount = dd['Amount'][0]
 if not amount in [100,1000]:
-    error = 'WARNING: amount %f is neither 100 nor 1000 in %s' % (amount, args.ddfile)
-    slog.info(subject_label, error, cmd = " ".join(sys.argv))
-    sys.exit(1)
+    post_issue_and_exit('Error: amount %f is neither 100 nor 1000 in %s' % (amount, args.ddfile))
+
 dd = dd[ dd['Amount'] == amount ]
 
 #
@@ -101,9 +93,7 @@ match_date = re.search('^([0-9]*)/([0-9]*)/(20[0-9]{2})$', dd['Date'][0])
 if match_date:
     date = '%s-%02d-%02d' % (match_date.group(3), int(match_date.group(1)), int(match_date.group(2)))
 else:
-    error = 'ERROR: %s\nCannot extract date from "%s"' % ( args.ddfile, dd['Date'][0] )
-    slog.info(subject_label, error, cmd = " ".join(sys.argv))
-    sys.exit(1)
+    post_issue_and_exit('ERROR: %s\nCannot extract date from "%s"' % ( args.ddfile, dd['Date'][0] ))
 
 # Create unique record ID
 record_id = '%s-%s' % (subject_id, date)
