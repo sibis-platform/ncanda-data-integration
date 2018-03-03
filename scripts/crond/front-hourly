@@ -53,7 +53,12 @@ fi
 
 # Import data from the sites' data capture laptops into REDCap and reconcile imported with longitudinal data
 if [ ${IMPORT_FLAG} == 1 ]; then
-  catch_output_email "${SCRIPT_LABEL}:Import Laptop: Data Stage 1 (harvester)" ${SIBIS}/scripts/import/laptops/harvester ${qa_args}
+   lastWeek=""
+   # do that so that if the script was interrupted the svn update is performed again - otherwise would loose data 
+   if [ ${hour} -eq 20 ]; then
+	lastWeek="--last-week"
+   fi	
+   catch_output_email "${SCRIPT_LABEL}:Import Laptop: Data Stage 1 (harvester)" ${SIBIS}/scripts/import/laptops/harvester --only-converter-post-to-github ${qa_args} ${lastWeek}
 else
    if [ ${hour} -eq 0 ]; then
       echo "${SCRIPT_LABEL}: Warning: Import from laptops  disabled !"
