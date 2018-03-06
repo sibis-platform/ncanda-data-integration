@@ -57,6 +57,16 @@ parser.add_argument("--last-week",
                     action="store_true",
                     default=False)
 
+parser.add_argument("--no-blaise",
+                    help="Blaise files are going to be ignored", 
+                    action="store_true",
+                    default=False)
+
+parser.add_argument("--stroop-only",
+                    help="Only upload stroop file - should only be done in combination with --date as otherwise other records are not uploaded in the future (unless --date is used without the --stroop-only)", 
+                    action="store_true",
+                    default=False)
+
 args = parser.parse_args()
 
 # Setup logging
@@ -186,6 +196,8 @@ def handle_file( path, site, filename, verbose):
                           filename=filename,
                           converter_cmd=" ".join(eprime_cmd), 
                           harvester_cmd=" ".join(sys.argv))
+    elif args.stroop_only : 
+        return
     # Is this a Delayed Discounting file?
     # ignoes the V12-All.txt file 
     elif re.match( '.*V12\.txt$', filename ):
@@ -195,6 +207,9 @@ def handle_file( path, site, filename, verbose):
         run_converter( site, subject_label, [ os.path.join( bindir, "pasat2csv" ) ] + overwrite + [ path, os.path.join( outdir, site, "pasat" ) ], verbose )
     # Is this a SSAGA (Blaise) database?
     elif re.match( '^NSSAGA_v3\.bdb$', filename ) or re.match( '.*\.[Aa][Ss][Cc]$', filename ):
+        if args.no_blaise :
+            return 
+
         command_array = [os.path.join(bindir, 'wine/blaise2csv')] + overwrite + post_to_github
         if args.time_log_dir:
             command_array += ["-t", args.time_log_dir]
@@ -206,6 +221,7 @@ def handle_file( path, site, filename, verbose):
             slog.info(subject_label, 'ERROR: could not determine whether the path contains Youth or Parent SSAGA',
                       path=str(path))
         run_converter(site, subject_label, command_array, verbose)
+
     elif verbose : 
         print "Warning: No conversion for file found!"
 
@@ -251,18 +267,19 @@ if args.last_week :
     dated_download =  "{" + str(date_last_week) + "}:{" + str(date_today) + "}"
 
 if dated_download : 
-   cmd ='cd {}; svn diff --no-auth-cache --username {} --password \'{}\' --summarize -r {} | grep -v "D     "  | tr " " "," | cut -d, -f8 | grep "\." | tr "\n" ","'.format( svndir, session.api['svn_laptop']['user'], session.api['svn_laptop']['password'], dated_download )
-   process = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-   out_std,out_err = process.communicate()
-   if out_err :
-       slog.info(hashlib.sha1('harvester' + out_err).hexdigest()[0:6],
-                 "ERROR: Failed to update files in range " + args.date + ". Continued without them!",
-                 script='harvester',
-                 msg=out_err)
-   else :
-       if out_std :
-           for fName in out_std[:-1].split(',') :
-               updated_files.append(os.path.join(svndir,fName))               
+    # Files that are added and deleted during the time period are now listed ! 
+    cmd ='cd {}; svn diff --no-auth-cache --username {} --password \'{}\' --summarize -r {} | grep -v "D     "  | tr " " "," | cut -d, -f8 | grep "\." | tr "\n" ","'.format( svndir, session.api['svn_laptop']['user'], session.api['svn_laptop']['password'], dated_download )
+    process = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    out_std,out_err = process.communicate()
+    if out_err :
+        slog.info(hashlib.sha1('harvester' + out_err).hexdigest()[0:6],
+                  "ERROR: Failed to update files in range " + args.date + ". Continued without them!",
+                  script='harvester',
+                  msg=out_err)
+    else :
+        if out_std :
+            for fName in out_std[:-1].split(',') :
+                updated_files.append(os.path.join(svndir,fName))               
         
 elif args.file_to_upload:
     updated_files.append(args.file_to_upload)
