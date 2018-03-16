@@ -57,6 +57,12 @@ parser.add_argument("--last-week",
                     action="store_true",
                     default=False)
 
+parser.add_argument("--all",
+                    help="If set then uploads all entries", 
+                    action="store_true",
+                    default=False)
+
+
 parser.add_argument("--no-blaise",
                     help="Blaise files are going to be ignored", 
                     action="store_true",
@@ -261,10 +267,15 @@ dated_download = ""
 if args.date : 
     dated_download = args.date
 
+if args.all : 
+    date_tomorrow = datetime.date.today() + datetime.timedelta(days=1)
+    date_beginning = datetime.date(2012,01,01)
+    dated_download =  "{" + str(date_beginning) + "}:{" + str(date_tomorrow) + "}"
+
 if args.last_week : 
-    date_today = datetime.date.today()
+    date_tomorrow = datetime.date.today() + datetime.timedelta(days=1)
     date_last_week = date_today - datetime.timedelta(weeks=1)
-    dated_download =  "{" + str(date_last_week) + "}:{" + str(date_today) + "}"
+    dated_download =  "{" + str(date_last_week) + "}:{" + str(date_tomorrow) + "}"
 
 if dated_download : 
     # Files that are added and deleted during the time period are now listed ! 
@@ -282,6 +293,13 @@ if dated_download :
                 updated_files.append(os.path.join(svndir,fName))               
         
 elif args.file_to_upload:
+    if not os.path.exists(args.file_to_upload):
+        slog.info(hashlib.sha1('harvester'+args.file_to_upload).hexdigest()[0:6],
+                  "ERROR: File does not exist!",
+                  file=args.file_to_upload,
+                  harvester_cmd=" ".join(sys.argv))
+        sys.exit(1)
+
     updated_files.append(args.file_to_upload)
 
 else : 
