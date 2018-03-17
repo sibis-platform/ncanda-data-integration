@@ -274,7 +274,7 @@ if args.all :
 
 if args.last_week : 
     date_tomorrow = datetime.date.today() + datetime.timedelta(days=1)
-    date_last_week = date_today - datetime.timedelta(weeks=1)
+    date_last_week = date_tomorrow - datetime.timedelta(weeks=1)
     dated_download =  "{" + str(date_last_week) + "}:{" + str(date_tomorrow) + "}"
 
 if dated_download : 
