@@ -6,6 +6,7 @@
 ##
 import re
 import os
+import yaml
 import argparse
 import subprocess
 
@@ -62,7 +63,6 @@ parser.add_argument("--all",
                     action="store_true",
                     default=False)
 
-
 parser.add_argument("--no-blaise",
                     help="Blaise files are going to be ignored", 
                     action="store_true",
@@ -70,6 +70,11 @@ parser.add_argument("--no-blaise",
 
 parser.add_argument("--stroop-only",
                     help="Only upload stroop file - should only be done in combination with --date as otherwise other records are not uploaded in the future (unless --date is used without the --stroop-only)", 
+                    action="store_true",
+                    default=False)
+
+parser.add_argument("--include-test-files",
+                    help="Include files that are stored in directories of the type <subject-id>-T-..., <subject-id>-X-... <site>-9999*<Sex>-...",
                     action="store_true",
                     default=False)
 
@@ -86,13 +91,28 @@ if not session.configure() :
 if not session.connect_server('svn_laptop', True) : 
     sys.exit()
 
+
 svndir = os.path.join(session.get_laptop_svn_dir())
 outdir = os.path.join(session.get_laptop_imported_dir())
 
 # Figure out where this script is, so we can get path to other scripts.
-
 bindir = os.path.dirname(os.path.realpath(__file__))
 
+sibis_config = session.get_operations_dir()
+if not os.path.exists(os.path.join(sibis_config, 'special_cases.yml')): 
+    raise IOError("Please ensure special_cases.yml file exists at: {}".format(sibis_config))
+
+# load exceptions for QC check 
+with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
+    complete_file = yaml.load(fi)
+    harvster_setting = complete_file.get('harvester')
+    fi.close()
+
+if harvster_setting: 
+    ignore_data = harvster_setting.get('ignore')
+else : 
+    print "Warning: harvester specific settings not defined!"
+    ignore_data = dict()
 
 def run_converter(site, subject_label, command,verbose):
     """
@@ -315,6 +335,33 @@ if args.verbose :
 
 # Process all updated or added files
 for file in updated_files:
+    # Test if excemption is set 
+    if file.startswith(svndir):
+        check_file = file[len(svndir):]
+        if check_file[0] == '/' or check_file[0] == '\\' :
+            check_file = check_file[1:]
+    else : 
+        check_file = file
+
+    (cDir,cFile) = os.path.split(check_file)
+    (laptop,visit) = os.path.split(cDir)
+    if not args.include_test_files: 
+        # check if it is a test file 
+        visit_comp = visit.split('-')
+        sub_num = visit_comp[1]
+        sex =  visit_comp[2]
+        if sex == 'T' or  sex == 'X' or sub_num == '99997' or sub_num == '99998' or sub_num == '99999' :
+            if args.verbose : 
+                print "Skipping ", file
+            continue 
+
+    if laptop in ignore_data.iterkeys():
+        ignore_laptop=ignore_data[laptop].split(',')  
+        if os.path.join(visit,cFile) in ignore_laptop :
+            if args.verbose : 
+                print "Skipping ", file
+            continue 
+ 
     handle_file_update( file , args.verbose)
 
 slog.takeTimer1("script_time","{'records': " + str(len(updated_files)) + "}")
