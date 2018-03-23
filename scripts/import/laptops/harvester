@@ -347,13 +347,16 @@ for file in updated_files:
     (laptop,visit) = os.path.split(cDir)
     if not args.include_test_files: 
         # check if it is a test file 
+        if args.verbose:
+            print visit
         visit_comp = visit.split('-')
-        sub_num = visit_comp[1]
-        sex =  visit_comp[2]
-        if sex == 'T' or  sex == 'X' or sub_num == '99997' or sub_num == '99998' or sub_num == '99999' :
-            if args.verbose : 
-                print "Skipping ", file
-            continue 
+        if len(visit_comp) > 1: 
+            sub_num = visit_comp[1]
+            sex =  visit_comp[2]
+            if sex == 'T' or  sex == 'X' or sub_num == '99997' or sub_num == '99998' or sub_num == '99999' :
+                if args.verbose : 
+                    print "Skipping ", file
+                continue 
 
     if laptop in ignore_data.iterkeys():
         ignore_laptop=ignore_data[laptop].split(',')  
