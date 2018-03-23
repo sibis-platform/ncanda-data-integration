@@ -233,7 +233,9 @@ def MissingFormChecks(vdate, date_on_or_after , date_before ,subject_id,event_id
                       event_id=event_id,
                       import_visit_dates_of_not_incomplete_records=incomplete_records_list.to_string(),
                       target_visit_date=vdate,
-                      date_range=str([date_on_or_after , date_before]) )
+                      date_range=str([date_on_or_after , date_before]),
+                      info="The experiment_site_id is the id of the form in the import project this error message referes to", 
+                      cmd=" ".join(sys.argv))
             return 
 
         if import_complete_records[exclude_label][session_id] :
