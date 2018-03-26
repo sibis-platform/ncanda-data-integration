@@ -62,6 +62,11 @@ forms_to_skip = ['biological_np', 'biological_mr', 'mr_session_report', 'mri_rep
 
 # In[ ]:
 
+forms_for_qc
+
+
+# In[ ]:
+
 def get_data_for_event(rc_api, event, forms=None, arm=1):
     if forms is None:
         forms = get_forms_for_qc(rc_api, event, arm)
@@ -190,7 +195,7 @@ np_data_all = reduce(lambda x, y: pd.merge(x, y, left_index=True, right_index=Tr
 
 # In[ ]:
 
-{form: df.columns.tolist() for form, df in data_all.items()}
+#{form: df.columns.tolist() for form, df in data_all.items()}
 
 
 # ...so we'll re-shape them from wide to long and count up the absences.
@@ -436,7 +441,25 @@ check_form('participant_last_use_summary')
 forms_with_checkboxes = {
     'np_grooved_pegboard': ['np_gpeg_exclusion___dh', 'np_gpeg_exclusion___ndh'],
     'np_reyosterreith_complex_figure_files': ['np_reyo_ndh___yes'],
-    'np_wais4_coding': ['np_wais4_rawscore_diff___correct']
+    'np_wais4_coding': ['np_wais4_rawscore_diff___correct'],
+    'cnp_summary': [
+             'cnp_instruments___testsessions',
+             'cnp_instruments___cpf',
+             'cnp_instruments___cpfd',
+             'cnp_instruments___cpw',
+             'cnp_instruments___cpwd',
+             'cnp_instruments___medf36',
+             'cnp_instruments___er40d',
+             'cnp_instruments___mpract',
+             'cnp_instruments___pcet',
+             'cnp_instruments___pmat24a',
+             'cnp_instruments___pvoc',
+             'cnp_instruments___pvrt',
+             'cnp_instruments___sfnb2',
+             'cnp_instruments___shortvolt',
+             'cnp_instruments___spcptnl',
+             'cnp_instruments___svdelay',
+    ],
 }
 
 
@@ -583,5 +606,75 @@ def flag_unverified_forms(df):
     if len(df_relevant) == 0:
         return None
     return df_relevant.index.tolist()
-{form: flag_unverified_forms(data_all[form]) for form in forms_for_qc}
+unverified_flags = {form: flag_unverified_forms(data_all[form]) for form in forms_for_qc}
+unverified_flags
+
+
+# ## Divide flags up by site
+
+# In[ ]:
+
+def extract_flags_for_site(flags, site):  # Site is assumed to be a single character
+    import re
+    if flags:
+        return [flag for flag in flags if re.match(r'^' + site, flag)]
+    else:
+        return None
+def divide_flags_by_site(flags_by_form, sites = ['A', 'B', 'C', 'D', 'E']):
+    by_site = dict.fromkeys(sites)
+    for site in sites:
+        by_site[site] = {form_name: extract_flags_for_site(form, site) for (form_name, form) in flags_by_form.items()}
+    return by_site
+unverified_by_site = divide_flags_by_site(unverified_flags)
+unverified_by_site
+
+
+# In[ ]:
+
+event_mapping = {'baseline': 70,
+                 '6-month': 71,
+                 '1y': 72,
+                 '18-month': 73,
+                 '2y': 74,
+                 '30-month': 75,
+                 '3y': 76,
+                 '42-month': 77,
+                 '4y': 78}
+
+
+# In[ ]:
+
+def make_urls_for_ids_by_form(flags_by_form, event_id=76):
+    root_url = 'https://ncanda.sri.com/redcap/redcap_v6.10.5/DataEntry/index.php'
+    entry_link_schema = root_url + '?pid=20&id=%s&event_id=%d&page=%s'
+    links = {}
+    for form_name, form_flags in flags_by_form.iteritems():
+        if form_flags:
+            links[form_name] = {study_id: entry_link_schema % (study_id, event_id, form_name) for study_id in form_flags}
+    return links
+
+
+# ## Create templates
+
+# In[ ]:
+
+unverified_urls_by_site = {site: make_urls_for_ids_by_form(site_unverified) 
+                           for site, site_unverified 
+                           in unverified_by_site.items()}
+
+
+# In[ ]:
+
+for site, flags_by_form in unverified_urls_by_site.iteritems():
+    print('# %s\n' % site)
+    for form_name, flags_in_form in flags_by_form.iteritems():
+        print('## %s\n' % form_name)
+        for study_id, url in flags_in_form.iteritems():
+            print('* [%s](%s)' % (study_id, url))
+    
+
+
+# In[ ]:
+
+
 
