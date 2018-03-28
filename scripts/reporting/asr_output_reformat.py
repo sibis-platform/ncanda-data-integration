@@ -1,24 +1,25 @@
-import time
-start = time.time()
 import redcap
-import array
-import string
-import csv
-import numpy
 import sys
-import glob
-from datetime import datetime
-import numpy
-from numpy import genfromtxt
 import numpy as np
 import pandas
 from pandas import DataFrame
+import argparse
 
-data = pandas.read_excel('aseba_prep/new_script/asr_scored_partial.xlsx', 
-			 sheet_name=0)  # return first sheet
+parser = argparse.ArgumentParser(
+    description="Reformat the output of ASEBA scoring for ASR.",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter
+)
+parser.add_argument('-i', '--input', help="xlsx file to process.",
+                    action="store")
+parser.add_argument('-o', '--output', help="CSV file to write output to.",
+                    action="store", default=sys.stdout)
+args = parser.parse_args()
 
-today=time.strftime("%m%d%Y")
-myfile_name='aseba_prep/asr_outcome_reformate_'+today+'.csv'
+if args.input:
+    data = pandas.read_excel(args.input, sheet_name=0)  # return first sheet
+else:
+    raise ValueError('No input file provided!')
+
 data = data.rename(columns={
     'asr_middlename': 'subject',
     'asr_lastname': 'visit',
@@ -159,18 +160,12 @@ namelist=['strength_raw',
 
 colnames2out=list()
 for i in namelist:
-    colnames2out.append('asr_'+str(i))
+    colnames2out.append('asr_' + str(i))
 colnames_out = ['subject', 'arm', 'visit'] + colnames2out
 
 # Modify the metadata columns
 data['arm'] = 'standard'
 data['visit'] = data['visit'].str.replace('_arm_1', '')
 
-data_ysr= data[colnames_out]
-
-myfile = open(myfile_name, 'w')
-
-data_ysr.to_csv(myfile_name, index=False)
-myfile.close()
-elapsed = (time.time() - start)
-print elapsed
+data_ysr = data[colnames_out]
+data_ysr.to_csv(args.output, index=False)
