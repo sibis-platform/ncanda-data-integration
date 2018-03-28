@@ -38,17 +38,14 @@ cbc_df_bpitems = cbc_df_answers.loc[:, ['bpitems']]
 # with NaN-containing answers filtered out, grab age and XNAT SID for the surviving records
 output_df = pd.merge(general_df, cbc_df_bpitems, 
                      left_index=True, right_index=True, 
-                     how='right')
+                     how='inner')
 
-# optional: drop missing age
-# output_df = output_df.dropna(subset=['age'])
-
-# Using the fact that pandas will automatically create an index as range(nrows),
-# we obtain subjectno instead of creating it ourselves.
+# Using the fact that pandas will automatically create an index as
+# range(nrows), we obtain subjectno instead of creating it ourselves.
 # - maybe it would be more pythonic to just assign range(n) to the column.
 output_df = output_df.reset_index()
 output_df.index.rename('subjectno', inplace=True)
-output_df = output_df.reset_index() # get subjectno as a column
+output_df = output_df.reset_index()  # get subjectno as a column
 
 # Assign the constant values required by ADM
 output_df = output_df.assign(admver=9.1,
@@ -64,11 +61,11 @@ output_df = output_df.assign(admver=9.1,
                              )
 
 # Extract gender from study ID
-output_df = output_df.assign(gender=lambda x: x.study_id.str.extract(r'([MF])-[0-9]$'))
+output_df = output_df.assign(gender=lambda x: x.study_id.str.extract(r'([MF])-[0-9]$', expand=False))
 
 # Rename columns to be reused
-output_df = output_df.rename(columns={'study_id': 'firstname', 
-                                      'mri_xnat_sid': 'middlename', 
+output_df = output_df.rename(columns={'study_id': 'firstname',
+                                      'mri_xnat_sid': 'middlename',
                                       'redcap_event_name': 'lastname'})
 
 # Rearrange existing columns and fill the non-existent one with NaNs

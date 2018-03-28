@@ -61,7 +61,7 @@ output_df = output_df.assign(admver=9.1,
                             )
 
 # Extract gender from study ID
-output_df = output_df.assign(gender=lambda x: x.study_id.str.extract(r'([MF])-[0-9]$'))
+output_df = output_df.assign(gender=lambda x: x.study_id.str.extract(r'([MF])-[0-9]$', expand=False))
 
 # Rename columns to be reused
 output_df = output_df.rename(columns={'study_id': 'firstname', 
