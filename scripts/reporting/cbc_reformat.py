@@ -18,12 +18,19 @@ additional_columns = ['study_id', 'redcap_event_name',
                       'age', 'mri_xnat_sid']
 # note that we don't actually need DOB (since age is calculated for each visit) 
 # or sex (because we extract it from study_id)
-general_df = project_entry.export_records(fields=additional_columns, format='df')
-cbc_df = project_entry.export_records(fields=['study_id'], forms=['parent_report'], format='df')
+general_df = project_entry.export_records(fields=additional_columns, 
+                                          format='df')
+general_df = general_df.round({'age': 0}).dropna(subset=['age'])
+general_df['age'] = general_df['age'].astype(int)
+
+cbc_df = project_entry.export_records(fields=['study_id'], 
+                                      forms=['parent_report'], 
+                                      format='df')
 # filter columns so that they start with parentreport_cbcl_section
-# *any* NaN in answers make bpitems uninterpretable -> need to drop them all
-# (experiment with thresh<119 to see how many P's are missing one, two, ... answers)
-cbc_df_answers = cbc_df.filter(regex=r'^parentreport_cbcl_section').dropna(axis=0, how='any')
+# only keep rows that have at least 100 responses
+cbc_df_answers = (cbc_df.filter(regex=r'^parentreport_cbcl_section')
+                  .dropna(axis=0, how='any', thresh=100)
+                  .fillna(value=9))
 
 # shrink into a single column
 cbc_df_answers['bpitems'] = (cbc_df_answers
