@@ -1,44 +1,69 @@
 import time
-import redcap
-import numpy as np
-from datetime import datetime
-from numpy import genfromtxt
-import numpy as np
+import redcap as rc
 import pandas as pd
-from pandas import DataFrame
 import os
+import argparse
+import sys
+from aseba_utils import process_demographics_file, get_year_set
+
+parser = argparse.ArgumentParser(
+    description="Export selected YSR fields to ADM before ASEBA scoring.",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter
+)
+parser.add_argument('-o', '--output', help="CSV file to write output to.",
+                    action="store", default=sys.stdout)
+parser.add_argument('-y', '--year', help="Last year to include (0 = baseline)",
+                    action="store", default=0, type=int)
+parser.add_argument('--demographics-file',
+                    help="File with subjects for release",
+                    action="store", default=None)
+parser.add_argument('-t', '--threshold',
+                    help=("Number of non-empty responses a participant must "
+                          "have to be included."),
+                    default=100, type=int)
+args = parser.parse_args()
+
+selected_events = get_year_set(args.year)
 
 api_url = 'https://ncanda.sri.com/redcap/api/'
 api_key_entry = os.environ['REDCAP_API_KEY']
-project_entry = redcap.Project(api_url, api_key_entry)
+project_entry = rc.Project(api_url, api_key_entry)
 
-
-additional_columns = ['study_id', 'redcap_event_name',
-                      'dob', #'sex',
-                      'age', 'mri_xnat_sid']
-# note that we don't actually need DOB (since age is calculated for each visit) 
-# or sex (because we extract it from study_id)
-general_df = project_entry.export_records(fields=additional_columns, 
+## 1. Extract general info
+additional_columns = ['study_id', 'redcap_event_name', 'dob', 'age']
+# note that we don't actually need DOB (since age is calculated for each visit)
+general_df = project_entry.export_records(fields=additional_columns,
+                                          events=selected_events,
                                           format='df')
+
+## 2. Filter out records based on a demographics file from a data release
+if args.demographics_file:
+    demog = process_demographics_file(args.demographics_file)
+    general_df = pd.merge(general_df, demog,
+                          left_index=True, right_index=True,
+                          how='right')
+
+## 3. Round age and remove records with uncalculated age
 general_df = general_df.round({'age': 0}).dropna(subset=['age'])
 general_df['age'] = general_df['age'].astype(int)
 
-cbc_df = project_entry.export_records(fields=['study_id'], 
-                                      forms=['parent_report'], 
+## 4. Extract form-specific info
+cbc_df = project_entry.export_records(fields=['study_id'],
+                                      events=selected_events,
+                                      forms=['parent_report'],
                                       format='df')
 # filter columns so that they start with parentreport_cbcl_section
 # only keep rows that have at least 100 responses
 cbc_df_answers = (cbc_df.filter(regex=r'^parentreport_cbcl_section')
-                  .dropna(axis=0, how='any', thresh=100)
+                  .dropna(axis=0, how='any', thresh=args.threshold)
                   .fillna(value=9))
 
-# shrink into a single column
+## 5. Shrink into a single column
 cbc_df_answers['bpitems'] = (cbc_df_answers
                              .iloc[:, 0:(len(cbc_df_answers.columns))]
                              .astype(int)
                              .astype(str)
                              .apply(lambda x: "'" + ''.join(x), axis=1))
-
 
 cbc_df_bpitems = cbc_df_answers.loc[:, ['bpitems']]
 
@@ -93,6 +118,4 @@ adm_headers=["admver","datatype","subjectno","id","firstname","middlename","last
              "society","cethnic","ceduc","cfob","cagency","cclin","cintervr","crater","cfacilit","ctime","ctype",
              "cschool","cfudef1","cfudef2","csudef1"]
 output_df = output_df.reindex(columns=adm_headers)
-
-# Export
-output_df.to_csv('cbc_prep_' + time.strftime("%m%d%Y") + '.csv', index=False)
+output_df.to_csv(args.output, index=False)

@@ -2,30 +2,63 @@ import time
 import redcap as rc
 import pandas as pd
 import os
+import argparse
+import sys
+from aseba_utils import process_demographics_file, get_year_set
+
+parser = argparse.ArgumentParser(
+    description="Export selected YSR fields to ADM before ASEBA scoring.",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter
+)
+parser.add_argument('-o', '--output', help="CSV file to write output to.",
+                    action="store", default=sys.stdout)
+parser.add_argument('-y', '--year', help="Last year to include (0 = baseline)",
+                    action="store", default=0, type=int)
+parser.add_argument('--demographics-file',
+                    help="File with subjects for release",
+                    action="store", default=None)
+parser.add_argument('-t', '--threshold',
+                    help=("Number of non-empty responses a participant must "
+                          "have to be included."),
+                    default=100, type=int)
+args = parser.parse_args()
+
+selected_events = get_year_set(args.year)
 
 api_url = 'https://ncanda.sri.com/redcap/api/'
 api_key_entry = os.environ['REDCAP_API_KEY']
 project_entry = rc.Project(api_url, api_key_entry)
 
-additional_columns = ['study_id', 'redcap_event_name',
-                      'dob',  # 'sex',
-                      'age', 'mri_xnat_sid']
-# note that we don't actually need DOB (since age is calculated for each visit) 
-# or sex (because we extract it from study_id)
-general_df = project_entry.export_records(fields=additional_columns, 
+## 1. Extract general info
+additional_columns = ['study_id', 'redcap_event_name', 'dob', 'age']
+# note that we don't actually need DOB (since age is calculated for each visit)
+general_df = project_entry.export_records(fields=additional_columns,
+                                          events=selected_events,
                                           format='df')
+
+## 2. Filter out records based on a demographics file from a data release
+if args.demographics_file:
+    demog = process_demographics_file(args.demographics_file)
+    general_df = pd.merge(general_df, demog,
+                          left_index=True, right_index=True,
+                          how='right')
+
+## 3. Round age and remove records with uncalculated age
 general_df = general_df.round({'age': 0}).dropna(subset=['age'])
 general_df['age'] = general_df['age'].astype(int)
 
+## 4. Extract form-specific info
 ysr_df = project_entry.export_records(fields=['study_id'],
-                                      forms=['youth_report_1b'], format='df')
+                                      events=selected_events,
+                                      forms=['youth_report_1b'],
+                                      format='df')
 # filter columns so that they start with youthreport1_asr_section
 # only keep rows that have at least 100 responses
 ysr_df_answers = (ysr_df.filter(regex=r'^youthreport1_ysr_section')
-                  .dropna(axis=0, how='any', thresh=100)
+                  .dropna(axis=0, how='any', thresh=args.threshold)
                   .fillna(value=9))
 
-# shrink into a single column
+## 5. Shrink into a single column
 ysr_df_answers['bpitems'] = (ysr_df_answers
                              .iloc[:, 0:(len(ysr_df_answers.columns))]
                              .astype(int)
@@ -36,8 +69,8 @@ ysr_df_bpitems = ysr_df_answers.loc[:, ['bpitems']]
 
 # with NaN-containing answers filtered out, grab age and XNAT SID for the
 # surviving records
-output_df = pd.merge(general_df, ysr_df_bpitems, 
-                     left_index=True, right_index=True, 
+output_df = pd.merge(general_df, ysr_df_bpitems,
+                     left_index=True, right_index=True,
                      how='inner')
 
 # Using the fact that pandas will automatically create an index as
@@ -47,7 +80,7 @@ output_df = output_df.reset_index()
 output_df.index.rename('subjectno', inplace=True)
 output_df = output_df.reset_index()  # get subjectno as a column
 
-# Assign contant values
+# Assign the constant values required by ADM
 output_df = output_df.assign(admver=9.1,
                              datatype='raw',
                              dfo='//',
@@ -57,8 +90,7 @@ output_df = output_df.assign(admver=9.1,
                              formid='13',
                              type='YSR',
                              enterdate=time.strftime("%m/%d/%Y"),
-                             compitems="'" + ('9' * 36)
-                            )
+                             compitems="'" + ('9' * 36))
 
 # Extract gender from study ID
 output_df = output_df.assign(gender=lambda x: x.study_id.str.extract(r'([MF])-[0-9]$', expand=False))
@@ -85,5 +117,5 @@ adm_headers=["admver","datatype","subjectno","id","firstname","middlename","last
              "sped4","sped5","sped6","sped7","sped8","sped9","sped10","sped10a","sped10b","sped10c","admcatlg",
              "society","cethnic","ceduc","cfob","cagency","cclin","cintervr","crater","cfacilit","ctime","ctype",
              "cschool","cfudef1","cfudef2","csudef1"]
-output_df = output_df.reindex(columns = adm_headers)
-output_df.to_csv('ysr_prep_' + time.strftime("%m%d%Y") + '.csv', index=False)
+output_df = output_df.reindex(columns=adm_headers)
+output_df.to_csv(args.output, index=False)
