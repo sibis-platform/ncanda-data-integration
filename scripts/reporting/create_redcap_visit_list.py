@@ -11,19 +11,12 @@ python create_redcap_visit_list.py
 """
 import os
 import sys
+from sibispy import sibislogger as slog
+import sibispy
 
 import redcap
 
-def get_project(event_list):
-    # First REDCap connection for the Summary project (this is where we put data)
-    summary_key_file = open(os.path.join(os.path.expanduser("~"),
-                                         '.server_config/redcap-dataentry-token' ),
-                                          'r')
-    summary_api_key = summary_key_file.read().strip()
-    rc_summary = redcap.Project('https://ncanda.sri.com/redcap/api/',
-                                summary_api_key,
-                                verify_ssl=False)
-
+def get_project(rc_summary,event_list):
     # Get all the mri session reports
     if len(event_list):
         mri  = rc_summary.export_records(fields=['study_id', 'exclude',
@@ -47,7 +40,24 @@ def main(args=None):
     if args.all_events:
         args.event = ""
 
-    project = get_project(args.event)
+
+    slog.init_log(False, False,'create_redcap_visit_list', 'create_redcap_visit_list',None)
+    session = sibispy.Session()
+    if not session.configure():
+        if args.verbose:
+            print "Error: session configure file was not found"
+
+        sys.exit()
+
+    rc_summary = session.connect_server('data_entry', True)
+    if not rc_summary :
+        if args.verbose:
+            print "Error: Could not connect to Redcap for Import Project"
+
+        sys.exit()
+
+
+    project = get_project(rc_summary,args.event)
     if args.verbose:
         print("Filtering dataframe...")
 
@@ -79,7 +89,7 @@ if __name__ == '__main__':
                                      description=__doc__,
                                      formatter_class=formatter)
     parser.add_argument('-e', '--event', dest="event", action='store',
-                        default="baseline_visit_arm_1,1y_visit_arm_1",
+                        default="baseline_visit_arm_1,1y_visit_arm_1,2y_visit_arm_1,3y_visit_arm_1",
                         help="A list containg the events of interest. {}".format(default))
     parser.add_argument('--all-events', help="Download data from all events", action='store_true')
     parser.add_argument('-f', '--fields', dest="fields",
