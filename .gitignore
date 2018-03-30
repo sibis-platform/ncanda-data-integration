@@ -58,3 +58,6 @@ target/
 
 # Pycharm
 .idea/
+
+# IPython / Jupyter Notebooks
+.ipynb_checkpoints
