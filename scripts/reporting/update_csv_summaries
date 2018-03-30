@@ -43,7 +43,7 @@ if true; then
   [ -d ${dstdir}/redcap ] || mkdir -p ${dstdir}/redcap
   
   # These are all the baseline measures
-  measures="ataxia biological_mr biological_np brief cddr clinical cnp dd100 dd1000 demographics ehi grooved_pegboard highrisk ishihara landoltc locked_forms mri_report mri_stroop mr_session_report np_reyosterrieth_complex_figure_files parentreport participant_last_use_summary pasat rey-o saliva_samples sleep_behavior ssaga_parent ssaga_youth stroop wais4 wrat4 youthreport1 youthreport1b youthreport2" 
+  measures="ataxia biological_mr biological_np brief cddr clinical cnp dd100 dd1000 demographics ehi grooved_pegboard highrisk ishihara landoltc limesurvey_ssaga_parent limesurvey_ssaga_youth locked_forms mri_report mri_stroop mr_session_report np_reyosterrieth_complex_figure_files parentreport participant_last_use_summary pasat rey-o saliva_samples sleep_behavior ssaga_parent ssaga_youth stroop wais4 wrat4 youthreport1 youthreport1b youthreport2" 
   for m in ${measures}; do
     files="$(ls ${srcdir}/*/*/*/measures/${m}.csv 2>/dev/null)"
     if [ "$files" != ""  ]; then 
