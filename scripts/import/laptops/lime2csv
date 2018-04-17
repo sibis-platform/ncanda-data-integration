@@ -257,7 +257,7 @@ args = parser.parse_args()
 match = re.match( '.*survey_([0-9]{5})_subjid_([^_]*)_([0-9]{8})_([0-9]{10})\.csv', args.infile )
 subject_label = str(args.infile).split('/')[-2]
 if not match:
-    post_issue_and_exit("ERROR: file " + str(args.infile) + " cannot be parsed.")
+    post_issue_and_exit("ERROR: file " + str(args.infile) + " cannot be parsed as file name does not follow naming convention, i.e., *survey_<5 dig num>_subjid_<id>_<8 dig num>_<10 dig num>.csv")
 
 if not match.group(1) in surveys.keys():
     post_issue_and_exit("ERROR: survey '%s' is unknown or not supported" % (match.group(1)))
