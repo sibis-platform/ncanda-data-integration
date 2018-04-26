@@ -3,7 +3,7 @@ import pandas as pd
 def load_datadict(filepath, trim_index=True, trim_all=False):
     df = pd.read_csv(filepath, index_col=0)
     if trim_index:
-        df.index = df.index.str.strip()
+        df.index = df.index.to_series().str.strip()
     if trim_all:
         df = df.applymap(lambda x: x.strip() if type(x) is str else x)
     return df
