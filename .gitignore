@@ -58,3 +58,9 @@ target/
 
 # Pycharm
 .idea/
+
+# Pytest
+.pytest_cache/
+
+# Editor swap files
+*.swp
