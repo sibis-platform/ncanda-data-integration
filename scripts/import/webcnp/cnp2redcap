@@ -12,12 +12,15 @@ tmpdir=`mktemp -d`
 # Read specific flags
 original_args="$*"
 selected_args=""
-# Sort out argument options starting with -p, -v, -t and ignore everything else 
-options=$(getopt -o pt:v -- "$@" 2> /dev/null) ;
+# Sort out argument options starting with -p, -v, -h, -t and ignore everything else 
+# : means that t has a required argument afterwards 
+options=$(getopt -o pt:vh -- "$@" 2> /dev/null) ;
 eval set -- "$options"
+helpFlag=false
 while true; do
      case ${1} in
          -p|-v) selected_args+="${1} " ;;
+	 -h)  selected_args+="${1} "; helpFlag=true ;;
          -t)  shift; selected_args+="-t ${1} " ;;
          --)  break;; 
      esac
@@ -31,6 +34,9 @@ eval set -- "$original_args"
 #
 ${bindir}/get_results_selenium $* ${tmpdir} 
 
+if ${helpFlag}; then
+    exit 0 
+fi  
 
 #
 # Second, upload CSV file to REDCap

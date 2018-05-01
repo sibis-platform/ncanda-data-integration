@@ -228,6 +228,11 @@ def handle_survey(subject_label, survey_id, data, verbose ):
     for row_index, row in data.iterrows():
         # Determine file name, only proceed if file does not exist already
         filename = os.path.join( survey_dir, '%s.csv' % row['record_id'] )
+        if args.dry_run: 
+            print "Dry-Run: results not written to", filename
+            return 
+            
+
         if not os.path.exists( filename ) or args.overwrite:
             pandas.DataFrame( row ).transpose().to_csv( filename, index=False, quoting=csv.QUOTE_ALL )
             # Print filename so we can get a list of updated files by capturing stdout
@@ -252,6 +257,11 @@ parser.add_argument( "--overwrite", help="Overwrite existing CSV files.", action
 parser.add_argument( "infile", help="Input .csv LimeSurvey file.")
 parser.add_argument( "outdir", help="Output directory. All CSV files are created in this directory")
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+parser.add_argument("--dry-run",
+                    help="Do not convert any data", 
+                    action="store_true",
+                    default=False)
+
 args = parser.parse_args()
 
 # Figure out which survey type this is - bail if unknown

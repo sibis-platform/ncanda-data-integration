@@ -63,6 +63,12 @@ parser.add_argument("--all",
                     action="store_true",
                     default=False)
 
+parser.add_argument("--dry-run",
+                    help="Do not convert any data", 
+                    action="store_true",
+                    default=False)
+
+
 parser.add_argument("--no-blaise",
                     help="Blaise files are going to be ignored", 
                     action="store_true",
@@ -130,7 +136,14 @@ def run_converter(site, subject_label, command,verbose):
     if verbose:
         print "Running", ' '.join(command)
 
+        
+    if args.dry_run :
+        if verbose : 
+            print "Dry Run: No files were transferred to csv" 
+        return 0 
+
     filesProcessed = 0 
+
     try : 
         added_files = subprocess.check_output(command)
         if not len(added_files):
