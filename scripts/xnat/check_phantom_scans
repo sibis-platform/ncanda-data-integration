@@ -99,7 +99,7 @@ def check_experiment(session, eid, experiment):
                   info = "Please check if eid still exists in xnat. If not ignore error and otherwise run ./check_phantom_scans -e " + eid )
         return False
 
-    subject_label_match = re.match(subject_id_pattern_nophantom, session.xnat_get_subject_attribute(prj,sid,'label'))
+    subject_label_match = re.match(subject_id_pattern_nophantom, session.xnat_get_subject_attribute(prj,sid,'label')[0])
     if subject_label_match:
         # This is a dictionary that maps subjects who changed sites to the correct phantom.
         with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
@@ -116,12 +116,14 @@ def check_experiment(session, eid, experiment):
             else : 
                 phantom_label = "%s-99999-P-9" % subject_label_match.group(1)
 
-            phantom_id = session.xnat_get_subject_attribute(prj,phantom_label,'ID')
+            [phantom_id, issue_url] = session.xnat_get_subject_attribute(prj,phantom_label,'ID')
             if not phantom_id :
-                slog.info(phantom_label,"Could not get phantom id", project_id=prj)
+                slog.info(eid,"Could not get phantom id for phantom" + phantom_label, 
+                          project_id=prj,
+                          phantom=phantom_label,
+                          related_issues = issue_url,
+                          cmd=" ".join(sys.argv))
                 return False
-
-
                 
             phantom_scans = ifc.array.experiments(experiment_type='xnat:mrSessionData', constraints={ 'xnat:mrSessionData/subject_id':phantom_id, 'date': edate})
             # handle check for phantoms on the same day but wrong scanner
@@ -147,7 +149,6 @@ def check_experiment(session, eid, experiment):
                           subject_experiment_id=seid,
                           info = "Most likely entry missing for this visit in section 'check_phantom_scans' of file 'special_cases.yml'",  
                           error_msg = str(e) )
-    return True    
 
 # =============================================================
 # MAIN Section
