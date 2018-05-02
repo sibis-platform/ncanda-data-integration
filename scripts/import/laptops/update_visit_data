@@ -8,6 +8,7 @@
 import os
 import re
 import sys
+import yaml
 import datetime
 import argparse
 
@@ -328,6 +329,17 @@ if not session.configure():
 
     sys.exit()
 
+sibis_config = session.get_operations_dir()
+special_cases_file = os.path.join(sibis_config, 'special_cases.yml')
+if not os.path.isfile(special_cases_file) : 
+    slog.info("update_visit_data","Error: The following file does not exist :" + special_cases_file)
+    sys.exit(1)
+              
+# Get a list of cases outside the visit window that should be included.
+with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
+    special_cases = yaml.load(fi)
+    exceptions_data = special_cases.get('update_visit_data')
+
 if args.forms:
     forms = dict()
     for f in args.forms.split(','):
@@ -609,6 +621,15 @@ for form_prefix, form_name in forms.iteritems():
             # Select records in permissible range
             records_this_visit = records_this_subject[ records_this_subject[date_label] >= date_on_or_after ]
             records_this_visit = records_this_visit[ records_this_visit[date_label] < date_before ]
+
+            subject_visit_id = "{}-{}".format(key[0], visit_date)
+            exception_list = exceptions_data.get(subject_visit_id)
+            if exception_list: 
+                if args.verbose: 
+                    print "Exception:", exception_list 
+                for excep_date in exception_list.split(','):  
+                     records_this_visit=records_this_visit.append(records_this_subject[ records_this_subject[date_label] == excep_date]) 
+
             # First, treat the case where we have MORE THAN ONE record in the search window
             if (len( records_this_visit ) > 1):
                 # Sort records by date difference from visit date
