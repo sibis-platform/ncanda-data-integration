@@ -118,7 +118,7 @@ def check_experiment(session, eid, experiment):
 
             [phantom_id, issue_url] = session.xnat_get_subject_attribute(prj,phantom_label,'ID')
             if not phantom_id :
-                slog.info(eid,"Could not get phantom id for phantom" + phantom_label, 
+                slog.info(eid,"Could not get phantom id for phantom " + phantom_label, 
                           project_id=prj,
                           phantom=phantom_label,
                           related_issues = issue_url,
