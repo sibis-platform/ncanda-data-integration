@@ -760,7 +760,6 @@ for [key, row] in mr_sessions_redcap.iterrows():
                         sid = id_map.get('xnat_subject_id')
                 pipe_id = id_map.get('subject')
                 pid = id_map.get('project')
-                print id_map, sid, pipe_id, pid
             else :
                 sid, pid = subject_project_dict[subject_label]
                 pipe_id = sid
