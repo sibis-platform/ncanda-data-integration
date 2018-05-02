@@ -101,7 +101,16 @@ def process_file(fname):
     # Make list of dicts for REDCap import
     record_list = []
     for key, row in data.iterrows():
+        if 'record_id' not in  row.index :
+            justFile= os.path.basename(fname) 
+            slog.info( str(args.data_access_group) + "-" + hashlib.sha1(fname).hexdigest()[0:6], "'record_id' is not defined in file '" + justFile + "'!",
+                   cmd = " ".join(sys.argv),
+                   file_name = fname,
+                   project=args.project)
+            return False
+ 
         row['record_id'] = re.sub('(#|&|\+|\')', '?', row['record_id'])
+ 
         record_id = row['record_id']
         if complete_field:
             if record_id in existing_data.index.tolist():
