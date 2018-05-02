@@ -292,7 +292,8 @@ def get_xnat_data(red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_
             
             error='Missing MRI for Subject with visit date.'
             slog.info(redcap_visit_id,error,
-                          project_id=xnat_pid,
+                          xnat_project_id=xnat_pid,
+                          xnat_subject_id=xnat_sid,
                           visit_id=event,
                           visit_date=visit_date)
         return result
@@ -749,23 +750,17 @@ for [key, row] in mr_sessions_redcap.iterrows():
                 if event == 'baseline_visit_arm_1':
                     id_map = sub_map.get('baseline')
                     sid = id_map.get('subject')
-                elif event == '1y_visit_arm_1' and sub_map.get('followup_1y'):
-                    id_map = sub_map.get('followup_1y')
-                    sid = id_map.get('subject')
-                elif event == '2y_visit_arm_1' and sub_map.get('followup_2y'):
-                    id_map = sub_map.get('followup_2y')
-                    sid = id_map.get('subject')
-                elif event == '3y_visit_arm_1' and sub_map.get('followup_3y'):
-                    id_map = sub_map.get('followup_3y')
-                    sid = id_map.get('subject')
-                elif event == '4y_visit_arm_1' and sub_map.get('followup_4y'):
-                    id_map = sub_map.get('followup_4y')
-                    sid = id_map.get('subject')
-                else:
-                    id_map = sub_map.get('default')
-                    sid = id_map.get('xnat_subject_id')
+                else :
+                    [year,arm] = event.split('_',1)
+                    id_map = sub_map.get('followup_' + year)
+                    if (arm == 'visit_arm_1') and id_map:
+                        sid = id_map.get('subject')
+                    else:
+                        id_map = sub_map.get('default')
+                        sid = id_map.get('xnat_subject_id')
                 pipe_id = id_map.get('subject')
                 pid = id_map.get('project')
+                print id_map, sid, pipe_id, pid
             else :
                 sid, pid = subject_project_dict[subject_label]
                 pipe_id = sid
