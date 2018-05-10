@@ -80,7 +80,9 @@ cnp_copy_variables = cnp.get_copy_variables( rc_import, rc_summary )
 
 # Get the event-form mapping so we can select the events that should have CNP data
 form_event_mapping = rc_summary.export_fem( format='df' )
-cnp_events_list = form_event_mapping[form_event_mapping['form_name'] == 'cnp_summary' ]['unique_event_name'].tolist()
+# TODO: Fix form_name
+form_key = session.get_redcap_form_key()
+cnp_events_list = form_event_mapping[form_event_mapping[form_key] == 'cnp_summary' ]['unique_event_name'].tolist()
 
 # Retrieve subject IDs, events, exclusions, visit dates, and current CNP summary data
 fields_summary = ['study_id', 'redcap_event_name', 'dob', 'exclude', 'visit_date', 'cnp_summary_complete', 'cnp_missing', 'cnp_datasetid', 'cnp_age', 'cnp_instruments']

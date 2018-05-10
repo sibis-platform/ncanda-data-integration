@@ -560,6 +560,7 @@ with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
     exceptions_num_type = special_cases.get('more_of_type')
 
 form_event_mapping = redcap_project.export_fem( format='df' )
+form_key = session.get_redcap_form_key()
 
 # Organize REDCap metadata, e.g., filter all confidential fields out of export lists, and make code-to-label lookup dictionaries
 # rcpipeline.organize_metadata( redcap_project.metadata )
@@ -672,7 +673,8 @@ if args.study_id:
 
 
 # Select only events that have the "MRI Session Report" form
-mri_events_list = form_event_mapping[form_event_mapping['form_name'] == 'mr_session_report' ]['unique_event_name'].tolist()
+# TODO: Fix form_name
+mri_events_list = form_event_mapping[form_event_mapping[form_key] == 'mr_session_report' ]['unique_event_name'].tolist()
 get_events = lambda x: x[1] in mri_events_list
 events_filter = visit_log_redcap.index.map(get_events)
 columns = ['visit_date', 'visit_ignore___yes', 'mr_session_report_complete',
@@ -682,7 +684,8 @@ mr_sessions_redcap = visit_log_redcap[events_filter][columns]
 forms_by_event_dict = dict()
 for event in redcap_project.events:
     event_id = event['unique_event_name']
-    forms_by_event_dict[event_id] = set( form_event_mapping[form_event_mapping['unique_event_name'] == event_id ]['form_name'].tolist() )
+    # TODO: Fix form_name
+    forms_by_event_dict[event_id] = set( form_event_mapping[form_event_mapping['unique_event_name'] == event_id ][form_key].tolist() )
 
 # Have pipeline feeder check for "excluded" subjects that might have previously entered the pipeline
 if args.pipeline_root_dir:
