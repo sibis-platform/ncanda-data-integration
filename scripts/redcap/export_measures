@@ -194,7 +194,6 @@ visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: key
 forms_by_event_dict = dict()
 for event in redcap_project.events:
     event_id = event['unique_event_name']
-    # TODO: Fix form_name
     forms_by_event_dict[event_id] = set( form_event_mapping[form_event_mapping['unique_event_name'] == event_id ][form_key].tolist() )
 
 # Limit to selected export files

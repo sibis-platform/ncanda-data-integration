@@ -165,8 +165,7 @@ def get_subject_next_visit_date(subject, after_visit_date, form):
     # Exclude "Recovery" baseline from list - this will usually be the MR day of a normal visit
     subject_visit_dates = subject_visit_dates[subject_visit_dates.index.map(lambda key: key[1] != recovery_baseline_event)]
 
-    # TODO: Fix form_name
-    events_this_form = form_event_mapping[form_event_mapping['form_name'] == form ]['unique_event_name'].tolist()
+    events_this_form = form_event_mapping[form_event_mapping[form_key] == form ]['unique_event_name'].tolist()
     # Filter by events that have this form
     subject_visit_dates = subject_visit_dates[subject_visit_dates.index.map(lambda key: key[1] in events_this_form)]
 
@@ -519,13 +518,11 @@ for form_prefix, form_name in forms.iteritems():
     # Select the events that actually have this form (first, to handle summary forms,
     # figure out what actual form the "FORM_complete" field is in)
     try:
-        # TODO: Maybe fix?
         summary_form_name = [ field['form_name'] for field in redcap_project.metadata if field['field_name'] == complete_label ][0]
     except:
         # If the above failed (due to empty list, presumably), then this is not a
         # hierarchical form and we should just use the given form name
         summary_form_name = form_name
-    # TODO: Fix
     instrument_events_list = form_event_mapping[form_event_mapping[form_key] == summary_form_name ]['unique_event_name'].tolist()
 
     entry_form_data = entry_data[ entry_data.index.map( lambda x: x[1] in instrument_events_list ) ]

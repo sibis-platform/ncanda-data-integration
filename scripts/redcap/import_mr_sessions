@@ -673,7 +673,6 @@ if args.study_id:
 
 
 # Select only events that have the "MRI Session Report" form
-# TODO: Fix form_name
 mri_events_list = form_event_mapping[form_event_mapping[form_key] == 'mr_session_report' ]['unique_event_name'].tolist()
 get_events = lambda x: x[1] in mri_events_list
 events_filter = visit_log_redcap.index.map(get_events)
@@ -684,7 +683,6 @@ mr_sessions_redcap = visit_log_redcap[events_filter][columns]
 forms_by_event_dict = dict()
 for event in redcap_project.events:
     event_id = event['unique_event_name']
-    # TODO: Fix form_name
     forms_by_event_dict[event_id] = set( form_event_mapping[form_event_mapping['unique_event_name'] == event_id ][form_key].tolist() )
 
 # Have pipeline feeder check for "excluded" subjects that might have previously entered the pipeline
