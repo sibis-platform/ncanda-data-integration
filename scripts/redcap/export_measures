@@ -96,7 +96,8 @@ forms = list(redcap_project.forms)
 
 form_event_mapping = redcap_project.export_fem( format='df' )
 
-
+# Get the 'form'/'form_name' used by this version of Redcap
+form_key = session.get_redcap_form_key()
 
 # If a directory for creating data dictionaries is given, make those first
 if args.datadict_dir:
@@ -193,7 +194,7 @@ visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: key
 forms_by_event_dict = dict()
 for event in redcap_project.events:
     event_id = event['unique_event_name']
-    forms_by_event_dict[event_id] = set( form_event_mapping[form_event_mapping['unique_event_name'] == event_id ]['form_name'].tolist() )
+    forms_by_event_dict[event_id] = set( form_event_mapping[form_event_mapping['unique_event_name'] == event_id ][form_key].tolist() )
 
 # Limit to selected export files
 if args.export:
