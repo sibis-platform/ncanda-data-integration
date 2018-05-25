@@ -5,6 +5,8 @@ import os
 import argparse
 import sys
 from aseba_utils import process_demographics_file, get_year_set
+import sibispy
+from sibispy import sibislogger as slog
 
 parser = argparse.ArgumentParser(
     description="Export selected YSR fields to ADM before ASEBA scoring.",
@@ -25,9 +27,14 @@ args = parser.parse_args()
 
 selected_events = get_year_set(args.year)
 
-api_url = 'https://ncanda.sri.com/redcap/api/'
-api_key_entry = os.environ['REDCAP_API_KEY']
-project_entry = rc.Project(api_url, api_key_entry)
+session = sibispy.Session()
+if not session.configure():
+    sys.exit()
+
+slog.init_log(None, None, 'YSR: Initial pre-scoring data retrieval', 'ysr_reformat', None)
+slog.startTimer1()
+
+project_entry = session.connect_server('data_entry', True)
 
 ## 1. Extract general info
 additional_columns = ['study_id', 'redcap_event_name', 'dob', 'age']
@@ -44,7 +51,8 @@ if args.demographics_file:
                           how='right')
 
 ## 3. Round age and remove records with uncalculated age
-general_df = general_df.round({'age': 0}).dropna(subset=['age'])
+general_df['age'] = general_df['age'].round(decimals=0)
+general_df = general_df.dropna(subset=['age'])
 general_df['age'] = general_df['age'].astype(int)
 
 ## 4. Extract form-specific info
@@ -81,19 +89,19 @@ output_df.index.rename('subjectno', inplace=True)
 output_df = output_df.reset_index()  # get subjectno as a column
 
 # Assign the constant values required by ADM
-output_df = output_df.assign(admver=9.1,
-                             datatype='raw',
-                             dfo='//',
-                             formver='2001',
-                             dataver='2001',
-                             formno='13',
-                             formid='13',
-                             type='YSR',
-                             enterdate=time.strftime("%m/%d/%Y"),
-                             compitems="'" + ('9' * 36))
+output_df["admver"] = 9.1
+output_df["datatype"] = 'raw'
+output_df["dfo"] = '//'
+output_df["formver"] = '2001'
+output_df["dataver"] = '2001'
+output_df["formno"] = '13'
+output_df["formid"] = '13'
+output_df["type"] = 'YSR'
+output_df["enterdate"] = time.strftime("%m/%d/%Y")
+output_df["compitems"] = "'" + ('9' * 36)
 
 # Extract gender from study ID
-output_df = output_df.assign(gender=lambda x: x.study_id.str.extract(r'([MF])-[0-9]$', expand=False))
+output_df['gender'] = output_df['study_id'].str.extract(r'([MF])-[0-9]$')  # , expand=False)
 
 # Rename columns to be reused
 output_df = output_df.rename(columns={'study_id': 'firstname', 
