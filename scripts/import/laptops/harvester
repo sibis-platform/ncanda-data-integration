@@ -154,7 +154,7 @@ def run_converter(site, subject_label, command,verbose):
 
         for fi in added_files.strip().split('\n'):
             if re.match('.*\.csv$', fi):
-                if os.path.basename(fi).split('-')[0] == 'NOID' : 
+                if os.path.basename(fi).split('-')[0] in ['NOID', 'nan']: 
                     slog.info(subject_label + "-" +  hashlib.sha1('harvester {}'.format(fi)).hexdigest()[0:6], 'converter_cmd created file that does not contain subject ID and thus cannot be uploaded to redcap',
                               file=str(fi),
                               converter_cmd=" ".join(command), 
