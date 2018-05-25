@@ -12,14 +12,21 @@
 
 # In[ ]:
 
+
 import pandas as pd
-import redcap as rc
 import re
 import os
+import redcap as rc
+import numpy as np
 from operator import itemgetter  # for extracting multiple keys from a dict
+
+import sibispy
+from sibispy import sibislogger as slog
+import sys
 
 
 # In[ ]:
+
 
 # Setting pandas options for interactive displays
 pd.set_option('display.max_rows', 500)
@@ -30,10 +37,20 @@ pd.set_option('display.max_colwidth', 300)
 
 # In[ ]:
 
-# Setting specific constants for this run of QC
-api_url = 'https://ncanda.sri.com/redcap/api/'
-api_key = os.environ['REDCAP_API_KEY']
-api = rc.Project(api_url, api_key)
+
+session = sibispy.Session()
+if not session.configure():
+    sys.exit()
+
+slog.init_log(None, None, 'QC_all: Completeness report', 'qc_all', None)
+slog.startTimer1()
+
+
+# In[ ]:
+
+
+# Setting up API and specific constants for this run of QC
+api = session.connect_server('data_entry', True)
 primary_key = api.def_field
 
 qc_event = '3y_visit_arm_1'
@@ -42,9 +59,16 @@ qc_arm = 1
 
 # In[ ]:
 
+
 def get_forms_for_qc(rc_api, event, arm=1):
     forms_events = rc_api.export_fem(format='df')
-    return forms_events.        query('unique_event_name == @event & arm_num == @arm').        form_name.unique().tolist()
+    if "form" in forms_events.columns:
+        form_key = "form"
+    else:
+        form_key = "form_name"
+    return (forms_events
+            .query('unique_event_name == @event & arm_num == @arm', engine="python")
+            .get(form_key).unique().tolist())
 forms_for_qc = get_forms_for_qc(api, qc_event, qc_arm)
 
 
@@ -56,16 +80,19 @@ forms_for_qc = get_forms_for_qc(api, qc_event, qc_arm)
 
 # In[ ]:
 
+
 forms_to_skip = ['biological_np', 'biological_mr', 'mr_session_report', 'mri_report']
 [forms_for_qc.remove(form) for form in forms_to_skip]
 
 
 # In[ ]:
 
+
 forms_for_qc
 
 
 # In[ ]:
+
 
 def get_data_for_event(rc_api, event, forms=None, arm=1):
     if forms is None:
@@ -84,6 +111,7 @@ data_all = get_data_for_event(api, qc_event)
 
 # In[ ]:
 
+
 # Save the intermediate product if needed
 save_to_csv = False
 if save_to_csv:
@@ -91,6 +119,7 @@ if save_to_csv:
 
 
 # In[ ]:
+
 
 def merge_df_from_forms(form_names, data_all):
     """ Return a single pandas.DataFrame merged from data frames stored in a dict.
@@ -107,10 +136,12 @@ def merge_df_from_forms(form_names, data_all):
 
 # In[ ]:
 
+
 all_meta = {form: data_all[form].filter(regex=r'_date$|_notes?$') for form in forms_for_qc}
 
 
 # In[ ]:
+
 
 meta_df = reduce(lambda x, y: pd.merge(x, y, left_index=True, right_index=True), 
                  all_meta.values())
@@ -124,12 +155,14 @@ dates_df = meta_df.filter(regex=r'_date$')
 
 # In[ ]:
 
-data_all['visit_date'].query('visit_date != visit_date & visit_ignore___yes != 1')
+
+data_all['visit_date'].query('visit_date != visit_date & visit_ignore___yes != 1', engine="python")
 
 
 # # Quality / presence check: MRI
 
 # In[ ]:
+
 
 # 1. Do you have a visit date?
 def has_visit(all_forms_data):
@@ -137,6 +170,7 @@ def has_visit(all_forms_data):
 
 
 # In[ ]:
+
 
 def has_missing_scans(all_forms_data):
     # 2. Do you have any missing scan dates?
@@ -148,6 +182,7 @@ def has_missing_scans(all_forms_data):
 
 # In[ ]:
 
+
 def show_mr_flags(all_forms_data):
     flagged_subset = all_forms_data['mr_session_report'][has_visit(data_all) & 
                                                          has_missing_scans(data_all)]
@@ -158,6 +193,7 @@ def show_mr_flags(all_forms_data):
 
 
 # In[ ]:
+
 
 show_mr_flags(data_all).filter(regex=r'^mri_xnat|_date$|missing$|visit_notes|mri_notes')
 
@@ -176,16 +212,19 @@ show_mr_flags(data_all).filter(regex=r'^mri_xnat|_date$|missing$|visit_notes|mri
 
 # In[ ]:
 
+
 np_keys = filter(lambda x: x.startswith('np'), data_all.keys())
 np_keys = ['visit_date'] + np_keys
 
 
 # In[ ]:
 
+
 np_data = itemgetter(*np_keys)(data_all)
 
 
 # In[ ]:
+
 
 # merging on indices which are guaranteed to be shared
 np_data_all = reduce(lambda x, y: pd.merge(x, y, left_index=True, right_index=True), np_data)
@@ -194,6 +233,7 @@ np_data_all = reduce(lambda x, y: pd.merge(x, y, left_index=True, right_index=Tr
 # With most forms, we might be interested in the number of non-answers. After all, there's a lot of fields that patients fill out:
 
 # In[ ]:
+
 
 #{form: df.columns.tolist() for form, df in data_all.items()}
 
@@ -212,12 +252,14 @@ np_data_all = reduce(lambda x, y: pd.merge(x, y, left_index=True, right_index=Tr
 
 # In[ ]:
 
+
 # ^((?!missing|complete).)*$ is negative lookahead matching everything except the string 'missing'
-np_iter = data_all['np_wrat4_word_reading_and_math_computation']    .query('np_wrat4_missing != 1 & np_wrat4_word_reading_and_math_computation_complete == 2')    .filter(regex=r'^((?!missing|complete).)*$')    .stack(dropna=False)
+np_iter = data_all['np_wrat4_word_reading_and_math_computation']    .query('np_wrat4_missing != 1 & np_wrat4_word_reading_and_math_computation_complete == 2', engine="python")    .filter(regex=r'^((?!missing|complete).)*$')    .stack(dropna=False)
     #set_index(['np_wrat4_missing', 'np_wrat4_missing_why', 'np_wrat4_missing_why_other'], append=True).\
 
 
 # In[ ]:
+
 
 counts = np_iter.count(level=0)
 incomplete = counts < counts.max()
@@ -231,10 +273,12 @@ counts_incomplete = counts[incomplete]
 
 # In[ ]:
 
+
 counts_incomplete
 
 
 # In[ ]:
+
 
 np_iter.loc[counts_incomplete.index.tolist()].isnull()
 
@@ -243,6 +287,7 @@ np_iter.loc[counts_incomplete.index.tolist()].isnull()
 
 # In[ ]:
 
+
 np_forms = forms_for_qc[9:15] # could also filter with a regex
 
 
@@ -250,6 +295,7 @@ np_forms = forms_for_qc[9:15] # could also filter with a regex
 # This could work but might not have the level of granularity that is useful to a human.
 
 # In[ ]:
+
 
 #np_data = merge_df_from_forms(['visit_date'] + np_data, data_all)
 
@@ -260,6 +306,7 @@ np_forms = forms_for_qc[9:15] # could also filter with a regex
 
 # In[ ]:
 
+
 def get_items_containing(needle, haystack):
     return [elt for elt in haystack if needle in elt]
 def get_items_matching_regex(regex, haystack):
@@ -267,6 +314,7 @@ def get_items_matching_regex(regex, haystack):
 
 
 # In[ ]:
+
 
 {form: get_items_matching_regex(r"complete$|missing$", df.columns) for form, df in data_all.items()}
 
@@ -278,6 +326,7 @@ def get_items_matching_regex(regex, haystack):
 # Since there's only 35 forms, and only a bunch don't follow rules, creating custom rules for each in order to be able to do the broader QC check on all is not impossible, merely inelegant.
 
 # In[ ]:
+
 
 def flag_potential_omissions_marked_complete(df):
     # some forms don't have it, some forms have it for multiple subsections
@@ -307,7 +356,7 @@ def flag_potential_omissions_marked_complete(df):
         query_present = "%s != 1" % cols_missing[0]
         query_present_complete = query_present_complete + " and " + query_present
     
-    df_relevant = df.query(query_present_complete)
+    df_relevant = df.query(query_present_complete, engine="python")
     if len(df_relevant) == 0:
         return "No participants filled out the form"
     
@@ -322,6 +371,7 @@ def flag_potential_omissions_marked_complete(df):
 
 # In[ ]:
 
+
 # map(flag_incomplete_forms, np_data)
 np_flags = {form: flag_potential_omissions_marked_complete(data_all[form]) for form in np_forms}
 np_flags
@@ -329,11 +379,13 @@ np_flags
 
 # In[ ]:
 
+
 all_flags = {form: flag_potential_omissions_marked_complete(data_all[form]) for form in forms_for_qc}
 all_flags
 
 
 # In[ ]:
+
 
 def checker(flags_dict, data_dict):
     def check_form(form_name):
@@ -348,45 +400,54 @@ check_form = checker(all_flags, data_all)
 
 # In[ ]:
 
+
 check_form('brief')
 
 
 # In[ ]:
+
 
 check_form('stroop')
 
 
 # In[ ]:
 
+
 check_form('np_wrat4_word_reading_and_math_computation')
 
 
 # In[ ]:
+
 
 check_form('np_reyosterrieth_complex_figure')
 
 
 # In[ ]:
 
+
 check_form('np_reyosterrieth_complex_figure_files')
 
 
 # In[ ]:
+
 
 check_form('np_modified_greglygraybiel_test_of_ataxia')
 
 
 # In[ ]:
 
+
 check_form('parent_report')
 
 
 # In[ ]:
 
+
 check_form('participant_last_use_summary')
 
 
 # In[ ]:
+
 
 # flagged_data = {form: data_all[form].loc[flags] for form, flags in all_flags.values() if isinstance(flags, list)}
 
@@ -438,6 +499,7 @@ check_form('participant_last_use_summary')
 
 # In[ ]:
 
+
 forms_with_checkboxes = {
     'np_grooved_pegboard': ['np_gpeg_exclusion___dh', 'np_gpeg_exclusion___ndh'],
     'np_reyosterreith_complex_figure_files': ['np_reyo_ndh___yes'],
@@ -467,6 +529,7 @@ forms_with_checkboxes = {
 
 # In[ ]:
 
+
 def get_missing_and_complete_column_names(df):
     # some forms don't have it, some forms have it for multiple subsections
     cols_missing = get_items_matching_regex(r'missing$', df.columns)
@@ -482,6 +545,7 @@ def get_missing_and_complete_column_names(df):
 
 # In[ ]:
 
+
 def flag_missing_with_data(df):
     # 1. is it marked missing
     # 2. does it have any fields that are filled out?
@@ -492,7 +556,7 @@ def flag_missing_with_data(df):
     else:
         return None
     
-    df_relevant = df.query(query_missing)
+    df_relevant = df.query(query_missing, engine="python")
     if len(df_relevant) == 0:
         return None
 
@@ -504,6 +568,7 @@ def flag_missing_with_data(df):
 
 
 # In[ ]:
+
 
 def flag_missing_not_marked_complete(df):
     # 1. is it flagged missing
@@ -517,7 +582,7 @@ def flag_missing_not_marked_complete(df):
     else:
         return None
  
-    df_relevant = df.query(query_not_complete)
+    df_relevant = df.query(query_not_complete, engine="python")
     if len(df_relevant) == 0:
         return None
     return df_relevant.index.tolist()
@@ -533,6 +598,7 @@ def flag_missing_not_marked_complete(df):
 # This is also the most common status.
 
 # In[ ]:
+
 
 def flag_incomplete_without_data(df):
     # Equivalent of grey circle in REDCap.
@@ -550,7 +616,7 @@ def flag_incomplete_without_data(df):
         query_present = "%s != 1" % cols_missing[0]
         query_incomplete = "(" + query_incomplete + ") and " + query_present
  
-    df_relevant = df.query(query_incomplete)
+    df_relevant = df.query(query_incomplete, engine="python")
     if len(df_relevant) == 0:
         return None
 
@@ -564,6 +630,7 @@ def flag_incomplete_without_data(df):
 # The checkboxes are, again, causing a lot of false positives here: 
 
 # In[ ]:
+
 
 def flag_incomplete_with_data(df):
     # This is the equivalent of a red circle in REDCap.
@@ -582,7 +649,7 @@ def flag_incomplete_with_data(df):
         query_present = "%s != 1" % cols_missing[0]
         query_incomplete = "(" + query_incomplete + ") and " + query_present
  
-    df_relevant = df.query(query_incomplete)
+    df_relevant = df.query(query_incomplete, engine="python")
     if len(df_relevant) == 0:
         return None
 
@@ -595,6 +662,7 @@ def flag_incomplete_with_data(df):
 
 # In[ ]:
 
+
 def flag_unverified_forms(df):
     # These forms are marked to receive more data. 
     # It doesn't matter whether they're marked missing or not; they should be verified.
@@ -602,7 +670,7 @@ def flag_unverified_forms(df):
     cols_missing, cols_complete = get_missing_and_complete_column_names(df)
     query_unverified = " or ".join(["%s == 1" % col for col in cols_complete])
         
-    df_relevant = df.query(query_unverified)
+    df_relevant = df.query(query_unverified, engine="python")
     if len(df_relevant) == 0:
         return None
     return df_relevant.index.tolist()
@@ -613,6 +681,7 @@ unverified_flags
 # ## Divide flags up by site
 
 # In[ ]:
+
 
 def extract_flags_for_site(flags, site):  # Site is assumed to be a single character
     import re
@@ -631,6 +700,7 @@ unverified_by_site
 
 # In[ ]:
 
+
 event_mapping = {'baseline': 70,
                  '6-month': 71,
                  '1y': 72,
@@ -643,6 +713,7 @@ event_mapping = {'baseline': 70,
 
 
 # In[ ]:
+
 
 def make_urls_for_ids_by_form(flags_by_form, event_id=76):
     root_url = 'https://ncanda.sri.com/redcap/redcap_v6.10.5/DataEntry/index.php'
@@ -658,12 +729,14 @@ def make_urls_for_ids_by_form(flags_by_form, event_id=76):
 
 # In[ ]:
 
+
 unverified_urls_by_site = {site: make_urls_for_ids_by_form(site_unverified) 
                            for site, site_unverified 
                            in unverified_by_site.items()}
 
 
 # In[ ]:
+
 
 for site, flags_by_form in unverified_urls_by_site.iteritems():
     print('# %s\n' % site)
@@ -672,9 +745,4 @@ for site, flags_by_form in unverified_urls_by_site.iteritems():
         for study_id, url in flags_in_form.iteritems():
             print('* [%s](%s)' % (study_id, url))
     
-
-
-# In[ ]:
-
-
 
