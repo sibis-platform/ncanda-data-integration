@@ -94,7 +94,9 @@ def compute_survey_date( row, this_survey ):
         try:
             date = str( row['%s_%s' % (this_survey,field)] )
             if len( date ) >= 10:
-                return date[0:10]
+                return_date = fix_dates(date[0:10], this_survey)
+                if int(return_date[0:4]) >= 2010:
+                    return return_date[0:10]
         except:
             pass
 
