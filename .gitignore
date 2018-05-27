@@ -59,5 +59,11 @@ target/
 # Pycharm
 .idea/
 
+# Pytest
+.pytest_cache/
+
+# Editor swap files
+*.swp
+
 # IPython / Jupyter Notebooks
 .ipynb_checkpoints
