@@ -13,6 +13,7 @@ import csv
 
 import pandas
 import recover_yn_variables as recyn
+from datetime import datetime
 
 #
 # Functions andd variables
@@ -93,7 +94,9 @@ def compute_survey_date( row, this_survey ):
         try:
             date = str( row['%s_%s' % (this_survey,field)] )
             if len( date ) >= 10:
-                return date[0:10]
+                return_date = fix_dates(date[0:10], this_survey)
+                if int(return_date[0:4]) >= 2010:
+                    return return_date[0:10]
         except:
             pass
 
@@ -227,6 +230,11 @@ def handle_survey(subject_label, survey_id, data, verbose ):
     for row_index, row in data.iterrows():
         # Determine file name, only proceed if file does not exist already
         filename = os.path.join( survey_dir, '%s.csv' % row['record_id'] )
+        if args.dry_run: 
+            print "Dry-Run: results not written to", filename
+            return 
+            
+
         if not os.path.exists( filename ) or args.overwrite:
             pandas.DataFrame( row ).transpose().to_csv( filename, index=False, quoting=csv.QUOTE_ALL )
             # Print filename so we can get a list of updated files by capturing stdout
@@ -251,13 +259,18 @@ parser.add_argument( "--overwrite", help="Overwrite existing CSV files.", action
 parser.add_argument( "infile", help="Input .csv LimeSurvey file.")
 parser.add_argument( "outdir", help="Output directory. All CSV files are created in this directory")
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+parser.add_argument("--dry-run",
+                    help="Do not convert any data", 
+                    action="store_true",
+                    default=False)
+
 args = parser.parse_args()
 
 # Figure out which survey type this is - bail if unknown
 match = re.match( '.*survey_([0-9]{5})_subjid_([^_]*)_([0-9]{8})_([0-9]{10})\.csv', args.infile )
 subject_label = str(args.infile).split('/')[-2]
 if not match:
-    post_issue_and_exit("ERROR: file " + str(args.infile) + " cannot be parsed.")
+    post_issue_and_exit("ERROR: file " + str(args.infile) + " cannot be parsed!", info="File name does not follow naming convention, i.e., *survey_<5 dig num>_subjid_<id>_<8 dig num>_<10 dig num>.csv")
 
 if not match.group(1) in surveys.keys():
     post_issue_and_exit("ERROR: survey '%s' is unknown or not supported" % (match.group(1)))
@@ -265,6 +278,9 @@ if not match.group(1) in surveys.keys():
 survey_id = match.group(1)
 
 # Read the input CSV file from LimeSurvey
+if not os.path.exists(args.infile) :
+    post_issue_and_exit("ERROR: file " + str(args.infile) + " does not exist!" , time=str(datetime.now()))
+
 try : 
     data = pandas.read_csv( args.infile, dtype=object )
 except Exception, err_msg: 

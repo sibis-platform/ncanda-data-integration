@@ -1,32 +1,29 @@
-import time
-start = time.time()
 import redcap
-import array
-import string
-import csv
-import numpy
 import sys
-import glob
-from datetime import datetime
-import numpy
-from numpy import genfromtxt
 import numpy as np
 import pandas
 from pandas import DataFrame
+import argparse
 
+parser = argparse.ArgumentParser(
+    description="Reformat the output of ASEBA scoring for ASR.",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter
+)
+parser.add_argument('-i', '--input', help="xlsx file to process.",
+                    action="store")
+parser.add_argument('-o', '--output', help="CSV file to write output to.",
+                    action="store", default=sys.stdout)
+args = parser.parse_args()
 
+if args.input:
+    data = pandas.read_excel(args.input, sheet_name=0)  # return first sheet
+else:
+    raise ValueError('No input file provided!')
 
-
-print 'Please Specify a file name: ASR, YSR, CBC'
-excel = pandas.ExcelFile('Aseba_Raw_And_Scored_Data_Combined.xlsx')
-data = excel.parse("ASR_18_59")
-
-
-today=time.strftime("%m%d%Y")
-myfile_name='asr_outcome_reformate_'+today+'.csv'
 data = data.rename(columns={
     'asr_middlename': 'subject',
     'asr_lastname': 'visit',
+    'asr_firstname': 'study_id',
     'Personal_Strengths_Total':'asr_strength_raw',
     'Personal_Strengths_TScore':'asr_strength_t',
     'Personal_Strengths_Percentile':'asr_strength_pct',
@@ -36,7 +33,7 @@ data = data.rename(columns={
     'Withdrawn_Total':'asr_withdrawn_raw',
     'Withdrawn_TScore':'asr_withdrawn_t',
     'Withdrawn_Percentile':'asr_withdrawn_pct',
-    'Somatic_Complaints_Total':'asr_somaticraw',
+    'Somatic_Complaints_Total':'asr_somatic_raw',
     'Somatic_Complaints_TScore':'asr_somatic_t',
     'Somatic_Complaints_Percentile':'asr_somatic_pct',
     'Thought_Problems_Total':'asr_thought_raw',
@@ -103,7 +100,7 @@ namelist=['strength_raw',
 'withdrawn_raw',
 'withdrawn_t',
 'withdrawn_pct',
-'somaticraw',
+'somatic_raw',
 'somatic_t',
 'somatic_pct',
 'thought_raw',
@@ -163,18 +160,12 @@ namelist=['strength_raw',
 
 colnames2out=list()
 for i in namelist:
-    colnames2out.append('asr_'+str(i))
-colnames_out=['subject','arm','visit','Age','asr_firstname']+colnames2out
+    colnames2out.append('asr_' + str(i))
+colnames_out = ['subject', 'arm', 'visit'] + colnames2out
 
 # Modify the metadata columns
 data['arm'] = 'standard'
 data['visit'] = data['visit'].str.replace('_arm_1', '')
 
-data_ysr= data[colnames_out]
-
-myfile = open(myfile_name, 'w')
-
-data_ysr.to_csv(myfile_name, index=False)
-myfile.close()
-elapsed = (time.time() - start)
-print elapsed
+data_ysr = data[colnames_out]
+data_ysr.to_csv(args.output, index=False)

@@ -63,6 +63,12 @@ parser.add_argument("--all",
                     action="store_true",
                     default=False)
 
+parser.add_argument("--dry-run",
+                    help="Do not convert any data", 
+                    action="store_true",
+                    default=False)
+
+
 parser.add_argument("--no-blaise",
                     help="Blaise files are going to be ignored", 
                     action="store_true",
@@ -75,6 +81,11 @@ parser.add_argument("--stroop-only",
 
 parser.add_argument("--include-test-files",
                     help="Include files that are stored in directories of the type <subject-id>-T-..., <subject-id>-X-... <site>-9999*<Sex>-...",
+                    action="store_true",
+                    default=False)
+
+parser.add_argument("--omit-svn-update",
+                    help="Do not run svn update. It is set to true when script is called with --file-to-upload. Only explicitly set flag when debugging an issue",
                     action="store_true",
                     default=False)
 
@@ -125,7 +136,14 @@ def run_converter(site, subject_label, command,verbose):
     if verbose:
         print "Running", ' '.join(command)
 
+        
+    if args.dry_run :
+        if verbose : 
+            print "Dry Run: No files were transferred to csv" 
+        return 0 
+
     filesProcessed = 0 
+
     try : 
         added_files = subprocess.check_output(command)
         if not len(added_files):
@@ -136,7 +154,7 @@ def run_converter(site, subject_label, command,verbose):
 
         for fi in added_files.strip().split('\n'):
             if re.match('.*\.csv$', fi):
-                if os.path.basename(fi).split('-')[0] == 'NOID' : 
+                if os.path.basename(fi).split('-')[0] in ['NOID', 'nan']: 
                     slog.info(subject_label + "-" +  hashlib.sha1('harvester {}'.format(fi)).hexdigest()[0:6], 'converter_cmd created file that does not contain subject ID and thus cannot be uploaded to redcap',
                               file=str(fi),
                               converter_cmd=" ".join(command), 
@@ -280,8 +298,23 @@ def notify( event_dict ):
 #
 # Main function: perform svn update and catch all resulting events
 #
-if args.verbose :
-    print "Run svn update ..." 
+# If you only want to upload a specific file then do not run svn update
+if args.file_to_upload: 
+    args.omit_svn_update=True
+
+if not args.omit_svn_update: 
+    if args.verbose :
+        print "Run svn update ..."
+ 
+    if not session.run_svn('update', callbackNotifyFct = notify) : 
+        sys.exit(1)
+
+    if args.verbose :
+        print "... done " 
+
+
+elif args.verbose: 
+    print "Skip svn update!"
 
 dated_download = "" 
 if args.date : 
@@ -322,14 +355,12 @@ elif args.file_to_upload:
 
     updated_files.append(args.file_to_upload)
 
-else : 
-    if not session.run_svn('update', callbackNotifyFct = notify) : 
-       sys.exit(1)
-
 if args.verbose :
-    print "... done " 
-    print "Files to be uploaded :\n" + "\n".join(updated_files)
-    print "Number of records uploading: ", len(updated_files)
+    num_files= len(updated_files)
+    if num_files : 
+        print "Files to be uploaded :\n" + "\n".join(updated_files)
+
+    print "Number of files to be uploaded: ", num_files
  
 # Append single file to upload
 

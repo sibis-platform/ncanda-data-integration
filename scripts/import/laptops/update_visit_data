@@ -8,6 +8,7 @@
 import os
 import re
 import sys
+import yaml
 import datetime
 import argparse
 
@@ -164,7 +165,7 @@ def get_subject_next_visit_date(subject, after_visit_date, form):
     # Exclude "Recovery" baseline from list - this will usually be the MR day of a normal visit
     subject_visit_dates = subject_visit_dates[subject_visit_dates.index.map(lambda key: key[1] != recovery_baseline_event)]
 
-    events_this_form = form_event_mapping[form_event_mapping['form_name'] == form ]['unique_event_name'].tolist()
+    events_this_form = form_event_mapping[form_event_mapping[form_key] == form ]['unique_event_name'].tolist()
     # Filter by events that have this form
     subject_visit_dates = subject_visit_dates[subject_visit_dates.index.map(lambda key: key[1] in events_this_form)]
 
@@ -328,6 +329,17 @@ if not session.configure():
 
     sys.exit()
 
+sibis_config = session.get_operations_dir()
+special_cases_file = os.path.join(sibis_config, 'special_cases.yml')
+if not os.path.isfile(special_cases_file) : 
+    slog.info("update_visit_data","Error: The following file does not exist :" + special_cases_file)
+    sys.exit(1)
+              
+# Get a list of cases outside the visit window that should be included.
+with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
+    special_cases = yaml.load(fi)
+    exceptions_data = special_cases.get('update_visit_data', {})
+
 if args.forms:
     forms = dict()
     for f in args.forms.split(','):
@@ -368,10 +380,18 @@ if not redcap_project :
 summary_field_names = [field['field_name'] for field in redcap_project.metadata]
 
 # Get list of all 0/1 encoded Yes/No fields (either radio or dropdown) - these need to be recoded when copied
-summary_fields_yn = [field['field_name'] for field in redcap_project.metadata if field['field_type'] in ['radio', 'dropdown'] and re.match('[^0-9]*1, Yes[^0-9]*0, No.*', field['select_choices_or_calculations'])]
+# NOTE: Regex altered to work with either order of Yes/No options
+summary_fields_yn = [field['field_name'] for field in redcap_project.metadata
+                     if ((field['field_type'] == "yesno") or
+                         (field['field_type'] in ['radio', 'dropdown'] and
+                          re.match('([^0-9]*0, No[^0-9]*1, Yes.*|[^0-9]*1, Yes[^0-9]*0, No.*)',
+                                   field['select_choices_or_calculations'])))]
 
 # What forms are at what event?
 form_event_mapping = redcap_project.export_fem(format='df')
+
+# What "form_name" is form_event_mapping using?
+form_key = session.get_redcap_form_key()
 
 # Get record IDs, visit labels, visit dates, and completion status for all laptop forms
 entry_data_fields = [('%s_complete' % form) for form in form_names] + [('%s_missing' % form) for form in form_prefixes] + [('%s_record_id' % form) for form in form_prefixes] + [('%s_date' % form) for form in form_prefixes]
@@ -507,7 +527,7 @@ for form_prefix, form_name in forms.iteritems():
         # If the above failed (due to empty list, presumably), then this is not a
         # hierarchical form and we should just use the given form name
         summary_form_name = form_name
-    instrument_events_list = form_event_mapping[form_event_mapping['form_name'] == summary_form_name ]['unique_event_name'].tolist()
+    instrument_events_list = form_event_mapping[form_event_mapping[form_key] == summary_form_name ]['unique_event_name'].tolist()
 
     entry_form_data = entry_data[ entry_data.index.map( lambda x: x[1] in instrument_events_list ) ]
 
@@ -608,6 +628,15 @@ for form_prefix, form_name in forms.iteritems():
             # Select records in permissible range
             records_this_visit = records_this_subject[ records_this_subject[date_label] >= date_on_or_after ]
             records_this_visit = records_this_visit[ records_this_visit[date_label] < date_before ]
+
+            subject_visit_id = "{}-{}".format(key[0], visit_date)
+            exception_list = exceptions_data.get(subject_visit_id)
+            if exception_list: 
+                if args.verbose: 
+                    print "Exception:", exception_list 
+                for excep_date in exception_list.split(','):  
+                     records_this_visit=records_this_visit.append(records_this_subject[ records_this_subject[date_label] == excep_date]) 
+
             # First, treat the case where we have MORE THAN ONE record in the search window
             if (len( records_this_visit ) > 1):
                 # Sort records by date difference from visit date
