@@ -64,3 +64,6 @@ target/
 
 # Editor swap files
 *.swp
+
+# IPython / Jupyter Notebooks
+.ipynb_checkpoints
