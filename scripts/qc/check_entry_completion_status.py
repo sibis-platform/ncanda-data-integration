@@ -1,14 +1,7 @@
 
 # coding: utf-8
 
-# To run this script, you will need the following:
-# 
-# 1. An Anaconda / Miniconda distribution allowing you to create a virtual environment.
-# 2. Install the virtual environment specified in `environment.yml` (you can create it with `conda env create -f environment.yml`, or -- if you have access to the SRI cluster -- you can use the existing `ncanda-1.0.0` environment there.)
-# 3. `source activate ncanda-1.0.0`
-# 
-# Finally, run `jupyter notebook --ip=127.0.0.1 QC_all.ipynb` (which will open the notebook) and then run all the notebook's cells, or run `python QC_all.py` (which will only run the code and print to `stdout`).
-# 
+# Run this script as a standard Jupyter Notebook inside a production container (e.g. `pipeline-back`).
 
 # In[ ]:
 
