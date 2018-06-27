@@ -433,6 +433,7 @@ def frame_check(experiment, manufacturer, scan_list):
 # Make sure we have the right number of volumes for a given series
 def image_check(experiment, session_dir, manufacturer, scan_list):
     error = [] 
+
     for scan_id in scan_list:
         scan_type =  experiment.scan(scan_id).attrs.get('type')
 
@@ -445,13 +446,13 @@ def image_check(experiment, session_dir, manufacturer, scan_list):
         imageCount = len(glob.glob(searchString))
 
         if imageCount not in imgrange:
-            error.append({'scan_type': scan_type,
-                          'scan_id' : scan_id,
-                          'images' : imageCount,
+            error.append({'scan_id' : scan_id,
+                          'scan_type': scan_type,
+                          'expected_nii_files' : str(expected_images[manufacturer][scan_type]),
+                          'num_nii_files' : imageCount,
                           'manufacturer' : manufacturer,
-                          'expected_images' : str(expected_images[manufacturer][scan_type]),
-                          'image_search' :  searchString})
-                           
+                          'nii_search' :  searchString})
+
     return error
 
 
