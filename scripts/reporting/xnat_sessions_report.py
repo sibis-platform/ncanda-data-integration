@@ -26,9 +26,10 @@ Example
 """
 
 import os
-
+import sys
 import pandas as pd
-
+import sibispy
+from sibispy import sibislogger as slog
 import xnat_extractor as xe
 
 verbose = None
@@ -61,11 +62,23 @@ def get_scan_type_pairs(modality):
 
 def main(args=None):
     # TODO: Handle when T1 and T2 are in separate session (i.e., rescan)
+
+    # Upload all data experimentsdir 
     if args.update:
-        config = xe.get_config(args.config)
-        session = xe.get_xnat_session(config)
-        xe.extract_experiment_xml(config, session,
-                                  args.experimentsdir, args.num_extract)
+        slog.init_log(False, False,'xnat_sesions_report', 'xnat_sesions_report',None)
+        session = sibispy.Session()
+        session.configure()
+        if not session.configure() :
+            if verbose:
+                print "Error: session configure file was not found"
+            sys.exit()
+
+        server = session.connect_server('xnat_http', True)
+        if not server:
+            print "Error: could not connect to xnat server!" 
+            sys.exit()
+
+        xe.extract_experiment_xml(session,args.experimentsdir, args.num_extract)
 
     # extract info from the experiment XML files
     experiment = xe.get_experiments_dir_info(args.experimentsdir)
@@ -99,7 +112,7 @@ def main(args=None):
                     scanCheckList = scanCheckList.append(mandatoryCheck)
 
         print " " 
-        print "Mandatory scans that have not yet been quality controlled"
+        print "Mandatory scans that have not yet been quality controlled (status unknown)"
         pd.set_option('display.max_rows', len(scanCheckList))
         print scanCheckList['scan_type']
 

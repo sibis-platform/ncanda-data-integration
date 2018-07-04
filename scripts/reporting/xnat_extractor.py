@@ -24,72 +24,7 @@ verbose = None
 # Define global namespace for parsing XNAT XML files
 ns = {'xnat': 'http://nrg.wustl.edu/xnat'}
 
-# Define global format to be used in XNAT requests
-return_format = '?format=csv'
-
-
-def get_config(config_file):
-    """
-    Get a json configuration in pyXNAT format
-    :param config_file: str
-    :return: dict
-    """
-    path = os.path.abspath(config_file)
-    with open(path, 'rb') as fi:
-        config = json.load(fi)
-    config.update(api=config['server'] + '/data')
-    if verbose:
-        print("Getting configuration file: {0}".format(path))
-    return config
-
-
-def get_collections(config):
-    """
-    Get a dictionary of lambda functions that create collection URLs
-    :param config: dict
-    :return: dict
-    """
-    server = config['api']
-    collections = dict(projects=lambda: server + '/projects',
-                       subjects=lambda x: server + '/{0}/subjects'.format(x),
-                       experiments=lambda: server + '/experiments')
-    if verbose:
-        print("Getting collections configuration...")
-    return collections
-
-
-def get_entities(config):
-    """
-    Get a dictionary of lambda functions that create entity URLs
-    :param config: dict
-    :return: dict
-    """
-    server = config['api']
-    entities = dict(project=lambda x: server + '/projects/{0}'.format(x),
-                    subject=lambda x: server + '/subjects/{0}'.format(x),
-                    experiment=lambda x:
-                    server + '/experiments/{0}'.format(x))
-    if verbose:
-        print("Getting entities configuration...")
-    return entities
-
-
-def get_xnat_session(config):
-    """
-    Get a requests.session instance from the config
-
-    :return: requests.session
-    """
-    jsessionid = ''.join([config['api'], '/JSESSIONID'])
-    session = requests.session()
-    session.auth = (config['user'], config['password'])
-    session.get(jsessionid)
-    if verbose:
-        print("Getting an XNAT session using: {0}".format(jsessionid))
-    return session
-
-
-def write_experiments(config, session):
+def write_experiments(session):
     """
     Write out a csv file representing all the experiments in the given XNAT
     session.
@@ -99,18 +34,20 @@ def write_experiments(config, session):
     :return: str
     """
     experiments_filename = tempfile.mktemp()
-    collections = get_collections(config)
-    experiments = session.get(collections.get('experiments')() + return_format)
+    experiments = session.xnat_http_get_all_experiments()
+
     with open(experiments_filename, 'w') as fi:
         fi.flush()
         fi.write(experiments.text)
         fi.close()
+
     if verbose:
         print("Writing list of experiment ids to temp: {0}".format(experiments_filename))
+
     return experiments_filename
 
 
-def extract_experiment_xml(config, session, experiment_dir, extract=None):
+def extract_experiment_xml(session, experiment_dir, extract=None):
     """
     Open an experiments csv file, then extract the XML representation,
     and write it to disk.
@@ -121,8 +58,7 @@ def extract_experiment_xml(config, session, experiment_dir, extract=None):
     :param extract: int
     :return: str
     """
-    entities = get_entities(config)
-    experiments_file = write_experiments(config, session)
+    experiments_file = write_experiments(session)
     # make sure the output directory exists and is empty
     outdir = os.path.abspath(experiment_dir)
     if not os.path.exists(outdir):
@@ -136,8 +72,9 @@ def extract_experiment_xml(config, session, experiment_dir, extract=None):
         extract = df_experiments.shape[0]
     experiment_ids = df_experiments.ID[:extract]
     experiment_files = list()
+
     for idx, experiment_id in experiment_ids.iteritems():
-        experiment = session.get(entities.get('experiment')(experiment_id) + return_format)
+        experiment = session.xnat_http_get_experiment_xml(experiment_id)
         experiment_file = os.path.join(outdir, '{0}.xml'.format(experiment_id))
         experiment_files.append(experiment_file)
         with open(experiment_file, 'w') as fi:
@@ -169,8 +106,7 @@ def get_experiment_info(experiment_xml_file):
     experiment_id = root.attrib.get('ID')
     try : 
         experiment_date = root.find('./xnat:date', namespaces=ns).text
-   
-
+        
         subject_id = root.find('./xnat:subject_ID', namespaces=ns).text
         result = dict(site_id=site_id,
                   subject_id=subject_id,

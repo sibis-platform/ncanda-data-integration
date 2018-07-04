@@ -12,7 +12,7 @@ Script to sync and generate reports on findings from radiology readings
 Examples
 ========
 - Findings and Findings Date is empty before a given date
-./neurorad_findings --update --report-type no_findings_before_date --before-date 2015-06-08
+python neurorad_findings.py --update --report-type no_findings_before_date --before-date 2015-06-08
 
 Report Types
 ===========
@@ -24,47 +24,50 @@ no_findings_before_date - filters no_findings_or_date by date
 """
 
 import os
-
+import sys
 import pandas as pd
+
+import sibispy
+from sibispy import sibislogger as slog
 
 import xnat_extractor as xe
 
 verbose = None
 
+def set_experiment_attrs(session,server,project, subject, experiment, key, value):
+        """
+        Set the field for an MRSession
 
-def set_experiment_attrs(config, project, subject, experiment, key, value):
-    """
-    Set the field for an MRSession
+        For example, datetodvd, findingsdate, findings
+        :param config: str
+        :param project: str
+        :param subject: str
+        :param experiment: str
+        :param key: str
+        :param value: str
+        :return: str
+        """
+        print "ERROR: NEVER TESTED IT - PLEASE DO SO BEFORE USE" 
+        sys.exit()
 
-    For example, datetodvd, findingsdate, findings
-    :param config: str
-    :param project: str
-    :param subject: str
-    :param experiment: str
-    :param key: str
-    :param value: str
-    :return: str
-    """
-    config = xe.get_config(config)
-    session = xe.get_xnat_session(config)
-    api = config.get('api')
-    path = '{}/projects/{}/subjects/{}/experiments/{}'.format(api, project, subject, experiment)
-    xsi = 'xnat:mrSessionData'
-    field = 'xnat:mrSessionData/fields/field[name={}]/field'.format(key)
-    payload = {'xsiType': xsi, field: value}
-    return session.put(path, params=payload)
+        server_path = session.get_xnat_data_address() 
+        path = '{}/projects/{}/subjects/{}/experiments/{}'.format(server_path, project, subject, experiment)
+        xsi = 'xnat:mrSessionData'
+        field = 'xnat:mrSessionData/fields/field[name={}]/field'.format(key)
+        payload = {'xsiType': xsi, field: value}
+
+        return server.put(path, params=payload)
 
 
-def update_findings_date(config, merged_findings):
+def update_findings_date(session, server, merged_findings):
     """
     For all records found, set the findings date attribute to datatodvd
 
-    :param config: dict
     :param merged_findings: pd.DataFrame
     :return:
     """
     for idx, row in merged_findings.iterrows():
-        result = set_experiment_attrs(config, row.project, row.subject_id, row.experiment_id, 'findingsdate', row.datetodvd)
+        result = set_experiment_attrs(session,server,row.project, row.subject_id, row.experiment_id, 'findingsdate', row.datetodvd)
         if verbose:
             print("Updated experiment: {}".format(result))
     return
@@ -116,6 +119,8 @@ def check_dvdtodate_before_date(df, before_date=None):
     has_datetodvd = df[~df.datetodvd.isnull()]
     has_datetodvd.loc[:, 'datetodvd'] = has_datetodvd.datetodvd.astype('datetime64')
     date = pd.Timestamp(before_date)
+    # date = pd.to_datetime(before_date)
+
     return has_datetodvd[has_datetodvd.datetodvd < date]
 
 
@@ -131,12 +136,22 @@ def inner_join_dataframes(df1, df2):
 
 
 def main(args=None):
-    config = xe.get_config(args.config)
-    session = xe.get_xnat_session(config)
+    slog.init_log(False, False,'neurorad_findings', 'neurorad_findings',None)
+    session = sibispy.Session()
+    session.configure()
+    if not session.configure() :
+        if args.verbose:
+            print "Error: session configure file was not found"
+        sys.exit()
+
+    server = session.connect_server('xnat_http', True)
+    if not server:
+        print "Error: could not connect to xnat server!" 
+        sys.exit()
+
+    # Update the cache of XNAT Experiment XML files
     if args.update:
-        # Update the cache of XNAT Experiment XML files
-        xe.extract_experiment_xml(config, session,
-                                  args.experimentsdir, args.num_extract)
+        xe.extract_experiment_xml(session,args.experimentsdir, args.num_extract)
 
     # extract info from the experiment XML files
     experiment = xe.get_experiments_dir_info(args.experimentsdir)
@@ -155,7 +170,7 @@ def main(args=None):
         result = findings_date_empty(df)
         if args.set_findings_date:
             # Update the findings date to equal the date to dvd
-            update_findings_date(args.config, result)
+            update_findings_date(session,server, result)
 
     elif args.report_type == 'no_findings':
         # Findings is empty but a date is listed
@@ -169,7 +184,7 @@ def main(args=None):
             project = record.project.values[0]
             subject = record.subject_id.values[0]
             experiment = args.reset_datetodvd
-            set_experiment_attrs(args.config, project, subject, experiment, 'datetodvd', 'none')
+            set_experiment_attrs(session,server,project, subject, experiment, 'datetodvd', 'none')
 
     elif args.report_type == 'correct_dvd_date':
         dates_df = pd.read_csv(args.file_to_reset_datetodvd)
@@ -192,7 +207,7 @@ def main(args=None):
                                 project = record.project.values[0]
                                 subject = record.subject_id.values[0]
                                 experiment = record.experiment_id.values[0]
-                                set_experiment_attrs(args.config, project, subject, experiment, 'datetodvd', date[0])
+                                set_experiment_attrs(session,server,project, subject, experiment, 'datetodvd', date[0])
                     elif len(eids[0]) == 27 or eids == None:
                         experiment = eids[0].split(" ")
                         for e in experiment:
@@ -202,7 +217,7 @@ def main(args=None):
                                 if record_date[0] != date[0] or type(record_date[0]) == str():
                                     project = record.project.values[0]
                                     subject = record.subject_id.values[0]
-                                    set_experiment_attrs(args.config, project, subject, e, 'datetodvd', date[0])
+                                    set_experiment_attrs(session,server,project, subject, e, 'datetodvd', date[0])
 
     elif args.report_type == 'no_findings_before_date':
         # Findings and Findings Date is empty before a given date
