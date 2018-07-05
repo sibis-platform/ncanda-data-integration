@@ -48,6 +48,8 @@ def get_scan_type_pairs(modality):
         scan_type_pairs.update(scan1=t1_scan_types,
                                scan2=t2_scan_types)
     elif modality == 'diffusion':
+        print "Has to be updated as check does not include dti30b400 - look in redcap/export_measures"
+        sys.exit()
         pepolar = ['ncanda-dti6b500pepolar-v1']
         dwi = ['ncanda-dti60b1000-v1']
         scan_type_pairs.update(scan1=pepolar,
