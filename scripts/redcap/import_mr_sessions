@@ -218,7 +218,7 @@ def encode_session_and_scan( session_and_scan, type_list, match_eid = None ):
 #
 
 def get_xnat_data(red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_date, date_of_birth,
-                  next_visit_date, mri_inspection_completed, verbose=None):
+                  next_visit_date, mri_inspection_completed, mri_session_report_complete, verbose=None):
     subject = redcap_key[0]
     event = redcap_key[1]
 
@@ -343,14 +343,23 @@ def get_xnat_data(red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_
         # Make sure all scans  are from the same experiment 
         result['mri_series_dti60b1000'] = encode_session_and_scan( scans_by_type, ['dti60b1000'],dti_eid)
         result['mri_series_dti30b400'] = encode_session_and_scan( scans_by_type, ['dti30b400'],dti_eid)
+
         fieldmaps_dti60 = get_fieldmap_scans(usable_scans_list, scans_by_type['dti60b1000'],scannerMfc,redcap_visit_id, exceptions_num_type)
         result['mri_series_dti_fieldmap'] = ' '.join(['%s/%s' % (eid,scan) for (eid, scan) in fieldmaps_dti60])
 
+        result['mri_dti_date'] = xnat_sessions_dict[scans_by_type['dti60b1000'][0]][0]
+        result['mri_dti_age'] = str(red2cas.days_between_dates( date_of_birth, result['mri_dti_date']) / 365.242)
+
     if 'rsfmri' in scans_by_type.keys():
         result['mri_series_rsfmri'] = encode_session_and_scan( scans_by_type, ['rsfmri'])
+
         # only choose gradient map that was acquired in the same session as fmri scan
         fieldmaps_rsfmri = get_fieldmap_scans( usable_scans_list, scans_by_type['rsfmri'],scannerMfc,redcap_visit_id, exceptions_num_type)
         result['mri_series_rsfmri_fieldmap'] = ' '.join(['%s/%s' % (eid,scan) for (eid, scan) in fieldmaps_rsfmri])
+
+        result['mri_rsfmri_date'] = xnat_sessions_dict[scans_by_type['rsfmri'][0]][0]
+        result['mri_rsfmri_age'] = str(red2cas.days_between_dates(date_of_birth, result['mri_rsfmri_date']) / 365.242)
+
 
     for xnat_eid in xnat_eid_list:
         result['mri_xnat_eids'] += xnat_eid + ' '
@@ -363,15 +372,6 @@ def get_xnat_data(red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_
     result['mri_xnat_eids'] = result['mri_xnat_eids'].strip()
     result['mri_notes'] = result['mri_notes'].strip()
 
-    # Get date and age for DTI scan (use DTI60 because DTI6 may be bad or missing, and fieldmap used instead)
-    if 'dti60b1000' in scans_by_type.keys():
-        result['mri_dti_date'] = xnat_sessions_dict[scans_by_type['dti60b1000'][0]][0]
-        result['mri_dti_age'] = str(red2cas.days_between_dates( date_of_birth, result['mri_dti_date']) / 365.242)
-
-    # Get date and age for resting-state fMRI scan
-    if 'rsfmri' in scans_by_type.keys():
-        result['mri_rsfmri_date'] = xnat_sessions_dict[scans_by_type['rsfmri'][0]][0]
-        result['mri_rsfmri_age'] = str(red2cas.days_between_dates(date_of_birth, result['mri_rsfmri_date']) / 365.242)
 
     # Get the uri's for the spiral task and spiral resting state
     (result['mri_eid_spiral_stroop'], result['mri_eid_spiral_rest']) = get_spiral_uris(xnat_eid_list)
@@ -426,12 +426,17 @@ def get_xnat_data(red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_
     all_sessions_and_scans_used = [ sscn for sscn in [ result['mri_series_t1'], result['mri_series_t2'], result['mri_series_dti6b500pepolar'], result['mri_series_dti30b400'], result['mri_series_dti60b1000'],
                                                        result['mri_series_dti_fieldmap'], result['mri_series_rsfmri'], result['mri_series_rsfmri_fieldmap'] ] if sscn != '' ]
     if len( all_sessions_and_scans_used ) > 0:
-        mandatory_fields = [ result[f] for f in ['mri_adni_phantom', 'mri_adni_phantom_eid', 'mri_series_t1', 'mri_series_t2', 'mri_series_dti6b500pepolar', 'mri_series_dti60b1000',
-                                                 'mri_series_dti_fieldmap', 'mri_series_rsfmri', 'mri_series_rsfmri_fieldmap'] ]
-        if (result['mri_qa_completed'] == '1') and not ('' in mandatory_fields):
-            result['mr_session_report_complete'] = '2'
-        else:
-            result['mr_session_report_complete'] = '1'
+        # if it was set as completed in the past it just means that something changed now (e.g. scan was marked as unusable), 
+        # which should not change the status  
+        if  mri_session_report_complete == 2: 
+            result['mr_session_report_complete'] = 2
+        else : 
+            mandatory_fields = [ result[f] for f in ['mri_adni_phantom', 'mri_adni_phantom_eid', 'mri_series_t1', 'mri_series_t2', 'mri_series_dti6b500pepolar',  'mri_series_dti30b400', 'mri_series_dti60b1000',
+                                                     'mri_series_dti_fieldmap', 'mri_series_rsfmri', 'mri_series_rsfmri_fieldmap'] ]
+            if (result['mri_qa_completed'] == '1') and not ('' in mandatory_fields):
+                result['mr_session_report_complete'] = '2'
+            else:
+                result['mr_session_report_complete'] = '1'
     else:
         result['mr_session_report_complete'] = '0'
 
@@ -777,6 +782,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                                       this_subject_data['dob'],
                                       next_visit_date,
                                       row['mri_inspection___completed'],
+                                      row['mr_session_report_complete'],
                                       verbose=args.verbose)
 
 
