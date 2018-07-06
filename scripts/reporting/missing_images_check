@@ -86,7 +86,7 @@ def main(args):
     redcap_list = redcap_list[ ~ missing_index ]
 
     # List All Missing Image :
-    for red_name,pipe_missing_type in [('mri_series_t1','t1'),('mri_series_t2','t2'),('mri_series_dti6b500pepolar','dti6-1'), ('mri_series_dti60b1000','dti60-01'), ('mri_series_rsfmri','bold-001'), ('mri_series_rsfmri_fieldmap','fieldmap')] :
+    for red_name,pipe_missing_type in [('mri_series_t1','t1'),('mri_series_t2','t2'),('mri_series_dti6b500pepolar','dti6-1'), ('mri_series_dti30b400','dti30-01'), ('mri_series_dti60b1000','dti60-01'), ('mri_series_rsfmri','bold-001'), ('mri_series_rsfmri_fieldmap','fieldmap')] :
         missing_index = pandas.isnull(redcap_list[red_name]) 
         redcap_missing_list = add_red_list(redcap_missing_list,redcap_list[missing_index],pipe_missing_type,redcap_list_base)
 
@@ -94,7 +94,7 @@ def main(args):
     print "======================="
     print "Missing in pipeline:" 
     # "t1":"t2", "t2":"t1",
-    modality_compatible = { "t1":"t2", "t2":"t1", "dti60-01": "dti6-1", "dti6-1":"dti60-01", "bold-001":"fieldmap", "fieldmap":"bold-001" } 
+    modality_compatible = { "t1":"t2", "t2":"t1", "dti60-01": "dti6-1", "dti6-1":"dti60-01", "dti30-01": "dti60-01", "bold-001":"fieldmap", "fieldmap":"bold-001" } 
     for index,pipe_entry in pipe_missing_list.iterrows():
         # still has to be done 
         # and (not matches_case_event_in_data_frame(pipe_entry,redcap_session_missing)):
