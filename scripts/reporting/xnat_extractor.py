@@ -87,6 +87,15 @@ def extract_experiment_xml(session, experiment_dir, extract=None):
     return experiment_files
 
 
+def parse_xml_file(experiment_xml_file): 
+    try : 
+        return etree.parse(experiment_xml_file)
+    except Exception, err:
+        print "ERROR: Failed to parse", experiment_xml_file
+        print err 
+        return None
+    
+
 def get_experiment_info(experiment_xml_file):
     """
     Extract basic information from the experiment xml file and return a
@@ -95,7 +104,10 @@ def get_experiment_info(experiment_xml_file):
     :param experiment_xml_file: str
     :return: dict
     """
-    xml = etree.parse(experiment_xml_file)
+    xml = parse_xml_file(experiment_xml_file)
+    if not xml : 
+        return ""
+
     root = xml.getroot()
 
     site_experiment_id = root.attrib.get('label')
@@ -150,10 +162,15 @@ def get_scans_info(experiment_xml_file):
     :param experiment_xml_file: lxml.etree.Element
     :return: list
     """
-    xml = etree.parse(experiment_xml_file)
+
+    result = list()
+
+    xml = parse_xml_file(experiment_xml_file)
+    if not xml: 
+        return result 
+        
     root = xml.getroot()
     experiment_id = root.attrib.get('ID')
-    result = list()
     scans = root.findall('./xnat:scans/xnat:scan', namespaces=ns)
     for scan in scans:
         values = dict()
@@ -197,7 +214,11 @@ def get_reading_info(experiment_xml_file):
     :param experiment_xml_file: lxml.etree.Element
     :return: list
     """
-    xml = etree.parse(experiment_xml_file)
+
+    xml = parse_xml_file(experiment_xml_file)
+    if not xml: 
+        return None
+
     root = xml.getroot()
     experiment_id = root.attrib.get('ID')
     try:
@@ -205,6 +226,7 @@ def get_reading_info(experiment_xml_file):
     except AttributeError:
         note = None
         pass
+
     result = dict(experiment_id=experiment_id,
                   note=note,
                   datetodvd=None,
@@ -214,6 +236,8 @@ def get_reading_info(experiment_xml_file):
                   physioproblemoverride=None,
                   dtimismatchoverride=None,
                   phantommissingoverride=None)
+
+
     values = dict()
     fields = root.findall('./xnat:fields/xnat:field', namespaces=ns)
     for field in fields:
@@ -246,7 +270,9 @@ def get_experiments_dir_reading_info(experiments_dir):
     else:
         experiment_files = list()
     for path in experiment_files:
-        results.append(get_reading_info(path))
+        info=get_reading_info(path)
+        if info : 
+            results.append(info)
     return results
 
 
