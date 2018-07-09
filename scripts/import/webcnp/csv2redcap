@@ -38,7 +38,7 @@ if not session.configure():
     if args.verbose:
         print "Error: session configure file was not found"
 
-    sys.exit()
+    sys.exit(1)
 
 # Open connection with REDCap server
 try:
@@ -71,18 +71,22 @@ data.rename( columns = lambda s: string.lower( s.replace( '.', '_' ) ), inplace=
 # Remove all sessions before ID 22000 - these are junk
 data = data[data['test_sessions_datasetid'] >= 22000]
 
-# Remove all records that are already in REDCap
+records_in_redcap = redcap.export_records( fields=['record_id', 'test_sessions_datasetid','test_sessions_complete'], format='df')
+# See what's already on the server
+existing = records_in_redcap['test_sessions_datasetid'].tolist()
+
 if not args.import_all:
-    # See what's already on the server
-    records_in_redcap = redcap.export_records( fields=['record_id', 'test_sessions_datasetid'], format='df')
+    # Remove all records that are already in REDCap
     # Filter out existing records
-    existing = records_in_redcap['test_sessions_datasetid'].tolist()
     data = data[ data['test_sessions_datasetid'].map( lambda x: x not in existing ) ]
+else : 
+    # ignore data sets that are set to complete (status = 2) 
+    data = data[data['test_sessions_datasetid'].map( lambda x: x not in existing or records_in_redcap.loc[records_in_redcap['test_sessions_datasetid'] == x,'test_sessions_complete'].values[0] != 2 ) ]
 
 # Anything left?
 if not len( data ) and args.verbose:
     print "No new records to import."
-    exit( 0 )
+    exit(0)
 
 # Set "Completeness" as "Unverified"
 data['test_sessions_complete'] = 1
@@ -112,7 +116,10 @@ for [key,row] in data.iterrows():
     record = dict(row.dropna())
 
     # Upload new data to REDCap
-    import_response = redcap.import_records([record], overwrite='overwrite')
+    import_response = session.redcap_import_record_to_api([record], None, 'cvs2redcap-import')
+    if not import_response : 
+        print "WARNING: failed to upload record",record['record_id']
+        continue 
 
     # If there were any errors, try to print them as well as possible
     if 'error' in import_response.keys():
