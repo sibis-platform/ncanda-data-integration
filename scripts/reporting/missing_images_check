@@ -74,16 +74,20 @@ def main(args):
         print "Error: Redcap file needs to include all baseline visits of the study"
         sys.exit(1)
 
-
     redcap_missing_list = pandas.DataFrame(columns=['study_id','case','event','type'])
+    print "SESSION = measurements and images are missing" 
+
     print "======================="
     print "Check REDCap entries:" 
 
     # List All Missing Sessions
-    missing_index = (redcap_list['visit_ignore___yes'] == 1) | (redcap_list['mri_missing'] == 1)
+    missing_index = (redcap_list['visit_ignore___yes'] == 1)
     redcap_session_missing = redcap_list[missing_index]
     redcap_missing_list = add_red_list(redcap_missing_list,redcap_session_missing,'SESSION',redcap_list_base)
     redcap_list = redcap_list[ ~ missing_index ]
+
+    # Add to list where the visit was completed but not mri_session
+    missing_index = missing_index | (redcap_list['mri_missing'] == 1)
 
     # List All Missing Image :
     for red_name,pipe_missing_type in [('mri_series_t1','t1'),('mri_series_t2','t2'),('mri_series_dti6b500pepolar','dti6-1'), ('mri_series_dti30b400','dti30-01'), ('mri_series_dti60b1000','dti60-01'), ('mri_series_rsfmri','bold-001'), ('mri_series_rsfmri_fieldmap','fieldmap')] :
