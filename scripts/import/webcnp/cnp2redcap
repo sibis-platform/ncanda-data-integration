@@ -42,7 +42,6 @@ fi
 # Second, upload CSV file to REDCap
 #
 for csv in `cd ${tmpdir}; ls | fgrep .csv`; do
-    echo ${tmpdir}/${csv}
     if ! ${bindir}/csv2redcap ${selected_args} --import-all ${tmpdir}/${csv}; then
 	# if it fails with exit 1 than network connection is instable - stop loop so you do not get lots of these errors 
 	# generally only one file in the loop anyway 
