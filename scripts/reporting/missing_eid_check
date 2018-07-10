@@ -163,7 +163,7 @@ def main(args):
                         redcap_xnat_list = redcap_xnat_list.append(pandas.DataFrame(new_entry,columns=column_list),ignore_index=True)
 
         # First time write to directory so that if you run it multiple times you do not have to repeat it 
-        #redcap_xnat_list.to_csv('/tmp/blubber.csv', index=False)
+        # redcap_xnat_list.to_csv('/tmp/blubber.csv', index=False)
 
     #
     # Check XNAT Records 
@@ -210,7 +210,12 @@ def main(args):
                 cutoff_date=redcap_event_list[redcap_event_list['site_id'] == xnat_entry['site_id']]['Last_Allowed_Visit'].values[0]
                 if datetime.datetime.strptime(cutoff_date, date_format_ymd) >= datetime.datetime.strptime(xnat_entry['experiment_date'], date_format_ymd):
                     if xnat_entry['scan_type'] != 'ncanda-grefieldmap-v1' :
-                        print xnat_entry.values  
+                        if xnat_entry['scan_type'][7:10] ==  'dti': 
+                            eid_entries = xnat_list_comply[xnat_list_comply['experiment_id'] == xnat_entry['experiment_id']]
+                            if ('ncanda-dti60b1000-v1' in eid_entries['scan_type']) and ('ncanda-dti6b500pepolar-v1' in eid_entries['scan_type']) :
+                                print xnat_entry.values  
+                        else :
+                            print xnat_entry.values  
                     else :
                         # only print out field maps if corresponding dti or resting state is usable otherwise not ported to redcap 
                         eid_entries = xnat_list_comply[xnat_list_comply['experiment_id'] == xnat_entry['experiment_id']]
