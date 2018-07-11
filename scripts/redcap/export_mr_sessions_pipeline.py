@@ -24,6 +24,7 @@ from export_mr_sessions_spiral import export_spiral_files
 def check_eid_file( eid_file_path, session_and_scan_string ):
     # File content still current?
     try:
+        
         if open( eid_file_path, 'r' ).read().strip() == session_and_scan_string:
             return True
     except:
@@ -105,13 +106,13 @@ def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_
     if CreateDicomFlag == False :
         return False
 
+
     if len(pipeline_file_list)  :
         [ session, scan ] = session_and_scan_list.split( ' ' )[0].split('/')
         slog.info(redcap_visit_id  + "_" + scan,"Warning: existing MR images of the pipeline are updated",
                       file = to_path_pattern,
                       experiment_xnat_id=session,
                       session_scan_list = session_and_scan_list )
-
         # Remove existing files of that type to make sure we start with clean slate
         for xml_file in pipeline_file_list:
             os.remove(xml_file)
@@ -483,7 +484,7 @@ def export_and_queue(red2cas, redcap_visit_id, xnat, session_data, redcap_key, p
             print 'Submitting script',run_pipeline_script,'to process',pipeline_workdir
         just_pipeline_script=os.path.basename(run_pipeline_script)
         qsub_exe = 'cd %s; %s %s' % ( pipeline_root_dir,run_pipeline_script,pipeline_workdir_rel)
-        red2cas.schedule_cluster_job(qsub_exe,'%s-%s-%s-Nightly' % (subject_code,visit_code,just_pipeline_script),submit_log='/tmp/ncanda_test_nightly.txt', verbose = verbose)
+        red2cas.schedule_cluster_job(qsub_exe,'N%s-%s-%s-Nightly' % (subject_code[6:],visit_code,just_pipeline_script),submit_log='/tmp/ncanda_test_nightly.txt', verbose = verbose)
             
     # It is very important to clear the PyXNAT cache, lest we run out of disk space and shut down all databases in the process
     try:
