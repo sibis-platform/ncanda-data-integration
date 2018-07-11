@@ -7,11 +7,13 @@
 
 import os
 import re
+import ast
 import sys
 import time
+import hashlib
 import datetime
 import argparse
-import ast
+
 
 import yaml
 import pyxnat
@@ -127,16 +129,37 @@ def get_custom_variables( experiment, field_names, default_value=None ):
 #
 # Get list of all usable scans in the experiments listed
 #
-def get_usable_scans_list( xnat, xnat_eid_list ):
+def get_usable_scans_list( session, xnat_eid_list, redcap_visit_id, xnat_sid):
     result = []
 
     for xnat_eid in xnat_eid_list:
-        for scan in xnat.select.experiment( xnat_eid ).scans('*').get():
-            ( type, quality ) = xnat.select.experiment( xnat_eid ).scan( scan ).attrs.mget(['type','quality'])
+        xnat_exp = session.xnat_get_experiment(xnat_eid)
+        if not xnat_exp : 
+            slog.info(redcap_visit_id + "-" +  + hashlib.sha1(xnat_eid).hexdigest()[0:6],"ERROR: could not get experiment",
+                      info="Most likely due to internet connection! Please rerun script for subject and visit", 
+                      redcap_visit_id = redcap_visit_id,
+                      xnat_sid = xnat_sid)
+            return [None,True]  
+
+        for scan in xnat_exp.scans('*').get():
+            try : 
+                ( type, quality ) = xnat_exp.scan( scan ).attrs.mget(['type','quality'])
+            except Exception, err_msg:
+                slog.info(redcap_visit_id + "-" + scan + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],
+                          "ERROR: could not get type and quality of scan",
+                          info="Most likely due to internet connection! Please rerun script for subject and visit", 
+                          redcap_visit_id = redcap_visit_id,
+                          xnat_sid = xnat_sid,
+                          xnat_eid = xnat_eid, 
+                          scan = scan,
+                          err_msg = str(err_msg))
+
+                return [None,True] 
+ 
             if quality == 'usable':
                 result.append( ( type, xnat_eid, scan ) )
 
-    return result
+    return [result,False]
 
 #
 # Get scans from a list, selected by type
@@ -217,7 +240,6 @@ def encode_session_and_scan( session_and_scan, type_list, match_eid = None ):
 
             id_list = [type_id,match_eid] if type_id < match_eid else [match_eid,type_id]
             exception_id = merge_xnat_sessions.get(id_list[0])
-            print exception_id 
             if exception_id and exception_id  == id_list[1] :
                 return "%s/%s" % (type_id,session_and_scan[type][1])
 
@@ -229,7 +251,7 @@ def encode_session_and_scan( session_and_scan, type_list, match_eid = None ):
 #  Returned result is a dictionary of keys and values to enter into the REDCap record for this subject/visit
 #
 
-def get_xnat_data(red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_date, date_of_birth,
+def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_date, date_of_birth,
                   next_visit_date, mri_inspection_completed, mri_session_report_complete, verbose=None):
     subject = redcap_key[0]
     event = redcap_key[1]
@@ -268,22 +290,23 @@ def get_xnat_data(red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_
     # be for "Recovery" final visit), then use that date instead
     if next_visit_date and next_visit_date < visit_date_plusNd:
         visit_date_plusNd = next_visit_date
-        if args.verbose:
+        if verbose:
             print "Due to next visit date being within visit date range, the visit date range is shortened to (", visit_date , ", " , visit_date_plusNd +")."  
 
-    if args.verbose:
+    if verbose:
         print("Checking {} for {} with visit date {} to {}".format(subject,
                                                                    event,
                                                                    visit_date,
                                                                    visit_date_plusNd))
 
     # Get project and subject IDs for this subject by name
-    if subject not in subject_project_dict.keys():
-        if args.verbose:
-            print("Subject {} cannot be found in XNAT.".format(subject))
-        return result
-
     redcap_visit_id=subject+"-"+visit_date
+
+    if subject not in subject_project_dict.keys():
+        slog.info(redcap_visit_id,"Subject cannot be found in XNAT!",
+                  subject = subject, 
+                  xnat_subject_id=xnat_sid)
+        return [None,True]
 
     # Get all experiments for this subject within the given range of the visit
     # date
@@ -293,7 +316,7 @@ def get_xnat_data(red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_
                                               xnat_sid,
                                               visit_date,
                                               visit_date_plusNd,
-                                              args.verbose)
+                                              verbose)
 
 
     if verbose:
@@ -308,13 +331,13 @@ def get_xnat_data(red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_
                           xnat_subject_id=xnat_sid,
                           visit_id=event,
                           visit_date=visit_date)
-        return result
+        return [None,True]
 
 
     # Get the experiment IDs for all sessions in the given range
-    xnat_eid_list = [session for (session, project, date) in xnat_session_data]
+    xnat_eid_list = [session_id for (session_id, project, date) in xnat_session_data]
     if not len(xnat_eid_list):
-        return result
+        return [result,False]
 
     result['mri_xnat_sid'] = pipe_id
 
@@ -337,7 +360,12 @@ def get_xnat_data(red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_
 
 
     # For all experiments we have found, get list of all "usable" scans
-    usable_scans_list = get_usable_scans_list(xnat, xnat_eid_list)
+    [usable_scans_list,errFlag] = get_usable_scans_list(session, xnat_eid_list, redcap_visit_id, xnat_sid)
+    if errFlag : 
+        if verbose : 
+            print "ERROR: Failed to get usable scans for ", redcap_visit_id, "(" +  xnat_sid + ")!"
+        return [None, True]
+
     # Now each of the standard NCANDA scans from the usable list - select
     # closes to "visit_date" if there is more than one for a given type
     scans_by_type = get_scans_by_type(red2cas,usable_scans_list, visit_date, redcap_visit_id)
@@ -454,7 +482,7 @@ def get_xnat_data(red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id, visit_
         result['mr_session_report_complete'] = '0'
 
     # Return the result
-    return result
+    return [result,False]
 
 
 # Function to get a subject's next visit - this is so we can exclude MRI
@@ -735,9 +763,17 @@ index = 0
 # timer is just run once for dicom conversion if timer log dir is set 
 runTimerForImportToPipeline=True
 xnat_dir = session.get_xnat_dir()
+foundFlag=False
 for [key, row] in mr_sessions_redcap.iterrows():
     index +=1 
     subject_label = key[0]
+
+    # just start where script stopped the last time 
+    #if not foundFlag :
+    #    if subject_label != "E-00490-F-2" :
+    #        continue 
+    #    foundFlag = True 
+    #    print "Found subject -skipped everything before" 
 
     if not subject_label in subject_project_dict:
         if args.verbose: 
@@ -786,7 +822,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
 
             visit_age = red2cas.days_between_dates( this_subject_data['dob'], visit_date ) / 365.242
             next_visit_date = get_subject_next_visit_date(key[0], visit_date)
-            xnat_data = get_xnat_data(red2cas,
+            [xnat_data,errFlag] = get_xnat_data(session,red2cas,
                                       key,
                                       xnat,
                                       sid,
@@ -799,6 +835,11 @@ for [key, row] in mr_sessions_redcap.iterrows():
                                       row['mr_session_report_complete'],
                                       verbose=args.verbose)
 
+            if errFlag:   
+                if args.verbose: 
+                    print "ERROR: Failed to get xnat data for ", red2cas, "(" +  sid + ")!"
+                continue 
+                
 
             if xnat_data['mri_xnat_eids'] != '':
                 # Check whether this MR session also has Stroop data
@@ -843,7 +884,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
 
                 if 'records' in import_response.keys():
                     for r in import_response['records']:
-                        print "\t", r
+                        print "\t Import Response from REDCap: ", r
 
 if args.verbose:
     if not args.no_upload:
