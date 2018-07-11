@@ -205,10 +205,22 @@ def get_eid_from_scan_list(session_and_scan, sType):
 # Encode session and scan in a single string
 #
 def encode_session_and_scan( session_and_scan, type_list, match_eid = None ):
+    # GE and siemens use different names for scans such as mprage and t1spgr
     for type in type_list:
         if type in session_and_scan.keys(): 
-            if not match_eid or (match_eid and session_and_scan[type][0] == match_eid):
-                return "%s/%s" % (session_and_scan[type][0],session_and_scan[type][1])
+            type_id = session_and_scan[type][0]
+            if not match_eid :
+                return "%s/%s" % (type_id,session_and_scan[type][1])
+
+            if type_id == match_eid:
+                return "%s/%s" % (type_id,session_and_scan[type][1])
+
+            id_list = [type_id,match_eid] if type_id < match_eid else [match_eid,type_id]
+            exception_id = merge_xnat_sessions.get(id_list[0])
+            print exception_id 
+            if exception_id and exception_id  == id_list[1] :
+                return "%s/%s" % (type_id,session_and_scan[type][1])
+
     return ""
 
 #
@@ -564,6 +576,7 @@ with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
     export_measures_map = special_cases.get('site_change').get('export_measures')
     exceptions_window = special_cases.get('outside_visit_window')
     exceptions_num_type = special_cases.get('more_of_type')
+    merge_xnat_sessions = special_cases.get('merge_xnat_sessions')
 
 form_event_mapping = redcap_project.export_fem( format='df' )
 form_key = session.get_redcap_form_key()
