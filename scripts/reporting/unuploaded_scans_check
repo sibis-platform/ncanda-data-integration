@@ -40,6 +40,9 @@ def main(args):
     # Remove non-standard scans and make scan type simpler to allow for later comparison with Redcap
     xnat = xnat[xnat['scan_type'].str.contains("^ncanda-+", na=False) & ~xnat['scan_type'].str.contains("-bad$", na=False)]
     xnat.loc[:, 'scan_type'] = xnat.scan_type.apply(simplify_scan_name)
+
+    # Null out any whitespace-only notes and create an indicator variable for scan note presence
+    xnat.loc[xnat['scan_note'].str.contains(r'^\s*$', na=False), 'scan_note'] = np.nan  
     xnat['has_note'] = xnat['scan_note'].notnull()
 
     scan_fields = ['mri_series_t1', 'mri_series_t2', 'mri_series_dti6b500pepolar',
