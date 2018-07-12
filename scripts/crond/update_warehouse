@@ -1,0 +1,22 @@
+#!/bin/bash
+# bash "safe mode" with immediate failures
+set -eou pipefail  
+
+# FIXME: source crontools fails under strict setting
+#. $(dirname $0)/crontools.sh
+
+SCRIPT_LABEL="update_warehouse"
+WAREHOUSE_DIR=/fs/ncanda-share/beta/warehouse/
+
+# TODO: Send an e-mail if something crashes?
+# function finish {
+#   rv=$?
+# }
+# trap finish EXIT
+
+# 1. Export XNAT usability report = metadata on all scans in all experiments
+#catch_output_email "${SCRIPT_LABEL}: Daily run" \
+  # python /sibis-software/ncanda-data-integration/scripts/reporting/xnat_sessions_report.py \
+  python /fs/ncanda-share/beta/ncanda-di-xnat-check/scripts/reporting/xnat_sessions_report.py \
+    -e $WAREHOUSE_DIR/xnat/xml --update \
+    --outfile $WAREHOUSE_DIR/xnat/scans.csv --scan-notes --session-notes --ignore-window
