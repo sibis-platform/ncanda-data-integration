@@ -484,7 +484,8 @@ def export_and_queue(red2cas, redcap_visit_id, xnat, session_data, redcap_key, p
             print 'Submitting script',run_pipeline_script,'to process',pipeline_workdir
         just_pipeline_script=os.path.basename(run_pipeline_script)
         qsub_exe = 'cd %s; %s %s' % ( pipeline_root_dir,run_pipeline_script,pipeline_workdir_rel)
-        red2cas.schedule_cluster_job(qsub_exe,'N%s-%s-%s-Nightly' % (subject_code[6:],visit_code,just_pipeline_script),submit_log='/tmp/ncanda_test_nightly.txt', verbose = verbose)
+        # Changed title so it is informative when displayed in short form through qsub
+        red2cas.schedule_cluster_job(qsub_exe,'N%s%s-%s-Nightly' % (subject_code[7:],visit_code[0] + visit_code[9:],just_pipeline_script),submit_log='/tmp/ncanda_test_nightly.txt', verbose = verbose)
             
     # It is very important to clear the PyXNAT cache, lest we run out of disk space and shut down all databases in the process
     try:
