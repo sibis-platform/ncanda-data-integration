@@ -1,0 +1,236 @@
+#!/usr/bin/env python
+"""
+
+Based on an independent regeneration of scans-to-Redcap-event assignments,
+determine cases where more than one usable scan of a particular scan type
+belongs to one subject/event.
+
+Example uses:
+
+    ./check_multiple_scans --outfile /tmp/duplicate_scans.csv \
+        --redcapcsv /tmp/redcap_inventory.csv --xnatcsv /tmp/xnat_inventory.csv
+
+"""
+
+import ipdb
+import sys
+import argparse
+
+from itertools import chain
+import pandas as pd
+import numpy as np
+
+def add_end_window(rc, max_days=120, include_recovery_after_baseline=True, 
+                   verbose=False):
+    """
+    Implements the rules from 
+    <https://neuro.sri.com/labwiki/index.php/NCANDA_REDCap:_Imported_Record_to_Visit_Assignment>:
+
+        1. For each visit, data within a 120-day window after the entered
+           "Visit Date" are assigned to that visit.
+        2. If a subsequent visit with MRI collection happened less than 120
+           days after the visit (e.g., a "Recovery Final" visit 30 days after
+           "Recovery Baseline"), then only data before the subsequent visit
+           are permissible.
+        3. The "Recovery Baseline" visit does not shorten the search window for
+           the preceding visit of the standard protocol, because the standard
+           protocol MRI also serve as the data for the Recovery branch (except
+           for mid-year Recovery visits at Duke, where an additional Recovery
+           baseline scan will be collected according to Mike DeBellis).
+        4. The "Recovery Baseline" MRI must be acquired on the same date as
+           entered, because the MRI collection day is the first day of the
+           Recovery protocol.
+
+    """
+    standard_window = pd.Timedelta(days=max_days)
+
+    # We'll create a new column, 'window_end' = last date  on which a scan can
+    # be associated
+
+    # 1. Get next visit value from as provisional window end
+    # FIXME: Should Recovery Final truncate the previous full-year scan eligibility?
+    #   By plain reading of the rules, yes, but I don't think
+    #   import_mr_sessions implements it that way
+    recovery_baseline_idx = rc.redcap_event_name == "recovery_baseline_arm_2"
+    all_recovery_idx = rc.redcap_event_name.str.contains(r'arm_2$')
+    if include_recovery_after_baseline:
+        exclude_idx = recovery_baseline_idx
+    else:
+        exclude_idx = all_recovery_idx
+
+    rc.loc[~exclude_idx, 'window_end'] = \
+        (rc.loc[~exclude_idx, :]
+         .groupby(['study_id'])['visit_date'].shift(-1))
+
+    # need to fill in windows for recovery baseline, which is always
+    # the next recovery value
+    rc.loc[recovery_baseline_idx, 'window_end'] = \
+        (rc.loc[all_recovery_idx, :]
+         .groupby(['study_id'])['visit_date'].shift(-1)
+         .loc[recovery_baseline_idx])
+    if not include_recovery_after_baseline:
+        pass
+        # need to fill in recovery baseline AND find if recovery final is
+        # truncated
+        # FIXME: I think for now, the assumption is that recovery final is
+        # never truncated
+
+    ## 2. ...but kill any values that this set improperly -- i.e. same-day or in the past:
+    # TODO: Should this raise?
+    questionable_idx = rc['window_end'].notnull() & (rc['window_end'] <= rc['visit_date'])
+    if verbose:
+        print "The following records result in a strangely calculated window_end"
+        print rc.loc[questionable_idx]
+        # import ipdb; ipdb.set_trace()
+    rc.loc[questionable_idx, 'window_end'] = pd.NaT
+
+    # 3. If window end is outside the standard window or null, cap at standard window
+    standard_visit_idx = (rc.window_end - rc.visit_date > standard_window) | rc.window_end.isnull()
+    rc.loc[standard_visit_idx, "window_end"] = rc.visit_date + standard_window
+
+    return rc
+
+
+
+def main(args):
+    xnat = pd.read_csv(args.xnatcsv)
+
+    # Only keep interesting scans
+    ncanda_scan_types = [ 't1spgr', 'mprage', 't2fse', 'dti6b500pepolar', 'dti30b400', 'dti60b1000', 'rsfmri' ]
+    eligible_idx = pd.Series(index=xnat.index)
+    eligible_idx[:] = False
+    for eligible_type in ncanda_scan_types:
+        eligible_idx = eligible_idx | xnat.scan_type.str.contains(eligible_type, na=False)
+    xnat = xnat[eligible_idx]
+
+    # Only keep usable scans
+    permissible_qualities = ["usable"]
+    if args.usable_extra:
+        permissible_qualities.append("usable-extra")
+    xnat = xnat[xnat["quality"].isin(permissible_qualities)]
+
+    xnat.experiment_date = pd.to_datetime(xnat.experiment_date)
+    #xnat.sort_values(["experiment_date", "site_id"], inplace=True)  # introduced in later pandas
+    xnat.sort(["experiment_date", "site_id"], inplace=True)
+
+    rc = pd.read_csv(args.redcapcsv)
+    # TODO: Should get events with mr_session_report from FEM
+    rc = rc[~rc["redcap_event_name"].str.contains("month|weekly", na=False)]
+    rc = rc[~(rc["visit_ignore___yes"] == 1)]
+    rc = rc[~(rc["mri_missing"] == 1)]
+    rc = rc.dropna(subset=["visit_date"])
+    rc.visit_date = pd.to_datetime(rc.visit_date)
+    #rc.sort_values(["visit_date", "study_id"], inplace=True)
+    rc.sort(["visit_date", "study_id"], inplace=True)
+    rc = add_end_window(rc, verbose=args.verbose)
+
+    if args.subjectlist:
+        with args.subjectlist as f:
+            subjects = [s.strip() for s in f.readlines()]
+        xnat = xnat[xnat.subject_id.isin(subjects)]
+
+    #pd.merge_asof(xnat, rc, left_on="experiment_date", right_on="visit_date",
+    #        left_by="study_id", right_by="site_id")
+    # What follows is essentially equivalent to merge_asof, except that the
+    # one-to-many merge that would have happened is instead represented by
+    # nested array in a single cell.
+
+    xnat['redcap_event_count'] = 0
+    xnat["redcap_all_events_count"] = 0
+    for idx, xnat_row in xnat.iterrows():
+        # This works because for a single row, .loc retrieves the pure value
+        matching_rc = ((rc['visit_date'] <= xnat_row.loc['experiment_date']) &
+                       (rc['window_end'] >  xnat_row.loc['experiment_date']) &
+                       (rc['study_id'] == xnat_row.loc['site_id']))
+        rc_row = rc[matching_rc]
+        if not rc_row.empty:
+            events = rc_row['redcap_event_name'].values
+            orig_count = len(events)
+            if not args.all_arms:
+                events = [e for e in events if e.endswith("arm_1")]
+            xnat.at[idx, "redcap_all_events_count"] = orig_count
+            xnat.at[idx, "redcap_event_count"] = len(events)
+            if len(events) > 0:
+                xnat.at[idx, "redcap_events"] = events
+                xnat.at[idx, "redcap_event_string"] = ",".join(sorted(events))
+
+    ## Scans with a single target (simpler to deal with for now)
+    # TODO: Figure out the unnesting so that it works for an
+    # arbitrary number of associated events
+    grouping_vars = ['redcap_event_string', 'site_id', 'scan_type']
+    xnat1 = xnat[xnat.redcap_event_count == 1]
+    xnat1_counts = xnat1.groupby(grouping_vars).size().to_frame('scans_per_event')
+    xnat1.set_index(grouping_vars, inplace=True)
+    xnat1 = xnat1.join(xnat1_counts)
+    xnat1_duplicates = xnat1[xnat1['scans_per_event'] > 1]
+    xnat1_duplicates.to_csv(args.outfile)
+    # This is it! These are the duplicates! We don't need no
+    # other!
+
+    # import ipdb; ipdb.set_trace()
+    return
+
+
+    ## Problems
+    # TODO: Should these be investigated?
+    idx_not_matched = xnat['redcap_event_count'] == 0
+    not_matched = xnat[idx_not_matched]
+    eids_unmatched = not_matched.experiment_id.unique()
+    all_imported_eids = rc.mri_xnat_eids.str.split(" ").dropna().values
+    all_imported_eids = [item for sublist in all_imported_eids for item in sublist]
+    # xnat = xnat[~idx_not_matched]
+    # FIXME: Need to debug why these are failing -- maybe they're special cases?
+    match_failures = [eid for eid in eids_unmatched if eid in all_imported_eids]
+    truly_unmatched = [eid for eid in eids_unmatched if eid not in all_imported_eids]
+
+    # This unnests the associated scans while preserving
+    # FIXME: This definitely needs work -- not actually correct
+    xnat_long = xnat.set_index(['site_id', 'scan_type']).join(xnat.set_index(['site_id', 'scan_type']).redcap_events.apply(pd.Series).stack().reset_index(level=2))
+    # xnat['count'] = xnat.groupby(["site_id", "scan_type", "redcap_event"])["scan_type"].transform('count')
+    #xnat.groupby(["site_id", "scan_type", "redcap_event"]).size()
+    # FIXME: This currently outputs the number of scans that belong to more than one event, which isn't what were after
+    xnat[xnat['redcap_event_count'] > 1].to_csv(args.outfile)
+    return 0
+
+if __name__ == '__main__':
+    formatter = argparse.RawDescriptionHelpFormatter
+    default = 'default: %(default)s'
+
+    parser = argparse.ArgumentParser(prog="duplicate_scans_check",
+                                     description=__doc__,
+                                     formatter_class=formatter)
+    parser.add_argument('-e', '--events', dest="events", action='store',
+            nargs="+",
+            default=["baseline_visit_arm_1", "1y_visit_arm_1", "2y_visit_arm_1", "3y_visit_arm_1"])
+    parser.add_argument('--xnat', dest="xnatcsv", action='store',
+                        help="The csv file containing all usable eids generated by scripts/reporting/xnat_sessions_report.py --usable --ignore-window",
+                        type=argparse.FileType('r'))
+    parser.add_argument('--red', dest="redcapcsv", action="store",
+                        help="The CSV containing the data from redcap - generated by scripts/reporting/create_redcap_visit_list.py --all-events",
+                        type=argparse.FileType('r'))
+
+    #parser.add_argument('--special_cases', action="store",
+    #                    help="location of ncanda-operations/special_cases.yml")
+
+    parser.add_argument('-s', '--subjectlist', dest="subjectlist",
+                        help="Text file containing the sID (NCANDA_S00033) of interest", 
+                        action='store',
+                        type=argparse.FileType('r'))
+    parser.add_argument('-o', '--outfile',
+                        help="Text file to write the results into", 
+                        default=sys.stdout,
+                        action='store',
+                        type=argparse.FileType('w'))
+    parser.add_argument("-a", "--all-arms",
+                        help="Consider scan duplication on all arms",
+                        default=False,
+                        action="store_true")
+    parser.add_argument("--usable-extra",
+                        help="Consider usable-extra scans in addition to usable scans",
+                        default=False,
+                        action="store_true")
+    parser.add_argument("-v", "--verbose",
+                        help="Verbose operation",
+                        action="store_true")
+    parsed_args = parser.parse_args()
+    sys.exit(main(args=parsed_args))
