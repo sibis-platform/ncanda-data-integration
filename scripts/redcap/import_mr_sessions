@@ -44,7 +44,7 @@ def get_sessions_in_range(redcap_visit_id,xnat, subject_label, project_id, subje
     #print "get_sessions_in_range", redcap_visit_id,xnat, subject_label, project_id, subject_id, date_range_from, date_range_to
     sessions_in_range = []
     for session_id, session_subject_id, projects, date, scanner in xnat_sessions_list:
-        if (subject_id == session_subject_id) and (date >= date_range_from) and (date <= date_range_to):
+        if (subject_id == session_subject_id) and (date >= date_range_from) and (date < date_range_to):
             sessions_in_range.append((session_id, projects, date))
 
     if not sessions_in_range:
@@ -57,7 +57,7 @@ def get_sessions_in_range(redcap_visit_id,xnat, subject_label, project_id, subje
         if exception_list:
             for except_entry in exception_list.split(';'):
                 [e_eid,e_visit] = except_entry.split(',')
-                if (e_visit >= date_range_from) and (e_visit <= date_range_to):
+                if (e_visit >= date_range_from) and (e_visit < date_range_to):
                     for eid, session_subject_id, projects, date, scanner in xnat_sessions_list:
                         if eid == e_eid : 
                             if subject_id != session_subject_id:
