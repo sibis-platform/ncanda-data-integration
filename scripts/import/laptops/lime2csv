@@ -114,9 +114,34 @@ def fix_dates( date, this_survey ):
             new_date += (' 0' + match_hm.group(1))[-6:] + ':00'
     return new_date
 
+# Get all possible ID holders and pick the most common one
+def get_most_common_id(row, fallback = None):
+    from collections import Counter
+    # All non-null subject ID values
+    id_fields = row.filter(regex="subject_id").dropna().tolist()
+    if len(id_fields) == 0:
+        return fallback
+
+    # Counter creates a frequency table. Counter.most_common(n) returns the
+    # list of n most common elements and their modes. So [0][0] picks the the
+    # first part of the most common element.
+    else:
+        most_common = Counter(id_fields).most_common(1)[0][0]
+        return most_common
+
 # Make Record ID from subject ID and date fields.
 def make_record_id( row, this_survey ):
     return '%s-%s' % ( row['%s_subject_id' % this_survey], row['date'] )
+
+def get_record_id_from_filename_label(subject_label):
+    # 1. Test that the structure fits
+    ncanda_id_pattern = r'^([A-Z]-\d{5}-[A-Z]-\d)_(\d{8})'
+    match_id = re.match(ncanda_id_pattern, subject_label)
+    if not match_id:
+        return None
+    else:
+        # 2. Remake as needed
+        return match_id.group(1)
         
 # Handle a survey - can be called several times per input file if multiple instruments have been mangled into one survey
 def handle_survey(subject_label, survey_id, data, verbose ):
@@ -183,6 +208,16 @@ def handle_survey(subject_label, survey_id, data, verbose ):
 
     # Compute and set unique record ID    
     data['record_id'] = data.apply( make_record_id, axis=1, this_survey=this_survey )
+    if data['record_id'].str.startswith("nan").bool():
+        data['record_id'] = data.apply(
+                get_most_common_id,
+                axis=1,
+                fallback=get_record_id_from_filename_label(subject_label)
+        )
+        if verbose:
+            print ("Assigning record_id based on most frequent subject ID or"
+                   "filename, since survey field was NaN")
+    # TODO: Check validity of record_id; if invalid, use get_most_common_id
 
     # Drop the separate subject_id and date columns
     data = data.drop( ['%s_subject_id' % this_survey, 'date' ], axis=1 )
