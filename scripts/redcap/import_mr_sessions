@@ -13,7 +13,7 @@ import time
 import hashlib
 import datetime
 import argparse
-
+import operator
 
 import yaml
 import pyxnat
@@ -44,11 +44,10 @@ def get_sessions_in_range(redcap_visit_id,xnat, subject_label, project_id, subje
     #print "get_sessions_in_range", redcap_visit_id,xnat, subject_label, project_id, subject_id, date_range_from, date_range_to
 
     # Specify comparison function for the end date
-    from operator import lt, le
     if inclusive_end:
-        before_or_on = le
+        before_or_on = operator.le
     else:
-        before_or_on = lt
+        before_or_on = operator.lt
     sessions_in_range = []
     for session_id, session_subject_id, projects, date, scanner in xnat_sessions_list:
         if (subject_id == session_subject_id) and (date >= date_range_from) and before_or_on(date, date_range_to):
