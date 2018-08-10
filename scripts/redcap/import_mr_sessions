@@ -13,7 +13,7 @@ import time
 import hashlib
 import datetime
 import argparse
-
+import operator
 
 import yaml
 import pyxnat
@@ -40,11 +40,17 @@ ncanda_scan_types = [ 't1spgr', 'mprage', 't2fse', 'dti6b500pepolar', 'dti30b400
 #
 # Functions 
 # 
-def get_sessions_in_range(redcap_visit_id,xnat, subject_label, project_id, subject_id, date_range_from, date_range_to, verbose):
+def get_sessions_in_range(redcap_visit_id,xnat, subject_label, project_id, subject_id, date_range_from, date_range_to, verbose, inclusive_end=True):
     #print "get_sessions_in_range", redcap_visit_id,xnat, subject_label, project_id, subject_id, date_range_from, date_range_to
+
+    # Specify comparison function for the end date
+    if inclusive_end:
+        before_or_on = operator.le
+    else:
+        before_or_on = operator.lt
     sessions_in_range = []
     for session_id, session_subject_id, projects, date, scanner in xnat_sessions_list:
-        if (subject_id == session_subject_id) and (date >= date_range_from) and (date <= date_range_to):
+        if (subject_id == session_subject_id) and (date >= date_range_from) and before_or_on(date, date_range_to):
             sessions_in_range.append((session_id, projects, date))
 
     if not sessions_in_range:
@@ -57,7 +63,7 @@ def get_sessions_in_range(redcap_visit_id,xnat, subject_label, project_id, subje
         if exception_list:
             for except_entry in exception_list.split(';'):
                 [e_eid,e_visit] = except_entry.split(',')
-                if (e_visit >= date_range_from) and (e_visit <= date_range_to):
+                if (e_visit >= date_range_from) and before_or_on(e_visit, date_range_to):
                     for eid, session_subject_id, projects, date, scanner in xnat_sessions_list:
                         if eid == e_eid : 
                             if subject_id != session_subject_id:
@@ -308,15 +314,25 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
                   xnat_subject_id=xnat_sid)
         return [None,True]
 
-    # Get all experiments for this subject within the given range of the visit
-    # date
-    xnat_session_data = get_sessions_in_range(redcap_visit_id,xnat,
+    # Get all experiments for this subject within the range of the visit date
+    # First, exclude the end date; only include it if there are no hits.
+    xnat_session_data = get_sessions_in_range(redcap_visit_id, xnat,
                                               subject,
                                               xnat_pid,
                                               xnat_sid,
                                               visit_date,
                                               visit_date_plusNd,
-                                              verbose)
+                                              verbose,
+                                              inclusive_end=False)
+    if not xnat_session_data:
+        if verbose:
+            print ("XNAT Session Data: No initial hits. Retrying with range"
+                   " end-date {} now in the search".format(visit_date_plusNd))
+        xnat_session_data = get_sessions_in_range(redcap_visit_id, xnat,
+                                                  subject, xnat_pid, xnat_sid,
+                                                  visit_date,
+                                                  visit_date_plusNd, verbose,
+                                                  inclusive_end=True)
 
 
     if verbose:
