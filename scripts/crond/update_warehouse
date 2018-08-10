@@ -1,0 +1,37 @@
+#!/bin/bash -x
+# bash "safe mode" with immediate failures
+set -eou pipefail  
+
+# FIXME: source crontools fails under strict setting
+#. $(dirname $0)/crontools.sh
+
+SCRIPT_LABEL="update_warehouse"
+WAREHOUSE_DIR=/fs/ncanda-share/beta/warehouse
+NCANDA_DATAINT_DIR=/fs/ncanda-share/beta/ncanda-di-warehouse/scripts
+
+# TODO: Send an e-mail if something crashes?
+# function finish {
+#   rv=$?
+# }
+# trap finish EXIT
+
+# 1. Export XNAT usability report = metadata on all scans in all experiments
+mkdir -p $WAREHOUSE_DIR/xnat/xml
+#catch_output_email "${SCRIPT_LABEL}: Daily run" \
+python $NCANDA_DATAINT_DIR/reporting/xnat_sessions_report.py \
+  -e $WAREHOUSE_DIR/xnat/xml --update \
+  --outfile $WAREHOUSE_DIR/xnat/scans.csv --scan-notes --session-notes --ignore-window
+
+# 2. Export Redcap datadict and metadata
+for project in data_entry import_laptops; do
+  mkdir -p $WAREHOUSE_DIR/meta/$project
+  python $NCANDA_DATAINT_DIR/reporting/get_redcap_metadata.py \
+    --datadict $WAREHOUSE_DIR/redcap/meta/$project/datadict.csv \
+    --project $project
+done
+# FEM export only applies to longitudinal projects, of which we have one
+python $NCANDA_DATAINT_DIR/reporting/get_redcap_metadata.py \
+  --fem $WAREHOUSE_DIR/redcap/meta/data_entry/fem.csv \
+  --project data_entry
+
+# n. Version this
