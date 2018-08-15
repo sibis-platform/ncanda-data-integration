@@ -108,9 +108,9 @@ class FormASR(FormASEBA):
     def set_post_score_renames(self):
         self.post_score_renames = OrderedDict([
             ('asr_middlename', 'subject'),
-            ('asr_lastname', 'visit'),
             ('asr_othername', 'arm'),
-            ('asr_firstname', 'study_id'),
+            ('asr_lastname', 'visit'),
+            # ('asr_firstname', 'study_id'),
             ('Personal_Strengths_Total', 'asr_strength_raw'),
             ('Personal_Strengths_TScore', 'asr_strength_t'),
             ('Personal_Strengths_Percentile', 'asr_strength_pct'),
@@ -202,9 +202,8 @@ class FormYSR(FormASEBA):
     def set_post_score_renames(self):
         self.post_score_renames = OrderedDict([
             ('ysr_middlename', 'subject'),
-            ('ysr_lastname', 'visit'),
             ('ysr_othername', 'arm'),
-            ('ysr_firstname', 'study_id'),
+            ('ysr_lastname', 'visit'),
             ('Anxious__Depressed_Total', 'ysr_anxdep_raw'),
             ('Anxious__Depressed_TScore', 'ysr_anxdep_t'),
             ('Anxious__Depressed_Percentile', 'ysr_anxdep_pct'),
@@ -290,9 +289,8 @@ class FormCBC(FormASEBA):
     def set_post_score_renames(self):
         self.post_score_renames = OrderedDict([ 
             ('cbc_middlename', 'subject'),
-            ('cbc_lastname', 'visit'),
             ('cbc_othername', 'arm'),
-            ('cbc_firstname', 'study_id'),
+            ('cbc_lastname', 'visit'),
             ('Anxious__Depressed_Total', 'cbcl_anxdep_raw'),
             ('Anxious__Depressed_TScore', 'cbcl_anxdep_t'),
             ('Anxious__Depressed_Percentile', 'cbcl_anxdep_pct'),
