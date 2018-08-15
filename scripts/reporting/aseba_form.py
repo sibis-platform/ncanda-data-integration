@@ -1,4 +1,5 @@
 import time
+from collections import OrderedDict
 
 def get_aseba_form(form_type):
     if form_type == "asr":
@@ -13,11 +14,13 @@ def get_aseba_form(form_type):
 class FormASEBA:
     def __init__(self):
         self.constant_fields = {}
+        self.post_score_renames = {}
         self.form = None
         self.form_field_regex = None
         self.field_count = None
         self.set_generic_fields()
         self.set_specific_fields()
+        self.set_post_score_renames()
 
     def set_generic_fields(self):
         self.constant_fields["admver"] = 9.1
@@ -26,6 +29,22 @@ class FormASEBA:
         self.constant_fields["enterdate"] = time.strftime("%m/%d/%Y")
 
     def set_specific_fields(self):
+        pass
+
+    def set_post_score_renames(self):
+        """
+        In principle, it should be possible to derive the renames by:
+        A. Extracting the identification embedded in <form>_*name
+        B. Form-specific scores (that nonetheless overlap in content)
+            1. Extract from each variable whether it
+                a. ends in _Total, _TScore, or _Percentile
+                b. the string preceding that
+            2. Look up both components of the name in a shorter lookup table
+                (e.g. {'Anxious__Depressed': 'anxdep'})
+
+        However, extracting out the large rename tables from
+        *_output_reformat.py files is sufficient progress for now.
+        """
         pass
 
 class FormASR(FormASEBA):
@@ -41,6 +60,84 @@ class FormASR(FormASEBA):
         self.constant_fields["type"] = 'ASR'
         self.constant_fields["compitems"] = "'" + ('9' * 36)
 
+    def set_post_score_renames(self):
+        self.post_score_renames = OrderedDict([
+            ('asr_middlename', 'subject'),
+            ('asr_lastname', 'visit'),
+            ('asr_othername', 'arm'),
+            ('asr_firstname', 'study_id'),
+            ('Personal_Strengths_Total', 'asr_strength_raw'),
+            ('Personal_Strengths_TScore', 'asr_strength_t'),
+            ('Personal_Strengths_Percentile', 'asr_strength_pct'),
+            ('Anxious__Depressed_Total', 'asr_anxdep_raw'),
+            ('Anxious__Depressed_TScore', 'asr_anxdep_t'),
+            ('Anxious__Depressed_Percentile', 'asr_anxdep_pct'),
+            ('Withdrawn_Total', 'asr_withdrawn_raw'),
+            ('Withdrawn_TScore', 'asr_withdrawn_t'),
+            ('Withdrawn_Percentile', 'asr_withdrawn_pct'),
+            ('Somatic_Complaints_Total', 'asr_somatic_raw'),
+            ('Somatic_Complaints_TScore', 'asr_somatic_t'),
+            ('Somatic_Complaints_Percentile', 'asr_somatic_pct'),
+            ('Thought_Problems_Total', 'asr_thought_raw'),
+            ('Thought_Problems_TScore', 'asr_thought_t'),
+            ('Thought_Problems_Percentile', 'asr_thought_pct'),
+            ('Attention_Problems_Total', 'asr_attention_raw'),
+            ('Attention_Problems_TScore', 'asr_attention_t'),
+            ('Attention_Problems_Percentile', 'asr_attention_pct'),
+            ('Aggressive_Behavior_Total', 'asr_aggressive_raw'),
+            ('Aggressive_Behavior_TScore', 'asr_aggressive_t'),
+            ('Aggressive_Behavior_Percentile', 'asr_aggressive_pct'),
+            ('Rule_Breaking_Behavior_Total', 'asr_rulebreak_raw'),
+            ('Rule_Breaking_Behavior_TScore', 'asr_rulebreak_t'),
+            ('Rule_Breaking_Behavior_Percentile', 'asr_rulebreak_pct'),
+            ('Intrusive_Total', 'asr_intrusive_raw'),
+            ('Intrusive_TScore', 'asr_intrusive_t'),
+            ('Intrusive_Percentile', 'asr_intrusive_pct'),
+            ('Internalizing_Problems_Total', 'asr_internal_raw'),
+            ('Internalizing_Problems_TScore', 'asr_internal_t'),
+            ('Internalizing_Problems_Percentile', 'asr_internal_pct'),
+            ('Externalizing_Problems_Total', 'asr_external_raw'),
+            ('Externalizing_Problems_TScore', 'asr_external_t'),
+            ('Externalizing_Problems_Percentile', 'asr_external_pct'),
+            ('Total_Problems_Total', 'asr_totprob_raw'),
+            ('Total_Problems_TScore', 'asr_totprob_t'),
+            ('Total_Problems_Percentile', 'asr_totprob_pct'),
+            ('Depressive_Problems_Total', 'asr_dep_dsm_raw'),
+            ('Depressive_Problems_TScore', 'asr_dep_dsm_t'),
+            ('Depressive_Problems_Percentile', 'asr_dep_dsm_pct'),
+            ('Anxiety_Problems_Total', 'asr_anx_dsm_raw'),
+            ('Anxiety_Problems_TScore', 'asr_anx_dsm_t'),
+            ('Anxiety_Problems_Percentile', 'asr_anx_dsm_pct'),
+            ('Somatic_Problems_Total', 'asr_somat_dsm_raw'),
+            ('Somatic_Problems_TScore', 'asr_somat_dsm_t'),
+            ('Somatic_Problems_Percentile', 'asr_somat_dsm_pct'),
+            ('Avoidant_Personality_Problems_Total', 'asr_avoid_dsm_raw'),
+            ('Avoidant_Personality_Problems_TScore', 'asr_avoid_dsm_t'),
+            ('Avoidant_Personality_Problems_Percentile', 'asr_avoid_dsm_pct'),
+            ('AD_H_Problems_Total', 'asr_adhd_dsm_raw'),
+            ('AD_H_Problems_TScore', 'asr_adhd_dsm_t'),
+            ('AD_H_Problems_Percentile', 'asr_adhd_dsm_pct'),
+            ('Antisocial_Personality_Total', 'asr_antisoc_dsm_raw'),
+            ('Antisocial_Personality_TScore', 'asr_antisoc_dsm_t'),
+            ('Antisocial_Personality_Percentile', 'asr_antisoc_dsm_pct'),
+            ('Inattention_Problems_Subscale_Total', 'asr_inatten_raw'),
+            ('Inattention_Problems_Subscale_TScore', 'asr_inatten_t'),
+            ('Inattention_Problems_Subscale_Percentile', 'asr_inatten_pct'),
+            ('Hyperactivity_Impulsivity_Problems_Subscale_Total',
+             'asr_hyper_raw'),
+            ('Hyperactivity_Impulsivity_Problems_Subscale_TScore',
+             'asr_hyper_t'),
+            ('Hyperactivity_Impulsivity_Problems_Subscale_Percentile',
+             'asr_hyper_pct'),
+            ('Sluggish_Cognitive_Tempo_Total', 'asr_slugcog_raw'),
+            ('Sluggish_Cognitive_Tempo_TScore', 'asr_slugcog_t'),
+            ('Sluggish_Cognitive_Tempo_Percentile', 'asr_slugcog_pct'),
+            ('Obsessive_Compulsive_Problems_Total', 'asr_ocd_raw'),
+            ('Obsessive_Compulsive_Problems_TScore', 'asr_ocd_t'),
+            ('Obsessive_Compulsive_Problems_Percentile', 'asr_ocd_pct'),
+        ])
+
+
 class FormYSR(FormASEBA):
     def set_specific_fields(self):
         self.form = 'youth_report_1b'
@@ -54,6 +151,78 @@ class FormYSR(FormASEBA):
         self.constant_fields["type"] = 'YSR'
         self.constant_fields["compitems"] = "'" + ('9' * 36)
 
+    def set_post_score_renames(self):
+        self.post_score_renames = OrderedDict([
+            ('ysr_middlename', 'subject'),
+            ('ysr_lastname', 'visit'),
+            ('ysr_othername', 'arm'),
+            ('ysr_firstname', 'study_id'),
+            ('Anxious__Depressed_Total', 'ysr_anxdep_raw'),
+            ('Anxious__Depressed_TScore', 'ysr_anxdep_t'),
+            ('Anxious__Depressed_Percentile', 'ysr_anxdep_pct'),
+            ('Withdrawn__Depressed_Total', 'ysr_withdep_raw'),
+            ('Withdrawn__Depressed_TScore', 'ysr_withdep_t'),
+            ('Withdrawn__Depressed_Percentile', 'ysr_withdep_pct'),
+            ('Somatic_Complaints_Total', 'ysr_somatic_raw'),
+            ('Somatic_Complaints_TScore', 'ysr_somatic_t'),
+            ('Somatic_Complaints_Percentile', 'ysr_somatic_pct'),
+            ('Social_Problems_Total', 'ysr_social_raw'),
+            ('Social_Problems_TScore', 'ysr_social_t'),
+            ('Social_Problems_Percentile', 'ysr_social_pct'),
+            ('Thought_Problems_Total', 'ysr_thought_raw'),
+            ('Thought_Problems_TScore', 'ysr_thought_t'),
+            ('Thought_Problems_Percentile', 'ysr_thought_pct'),
+            ('Attention_Problems_Total', 'ysr_attention_raw'),
+            ('Attention_Problems_TScore', 'ysr_attention_t'),
+            ('Attention_Problems_Percentile', 'ysr_attention_pct'),
+            ('Rule_Breaking_Behavior_Total', 'ysr_rulebrk_raw'),
+            ('Rule_Breaking_Behavior_TScore', 'ysr_rulebrk_t'),
+            ('Rule_Breaking_Behavior_Percentile', 'ysr_rulebrk_pct'),
+            ('Aggressive_Behavior_Total', 'ysr_aggress_raw'),
+            ('Aggressive_Behavior_TScore', 'ysr_aggress_t'),
+            ('Aggressive_Behavior_Percentile', 'ysr_aggress_pct'),
+            ('Internalizing_Problems_Total', 'ysr_internal_raw'),
+            ('Internalizing_Problems_TScore', 'ysr_internal_t'),
+            ('Internalizing_Problems_Percentile', 'ysr_internal_pct'),
+            ('Externalizing_Problems_Total', 'ysr_external_raw'),
+            ('Externalizing_Problems_TScore', 'ysr_external_t'),
+            ('Externalizing_Problems_Percentile', 'ysr_external_pct'),
+            ('Total_Problems_Total', 'ysr_totprob_raw'),
+            ('Total_Problems_TScore', 'ysr_totprob_t'),
+            ('Total_Problems_Percentile', 'ysr_totprob_pct'),
+            ('Depressive_Problems_Total', 'ysr_dep_dsm_raw'),
+            ('Depressive_Problems_TScore', 'ysr_dep_dsm_t'),
+            ('Depressive_Problems_Percentile', 'ysr_dep_dsm_pct'),
+            ('Anxiety_Problems_Total', 'ysr_anx_dsm_raw'),
+            ('Anxiety_Problems_TScore', 'ysr_anx_dsm_t'),
+            ('Anxiety_Problems_Percentile', 'ysr_anx_dsm_pct'),
+            ('Somatic_Problems_Total', 'ysr_somat_dsm_raw'),
+            ('Somatic_Problems_TScore', 'ysr_somat_dsm_t'),
+            ('Somatic_Problems_Percentile', 'ysr_somat_dsm_pct'),
+            ('Attention_Deficit__Hyperactivity_Problems_Total',
+             'ysr_adhd_dsm_raw'),
+            ('Attention_Deficit__Hyperactivity_Problems_TScore',
+             'ysr_adhd_dsm_t'),
+            ('Attention_Deficit__Hyperactivity_Problems_Percentile',
+             'ysr_adhd_dsm_pct'),
+            ('Oppositional_Defiant_Problems_Total', 'ysr_odd_dsm_raw'),
+            ('Oppositional_Defiant_Problems_TScore', 'ysr_odd_dsm_t'),
+            ('Oppositional_Defiant_Problems_Percentile', 'ysr_odd_dsm_pct'),
+            ('Conduct_Problems_Total', 'ysr_cd_dsm_raw'),
+            ('Conduct_Problems_TScore', 'ysr_cd_dsm_t'),
+            ('Conduct_Problems_Percentile', 'ysr_cd_dsm_pct'),
+            ('Obsessive_Compulsive_Problems_Total', 'ysr_ocd_raw'),
+            ('Obsessive_Compulsive_Problems_TScore', 'ysr_ocd_t'),
+            ('Obsessive_Compulsive_Problems_Percentile', 'ysr_ocd_pct'),
+            ('Stress_Problems_Total', 'ysr_stress_raw'),
+            ('Stress_Problems_TScore', 'ysr_stress_t'),
+            ('Stress_Problems_Percentile', 'ysr_stress_pct'),
+            ('Positive_Qualities_Total', 'ysr_positive_raw'),
+            ('Positive_Qualities_TScore', 'ysr_positive_t'),
+            ('Positive_Qualities_Percentile', 'ysr_positive_pct')
+        ])
+
+
 class FormCBC(FormASEBA):
     def set_specific_fields(self):
         self.form = 'parent_report'
@@ -66,3 +235,74 @@ class FormCBC(FormASEBA):
         self.constant_fields["formid"] = '9'
         self.constant_fields["type"] = 'CBC'
         self.constant_fields["compitems"] = "'" + ('9' * 40)
+
+    def set_post_score_renames(self):
+        self.post_score_renames = OrderedDict([ 
+            ('cbc_middlename', 'subject'),
+            ('cbc_lastname', 'visit'),
+            ('cbc_othername', 'arm'),
+            ('cbc_firstname', 'study_id'),
+            ('Anxious__Depressed_Total', 'cbcl_anxdep_raw'),
+            ('Anxious__Depressed_TScore', 'cbcl_anxdep_t'),
+            ('Anxious__Depressed_Percentile', 'cbcl_anxdep_pct'),
+            ('Withdrawn__Depressed_Total', 'cbcl_withdep_raw'),
+            ('Withdrawn__Depressed_TScore', 'cbcl_withdep_t'),
+            ('Withdrawn__Depressed_Percentile', 'cbcl_withdep_pct'),
+            ('Somatic_Complaints_Total', 'cbcl_somatic_raw'),
+            ('Somatic_Complaints_TScore', 'cbcl_somatic_t'),
+            ('Somatic_Complaints_Percentile', 'cbcl_somatic_pct'),
+            ('Social_Problems_Total', 'cbcl_social_raw'),
+            ('Social_Problems_TScore', 'cbcl_social_t'),
+            ('Social_Problems_Percentile', 'cbcl_social_pct'),
+            ('Thought_Problems_Total', 'cbcl_thought_raw'),
+            ('Thought_Problems_TScore', 'cbcl_thought_t'),
+            ('Thought_Problems_Percentile', 'cbcl_thought_pct'),
+            ('Attention_Problems_Total', 'cbcl_atten_raw'),
+            ('Attention_Problems_TScore', 'cbcl_atten_t'),
+            ('Attention_Problems_Percentile', 'cbcl_atten_pct'),
+            ('Rule_Breaking_Behavior_Total', 'cbcl_rulebrk_raw'),
+            ('Rule_Breaking_Behavior_TScore', 'cbcl_rulebrk_t'),
+            ('Rule_Breaking_Behavior_Percentile', 'cbcl_rulebrk_pct'),
+            ('Aggressive_Behavior_Total', 'cbcl_aggress_raw'),
+            ('Aggressive_Behavior_TScore', 'cbcl_aggress_t'),
+            ('Aggressive_Behavior_Percentile', 'cbcl_aggress_pct'),
+            ('Internalizing_Problems_Total', 'cbcl_internal_raw'),
+            ('Internalizing_Problems_TScore', 'cbcl_internal_t'),
+            ('Internalizing_Problems_Percentile', 'cbcl_internal_pct'),
+            ('Externalizing_Problems_Total', 'cbcl_external_raw'),
+            ('Externalizing_Problems_TScore', 'cbcl_external_t'),
+            ('Externalizing_Problems_Percentile', 'cbcl_external_pct'),
+            ('Total_Problems_Total', 'cbcl_totprob_raw'),
+            ('Total_Problems_TScore', 'cbcl_totprob_t'),
+            ('Total_Problems_Percentile', 'cbcl_totprob_pct'),
+            ('Depressive_Problems_Total', 'cbcl_dep_dsm_raw'),
+            ('Depressive_Problems_TScore', 'cbcl_dep_dsm_t'),
+            ('Depressive_Problems_Percentile', 'cbcl_dep_dsm_pct'),
+            ('Anxiety_Problems_Total', 'cbcl_anx_dsm_raw'),
+            ('Anxiety_Problems_TScore', 'cbcl_anx_dsm_t'),
+            ('Anxiety_Problems_Percentile', 'cbcl_anx_dsm_pct'),
+            ('Somatic_Problems_Total', 'cbcl_somat_dsm_raw'),
+            ('Somatic_Problems_TScore', 'cbcl_somat_dsm_t'),
+            ('Somatic_Problems_Percentile', 'cbcl_somat_dsm_pct'),
+            ('Attention_Deficit__Hyperactivity_Problems_Total',
+             'cbcl_adhd_dsm_raw'),
+            ('Attention_Deficit__Hyperactivity_Problems_TScore',
+             'cbcl_adhd_dsm_t'),
+            ('Attention_Deficit__Hyperactivity_Problems_Percentile',
+             'cbcl_adhd_dsm_pct'),
+            ('Oppositional_Defiant_Problems_Total', 'cbcl_odd_dsm_raw'),
+            ('Oppositional_Defiant_Problems_TScore', 'cbcl_odd_dsm_t'),
+            ('Oppositional_Defiant_Problems_Percentile', 'cbcl_odd_dsm_pct'),
+            ('Conduct_Problems_Total', 'cbcl_cd_dsm_raw'),
+            ('Conduct_Problems_TScore', 'cbcl_cd_dsm_t'),
+            ('Conduct_Problems_Percentile', 'cbcl_cd_dsm_pct'),
+            ('Sluggish_Cognitive_Tempo_Total', 'cbcl_slugcog_raw'),
+            ('Sluggish_Cognitive_Tempo_TScore', 'cbcl_slugcog_t'),
+            ('Sluggish_Cognitive_Tempo_Percentile', 'cbcl_slugcog_pct'),
+            ('Obsessive_Compulsive_Problems_Total', 'cbcl_ocd_raw'),
+            ('Obsessive_Compulsive_Problems_TScore', 'cbcl_ocd_t'),
+            ('Obsessive_Compulsive_Problems_Percentile', 'cbcl_ocd_pct'),
+            ('Stress_Problems_Total', 'cbcl_stress_raw'),
+            ('Stress_Problems_TScore', 'cbcl_stress_t'),
+            ('Stress_Problems_Percentile', 'cbcl_stress_pct'),
+        ])
