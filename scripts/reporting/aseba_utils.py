@@ -149,3 +149,27 @@ def api_result_to_release_format(api_df, id_lookup_dict=None, verbose=False):
     df['arm'] = df['arm'].map(clean_up_arm_string)
 
     return df.set_index(['subject', 'arm', 'visit'])
+
+
+def cbc_colname_sorter(colname):
+    """
+    Extract a machine-sortable number from CBCL columns.
+
+    Luckily, section doesn't matter - question numbers increase monotonically,
+    so all that's necessary is to extract them. An extra wrinkle is question
+    56, which has letter-numbered parts, so we'll make that a decimal and add
+    it to the extracted number; this should result in correct sorting.
+
+    Intended to be passed to sort as a key function.
+    """
+    match = re.search(r'(\d+)([a-h]?)$', colname)
+    if not match:
+        return None
+    else:
+        number = float(match.group(1))
+        letter = match.group(2)
+        if len(letter) > 0:
+            letter = (ord(letter) - 96) / 100
+        else:
+            letter = 0.0
+    return number + letter
