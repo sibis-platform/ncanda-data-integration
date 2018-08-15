@@ -46,6 +46,9 @@ data = data.loc[:, dict_renames.values()]
 
 # Modify the metadata columns
 data.loc[data['arm'].isnull(), 'arm'] = 'standard'
-data['visit'] = data['visit'].str.replace('_arm_1', '')
+data['visit'] = (data['visit']
+                 .str.replace('_visit_arm_1', '')
+                 .str.replace(r'^(\dy)$', r'followup_\1'))
+data = data.sort(['subject', 'arm', 'visit'])
 
 data.to_csv(args.output, index=False)
