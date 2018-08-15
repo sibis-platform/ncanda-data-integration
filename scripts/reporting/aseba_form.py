@@ -1,7 +1,26 @@
+##
+##  See COPYING file distributed along with the ncanda-data-integration package
+##  for the copyright and license terms
+##
+"""
+Helper file storing all information that the different ASEBA forms require.
+
+Data shared between forms is defined in the top-level FormASEBA class, as are
+the data structures and function methods that populate each instance.
+
+The only reason classes are used are for easy inheritance of ASEBA *metadata*.
+Data processing is done separately in aseba_prep.py and aseba_reformat.py.
+"""
+
+
 import time
 from collections import OrderedDict
 
+# TODO: Might be cleaner for this to be a @staticmethod of FormASEBA?
 def get_aseba_form(form_type):
+    """
+    Given form_type, returns an instance of the FormASEBA of that form type.
+    """
     if form_type == "asr":
         return FormASR()
     elif form_type == "ysr":
@@ -12,28 +31,50 @@ def get_aseba_form(form_type):
         raise NotImplementedError("Form type %s not implemented!" % form_type)
 
 class FormASEBA:
+    """
+    Base class for ASEBA forms. Should never be instantiated on its own.
+    
+    Its only purpose is to allow child classes to inherit generic fields, as
+    well as the __init__ method (which populates generic fields, specific
+    fields, and post-processing rename lookup dict.)
+    """
     def __init__(self):
+        """
+        Set up variables and invoke methods that child classes will define.
+        """
         self.constant_fields = {}
         self.post_score_renames = {}
         self.form = None
         self.form_field_regex = None
         self.field_count = None
+
         self.set_generic_fields()
         self.set_specific_fields()
         self.set_post_score_renames()
 
     def set_generic_fields(self):
+        """
+        Fields that are shared between all ASEBA / ADM forms.
+        """
         self.constant_fields["admver"] = 9.1
         self.constant_fields["datatype"] = 'raw'
         self.constant_fields["dfo"] = '//'
         self.constant_fields["enterdate"] = time.strftime("%m/%d/%Y")
 
     def set_specific_fields(self):
-        pass
+        """
+        Fields specific to a form. Not implemented in base class.
+        """
+        raise NotImplementedError("Must be defined by subclass!")
 
     def set_post_score_renames(self):
         """
+        Lookup of scored variable names -> NCANDA release names.
+
+        Currently, this is an OrderedDict of 60+ name mappings for each form.
+
         In principle, it should be possible to derive the renames by:
+
         A. Extracting the identification embedded in <form>_*name
         B. Form-specific scores (that nonetheless overlap in content)
             1. Extract from each variable whether it
@@ -45,9 +86,13 @@ class FormASEBA:
         However, extracting out the large rename tables from
         *_output_reformat.py files is sufficient progress for now.
         """
-        pass
+        raise NotImplementedError("Must be defined by subclass!")
 
 class FormASR(FormASEBA):
+    """
+    Properties for the ASR (Adult Self-Report) form.
+    """
+
     def set_specific_fields(self):
         self.form = 'youth_report_1b'
         self.form_field_regex = r'^youthreport1_asr_section.+(?<!label)$'
@@ -139,6 +184,9 @@ class FormASR(FormASEBA):
 
 
 class FormYSR(FormASEBA):
+    """
+    Properties for the YSR (Youth Self-Report) form.
+    """
     def set_specific_fields(self):
         self.form = 'youth_report_1b'
         self.form_field_regex = r'^youthreport1_ysr_section.+(?<!label)$'
@@ -224,6 +272,9 @@ class FormYSR(FormASEBA):
 
 
 class FormCBC(FormASEBA):
+    """
+    Properties for the CBCL (Child Behavior Checklist) form.
+    """
     def set_specific_fields(self):
         self.form = 'parent_report'
         self.form_field_regex = r'^parentreport_cbcl_section.+(?<!label)$'

@@ -1,3 +1,39 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+##
+##  See COPYING file distributed along with the ncanda-data-integration package
+##  for the copyright and license terms
+##
+"""
+Transform Redcap Youth/Parent Report data into an ASEBA ADM-compatible format.
+
+`--demographics-file` is used for both subject exclusion and NCANDA SID lookup.
+
+To use release data, you could invoke the command like so:
+
+```bash
+RELEASE_FOLDER=/fs/ncanda-share/releases/consortium/followup_3y/NCANDA_RELEASE_3Y_REDCAP_MEASUREMENTS_V02/summaries/redcap
+OUT_FOLDER=/tmp
+for form in asr ysr cbc; do
+  ./aseba_prep.py --form $form \
+    --demographics-file ${RELEASE_FOLDER}/demographics.csv \
+    --input ${RELEASE_FOLDER}/youthreport*.csv \
+            ${RELEASE_FOLDER}/parentreport.csv \
+    --output ${OUT_FOLDER}/${form}_prepped.csv
+done
+```
+
+To pull the data from the API:
+
+```bash
+for form in asr ysr cbc; do
+  ./aseba_prep.py -f $form -y 3 \
+    --demographics-file ${RELEASE_FOLDER}/demographics.csv
+    --output ${OUT_FOLDER}/${form}_prepped.csv
+done
+```
+
+"""
 import pandas as pd
 import argparse
 import sys
@@ -17,7 +53,6 @@ parser = argparse.ArgumentParser(
 parser.add_argument('-f', '--form',
                     choices=["asr", "ysr", "cbc"],
                     help="ASEBA form to extract the raw values for",
-                    # nargs="+",
                     required=True)
 parser.add_argument('-i', '--input',
                     nargs="*",
@@ -81,14 +116,14 @@ else:
     lookup = get_id_lookup_from_demographics_file(general_df)
 
 
-## 3. Round age and remove records with uncalculated age
+## 2. Round age and remove records with uncalculated age
 general_df['age'] = general_df['age'].round(decimals=0)
 general_df = general_df.dropna(subset=['age'])
 general_df['age'] = general_df['age'].astype(int)
 
 form_specifics = get_aseba_form(args.form)
 
-## 4. Extract form-specific info
+## 3. Extract form-specific info
 if not args.input:
     if args.verbose:
         print "No input files provided; loading information from API."
@@ -116,7 +151,7 @@ if len(aseba_df_answers.columns) != form_specifics.field_count:
         len(aseba_df_answers.columns)
     ))
 
-## 5. Shrink into a single column
+## 4. Shrink into a single column
 aseba_df_answers['bpitems'] = (aseba_df_answers
                                .iloc[:, 0:(len(aseba_df_answers.columns))]
                                .astype(int)

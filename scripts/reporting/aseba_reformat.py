@@ -1,3 +1,22 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+##
+##  See COPYING file distributed along with the ncanda-data-integration package
+##  for the copyright and license terms
+##
+"""
+Transform an Excel file produced by ASEBA scoring to an NCANDA release format.
+
+```bash
+# In this example, the xlsx files are names ASR_Scored_2018-08.xlsx, etc.
+ASEBA_FOLDER=/fs/ncanda-share/beta/simon/aseba_082018
+for form in asr ysr cbc; do
+  ./aseba_reformat.py --form $form \
+    --input ${ASEBA_FOLDER}/${form^^}_Scored_2018-08.xlsx \
+    --output ${ASEBA_FOLDER}/${form}_scored.csv
+done
+```
+"""
 import sys
 import pandas
 import argparse
