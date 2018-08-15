@@ -1,10 +1,21 @@
 import time
 
+def get_aseba_form(form_type):
+    if form_type == "asr":
+        return FormASR()
+    elif form_type == "ysr":
+        return FormYSR()
+    elif form_type == "cbc":
+        return FormCBC()
+    else:
+        raise NotImplementedError("Form type %s not implemented!" % form_type)
+
 class FormASEBA:
     def __init__(self):
         self.constant_fields = {}
         self.form = None
         self.form_field_regex = None
+        self.field_count = None
         self.set_generic_fields()
         self.set_specific_fields()
 
@@ -20,7 +31,8 @@ class FormASEBA:
 class FormASR(FormASEBA):
     def set_specific_fields(self):
         self.form = 'youth_report_1b'
-        self.form_field_regex = r'^youthreport1_asr_section'
+        self.form_field_regex = r'^youthreport1_asr_section.+(?<!label)$'
+        self.field_count = 131
 
         self.constant_fields["formver"] = '2003'
         self.constant_fields["dataver"] = '2003'
@@ -32,7 +44,8 @@ class FormASR(FormASEBA):
 class FormYSR(FormASEBA):
     def set_specific_fields(self):
         self.form = 'youth_report_1b'
-        self.form_field_regex = r'^youthreport1_ysr_section'
+        self.form_field_regex = r'^youthreport1_ysr_section.+(?<!label)$'
+        self.field_count = 119
 
         self.constant_fields["formver"] = '2001'
         self.constant_fields["dataver"] = '2001'
@@ -44,7 +57,8 @@ class FormYSR(FormASEBA):
 class FormCBC(FormASEBA):
     def set_specific_fields(self):
         self.form = 'parent_report'
-        self.form_field_regex = r'^parentreport_cbcl_section'
+        self.form_field_regex = r'^parentreport_cbcl_section.+(?<!label)$'
+        self.field_count = 119
 
         self.constant_fields["formver"] = '2001'
         self.constant_fields["dataver"] = '2001'
