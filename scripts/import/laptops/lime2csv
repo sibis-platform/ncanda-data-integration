@@ -208,7 +208,7 @@ def handle_survey(subject_label, survey_id, data, verbose ):
 
     # Compute and set unique record ID    
     data['record_id'] = data.apply( make_record_id, axis=1, this_survey=this_survey )
-    if data['record_id'].str.startswith("nan").bool():
+    if args.use_any_id and data['record_id'].str.startswith("nan").bool():
         # Fill out the raw field where ID is expected
         data['%s_subject_id' % this_survey] = data.apply(
                 get_most_common_id,
@@ -218,7 +218,7 @@ def handle_survey(subject_label, survey_id, data, verbose ):
         # Re-run make_record_id
         data['record_id'] = data.apply( make_record_id, axis=1, this_survey=this_survey )
         if verbose:
-            print ("Assigning record_id based on most frequent subject ID or"
+            print ("Assigning record_id based on most frequent subject ID or "
                    "filename, since survey field was NaN")
 
     # Drop the separate subject_id and date columns
@@ -297,9 +297,12 @@ parser.add_argument( "infile", help="Input .csv LimeSurvey file.")
 parser.add_argument( "outdir", help="Output directory. All CSV files are created in this directory")
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
 parser.add_argument("--dry-run",
-                    help="Do not convert any data", 
+                    help="Do not convert any data",
                     action="store_true",
                     default=False)
+parser.add_argument("--use-any-id", default=False, action="store_true",
+                    help="When ID is not in the expected field,"
+                         " look elsewhere instead of using NaN")
 
 args = parser.parse_args()
 
