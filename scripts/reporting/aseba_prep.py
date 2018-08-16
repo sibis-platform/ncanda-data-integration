@@ -41,7 +41,8 @@ from aseba_utils import (process_demographics_file,
                          get_year_set,
                          api_result_to_release_format,
                          get_id_lookup_from_demographics_file,
-                         load_redcap_summaries)
+                         load_redcap_summaries,
+                         cbc_colname_sorter)
 from aseba_form import get_aseba_form
 import sibispy
 from sibispy import sibislogger as slog
@@ -141,7 +142,6 @@ aseba_df_answers = (aseba_df.filter(regex=form_specifics.form_field_regex)
                     .dropna(axis=0, how='any', thresh=args.threshold)
                     .fillna(value=9))
 
-
 # Check that all relevant columns were provided and form_field_regex didn't
 # under- or over-select
 if len(aseba_df_answers.columns) != form_specifics.field_count:
@@ -150,6 +150,14 @@ if len(aseba_df_answers.columns) != form_specifics.field_count:
         args.form.upper(),
         len(aseba_df_answers.columns)
     ))
+
+# Form-specific workaround: The columns that CBCL needs are not named in a way
+# consistent with machine sorting. When drawn from API, that's okay, but
+# release has the order jumbled. Since we're collapsing the answers in the next
+# step, that's a problem -- so we'll need to re-order them back.
+if args.form == "cbc":
+    cols = sorted(aseba_df_answers.columns, key=cbc_colname_sorter)
+    aseba_df_answers = aseba_df_answers[cols]
 
 ## 4. Shrink into a single column
 aseba_df_answers['bpitems'] = (aseba_df_answers
