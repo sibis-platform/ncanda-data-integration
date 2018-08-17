@@ -26,7 +26,10 @@ parser.add_argument("-f", "--force-update",
                     help="Force updates even when records are already marked "
                          "'Complete'",
                     action="store_true")
-parser.add_argument( "--project", help="REDCAP project (import_laptops, import_webcnp, or data_entry)", default="import_laptops" )
+parser.add_argument("--project",
+                    help="REDCAP project to import the CSV into",
+                    choices=["import_laptops", "import_webcnp", "data_entry"],
+                    default="import_laptops")
 parser.add_argument("--data-access-group",
                     help="REDCap project data access group that the imported "
                          "data should be assigned to.",
@@ -34,16 +37,18 @@ parser.add_argument("--data-access-group",
 parser.add_argument("csvfile",
                     nargs='+',
                     help="Input .csv file.")
-parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
-
-parser.add_argument("-t","--time-log-dir",
+parser.add_argument("-p", "--post-to-github",
+                    help="Post all issues to GitHub instead of stdout.",
+                    action="store_true")
+parser.add_argument("-t", "--time-log-dir",
                     help="If set then time logs are written to that directory",
                     action="store",
                     default=None)
 
 args = parser.parse_args()
 
-slog.init_log(args.verbose, args.post_to_github,'NCANDA Import', 'import-laptops-csv2redcap', args.time_log_dir)
+slog.init_log(args.verbose, args.post_to_github, 'NCANDA Import',
+              'import-laptops-csv2redcap', args.time_log_dir)
 slog.startTimer1()
 
 # Open connection to REDCap server
@@ -101,16 +106,20 @@ def process_file(fname):
     # Make list of dicts for REDCap import
     record_list = []
     for key, row in data.iterrows():
-        if 'record_id' not in  row.index :
-            justFile= os.path.basename(fname) 
-            slog.info( str(args.data_access_group) + "-" + hashlib.sha1(fname).hexdigest()[0:6], "'record_id' is not defined in file '" + justFile + "'!",
-                   cmd = " ".join(sys.argv),
-                   file_name = fname,
-                   project=args.project)
+        if 'record_id' not in row.index:
+            justFile = os.path.basename(fname)
+            slog.info(
+                "%s-%s" % (str(row['redcap_data_access_group']),
+                           hashlib.sha1(fname).hexdigest()[0:6]),
+                "'record_id' is not defined in file '%s'!" % justFile,
+                cmd=" ".join(sys.argv),
+                file_name=fname,
+                project=args.project
+            )
             return False
- 
+
         row['record_id'] = re.sub('(#|&|\+|\')', '?', row['record_id'])
- 
+
         record_id = row['record_id']
         if complete_field:
             if record_id in existing_data.index.tolist():
@@ -127,7 +136,7 @@ def process_file(fname):
         import_response = project.import_records(record_list, overwrite='overwrite')
 
     except Exception as err_msg: 
-        justFile= os.path.basename(fname)
+        justFile = os.path.basename(fname)
         slog.info( str(args.data_access_group) + "-" + hashlib.sha1(fname + str(err_msg)).hexdigest()[0:6], "Upload error to redcap for file " + justFile,
                    error_msg=str(err_msg),
                    record_list =str(record_list), 
@@ -164,7 +173,7 @@ def process_file(fname):
     return True
 
 # Process all files from the command line
-uploaded = 0 
+uploaded = 0
 records = 0
 uploadedFlag=True
 for f in args.csvfile:
