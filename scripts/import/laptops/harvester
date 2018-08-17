@@ -173,6 +173,22 @@ def run_converter(site, subject_label, command,verbose):
                             command_array += ["-t", args.time_log_dir]
 
                         command_array += ['--data-access-group', site, fi]
+
+                        # NOTE: As of April 2018, all LimeSurvey files are
+                        # collected on a UCSD server and uploaded via a UCSD
+                        # SVN account (ucsd49), which induces harvester to
+                        # assume all such records' DAG should be UCSD. For
+                        # those cases, we want csv2redcap to look into the file
+                        # and select the DAG based on the relevant variable if
+                        # possible, overruling --data-access-group.
+                        #
+                        # For other cases, though, we still want to respect the
+                        # uploading laptop - in case, for instance, that we
+                        # later find some of the fields in non-LimeSurvey
+                        # imports correspond to the regex that csv2redcap uses
+                        # to identify the DAG-carrying field.
+                        if site != "ucsd":
+                            command_array += ["--ignore-file-dag"]
                         
                         if verbose: 
                             print "Running: " + ' '.join(command_array)

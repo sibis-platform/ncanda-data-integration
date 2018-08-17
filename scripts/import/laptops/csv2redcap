@@ -32,8 +32,16 @@ parser.add_argument("--project",
                     default="import_laptops")
 parser.add_argument("--data-access-group",
                     help="REDCap project data access group that the imported "
-                         "data should be assigned to.",
+                    "data should be assigned to *if and only if* the "
+                    "imported file doesn't specify otherwise.",
                     default=None)
+parser.add_argument("--ignore-file-dag",
+                    help="Even if file contains a DAG designation, ignore it.",
+                    action="store_true")
+parser.add_argument("--update-dag-only",
+                    help="Ignore any file content except DAG designation. "
+                    "(Useful for fixing incorrectly applied DAGs.)",
+                    action="store_true")
 parser.add_argument("csvfile",
                     nargs='+',
                     help="Input .csv file.")
@@ -86,8 +94,12 @@ def process_file(fname):
 
     # Bring original "siteid" column back to assign each record to the correct
     # data access group
-    if args.data_access_group:
-        data['redcap_data_access_group'] = args.data_access_group
+    if args.ignore_file_dag:
+        site = args.data_access_group
+    else:
+        site = get_dag_from_df(data, default_site=args.data_access_group,
+                               verbose=args.verbose)
+    data['redcap_data_access_group'] = site
 
     # Get "complete" field of existing records so we can protect "Complete"
     # records from overwriting
@@ -128,6 +140,21 @@ def process_file(fname):
                         print "Forcing update of 'Complete' record", record_id
                     else:
                         continue
+
+        # DAG stuff
+        if args.update_dag_only:
+            row = row[['record_id', 'redcap_data_access_group']]
+            if args.verbose:
+                print "%s assigned to %s" % (record_id,
+                                             row['redcap_data_access_group'])
+        if ((args.data_access_group != row['redcap_data_access_group']) and
+                args.verbose):
+            print "WARNING: DAG is %s, but --data-access-group was %s" % (
+                site,
+                args.data_access_group,
+            )
+
+        # Prune and convert to dict
         record = dict(row.dropna().apply(lambda s: re.sub('&quot;', '""', s)))
         record_list.append(record)
 
@@ -171,6 +198,40 @@ def process_file(fname):
         failed.append(fname)
 
     return True
+
+
+def get_dag_from_df(df, dag_field_regex=r'_[sS]ite\d?', site_lookup=None,
+                      default_site=None, preserve_invalid_dag=False,
+                      verbose=False):
+    """
+    If present, extract and translate the content of the DAG field in the file.
+
+    By default, the DAG field is expected to be a single lowercase letter to be
+    converted to one of NCANDA's five sites.
+
+    If the DAG field is not found in site_lookup, the result is default_site
+    or, if preserve_invalid_dag is set, the original value.
+    """
+    if not site_lookup:
+        site_lookup = {
+            'a': 'upmc',
+            'b': 'sri',
+            'c': 'duke',
+            'd': 'ohsu',
+            'e': 'ucsd',
+        }
+
+    varnames = [col for col in df.columns if re.search(dag_field_regex, col)]
+    if len(varnames) != 1:
+        if verbose:
+            print "Regex %s found %d columns, expected 1" % (dag_field_regex,
+                                                             len(varnames))
+        return None
+    dag_varname = varnames[0]
+    if preserve_invalid_dag:
+        return df[dag_varname].map(lambda x: site_lookup.get(x, x))
+    else:
+        return df[dag_varname].map(lambda x: site_lookup.get(x, default_site))
 
 # Process all files from the command line
 uploaded = 0
