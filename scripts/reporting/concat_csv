@@ -11,6 +11,7 @@
 ##
 
 if [ "$2" == "" ]; then
+  echo "Current Call: $0 $@"
   echo "Please define output summary file and list of csv files to generate summary over"
   echo "e.g. concat_csv output.csv */*/*/measures/demographics.csv"
   exit 1
@@ -23,6 +24,11 @@ shift
 REST_CSV=$@
 if [ -e ${OUTPUT_FILE} ]; then
   rm -f ${OUTPUT_FILE}
+fi 
+
+if [ ! -e ${FIRST_CSV} ]; then 
+    echo "ERROR: ${FIRST_CSV} does not exist !"
+    exit 1
 fi 
 
 cp -f ${FIRST_CSV} ${OUTPUT_FILE}
