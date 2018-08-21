@@ -10,126 +10,184 @@
 ##  $LastChangedBy: dj0330 $
 ##
 
-bindir=$(dirname $0)
-currdir=$PWD
+# Get absolute path 
+bindir=$(cd "$(dirname $0)"; pwd)
 
 if [ $# -lt 2 ]; then
   echo "Please provide source and destination directories."
   echo "Optional: if followed by "
+  echo "0 or 1 = redcap summaries are created (1) or not (0) - default they are created" 
   echo "0 or 1 = structural summaries are created (1) or not (0) - default they are created" 
   echo "0 or 1 = diffusion summaries are created (1) or not (0) - default they are created" 
+  echo "0 or 1 = restingstate summaries are created (1) or not (0) - default they are created" 
   exit 1
 fi
 
 srcdir=$1
 dstdir=$2
 
-structuralFlag=$3
+redcapFlag=$3
+if [ "$redcapFlag" == "" ]; then
+    redcapFlag=1
+fi 
+
+structuralFlag=$4
 if [ "$structuralFlag" == "" ]; then
     structuralFlag=1
 fi 
 
-diffusionFlag=$4
+SRI24_FLAG=true
+#SRI24_FLAG=false
+#SELECTED_LIST="aseg_outliers"
+
+
+diffusionFlag=$5
 if [ "$diffusionFlag" == "" ]; then
     diffusionFlag=1
 fi 
 
+restingstateFlag=$6
+if [ "$diffusionFlag" == "" ]; then
+    restingstateFlag=1
+fi 
+
+scriptDir=$PWD
+pushd ${srcdir} > /dev/null
+
 [ -d ${dstdir} ] || mkdir -p ${dstdir}
+
 
 #
 # redcap measures
 #
-if true; then
-  [ -d ${dstdir}/redcap ] || mkdir -p ${dstdir}/redcap
-  
+if [ "$redcapFlag" == "1" ]; then
+  # echo "Run REDCap Reports" 
+  [ -d ${dstdir}/redcap_ ] && rm -rf ${dstdir}/redcap_ 
+  mkdir -p ${dstdir}/redcap_
+
   # These are all the baseline measures
   measures="ataxia biological_mr biological_np brief cddr clinical cnp dd100 dd1000 demographics ehi grooved_pegboard highrisk ishihara landoltc limesurvey_ssaga_parent limesurvey_ssaga_youth locked_forms mri_report mri_stroop mr_session_report np_reyosterrieth_complex_figure_files parentreport participant_last_use_summary pasat rey-o saliva_samples sleep_behavior ssaga_parent ssaga_youth stroop wais4 wrat4 youthreport1 youthreport1b youthreport2" 
   for m in ${measures}; do
-    files="$(ls ${srcdir}/*/*/*/measures/${m}.csv 2>/dev/null)"
+    files="$(ls */*/*/measures/${m}.csv 2>/dev/null)"
     if [ "$files" != ""  ]; then 
-       ${bindir}/concat_csv ${dstdir}/redcap/${m}.csv ${files}
+       ${bindir}/concat_csv ${dstdir}/redcap_/${m}.csv ${files}
     else 
 	echo "Skipping ${m}"
     fi  
   done
+  [ -d ${dstdir}/redcap ] && rm -rf ${dstdir}/redcap 
+  mv ${dstdir}/redcap_ ${dstdir}/redcap
 fi
 
-if [ "$structuralFlag" == "0" -a  "$diffusionFlag" == "0" ]; then
-   exit 0 
-fi 
-
-
-# make last visit list
-full_list=`ls -d --color=no ${srcdir}/*/*/*/structural/volumetry | grep 'baseline\|followup_1y\|followup_2y'`
-last_list=
-prev_s=
-prev_l=
-for l in ${full_list} 0; do
-  s=`echo ${l} | rev | cut -d "/" -f5 | rev`
-  if [ "${prev_s}" != "" ] && [ "${prev_s}" != "${s}" ]; then
-    last_list="${last_list} ${prev_l}"
-  fi
-  prev_s=${s}
-  prev_l=`echo ${l} | rev | cut -d "/" -f3- | rev`
-done
-
-
-#
-# structural sri24 measures
-#
 if [ "$structuralFlag" == "1" ]; then
-  # These are all the MR measurements extracted by our pipeline 
-  [ -d ${dstdir}/structural/cross-sectional/sri24 ] || mkdir -p ${dstdir}/structural/cross-sectional/sri24
-  [ -d ${dstdir}/structural/longitudinal/sri24 ] || mkdir -p ${dstdir}/structural/longitudinal/sri24
-  
-  parc="icv parc116 suptent ventricles wm400 postfossa_dmid inftent"
-  for TYPE in atropos atropos_hs atropos_masked; do 
-    VolMeasType=volumetry/sri24_padded/$TYPE
-    for p in ${parc}; do
-      # cross-sectional
-      ${bindir}/concat_csv ${dstdir}/structural/cross-sectional/sri24/${TYPE}_${p}.csv ${srcdir}/*/*/*/structural/${VolMeasType}/${p}.csv
-      ${bindir}/concat_csv ${dstdir}/structural/cross-sectional/sri24/${TYPE}_${p}_scale.csv ${srcdir}/*/*/*/structural/${VolMeasType}/${p}_scale.csv
-      # longitudinal
-      csv_list=
-      csv_scale_list=
-      for l in ${last_list}; do
-        visit=`echo ${l} | rev | cut -d "/" -f1 | rev`
-        if [ "${visit}" == "baseline" ]; then
-          csv_list="${csv_list} `ls --color=no ${l}/structural/${VolMeasType}/${p}.csv 2> /dev/null`"
-          csv_scale_list="${csv_scale_list} `ls --color=no ${l}/structural/${VolMeasType}/${p}_scale.csv 2> /dev/null`"
-        else
-          csv_list="${csv_list} `ls --color=no ${l}/structural/longitudinal/${VolMeasType}/*/${p}.csv 2> /dev/null`"
-          csv_scale_list="${csv_scale_list} `ls --color=no ${l}/structural/longitudinal/${VolMeasType}/*/${p}_scale.csv 2> /dev/null`"
-        fi
-      done
-      ${bindir}/concat_csv ${dstdir}/structural/longitudinal/sri24/${TYPE}_${p}.csv ${csv_list}
-      ${bindir}/concat_csv ${dstdir}/structural/longitudinal/sri24/${TYPE}_${p}_scale.csv ${csv_scale_list}
-    done
+  # echo "Run Structural Reports" 
+
+  # make last visit list 'last_list
+  last_list=
+  for subject in `ls -d --color=no NCANDA_S*`; do
+      # only include those that have a baseline scan 
+      if [ -d $subject/standard/baseline/structural/volumetry ]; then 
+	  sList=`ls -d1 --color=no $subject/standard/*/structural/volumetry | grep -e baseline -e followup_1y -e followup_2y -e followup_3y`   
+	  last=`echo ${sList} | rev | cut -d' ' -f1  | rev | cut -d'/' -f1-3`
+	  last_list="${last_list} $last"
+      fi 
   done
-fi 
 
-#
-# structural freesurfer measures
-#
-if [ "$structuralFlag" == "1" ]; then
-  [ -d ${dstdir}/structural/cross-sectional/freesurfer ] || mkdir -p ${dstdir}/structural/cross-sectional/freesurfer
-  [ -d ${dstdir}/structural/longitudinal/freesurfer ] || mkdir -p ${dstdir}/structural/longitudinal/freesurfer
+  if ${SRI24_FLAG}; then 
+    # These are all the MR measurements extracted by our pipeline 
+    cross_dir=${dstdir}/structural/cross-sectional/sri24 
+    [ -d ${cross_dir}_ ] && rm -rf ${cross_dir}_
+    mkdir -p ${cross_dir}_
+
+    long_dir=${dstdir}/structural/longitudinal/sri24
+    [ -d ${long_dir}_ ] && rm -rf ${long_dir}_
+    mkdir -p ${long_dir}_
   
-  for type in aseg lh.aparc.DKTatlas40 lh.w-g.pct rh.BA wmparc lh.BA rh.aparc.a2009s rh.BA.thresh lh.aparc.a2009s lh.BA.thresh rh.aparc  rh.entorhinal_exvivo lh.aparc lh.entorhinal_exvivo rh.aparc.DKTatlas40  rh.w-g.pct; do
+    #
+    # structural sri24 measures
+    #
+    parc="icv parc116 suptent ventricles wm400 postfossa_dmid inftent"
+    for TYPE in atropos atropos_hs atropos_masked; do 
+      VolMeasType=volumetry/sri24_padded/$TYPE
+      for p in ${parc}; do
+        # cross-sectional
+        ${bindir}/concat_csv ${cross_dir}_/${TYPE}_${p}.csv */*/*/structural/${VolMeasType}/${p}.csv
+        ${bindir}/concat_csv ${cross_dir}_/${TYPE}_${p}_scale.csv */*/*/structural/${VolMeasType}/${p}_scale.csv
+        # longitudinal
+  
+        csv_list=
+        csv_scale_list=
+        for l in ${last_list}; do
+          visit=`echo ${l} | cut -d "/" -f3`
+          if [ "${visit}" == "baseline" ]; then
+            csv_list="${csv_list} `ls --color=no ${l}/structural/${VolMeasType}/${p}.csv 2> /dev/null`"
+            csv_scale_list="${csv_scale_list} `ls --color=no ${l}/structural/${VolMeasType}/${p}_scale.csv 2> /dev/null`"
+          else
+            csv_list="${csv_list} `ls --color=no ${l}/structural/longitudinal/${VolMeasType}/*/${p}.csv 2> /dev/null`"
+            csv_scale_list="${csv_scale_list} `ls --color=no ${l}/structural/longitudinal/${VolMeasType}/*/${p}_scale.csv 2> /dev/null`"
+          fi
+        done
+        ${bindir}/concat_csv ${long_dir}_/${TYPE}_${p}.csv ${csv_list}
+        ${bindir}/concat_csv ${long_dir}_/${TYPE}_${p}_scale.csv ${csv_scale_list}
+      done
+    done
+    [ -d ${cross_dir} ] && rm -rf ${cross_dir}
+    mv ${cross_dir}_ ${cross_dir}
+
+    [ -d ${long_dir} ] && rm -rf ${long_dir}
+    mv ${long_dir}_ ${long_dir}
+
+  else
+      echo "Skipping SRI24" 
+  fi 
+
+
+
+  #
+  # structural freesurfer measures
+  #
+
+  cross_dir=${dstdir}/structural/cross-sectional/freesurfer 
+  long_dir=${dstdir}/structural/longitudinal/freesurfer
+  if [ "${SELECTED_LIST}" != "" ]; then
+      mv ${cross_dir} ${cross_dir}_
+      mv ${long_dir} ${long_dir}_
+      REPORT_LIST=${SELECTED_LIST}
+      echo "Only running report on: $REPORT_LIST" 
+  else 
+      [ -d ${cross_dir}_ ] && rm -rf ${cross_dir}_
+      mkdir -p ${cross_dir}_
+
+      [ -d ${long_dir}_ ] && rm -rf ${long_dir}_
+      mkdir -p ${long_dir}_
+      REPORT_LIST="aseg lh.aparc.DKTatlas40 lh.w-g.pct rh.BA wmparc lh.BA rh.aparc.a2009s rh.BA.thresh lh.aparc.a2009s lh.BA.thresh rh.aparc  rh.entorhinal_exvivo lh.aparc lh.entorhinal_exvivo rh.aparc.DKTatlas40  rh.w-g.pct wmsnr.e3 aseg_outliers" 
+  fi 
+  
+  for type in ${REPORT_LIST}; do
     # cross-sectional
-    ${bindir}/concat_csv ${dstdir}/structural/cross-sectional/freesurfer/${type}.csv ${srcdir}/*/*/*/structural/freesurfer_refined/NCANDA_S*/measures/${type}.csv
+    ${bindir}/concat_csv ${cross_dir}_/${type}.csv */*/*/structural/freesurfer_refined/NCANDA_S*/measures/${type}.csv
+
     # longitudinal
     csv_list=
     for l in ${last_list}; do
       visit=`echo ${l} | rev | cut -d "/" -f1 | rev`
       if [ "${visit}" == "baseline" ]; then
-        csv_list="${csv_list} `ls --color=no ${l}/structural/freesurfer_refined/NCANDA_S*/measures/${type}.csv 2> /dev/null`"
+        csv_list="${csv_list}`ls --color=no ${l}/structural/freesurfer_refined/NCANDA_S*/measures/${type}.csv 2> /dev/null` "
       else
-        csv_list="${csv_list} `ls --color=no ${l}/structural/longitudinal/freesurfer_refined/*.long.template*/measures/${type}.csv 2> /dev/null`"
-      fi
+	baseFile=`ls --color=no ${l}/structural/longitudinal/freesurfer_refined/baseline.long.template*/measures/${type}.csv 2> /dev/null | head -n1` 
+	if [ "$baseFile" != "" ]; then 
+            csv_list="${csv_list}${baseFile} `ls --color=no ${l}/structural/longitudinal/freesurfer_refined/*y.long.template*/measures/${type}.csv 2> /dev/null` "
+        fi
+      fi 
     done
-    ${bindir}/concat_csv ${dstdir}/structural/longitudinal/freesurfer/${type}.csv ${csv_list}
+    ${bindir}/concat_csv ${long_dir}_/${type}.csv ${csv_list}
   done
+
+  [ -d ${cross_dir} ] && rm -rf ${cross_dir}
+  mv ${cross_dir}_ ${cross_dir}
+
+  [ -d ${long_dir} ] && rm -rf ${long_dir}
+  mv ${long_dir}_ ${long_dir}
 fi
 
 #
@@ -141,23 +199,35 @@ diffusionReport()
   local filePostfix=$2
   for MOD in fa l1 lt md; do 
     FILE="${filePrefix}_${MOD}${filePostfix}"
-    ${bindir}/concat_csv ${dstdir}/diffusion/pepolar/${FILE} ${srcdir}/*/*/baseline/diffusion/pepolar/measures/${FILE} ${srcdir}/*/*/followup_1y/diffusion/pepolar/measures/${FILE}
+    ${bindir}/concat_csv ${dstdir}/diffusion_/${FILE} */*/*/diffusion/pepolar/measures/${FILE}
   done
 }
 
 if [ "$diffusionFlag" == "1" ]; then 
-  [ -d ${dstdir}/diffusion/pepolar ] || mkdir -p ${dstdir}/diffusion/pepolar
-
-  #diffusionReport mori_warp_refine .csv
+  # echo "Run Diffusion Reports" 
+  [ -d ${dstdir}/diffusion_ ] && rm -rf ${dstdir}/diffusion_ 
+  mkdir -p ${dstdir}/diffusion_
 
   diffusionReport mori_ncanda_baseline_meet_criteria _skeleton.csv
   diffusionReport mori_ncanda_baseline_meet_criteria _corrected_global_skeleton.csv
   diffusionReport mori_ncanda_baseline_meet_criteria _corrected_global_add_skeleton.csv
   diffusionReport mori_ncanda_baseline_meet_criteria _corrected_local_mul_skeleton.csv
   diffusionReport mori_ncanda_baseline_meet_criteria _corrected_local_add_skeleton.csv
+
+  [ -d ${dstdir}/diffusion ] && rm -rf ${dstdir}/diffusion 
+  mv ${dstdir}/diffusion_ ${dstdir}/diffusion
 fi 
 
+if [ "$restingstateFlag" == "1" ]; then
+  # echo "Run Restingstate Reports" 
+  [ -d ${dstdir}/restingstate_ ] && rm -rf ${dstdir}/restingstate_ 
+  mkdir -p ${dstdir}/restingstate_ 
 
+  ${bindir}/concat_csv ${dstdir}/restingstate_/rs_qa.csv */*/*/restingstate/measures/rs_qa.csv 
+  ${bindir}/concat_csv ${dstdir}/restingstate_/rs_roi2roi_corr.csv  */*/*/restingstate/measures/sri24/rs_roi2roi_corr.csv
+  [ -d ${dstdir}/restingstate ] && rm -rf ${dstdir}/restingstate 
+  mv ${dstdir}/restingstate_ ${dstdir}/restingstate
+fi 
+popd > /dev/null
 # cd ${srcdir}
 # ${currdir}/${bindir}/xnat_lookup.py -k -r -o ${dstdir}/subject_ids.csv NCANDA_S0*
-
