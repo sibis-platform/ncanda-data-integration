@@ -17,6 +17,7 @@ import yaml
 import hashlib
 import bisect 
 import pyxnat
+import pandas as pd 
 
 import sibispy
 from sibispy import sibislogger as slog
@@ -35,7 +36,8 @@ htmld = []
 htmlq = []
 htmldt = []
 htmlphys = []
-scans_to_qc = []  # used to create a csv of scans to qc
+# used to create a csv of scans to qc
+scans_to_qc = ['xnat_experiment_id,nifti_folder,scan_id,scan_type,experiment_note,decision,scan_note\n']  
 
 experiments_for_next_run = []
 
@@ -602,9 +604,7 @@ parser.add_argument("--no-update",
                          "XNAT server (e.g., last run date, list of flagged "
                          "sessions).",
                     action="store_true")
-parser.add_argument("--qc-csv",
-                    help="File path to write with scans to qc.",
-                    default="/tmp/scan_qc.csv")
+parser.add_argument("--qc-csv",help="Write scans to qc to a csv file.",action="store_true")
 parser.add_argument("-f", "--force-qc-check",
                     help="Always perform quality check regardless if it was done before.",
                     action="store_true")
@@ -801,7 +801,7 @@ for (eid, project, subject, insert_date,
         sys.stdout.flush()
 
     # if anything goes wrong just run it again 
-    qc_file = os.path.join(log_dir,eid + "_passed_qc")
+    qc_file = os.path.join(log_dir,'passed_qc',eid + "_passed_qc")
     qc_file_tmp = qc_file + "_"
 
     remove_file(session_label,qc_file_tmp)
@@ -881,7 +881,7 @@ for (eid, project, subject, insert_date,
             scantype for (scan, scantype, quality) in scantype_and_quality
             if scantype in required_series.keys() and quality == 'questionable']
         unseen_scans = [
-            scantype for (scan, scantype, quality) in scantype_and_quality
+            [scan,scantype] for (scan, scantype, quality) in scantype_and_quality
             if scantype in required_series.keys() and quality in ['unset','unknown']]
         dti_scans = [
             (scan, scantype) for (scan, scantype, quality) in scantype_and_quality
@@ -999,17 +999,20 @@ for (eid, project, subject, insert_date,
             sys.stdout.flush()
 
     # "unset" (i.e., uninspected) mandatory scantypes
-    unset = [scantype for scantype in required_series.keys()
-             if scantype in unseen_scans]
-    if len(unset):
+    if len(unseen_scans):
+        unseen_scans_type = [] 
+
+        exp_note = experiment.attrs.get('note').replace('\r','').replace('\n',' ') .replace(',',' -') 
+        for scan,scan_type in unseen_scans:
+             unseen_scans_type.append(scan_type)
+             scan_note=experiment.scan(scan).attrs.get('note').replace('\r','').replace('\n',' ') .replace(',',' -') 
+             row =  eid + "," + session_dir + "," +  scan + "," + scan_type + ',"' + exp_note + '",,"'+ scan_note + '"\n' 
+             scans_to_qc.append(row)
+
+
         htmlu.append(''.join([session_html_link,
                               session_dir_link,
-                              ', '.join(unset)]))
-        # add to qc csv
-        unseen_scans.insert(0, session_dir_link[:-5])
-        row = ','.join(unseen_scans)
-        row += '\n'
-        scans_to_qc.append(row)
+                              ', '.join(unseen_scans_type)]))
 
     # duplicated scantypes
     dupl =[scantype for scantype in usable
@@ -1026,7 +1029,7 @@ for (eid, project, subject, insert_date,
                               session_dir_link,
                               ', '.join(questionable)]))
 
-    if (errorFlag + len(questionable) + len(unset) + len(dupl) + len(failed_dti)) \
+    if (errorFlag + len(questionable) + len(unseen_scans) + len(dupl) + len(failed_dti)) \
             or (not physio_ok) or (not nifti_export_ok):
         experiments_for_next_run.append(eid)
         if args.verbose:
@@ -1110,9 +1113,32 @@ elif args.verbose:
     print html
 
 # Write the scans to QC csv file.
-if scans_to_qc:
-    with open(args.qc_csv, 'wb') as fi:
+if len(scans_to_qc) > 1  and args.qc_csv :
+    qc_file = os.path.join(log_dir,'scans_to_review.csv')
+        
+    if os.path.exists(qc_file + ".lock"): 
+        qc_file=qc_file + ".tmp"
+
+    elif os.path.exists(qc_file): 
+        # check if something was reviewed 
+        existing_review = pd.read_csv(qc_file)
+        if len(existing_review.decision.value_counts()) : 
+            # archive file         
+            archive_base_name=os.path.join(log_dir,'reviewed', 'qc_reviewed_' + now_str[0:10] + "_") 
+            index=1 
+            while os.path.exists(archive_base_name + str(index) + '.csv') :
+                index += 1 
+            
+            os.rename(qc_file,archive_base_name + str(index) + '.csv')  
+
+    if os.path.exists(qc_file):
+        os.remove(qc_file) 
+
+    with open(qc_file, 'wb') as fi:
         fi.writelines(scans_to_qc)
+
+    # Make it so everybody can read and write the file 
+    os.chmod(qc_file,0o666)
 
 # Finally, update config stored on the server to have current date/time as the
 # time that this script was last run
