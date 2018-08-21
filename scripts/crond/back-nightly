@@ -62,7 +62,7 @@ if [ ${IMAGE_PROCESS_FLAG} == 1 ]; then
   catch_output_email "${SCRIPT_LABEL}:XNAT: Check Session Names (check_object_names)" ${SIBIS}/scripts/xnat/check_object_names -p -t ${LOG_DIR} --send-mail --zip-root ${SIBIS_DVD_DIR}
 
   # Check for new or updated sessions and
-  catch_output_email "${SCRIPT_LABEL}:XNAT: Check New Sessions (check_new_sessions)" ${SIBIS}/scripts/xnat/check_new_sessions --send-mail-to ncanda-image-qc@sri.com -p -t ${LOG_DIR}
+  catch_output_email "${SCRIPT_LABEL}:XNAT: Check New Sessions (check_new_sessions)" ${SIBIS}/scripts/xnat/check_new_sessions --qc-csv --send-mail-to ncanda-image-qc@sri.com -p -t ${LOG_DIR}
   # --qc-csv ${SIBIS_ANALYSIS_DIR}/beta/image-qc/scan_qc.csv
 
   # Check whether any MR sessions are missing corresponding phantom scans
