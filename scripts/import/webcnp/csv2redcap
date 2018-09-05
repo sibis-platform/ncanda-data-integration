@@ -90,9 +90,19 @@ if not len( data ) and args.verbose:
 
 # Set "Completeness" as "Unverified"
 data['test_sessions_complete'] = 1
+
 for sheet in cnp.instruments.keys():
     if not sheet == 'test_sessions':
-        data['%s_complete' % cnp.instruments[sheet]] = data['%s_valid_code' % sheet].map( lambda s: 1 if str(s) != '' else 0 )
+        col_name='%s_valid_code' % sheet
+        if col_name in data :
+            data['%s_complete' % cnp.instruments[sheet]] = data[col_name].map( lambda s: 1 if str(s) != '' else 0 )
+        else : 
+            error = "Webcnp form does not comply with expected format - column '" + sheet+ ".valid_code' does not exist!"
+            slog.info(hashlib.sha1(error).hexdigest()[0:6], error,
+                      cmd=" ".join(sys.argv))
+            sys.exit(1)
+
+ 
 
 # Bring Subject ID into correct format and select appropriate prefix
 data['test_sessions_subid'] = data['test_sessions_subid'].map( lambda s: "%s????????" % str( s ) )
@@ -124,7 +134,7 @@ for [key,row] in data.iterrows():
     # If there were any errors, try to print them as well as possible
     if 'error' in import_response.keys():
         error = "UPLOAD ERROR: {}".format(import_response['error'])
-        slog.info(hashlib.sha1(string).hexdigest()[0:6], error)
+        slog.info(hashlib.sha1(error).hexdigest()[0:6], error)
 
     if 'fields' in import_response.keys():
         for field in import_response['fields']:
