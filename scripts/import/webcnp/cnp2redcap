@@ -42,14 +42,16 @@ fi
 # Second, upload CSV file to REDCap
 #
 for csv in `cd ${tmpdir}; ls | fgrep .csv`; do
-    if ! ${bindir}/csv2redcap ${selected_args} --import-all ${tmpdir}/${csv}; then
+    cmd="${bindir}/csv2redcap ${selected_args} --import-all ${tmpdir}/${csv}"
+    # echo $cmd 
+    if ! $cmd; then
 	# if it fails with exit 1 than network connection is instable - stop loop so you do not get lots of these errors 
-	# generally only one file in the loop anyway 
-	rm -rf  $tmpdir
+	# generally only one file in the loop anyway
+	#echo "failed" 
+	# rm -rf  $tmpdir
 	break 
     fi
 done
-
 #
 # Third, update summary records
 #
