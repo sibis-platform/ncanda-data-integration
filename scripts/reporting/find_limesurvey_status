@@ -12,16 +12,16 @@ Sample uses:
 - Retrieve all raw *and* processed 2018 files for all subjects that begin with
   E-00207:
 
-    ./find_pipeline_status all --subject='E-00207-*' --date="2018*"
+    ./find_limesurvey_status all --subject='E-00207-*' --date="2018*"
 
 - Retrieve only processed youthreport1 files for subjects beginning with
   A-00002:
 
-    ./find_pipeline_status proc --subject='A-00002-*' --form-name='youthreport1'
+    ./find_limesurvey_status proc --subject='A-00002-*' --form-name='youthreport1'
 
 - Get all raw files collected between April 10 and April 19, 2018:
 
-    ./find_pipeline_status.py raw --date="2018041?"
+    ./find_limesurvey_status.py raw --date="2018041?"
 
 Room for improvement:
 

@@ -1,7 +1,7 @@
 """
 Tools for working with raw and processed LimeSurvey forms in NCANDA pipeline
 
-Primarily used by find_pipeline_status.
+Primarily used by find_limesurvey_status.
 
 FIXME:
 - Form number is not sufficient for identifying whether LSSAGA is Youth or Parent -- necessary to consult `_typeintertranslate`
