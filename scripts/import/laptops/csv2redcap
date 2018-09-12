@@ -30,14 +30,7 @@ parser.add_argument("--project",
                     help="REDCAP project to import the CSV into",
                     choices=["import_laptops", "import_webcnp", "data_entry"],
                     default="import_laptops")
-parser.add_argument("--data-access-group",
-                    help="REDCap project data access group that the imported "
-                    "data should be assigned to *if and only if* the "
-                    "imported file doesn't specify otherwise.",
-                    default=None)
-parser.add_argument("--ignore-file-dag",
-                    help="Even if file contains a DAG designation, ignore it.",
-                    action="store_true")
+
 parser.add_argument("--update-dag-only",
                     help="Ignore any file content except DAG designation. "
                     "(Useful for fixing incorrectly applied DAGs.)",
@@ -52,6 +45,20 @@ parser.add_argument("-t", "--time-log-dir",
                     help="If set then time logs are written to that directory",
                     action="store",
                     default=None)
+
+# Either get DAG via an explicit argument, or receive explicit instruction that
+# DAG should be derived from the file, but not both
+group_dag = parser.add_mutually_exclusive_group()
+group_dag.add_argument("--data-access-group",
+                       help="REDCap project data access group that the "
+                       "imported data should be assigned to",
+                       default=None)
+group_dag.add_argument("--use-file-dag",
+                       help="Infer the data access group from the contents of "
+                       "the file. If the DAG cannot be inferred, the script"
+                       "will fail.",
+                       default=False,
+                       action="store_true")
 
 args = parser.parse_args()
 
@@ -94,11 +101,23 @@ def process_file(fname):
 
     # Bring original "siteid" column back to assign each record to the correct
     # data access group
-    if args.ignore_file_dag:
+    if args.data_access_group:
         site = args.data_access_group
+    elif args.use_file_dag:
+        site = get_dag_from_df(data, verbose=args.verbose)
+        if not site:
+            slog.info(
+                (hashlib.sha1('import-laptops-csv2redcap / use-file-dag {}'
+                              .format(os.path.basename(fname)))
+                 .hexdigest()[0:6]),
+                "ERROR: Site could not be inferred from file",
+                instruction="You should re-run csv2redcap with a manually "
+                            "specified DAG in --data-access-group",
+                filename=fname,
+            )
+            return False
     else:
-        site = get_dag_from_df(data, default_site=args.data_access_group,
-                               verbose=args.verbose)
+        site = None
     data['redcap_data_access_group'] = site
 
     # Get "complete" field of existing records so we can protect "Complete"
@@ -147,12 +166,6 @@ def process_file(fname):
             if args.verbose:
                 print "%s assigned to %s" % (record_id,
                                              row['redcap_data_access_group'])
-        if ((args.data_access_group != row['redcap_data_access_group']) and
-                args.verbose):
-            print "WARNING: DAG is %s, but --data-access-group was %s" % (
-                site,
-                args.data_access_group,
-            )
 
         # Prune and convert to dict
         record = dict(row.dropna().apply(lambda s: re.sub('&quot;', '""', s)))
@@ -228,10 +241,16 @@ def get_dag_from_df(df, dag_field_regex=r'_[sS]ite\d?', site_lookup=None,
                                                              len(varnames))
         return None
     dag_varname = varnames[0]
+
+    # .item() ensures that the *content* of the cell is returned, not a Series
+    # with a single column
     if preserve_invalid_dag:
-        return df[dag_varname].map(lambda x: site_lookup.get(x, x))
+        return df[dag_varname].map(lambda x: site_lookup.get(x, x)).item()
     else:
-        return df[dag_varname].map(lambda x: site_lookup.get(x, default_site))
+        return (df[dag_varname]
+                .map(lambda x: site_lookup.get(x, default_site))
+                .item())
+
 
 # Process all files from the command line
 uploaded = 0
@@ -239,7 +258,6 @@ records = 0
 uploadedFlag=True
 for f in args.csvfile:
     uploadedFlag &= process_file(f)
-    
 
 # Print failures
 if len(failed) > 0:
