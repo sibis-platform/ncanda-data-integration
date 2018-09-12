@@ -29,6 +29,7 @@ Room for improvement:
 - Correctly identify lssaga_youth vs. _parent
 - Fuzzy-match IDs
 - Use a sliding time window
+- Fail gracefully when something cannot be retrieved and/or found
 """
 from glob import glob
 import pandas as pd
@@ -36,15 +37,18 @@ import os
 import sys
 import fire
 from functools import wraps
+import sibispy
 from limesurvey_utils import (limesurvey_number_to_name,
                               limesurvey_name_to_number,
                               limesurvey_name_glob_to_names,
                               limesurvey_name_glob_to_numbers,
                               get_within_file_info,
-                              get_import_url)
+                              get_import_url,
+                              get_completion_status_in_redcap,
+                              get_completion_status_for_pipe)
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
+# warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 
 
 def find_processed_limesurvey_forms(subject='*', form_name='*', date='*',
@@ -73,8 +77,12 @@ def find_processed_limesurvey_forms(subject='*', form_name='*', date='*',
         r'(([A-Z]-\d{5}-[MFTX]-\d)-(\d{4}-\d{2}-\d{2}))'
     ))
     files['proc_date'] = files['proc_date'].str.replace('-', '')
-    return (files.sort_values(['proc_date'])
-            .pipe(get_import_url))
+    final_df = get_import_url(files.sort(['proc_date']))
+    final_df = get_completion_status_for_pipe(final_df, import_api)
+    return final_df
+    # sort_values and pipe not present yet in pandas 0.14
+    # return (files.sort_values(['proc_date'])
+    #         .pipe(get_import_url))
 
 
 def find_raw_limesurvey_uploads(subject='*', form_number='*', date='*',
@@ -86,6 +94,8 @@ def find_raw_limesurvey_uploads(subject='*', form_number='*', date='*',
         # Should probably try to parse it?
         # assert len(date) == 8
         pass
+    # If date contains dashes, that's no bueno for raw files -> remove
+    date = date.replace('-', '')
 
     glob_pattern = "%s/*/%s[-_]%s/survey_%s*.csv" % (
         path, subject, date, form_number
@@ -112,7 +122,8 @@ def find_raw_limesurvey_uploads(subject='*', form_number='*', date='*',
     # 6. Within-file date (main)
     # 7. Within-file date (others)
     # return files.raw_path.apply(get_within_file_info, is_lssaga=True)
-    return files.sort_values(['raw_date'])
+    return files.sort(['raw_date'])
+    # return files.sort_values(['raw_date'])
 
 
 def find_raw2processed_status(subject='*',
@@ -151,10 +162,20 @@ def find_raw2processed_status(subject='*',
     proc_df = pd.concat(proc_dfs, axis=0)
 
     # FIXME: With more introspection, we'll want to be merging on different IDs
-    df_all = (pd.merge(raw_df, proc_df,
-                       how='outer',
-                       left_on=['raw_subj', 'raw_date', 'raw_form'],
-                       right_on=['proc_subj', 'proc_date', 'proc_form']))
+    if raw_df.empty and proc_df.empty:
+        return pd.DataFrame()
+    elif raw_df.empty:
+        # df_all = proc_df
+        return proc_df
+    elif proc_df.empty:
+        # df_all = raw_df
+        return raw_df
+    else:
+        df_all = (pd.merge(raw_df, proc_df,
+                           how='outer',
+                           left_on=['raw_subj', 'raw_date', 'raw_form'],
+                           right_on=['proc_subj', 'proc_date', 'proc_form']))
+
     df_all['subj'] = df_all.apply(
         lambda x: x.raw_subj if not pd.isnull(x.raw_subj) else x.proc_subj,
         axis=1)
@@ -168,9 +189,10 @@ def find_raw2processed_status(subject='*',
     if droptests:
         df_all = df_all.loc[~df_all['subj'].str.contains('[TX]')]
     df_all = (df_all
-              .drop(columns=['raw_subj', 'proc_subj',
-                             'raw_date', 'proc_date',
-                             'raw_form', 'proc_form', ])
+              .drop(axis=1,
+                    labels=['raw_subj', 'proc_subj',
+                            'raw_date', 'proc_date',
+                            'raw_form', 'proc_form', ])
               .set_index(['subj', 'date', 'form'])
               .sort_index())
 
@@ -186,12 +208,21 @@ def find_raw2processed_status(subject='*',
         df_all = df_all.loc[unharvested_idx]
 
     if trim:
-        return df_all[['raw_path', 'url']]
+        wanted_cols = ['raw_path', 'proc_path', 'status', 'url']
+        # TODO: Check if available
+        return df_all[wanted_cols]
     else:
         return df_all
 
 
 if __name__ == "__main__":
+    # Set up sibispy
+    session = sibispy.Session()
+    OFFLINE = True
+    import_api = None
+    if session.configure():
+        OFFLINE = False
+        import_api = session.connect_server('import_laptops')
     # Set display properties
     # *_path often exceeds max_colwidth -> remove that limitation
     pd.set_option('display.max_colwidth', -1)
@@ -209,7 +240,12 @@ if __name__ == "__main__":
             """
             Any fn, just with __str__ called to its output
             """
-            return fn(*args, **kwargs).__str__
+            output = fn(*args, **kwargs)
+            if type(output) == pd.DataFrame and output.empty:
+                # Don't print anything for an empty DataFrame
+                return None
+            else:
+                return output.__str__
         return stringiated_fn
 
     # Modify the functions for CSV output

@@ -100,17 +100,48 @@ def get_lssaga_type(df, raise_error=False):
 
 def get_import_url(df,
                    base_url="https://ncanda.sri.com/redcap/redcap_v8.4.0/"
-                            "DataEntry/index.php?pid=6&&event_id=21"):
+                            "DataEntry/index.php?pid=6&event_id=21"):
     if 'proc_form' not in df.columns:
         # Assume it's in index
         df['proc_form'] = df.index.get_level_values('form')
     df['form_long'] = df['proc_form'].apply(limesurvey_name_short_to_long)
     df['url'] = (base_url + "&id=" + df['import_id']
                  + '&page=' + df['form_long'])
-    df.drop(columns=['form_long', 'import_id'], inplace=True)
+    # df.drop(columns=['form_long', 'import_id'], inplace=True)
     return df
 
+
+def get_completion_status_in_redcap(redcap, forms=None, subjects=None):
+    """
+    redcap - API handle provided by PyCap / sibispy.Session
+    """
+    if not forms:
+        forms = (redcap.export_metadata(format='df')
+                 .reset_index().form_name.unique()
+                 .tolist())
+    fields = [x + "_complete" for x in forms]
+
+    status_df = redcap.export_records(fields=fields, records=subjects,
+                                      format='df')
+    status_df = status_df.stack()
+    status_df.name = 'status'
+    status_df.index.names = ['record_id', 'form']
+    status_df = status_df.to_frame().reset_index()
+    status_df.loc[:, 'form'] = status_df.form.str.replace('_complete$', '')
+    return status_df
  
+
+def get_completion_status_for_pipe(df, redcap):
+    forms = df['form_long'].unique().tolist()
+    subjects = df['import_id'].unique().tolist()
+    status =  get_completion_status_in_redcap(redcap, forms=forms,
+                                              subjects=subjects)
+    df_with_status = pd.merge(df, status,
+                              how='left',
+                              left_on=['import_id', 'form_long'],
+                              right_on=['record_id', 'form'])
+    return df_with_status
+
 
 def get_ncanda_form_lookup(as_dataframe=True):
     # Taken from ncanda-data-integration/scripts/import/laptops/lime2csv
