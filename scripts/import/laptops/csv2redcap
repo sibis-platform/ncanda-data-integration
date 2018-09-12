@@ -26,24 +26,44 @@ parser.add_argument("-f", "--force-update",
                     help="Force updates even when records are already marked "
                          "'Complete'",
                     action="store_true")
-parser.add_argument( "--project", help="REDCAP project (import_laptops, import_webcnp, or data_entry)", default="import_laptops" )
-parser.add_argument("--data-access-group",
-                    help="REDCap project data access group that the imported "
-                         "data should be assigned to.",
-                    default=None)
+parser.add_argument("--project",
+                    help="REDCAP project to import the CSV into",
+                    choices=["import_laptops", "import_webcnp", "data_entry"],
+                    default="import_laptops")
+
+parser.add_argument("--update-dag-only",
+                    help="Ignore any file content except DAG designation. "
+                    "(Useful for fixing incorrectly applied DAGs.)",
+                    action="store_true")
 parser.add_argument("csvfile",
                     nargs='+',
                     help="Input .csv file.")
-parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
-
-parser.add_argument("-t","--time-log-dir",
+parser.add_argument("-p", "--post-to-github",
+                    help="Post all issues to GitHub instead of stdout.",
+                    action="store_true")
+parser.add_argument("-t", "--time-log-dir",
                     help="If set then time logs are written to that directory",
                     action="store",
                     default=None)
 
+# Either get DAG via an explicit argument, or receive explicit instruction that
+# DAG should be derived from the file, but not both
+group_dag = parser.add_mutually_exclusive_group()
+group_dag.add_argument("--data-access-group",
+                       help="REDCap project data access group that the "
+                       "imported data should be assigned to",
+                       default=None)
+group_dag.add_argument("--use-file-dag",
+                       help="Infer the data access group from the contents of "
+                       "the file. If the DAG cannot be inferred, the script"
+                       "will fail.",
+                       default=False,
+                       action="store_true")
+
 args = parser.parse_args()
 
-slog.init_log(args.verbose, args.post_to_github,'NCANDA Import', 'import-laptops-csv2redcap', args.time_log_dir)
+slog.init_log(args.verbose, args.post_to_github, 'NCANDA Import',
+              'import-laptops-csv2redcap', args.time_log_dir)
 slog.startTimer1()
 
 # Open connection to REDCap server
@@ -68,6 +88,8 @@ failed = []
 
 
 # Process one file.
+# FIXME: The contents of the function depend on the `args` variable from the
+#        top-level scope. (As well as the actually declared globals.)
 def process_file(fname):
     # Read input file
     global records
@@ -82,7 +104,23 @@ def process_file(fname):
     # Bring original "siteid" column back to assign each record to the correct
     # data access group
     if args.data_access_group:
-        data['redcap_data_access_group'] = args.data_access_group
+        site = args.data_access_group
+    elif args.use_file_dag:
+        site = get_dag_from_df(data, verbose=args.verbose)
+        if not site:
+            slog.info(
+                (hashlib.sha1('import-laptops-csv2redcap / use-file-dag {}'
+                              .format(os.path.basename(fname)))
+                 .hexdigest()[0:6]),
+                "ERROR: Site could not be inferred from file",
+                instruction="You should re-run csv2redcap with a manually "
+                            "specified DAG in --data-access-group",
+                filename=fname,
+            )
+            return False
+    else:
+        site = None
+    data['redcap_data_access_group'] = site
 
     # Get "complete" field of existing records so we can protect "Complete"
     # records from overwriting
@@ -101,16 +139,20 @@ def process_file(fname):
     # Make list of dicts for REDCap import
     record_list = []
     for key, row in data.iterrows():
-        if 'record_id' not in  row.index :
-            justFile= os.path.basename(fname) 
-            slog.info( str(args.data_access_group) + "-" + hashlib.sha1(fname).hexdigest()[0:6], "'record_id' is not defined in file '" + justFile + "'!",
-                   cmd = " ".join(sys.argv),
-                   file_name = fname,
-                   project=args.project)
+        if 'record_id' not in row.index:
+            justFile = os.path.basename(fname)
+            slog.info(
+                "%s-%s" % (str(row['redcap_data_access_group']),
+                           hashlib.sha1(fname).hexdigest()[0:6]),
+                "'record_id' is not defined in file '%s'!" % justFile,
+                cmd=" ".join(sys.argv),
+                file_name=fname,
+                project=args.project
+            )
             return False
- 
+
         row['record_id'] = re.sub('(#|&|\+|\')', '?', row['record_id'])
- 
+
         record_id = row['record_id']
         if complete_field:
             if record_id in existing_data.index.tolist():
@@ -119,6 +161,15 @@ def process_file(fname):
                         print "Forcing update of 'Complete' record", record_id
                     else:
                         continue
+
+        # DAG stuff
+        if args.update_dag_only:
+            row = row[['record_id', 'redcap_data_access_group']]
+            if args.verbose:
+                print "%s assigned to %s" % (record_id,
+                                             row['redcap_data_access_group'])
+
+        # Prune and convert to dict
         record = dict(row.dropna().apply(lambda s: re.sub('&quot;', '""', s)))
         record_list.append(record)
 
@@ -127,7 +178,7 @@ def process_file(fname):
         import_response = project.import_records(record_list, overwrite='overwrite')
 
     except Exception as err_msg: 
-        justFile= os.path.basename(fname)
+        justFile = os.path.basename(fname)
         slog.info( str(args.data_access_group) + "-" + hashlib.sha1(fname + str(err_msg)).hexdigest()[0:6], "Upload error to redcap for file " + justFile,
                    error_msg=str(err_msg),
                    record_list =str(record_list), 
@@ -156,20 +207,59 @@ def process_file(fname):
         uploaded += import_response['count']
         records += len(data)
         if args.verbose:
-            print "Successfully uploaded %d/%d records to REDCap." % \
-                  (import_response['count'], len(data))
+            print ("%s: Successfully uploaded %d/%d records to REDCap.") % \
+                  (fname, import_response['count'], len(data))
     else:
         failed.append(fname)
 
     return True
 
+
+def get_dag_from_df(df, dag_field_regex=r'_[sS]ite\d?', site_lookup=None,
+                      default_site=None, preserve_invalid_dag=False,
+                      verbose=False):
+    """
+    If present, extract and translate the content of the DAG field in the file.
+
+    By default, the DAG field is expected to be a single lowercase letter to be
+    converted to one of NCANDA's five sites.
+
+    If the DAG field is not found in site_lookup, the result is default_site
+    or, if preserve_invalid_dag is set, the original value.
+    """
+    if not site_lookup:
+        site_lookup = {
+            'a': 'upmc',
+            'b': 'sri',
+            'c': 'duke',
+            'd': 'ohsu',
+            'e': 'ucsd',
+        }
+
+    varnames = [col for col in df.columns if re.search(dag_field_regex, col)]
+    if len(varnames) != 1:
+        if verbose:
+            print "Regex %s found %d columns, expected 1" % (dag_field_regex,
+                                                             len(varnames))
+        return None
+    dag_varname = varnames[0]
+
+    # .item() ensures that the *content* of the cell is returned, not a Series
+    # with a single column
+    if preserve_invalid_dag:
+        return df[dag_varname].map(lambda x: site_lookup.get(x, x)).item()
+    else:
+        return (df[dag_varname]
+                .map(lambda x: site_lookup.get(x, default_site))
+                .item())
+
+
 # Process all files from the command line
-uploaded = 0 
+uploaded = 0
 records = 0
 uploadedFlag=True
 for f in args.csvfile:
     uploadedFlag &= process_file(f)
-    
 
 # Print failures
 if len(failed) > 0:

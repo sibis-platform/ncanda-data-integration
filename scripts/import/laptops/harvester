@@ -89,6 +89,9 @@ parser.add_argument("--omit-svn-update",
                     action="store_true",
                     default=False)
 
+# NOTE: Although most of the harvester logic is abstracted into functions, note
+#       that most functions rely on the `args` variable to be available from
+#       the calling scope
 args = parser.parse_args()
 
 # Setup logging
@@ -120,12 +123,25 @@ with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
     fi.close()
 
 if harvster_setting: 
-    ignore_data = harvster_setting.get('ignore')
-else : 
+    ignore_data = harvster_setting.get('ignore', {})
+    infer_dag_since = harvster_setting.get('infer_dag_since', {})
+    for laptop in infer_dag_since:
+        try:
+            infer_dag_since[laptop] = datetime.datetime.strptime(
+                infer_dag_since[laptop],
+                r'%Y-%m-%d')
+        except ValueError:
+            print("Laptop %s has a DAG inference setting, but invalid value"
+                  " %s; should be YYYY-MM-DD.").format(laptop,
+                                                       infer_dag_since[laptop])
+            infer_dag_since[laptop] = None
+else:
+    # FIXME: Should condition on args.verbose?
     print "Warning: harvester specific settings not defined!"
     ignore_data = dict()
+    infer_dag_since = dict()
 
-def run_converter(site, subject_label, command,verbose):
+def run_converter(site, subject_label, command, verbose, infer_dag=False):
     """
     Conversion tool.
 
@@ -172,8 +188,27 @@ def run_converter(site, subject_label, command,verbose):
                         if args.time_log_dir:
                             command_array += ["-t", args.time_log_dir]
 
-                        command_array += ['--data-access-group', site, fi]
-                        
+                        # NOTE: As of April 2018, all LimeSurvey files are
+                        # collected on a UCSD server and uploaded via a UCSD
+                        # SVN account (ucsd49), which induces harvester to
+                        # assume all such records' DAG should be UCSD. For
+                        # those cases, we want csv2redcap to look into the file
+                        # and select the DAG based on the relevant variable if
+                        # possible, rather than use --data-access-group.
+                        #
+                        # Whether DAG should be inferred is based on the
+                        # setting file, section harvester::infer_dag_since,
+                        # which is read at the top of this file. The actual
+                        # logic is executed at the bottom of this file, prior
+                        # to the handle_file_update call.
+                        if infer_dag:
+                            command_array += ['--use-file-dag']
+                        else:
+                            command_array += ['--data-access-group', site]
+
+                        # Finally, add the file to the command
+                        command_array += [fi]
+
                         if verbose: 
                             print "Running: " + ' '.join(command_array)
 
@@ -208,7 +243,8 @@ def run_converter(site, subject_label, command,verbose):
 #
 # Function: hand file to correct converter
 #
-def handle_file( path, site, filename, verbose):
+def handle_file(path, site, filename, verbose, infer_dag=False):
+    # NOTE: infer_dag is only passed along for LimeSurvey files
     # Prepare option for overwriting
     if args.overwrite:
         overwrite = ["--overwrite"]
@@ -224,7 +260,7 @@ def handle_file( path, site, filename, verbose):
     # Is this a LimeSurvey file?
     if re.match( '^survey.*\.csv$', filename ):
         # Never post to github as ou otherwise get two error messages - one from harvester and one from lime2csv 
-        run_converter( site, subject_label, [ os.path.join( bindir, "lime2csv" ) ] + overwrite + post_to_github + [ path, os.path.join(outdir, site, "limesurvey" ) ], verbose )
+        run_converter( site, subject_label, [ os.path.join( bindir, "lime2csv" ) ] + overwrite + post_to_github + [ path, os.path.join(outdir, site, "limesurvey" ) ], verbose, infer_dag=infer_dag)
     # Is this a Stroop file (Note: the "_100SD-" is signifigant as some MRI
     # Stroop files will include "_100SDMirror" in the filename)?
     elif re.match('^NCANDAStroopMtS_3cycles_7m53stask_100SD-[^/]*\.txt$', filename):
@@ -272,7 +308,9 @@ def handle_file( path, site, filename, verbose):
 #
 # Function: handle updated file by dispatching to the correct subhandler
 #
-def handle_file_update( path, verbose ):
+def handle_file_update(path, verbose, infer_dag=False):
+    # FIXME: For special DAG handling, should take an additional
+    # argument to pass along to handle_file
     # First, let's get the site ID from the path
     match_site = re.search( 'ncanda/([A-Za-z]*)[^/]*/(.*)', path )
 
@@ -284,7 +322,7 @@ def handle_file_update( path, verbose ):
             return
 
         filename = re.search( '(.*)/([^/].*)', path ).group( 2 );
-        handle_file( path, site, filename, verbose)
+        handle_file(path, site, filename, verbose, infer_dag=infer_dag)
                             
 #
 # Callback: catch files added and updated since last svn update
@@ -396,7 +434,22 @@ for file in updated_files:
                 print "Skipping ", file
             continue 
  
-    handle_file_update( file , args.verbose)
+    # Check if DAG should be derived from the file path, or inferred from the
+    # file itself (much later, at csv2redcap invocation)
+    infer_dag = False
+    if laptop in infer_dag_since:
+        infer_dag_start = infer_dag_since[laptop]
+        if infer_dag_start:
+            # check if file's Last Modified is after the DAG inference start
+            last_modified = datetime.datetime.fromtimestamp(
+                os.path.getmtime(file))
+            if infer_dag_start <= last_modified:
+                infer_dag = True
+        else:
+            # FIXME: Should this fail instead because the value *should* be a date?
+            infer_dag = True
+
+    handle_file_update(file, args.verbose, infer_dag=infer_dag)
 
 slog.takeTimer1("script_time","{'records': " + str(len(updated_files)) + "}")
 
