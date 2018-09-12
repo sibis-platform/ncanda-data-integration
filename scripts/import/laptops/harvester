@@ -89,6 +89,9 @@ parser.add_argument("--omit-svn-update",
                     action="store_true",
                     default=False)
 
+# NOTE: Although most of the harvester logic is abstracted into functions, note
+#       that most functions rely on the `args` variable to be available from
+#       the calling scope
 args = parser.parse_args()
 
 # Setup logging
@@ -120,10 +123,23 @@ with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
     fi.close()
 
 if harvster_setting: 
-    ignore_data = harvster_setting.get('ignore')
-else : 
+    ignore_data = harvster_setting.get('ignore', {})
+    infer_dag_since = harvster_setting.get('infer_dag_since', {})
+    for laptop in infer_dag_since:
+        try:
+            infer_dag_since[laptop] = datetime.datetime.strptime(
+                infer_dag_since[laptop],
+                r'%Y-%m-%d')
+        except ValueError:
+            print("Laptop %s has a DAG inference setting, but invalid value"
+                  " %s; should be YYYY-MM-DD.").format(laptop,
+                                                       infer_dag_since[laptop])
+            infer_dag_since[laptop] = None
+else:
+    # FIXME: Should condition on args.verbose?
     print "Warning: harvester specific settings not defined!"
     ignore_data = dict()
+    infer_dag_since = dict()
 
 def run_converter(site, subject_label, command,verbose):
     """
@@ -187,8 +203,6 @@ def run_converter(site, subject_label, command,verbose):
                         # later find some of the fields in non-LimeSurvey
                         # imports correspond to the regex that csv2redcap uses
                         # to identify the DAG-carrying field.
-                        if site != "ucsd":
-                            command_array += ["--ignore-file-dag"]
                         
                         if verbose: 
                             print "Running: " + ' '.join(command_array)
@@ -412,7 +426,22 @@ for file in updated_files:
                 print "Skipping ", file
             continue 
  
-    handle_file_update( file , args.verbose)
+    # Check if DAG should be derived from the file path, or inferred from the
+    # file itself (much later, at csv2redcap invocation)
+    infer_dag = False
+    if laptop in infer_dag_since:
+        infer_dag_start = infer_dag_since[laptop]
+        if infer_dag_start:
+            # check if file's Last Modified is after the DAG inference start
+            last_modified = datetime.datetime.fromtimestamp(
+                os.path.getmtime(file))
+            if infer_dag_start <= last_modified:
+                infer_dag = True
+        else:
+            # FIXME: Should this fail instead because the value *should* be a date?
+            infer_dag = True
+
+    handle_file_update(file, args.verbose)
 
 slog.takeTimer1("script_time","{'records': " + str(len(updated_files)) + "}")
 
