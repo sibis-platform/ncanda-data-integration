@@ -88,6 +88,8 @@ failed = []
 
 
 # Process one file.
+# FIXME: The contents of the function depend on the `args` variable from the
+#        top-level scope. (As well as the actually declared globals.)
 def process_file(fname):
     # Read input file
     global records
@@ -205,8 +207,8 @@ def process_file(fname):
         uploaded += import_response['count']
         records += len(data)
         if args.verbose:
-            print "Successfully uploaded %d/%d records to REDCap." % \
-                  (import_response['count'], len(data))
+            print ("%s: Successfully uploaded %d/%d records to REDCap.") % \
+                  (fname, import_response['count'], len(data))
     else:
         failed.append(fname)
 
