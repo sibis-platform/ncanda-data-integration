@@ -24,10 +24,12 @@ args = parser.parse_args()
 # Import everything we need from Selenium
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.keys import Keys
 
 import os
 import glob
 import sys
+from time import sleep
 
 import sibispy
 from sibispy import sibislogger as slog
@@ -77,13 +79,25 @@ else:
     elif args.last_year:
         browser.find_element_by_name("date_of_test").send_keys( "llll" ) # this selects "Last Year"
 
+# 2018-09-04: Need to select right report 
+# After redesign, we need to use the autocomplete input, which doesn't have a unique ID
+# XPATH: /html/body/center/table[2]/tbody/tr[2]/td/center/center/form/table[2]/tbody/tr[7]/td/ul/li[1]/input[2]
+# Better: //select[@id="report_name"]/following-sibling::input[1]
+report_autocomplete_input = browser.find_element_by_xpath('//select[@id="report_name"]/following-sibling::input[1]')
+report_autocomplete_input.click()  # erases the current value, sometimes
+report_autocomplete_input.send_keys(Keys.BACKSPACE * 50)  # ...but just to be sure
+report_autocomplete_input.send_keys('EVIONI2_battery')
+report_autocomplete_input.send_keys(Keys.DOWN)
+report_autocomplete_input.send_keys(Keys.RETURN)
+# This will set the browser.find_element_by_name('report_name') to the correct value.
+
 # Click "export" button now.
 export.click()
 
 # Wait for "Download" link, start download
 download = wait.until(EC.element_to_be_clickable((By.NAME,'download_excel')))
 download.click()
-logout =  wait.until(EC.element_to_be_clickable((By.LINK_TEXT,'Logout')))
+logout = wait.until(EC.element_to_be_clickable((By.LINK_TEXT,'Logout')))
 
 # At this point, the file should download and save automatically. We need to wait for that to complete.
 while glob.glob( '*.csv.part' ):
