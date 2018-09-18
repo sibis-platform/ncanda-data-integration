@@ -86,7 +86,8 @@ else:
 report_autocomplete_input = browser.find_element_by_xpath('//select[@id="report_name"]/following-sibling::input[1]')
 report_autocomplete_input.click()  # erases the current value, sometimes
 report_autocomplete_input.send_keys(Keys.BACKSPACE * 50)  # ...but just to be sure
-report_autocomplete_input.send_keys('EVIONI2_battery')
+report_autocomplete_input.send_keys('42:  EVIONI2_battery')
+sleep(2)  # The input field can take a bit to load the autocomplete value that we're down-arrowing to
 report_autocomplete_input.send_keys(Keys.DOWN)
 report_autocomplete_input.send_keys(Keys.RETURN)
 # This will set the browser.find_element_by_name('report_name') to the correct value.
