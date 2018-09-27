@@ -35,7 +35,9 @@ def limesurvey_name_to_number(ls_name, lookup_df=None):
     # MultiIndex here should guarantee that no matter whether the form name
     # passed is short or long, it will successfully look up the corresponding
     # form number.
-    return lookup_df.loc[ls_name, 'ls_number'].tolist()
+    #
+    # sortlevel is necessary because of a lexdepth issue on pandas 0.14
+    return lookup_df.sortlevel(0, axis=0).loc[ls_name, 'ls_number'].tolist()
 
 def limesurvey_name_short_to_long(ls_name, lookup_df=None):
     if lookup_df is None:
