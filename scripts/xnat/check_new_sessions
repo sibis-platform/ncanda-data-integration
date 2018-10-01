@@ -24,6 +24,7 @@ from sibispy import sibislogger as slog
 from sibispy import check_dti_gradients as chk_dti
 import make_session_niftis
 
+import upload_visual_qc
 
 #============================================================
 # Definitions 
@@ -660,6 +661,10 @@ with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
     more_of_type_map = complete_file.get('more_of_type')
     fi.close()
 
+
+# Upload new QC results 
+upload_visual_qc.upload_findings_to_xnat(sibis_session,os.path.join(log_dir,'scans_to_review.csv'),True) 
+
 # Date format for XNAT dates
 now_str = time.strftime(xnat_date_format)
 
@@ -1108,7 +1113,8 @@ if args.send_mail_to:
     email.send('%s XNAT - MRI Session Report' % sibis_session.get_project_name(),
                email._admin_email,
                args.send_mail_to.split(','),
-               html)
+               html,
+               False)
 elif args.verbose:
     print html
 
