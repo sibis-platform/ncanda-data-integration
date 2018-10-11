@@ -112,7 +112,7 @@ data['test_sessions_subid'] = data['test_sessions_subid'].map( lambda s: '%s-%s-
 data['record_id'] = data['test_sessions_subid']
 for [ index, row ] in data.iterrows():
     new_value = "%s-%s-%d" % (row['test_sessions_subid'], row['test_sessions_dotest'][0:10], row['test_sessions_datasetid'] )
-    data.set_value(index, 'record_id', new_value)
+    data.at[index, 'record_id'] = new_value
 
 # Drop the separate subject ID and test date columns so as to not overwrite corrected ones.
 data = data.drop( ['test_sessions_subid', 'test_sessions_dotest'], axis=1 )
