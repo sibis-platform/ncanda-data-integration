@@ -32,7 +32,7 @@ if ecode :
    convert_util.post_issue_and_exit('pasat2csv', args.mdbfile, args.verbose, args.post_to_github, hashlib.sha1(str(cerr)).hexdigest()[0:6], "mdb-export failed!", error_msg=str(cerr))
 
 # Read the temporary CSV file
-pasat_csv = pandas.read_csv( temp_csv ).sort( columns=['ID'], ascending=False )
+pasat_csv = pandas.read_csv( temp_csv ).sort_values(by=['ID'], ascending=False)
 
 # Drop the columns we know we don't want
 pasat = pasat_csv.drop( [ 'ID', 'SessNUm', 'Group', 'Gender', 'ExpName' ], axis=1 )

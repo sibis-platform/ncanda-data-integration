@@ -183,7 +183,7 @@ output_df = output_df.reset_index()
 output_df['redcap_event_name'] = (output_df['visit']
                                   .str.replace('^followup_', '')
                                   + '_visit_arm_1')
-output_df.sort(['study_id', 'redcap_event_name'], inplace=True)
+output_df.sort_values(by=['study_id', 'redcap_event_name'], inplace=True)
 output_df = output_df.reset_index(drop=True)
 
 output_df.index.rename('subjectno', inplace=True)

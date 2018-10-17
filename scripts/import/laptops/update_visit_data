@@ -641,7 +641,7 @@ for form_prefix, form_name in forms.iteritems():
             if (len( records_this_visit ) > 1):
                 # Sort records by date difference from visit date
                 records_this_visit['days_from_visit'] = records_this_visit[date_label].map( lambda d: abs( days_between_dates( visit_date, d ) ) )
-                records_this_visit.sort( columns = 'days_from_visit', inplace = True )
+                records_this_visit.sort_values(by='days_from_visit', inplace=True)
                 records_this_visit_samedays= records_this_visit[records_this_visit['days_from_visit'] == records_this_visit.ix[0]['days_from_visit']]
                 
                 if len(records_this_visit_samedays) > 1 : 

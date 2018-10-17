@@ -111,7 +111,7 @@ def main(args):
 
     xnat.experiment_date = pd.to_datetime(xnat.experiment_date)
     #xnat.sort_values(["experiment_date", "site_id"], inplace=True)  # introduced in later pandas
-    xnat.sort(["experiment_date", "site_id"], inplace=True)
+    xnat.sort_values(by=["experiment_date", "site_id"], inplace=True)
 
     rc = pd.read_csv(args.redcapcsv)
     # TODO: Should get events with mr_session_report from FEM
@@ -121,7 +121,7 @@ def main(args):
     rc = rc.dropna(subset=["visit_date"])
     rc.visit_date = pd.to_datetime(rc.visit_date)
     #rc.sort_values(["visit_date", "study_id"], inplace=True)
-    rc.sort(["visit_date", "study_id"], inplace=True)
+    rc.sort_values(by=["visit_date", "study_id"], inplace=True)
     rc = add_end_window(rc, verbose=args.verbose)
 
     if args.subjectlist:
