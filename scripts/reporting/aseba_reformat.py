@@ -49,6 +49,6 @@ data.loc[data['arm'].isnull(), 'arm'] = 'standard'
 data['visit'] = (data['visit']
                  .str.replace('_visit_arm_1', '')
                  .str.replace(r'^(\dy)$', r'followup_\1'))
-data = data.sort(['subject', 'arm', 'visit'])
+data = data.sort_values(by=['subject', 'arm', 'visit'])
 
 data.to_csv(args.output, index=False)
