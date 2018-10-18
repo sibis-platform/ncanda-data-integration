@@ -9,10 +9,14 @@
 import argparse
 parser = argparse.ArgumentParser( description="Retrieve CSV spreadsheet from WebCNP database at U Penn" )
 parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true" )
-parser.add_argument( "--from-date", help="Retrieve only records from the specific date onwards. Give date as 'YYYY-MM-DD'.", action="store" )
-parser.add_argument( "--last-month", help="Retrieve only records of the last month.", action="store_true" )
-parser.add_argument( "--last-3-months", help="Retrieve only records of the last 3 months.", action="store_true" )
-parser.add_argument( "--last-year", help="Retrieve only records of the last year.", action="store_true" )
+
+period = parser.add_mutually_exclusive_group()
+period.add_argument( "--from-date", help="Retrieve only records from the specific date onwards. Give date as 'YYYY-MM-DD'.", action="store" )
+period.add_argument( "--on-date", help="Retrieve only records from the specific date. Give date as 'YYYY-MM-DD'.", action="store")
+period.add_argument( "--last-month", help="Retrieve only records of the last month.", action="store_true" )
+period.add_argument( "--last-3-months", help="Retrieve only records of the last 3 months.", action="store_true" )
+period.add_argument( "--last-year", help="Retrieve only records of the last year.", action="store_true" )
+
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
 parser.add_argument("-t","--time-log-dir",
                     help="If set then time logs are written to that directory",
@@ -66,18 +70,21 @@ if not export:
 
 browser.find_element_by_name("incomplete").click()
 
-# If "from-date" was given, select date range
+# If "from-date" or "on-date" was given, select date and comparison operator
+# If one of the default options was passed, select _that_
+# Otherwise, the "ALL" default is used
 if args.from_date:
-    browser.find_element_by_name("date_of_test").send_keys( ">>" ) # this selects ">="
-    browser.find_element_by_name("date_of_test_date").send_keys( args.from_date )
-else:
-    # If "last-month" was given, select that option
-    if args.last_month:
-        browser.find_element_by_name("date_of_test").send_keys( "ll" ) # this selects "Last Month"
-    elif args.last_3_months:
-        browser.find_element_by_name("date_of_test").send_keys( "lll" ) # this selects "Last 3 Months"
-    elif args.last_year:
-        browser.find_element_by_name("date_of_test").send_keys( "llll" ) # this selects "Last Year"
+    browser.find_element_by_name("date_of_test").send_keys(">>")    # selects ">="
+    browser.find_element_by_name("date_of_test_date").send_keys(args.from_date)
+elif args.on_date:
+    browser.find_element_by_name("date_of_test").send_keys("=")     # selects "="
+    browser.find_element_by_name("date_of_test_date").send_keys(args.on_date)
+elif args.last_month:
+    browser.find_element_by_name("date_of_test").send_keys("ll")    # selects "Last Month"
+elif args.last_3_months:
+    browser.find_element_by_name("date_of_test").send_keys("lll")   # selects "Last 3 Months"
+elif args.last_year:
+    browser.find_element_by_name("date_of_test").send_keys("llll")  # selects "Last Year"
 
 # 2018-09-04: Need to select right report 
 # After redesign, we need to use the autocomplete input, which doesn't have a unique ID
