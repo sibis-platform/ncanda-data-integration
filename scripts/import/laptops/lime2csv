@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import argparse
 import os
 import sys
@@ -231,18 +232,18 @@ def handle_survey(subject_label, survey_id, data, verbose ):
         # Determine file name, only proceed if file does not exist already
         filename = os.path.join( survey_dir, '%s.csv' % row['record_id'] )
         if args.dry_run: 
-            print "Dry-Run: results not written to", filename
+            print("Dry-Run: results not written to", filename)
             return 
             
 
         if not os.path.exists( filename ) or args.overwrite:
             pandas.DataFrame( row ).transpose().to_csv( filename, index=False, quoting=csv.QUOTE_ALL )
             # Print filename so we can get a list of updated files by capturing stdout
-            print filename
+            print(filename)
             wroteFile = True
             
     if verbose and not wroteFile: 
-        print "No files were transformed into a csv one"  
+        print("No files were transformed into a csv one")  
 
 def post_issue_and_exit(issue_title, **kwargs):
     import convert_util
@@ -283,7 +284,7 @@ if not os.path.exists(args.infile) :
 
 try : 
     data = pandas.read_csv( args.infile, dtype=object )
-except Exception, err_msg: 
+except Exception as err_msg: 
     post_issue_and_exit("ERROR: could not read file " + str(args.infile) + " !" , err_msg = str(err_msg))
 
 handle_survey(subject_label, survey_id, data, args.verbose)

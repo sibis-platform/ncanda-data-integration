@@ -5,6 +5,7 @@
 """
 A collection of utility functions used by aseba_prep.py and aseba_reformat.py
 """
+from __future__ import print_function
 import pandas as pd
 import re
 

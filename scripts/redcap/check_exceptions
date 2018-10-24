@@ -6,6 +6,7 @@
 ##
 
 # system packages
+from __future__ import print_function
 import sys
 import hashlib
 
@@ -37,7 +38,7 @@ def validate_exceptions(project_interface,strict=False):
         try:
             age = int( float( record['age'] ) )
         except:
-            print "Could not get age for subject",record['study_id']
+            print("Could not get age for subject",record['study_id'])
             continue
 
         exception = False
@@ -136,7 +137,7 @@ if __name__ == "__main__":
     session = sibispy.Session()
     if not session.configure():
         if args.verbose:
-            print "Error: session configure file was not found"
+            print("Error: session configure file was not found")
 
         sys.exit()
 
@@ -144,7 +145,7 @@ if __name__ == "__main__":
     project_interface = session.connect_server(args.project, True)
     if not project_interface :
         if args.verbose:
-            print "Error: Could not connect to Redcap"
+            print("Error: Could not connect to Redcap")
         sys.exit()
 
     (count_subjects,false_neg,false_pos,true_pos) = validate_exceptions(project_interface,strict=args.strict)

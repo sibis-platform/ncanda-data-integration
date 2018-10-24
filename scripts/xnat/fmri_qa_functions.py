@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import re
 import os
 import os.path
@@ -79,7 +80,7 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
         qa_file = interface.select.project( project ).subject( subject ).experiment( session ).resource('QA').file( 'QA-Details.txt' )
         qa_file.insert( details_file_path, format='text', tags='qa,fbirn,txt', content='QA Analysis Details', overwrite=True )
     except:
-        print "Something bad happened uploading QA details file to Experiment %s/%s/%s" % (project,session,label)
+        print("Something bad happened uploading QA details file to Experiment %s/%s/%s" % (project,session,label))
 
     # Step through QA output, line by line, and check for measures for which we have thresholds defined.
     for line in script_output:
@@ -108,9 +109,9 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
             qa_file = interface.select.project( project ).subject( subject ).experiment( session ).resource('QA').file( 'QA-Summary.pdf' )
             qa_file.insert( summary_file_path, format='pdf', tags='qa,fbirn,pdf', content='QA Analysis Summary', overwrite=True )
         except:
-            print "Something bad happened uploading QA summary file to Experiment %s/%s" % (session,label)
+            print("Something bad happened uploading QA summary file to Experiment %s/%s" % (session,label))
     else:
-        print "Unable to create PDF QA summary file %s from DICOMs in %s (session %s/%s)" % (summary_file_path, dicom_path, session, label )
+        print("Unable to create PDF QA summary file %s from DICOMs in %s (session %s/%s)" % (summary_file_path, dicom_path, session, label ))
 
     # Clean up - remove temp directory
     os.chdir( original_wd )
@@ -143,7 +144,7 @@ def process_phantom_session( interface, project, subject, session, label, xnat_d
             run_phantom_qa( interface, project, subject, session, label, dicom_path )
         else:
             # If there was no matching scan in the session, print a warning
-            print "WARNING: fBIRN phantom session %s/%s does not have a usable rsfmri scan" % (session,label)
+            print("WARNING: fBIRN phantom session %s/%s does not have a usable rsfmri scan" % (session,label))
 
 
 # Run Subject QA procedure on a single scan series
@@ -177,9 +178,9 @@ def run_subject_qa( interface, project, subject, session, scan_number, dicom_pat
             qa_file = interface.select.project( project ).subject( subject ).experiment( session ).resource('QA').file( 'QA-%s-Summary.pdf' % scan_number )
             qa_file.insert( summary_file_path, format='pdf', tags='qa,fbirn,pdf', content='QA Analysis Summary', overwrite=True )
         except:
-            print "Something bad happened uploading QA summary file to Experiment %s" % session
+            print("Something bad happened uploading QA summary file to Experiment %s" % session)
     else:
-        print "Unable to create PDF QA summary file %s" % summary_file_path
+        print("Unable to create PDF QA summary file %s" % summary_file_path)
 
     # Clean up - remove temp directory
     shutil.rmtree( temp_dir )

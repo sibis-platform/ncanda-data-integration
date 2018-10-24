@@ -6,6 +6,7 @@
 ##
 
 
+from __future__ import print_function
 import csv
 import numpy as np
 import urllib2
@@ -100,12 +101,12 @@ def stable(msa, fields, eprows, previo):
 ## Chose which one of the top options to perform depending on argument otherwise do both
 if args.Print:
     x = ptable(msa, fields, eprows, previo)
-    print x
+    print(x)
 elif args.CSV:
     stable(msa, fields, eprows, previo)
 else:
     x = ptable(msa, fields, eprows, previo)
-    print x
+    print(x)
     stable(msa, fields, eprows, previo)
     
     

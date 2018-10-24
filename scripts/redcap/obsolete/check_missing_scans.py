@@ -16,6 +16,7 @@ Usage
 -----
 
 """
+from __future__ import print_function
 
 import os
 import sys
@@ -77,7 +78,7 @@ def main(args=None):
     # Create interface using stored configuration
     ifc = pyxnat.Interface(config=os.path.join(os.path.expanduser("~"),
                                                '.server_config/ncanda.cfg'))
-    print visit_form
+    print(visit_form)
 
 if __name__ == "__main__":
     import argparse

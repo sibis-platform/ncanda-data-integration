@@ -12,6 +12,7 @@ Usage:
 python missing_subjects.py pipeline_subject.log case.csv
  
 """
+from __future__ import print_function
 
 import sys
 import pandas
@@ -28,7 +29,7 @@ def main(args):
     redcap_list = pandas.read_csv(args.redcapcsv)
     redcap_list_base = redcap_list[redcap_list['redcap_event_name'] == 'baseline_visit_arm_1']
     if len(redcap_list_base) == 0 : 
-        print "Error: Redcap file needs to include all baseline visits of the study"
+        print("Error: Redcap file needs to include all baseline visits of the study")
         sys.exit(1)
 
     redcap_list_missing = redcap_list[redcap_list['visit_ignore___yes'] == 1]
@@ -42,28 +43,28 @@ def main(args):
     #
     pipe_rd_list = pandas.DataFrame(columns=['xnat_sid','study_id','redcap_event_name'])
 
-    print "======================="
-    print "Check for errors in pipeline list:" 
+    print("=======================")
+    print("Check for errors in pipeline list:") 
 
     for sline in pipe_list:
         sub_arm_visit,reason = sline.split(' ')
         if reason != "missing\n" : 
-            print "Do not know how to handle ", sline
+            print("Do not know how to handle ", sline)
             continue 
 
         subject,arm,visit,rest = sub_arm_visit.split('/',3)
         if arm != "standard" :
-            print sub_arm_visit + " ignored - not part of standard"
+            print(sub_arm_visit + " ignored - not part of standard")
             continue 
             
         if rest != "measures":
-            print sub_arm_visit + " form should not be missing"
+            print(sub_arm_visit + " form should not be missing")
             continue 
 
         # Find redcap id from xnat subject id 
         redcap_subject = redcap_list_base[redcap_list_base['mri_xnat_sid']==subject]
         if len(redcap_subject)==0:
-            print "{} not in REDCap".format(subject)
+            print("{} not in REDCap".format(subject))
             continue 
 
         redcap_sid = redcap_subject['study_id'].values[0]
@@ -76,24 +77,24 @@ def main(args):
 
         pipe_rd_list = pipe_rd_list.append(pandas.DataFrame([[subject,redcap_sid,event]],columns=['xnat_sid','study_id','redcap_event_name']),ignore_index=True)
 
-    print " " 
-    print "======================="
-    print "Missing in pipeline:" 
+    print(" ") 
+    print("=======================")
+    print("Missing in pipeline:") 
     for index,pipe_rd_entry in pipe_rd_list.iterrows():
         if not in_dataframe(pipe_rd_entry,redcap_list_missing):
-            print pipe_rd_entry
-            print " " 
+            print(pipe_rd_entry)
+            print(" ") 
 
-    print " " 
-    print "======================="
-    print "Is in pipeline and not in REDCap:" 
+    print(" ") 
+    print("=======================")
+    print("Is in pipeline and not in REDCap:") 
     for index,red_entry in redcap_list_missing.iterrows():
         if not in_dataframe(red_entry,pipe_rd_list):
-            print "xnat_sid   ", redcap_list_base[redcap_list_base['study_id'] == red_entry.study_id]['mri_xnat_sid'].values[0]
-            print red_entry 
-            print " " 
+            print("xnat_sid   ", redcap_list_base[redcap_list_base['study_id'] == red_entry.study_id]['mri_xnat_sid'].values[0])
+            print(red_entry) 
+            print(" ") 
 
-    print " " 
+    print(" ") 
 
 if __name__ == '__main__':
     import argparse

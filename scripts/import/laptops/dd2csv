@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import tempfile
 import pandas
 import re
@@ -122,7 +123,7 @@ filename = os.path.join(args.outdir, '%s-%s.csv' % (record_id, amount))
 if not os.path.exists(filename) or args.overwrite:
     out_df.to_csv(filename, index=False)
     # Print filename so we can get a list of updated files by capturing stdout
-    print filename
+    print(filename)
 
 # Clean up - remove temp directory
 # import shutil

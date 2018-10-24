@@ -24,6 +24,7 @@ Example
 - Use the existing cache to extract 10 in the followup window
  ./xnat_sessions_report.py --num_extract 10 --min 180 --max 540
 """
+from __future__ import print_function
 
 import os
 import sys
@@ -48,7 +49,7 @@ def get_scan_type_pairs(modality):
         scan_type_pairs.update(scan1=t1_scan_types,
                                scan2=t2_scan_types)
     elif modality == 'diffusion':
-        print "Has to be updated as check does not include dti30b400 - look in redcap/export_measures"
+        print("Has to be updated as check does not include dti30b400 - look in redcap/export_measures")
         sys.exit()
         pepolar = ['ncanda-dti6b500pepolar-v1']
         dwi = ['ncanda-dti60b1000-v1']
@@ -72,12 +73,12 @@ def main(args=None):
         session.configure()
         if not session.configure() :
             if verbose:
-                print "Error: session configure file was not found"
+                print("Error: session configure file was not found")
             sys.exit()
 
         server = session.connect_server('xnat_http', True)
         if not server:
-            print "Error: could not connect to xnat server!" 
+            print("Error: could not connect to xnat server!") 
             sys.exit()
 
         xe.extract_experiment_xml(session,args.experimentsdir, args.num_extract)
@@ -98,7 +99,7 @@ def main(args=None):
     df = df[df['subject_id'] != 'NCANDA_S00127']
 
     if args.unknown : 
-        print "Sessions that have not yet been quality controlled"
+        print("Sessions that have not yet been quality controlled")
         scanCheckList = pd.DataFrame()  
         required_scans = ['ncanda-mprage-v1','ncanda-t1spgr-v1','ncanda-t2fse-v1','ncanda-dti6b500pepolar-v1','ncanda-dti30b400-v1','ncanda-dti60b1000-v1','ncanda-grefieldmap-v1','ncanda-rsfmri-v1']
 
@@ -106,18 +107,18 @@ def main(args=None):
             eid_df = df[df.experiment_id == eid]
             eid_df = eid_df[~pd.isnull(eid_df['quality'])] 
             if not len(eid_df[eid_df['quality'] != 'unknown']) :
-                print eid
+                print(eid)
             else : 
                 unknownScanDF = eid_df[eid_df['quality'] == 'unknown']
                 mandatoryCheck = unknownScanDF[unknownScanDF['scan_type'].isin(required_scans)]
                 if len(mandatoryCheck) : 
                     scanCheckList = scanCheckList.append(mandatoryCheck)
 
-        print " " 
-        print "Mandatory scans that have not yet been quality controlled (status unknown)"
+        print(" ") 
+        print("Mandatory scans that have not yet been quality controlled (status unknown)")
         if len(scanCheckList) : 
             pd.set_option('display.max_rows', len(scanCheckList))
-            print scanCheckList['scan_type']
+            print(scanCheckList['scan_type'])
 
         sys.exit()
 

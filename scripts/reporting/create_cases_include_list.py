@@ -20,6 +20,7 @@ entered in a txt file and contain their NCANDA subject ids.
 Usage:
 python baseline_1yr_cases.py -b -n
 """
+from __future__ import print_function
 import os
 import sys
 

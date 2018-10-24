@@ -4,6 +4,7 @@
 ##  See COPYING file distributed along with the ncanda-data-integration package
 ##  for the copyright and license terms
 ##
+from __future__ import print_function
 import os
 import re
 import csv
@@ -138,7 +139,7 @@ def samplestd(data):
         if len(data) > 1 :
             samplestd=math.sqrt(sum((data-mean)**2)/(len(data)-1))
 
-    except RuntimeWarning, e:
+    except RuntimeWarning as e:
         post_issue_and_exit(hashlib.sha1('stroop2csv {}'.format(e)).hexdigest()[0:6], "Error: could not compute samplestd", 
                   err_msg = str(e),
                   data_contained = data)
@@ -297,4 +298,4 @@ wr.writerow(result)
 
 output_file.close()
 
-print output_filename
+print(output_filename)

@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import tempfile
 import pandas
 import sibispy
@@ -90,7 +91,7 @@ for row_index, row in pasat.iterrows():
     if not os.path.exists( filename ) or args.overwrite:
         pandas.DataFrame( row ).transpose().to_csv( filename, index=False )
         # Print filename so we can get a list of updated files by capturing stdout
-        print filename
+        print(filename)
 
 # Clean up - remove temp directory
 import shutil

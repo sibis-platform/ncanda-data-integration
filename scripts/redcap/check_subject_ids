@@ -7,6 +7,7 @@
 """
 Validate that the last digit of a Subject ID is the same as the last digit of the dob checksum
 """
+from __future__ import print_function
 # system packages
 import sys
 import hashlib
@@ -106,7 +107,7 @@ if __name__ == "__main__":
     session = sibispy.Session()
     if not session.configure():
         if args.verbose:
-            print "Error: session configure file was not found"
+            print("Error: session configure file was not found")
 
         sys.exit()
 
@@ -114,7 +115,7 @@ if __name__ == "__main__":
 
     if not project_interface :
         if args.verbose:
-            print "Error: Could not connect to Redcap"
+            print("Error: Could not connect to Redcap")
 
         sys.exit()
 

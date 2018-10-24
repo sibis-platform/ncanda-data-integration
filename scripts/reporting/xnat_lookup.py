@@ -14,6 +14,7 @@ NCANDA_S00236
 xnat_lookup.py --print-keys --reverse-lookup NCANDA_S00236
 NCANDA_S00236,B-00149-M-0
 """
+from __future__ import print_function
 import os
 
 import sibispy
@@ -39,12 +40,12 @@ def main(args=None):
     session.configure()
     if not session.configure() :
         if args.verbose:
-            print "Error: session configure file was not found"
+            print("Error: session configure file was not found")
         sys.exit()
 
     ifc = session.connect_server('xnat', True)
     if not ifc:
-        print "Error: could not connect to xnat server!" 
+        print("Error: could not connect to xnat server!") 
         sys.exit()
 
     # ifc = pyxnat.Interface(config=args.config)
@@ -84,9 +85,9 @@ def main(args=None):
             fi.write(output)
             fi.close()
         if verbose:
-            print output
+            print(output)
     else:
-        print output
+        print(output)
 
 if __name__ == "__main__":
     import sys

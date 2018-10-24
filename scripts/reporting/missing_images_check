@@ -12,6 +12,7 @@ Usage:
 python missing_images_check.py pipeline_subject.csv case.csv
  
 """
+from __future__ import print_function
 
 import sys
 import pandas
@@ -43,7 +44,7 @@ def add_entry_to_red_list(redcap_pipe_list,red_entry,missing_type,redcap_list_ba
     red_visit,red_arm = red_event.split('_',1)
 
     if red_arm != "visit_arm_1" :
-        print "Ignore ", red_entry, missing_type
+        print("Ignore ", red_entry, missing_type)
         return  
         
     if red_visit != "baseline" :
@@ -71,14 +72,14 @@ def main(args):
     redcap_list = pandas.read_csv(args.redcapcsv)
     redcap_list_base = redcap_list[redcap_list['redcap_event_name'] == 'baseline_visit_arm_1']
     if len(redcap_list_base) == 0 : 
-        print "Error: Redcap file needs to include all baseline visits of the study"
+        print("Error: Redcap file needs to include all baseline visits of the study")
         sys.exit(1)
 
     redcap_missing_list = pandas.DataFrame(columns=['study_id','case','event','type'])
-    print "SESSION = measurements and images are missing" 
+    print("SESSION = measurements and images are missing") 
 
-    print "======================="
-    print "Check REDCap entries:" 
+    print("=======================")
+    print("Check REDCap entries:") 
 
     # List All Missing Sessions
     missing_index = (redcap_list['visit_ignore___yes'] == 1)
@@ -94,9 +95,9 @@ def main(args):
         missing_index = pandas.isnull(redcap_list[red_name]) 
         redcap_missing_list = add_red_list(redcap_missing_list,redcap_list[missing_index],pipe_missing_type,redcap_list_base)
 
-    print " " 
-    print "======================="
-    print "Missing in pipeline:" 
+    print(" ") 
+    print("=======================")
+    print("Missing in pipeline:") 
     # "t1":"t2", "t2":"t1",
     modality_compatible = { "t1":"t2", "t2":"t1", "dti60-01": "dti6-1", "dti6-1":"dti60-01", "dti30-01": "dti60-01", "bold-001":"fieldmap", "fieldmap":"bold-001" } 
     for index,pipe_entry in pipe_missing_list.iterrows():
@@ -109,17 +110,17 @@ def main(args):
            pipe_entry_tmp = pipe_entry.copy(True);
            pipe_entry_tmp.type = modality_compatible[pipe_entry.type]
            if not in_dataframe(pipe_entry_tmp,redcap_missing_list):
-               print redcap_list_base[redcap_list_base['mri_xnat_sid'] == pipe_entry.case]['study_id'].values[0], pipe_entry.values
+               print(redcap_list_base[redcap_list_base['mri_xnat_sid'] == pipe_entry.case]['study_id'].values[0], pipe_entry.values)
 
            
-    print " " 
-    print "======================="
-    print "Missing in REDCap but not in pipeline:" 
+    print(" ") 
+    print("=======================")
+    print("Missing in REDCap but not in pipeline:") 
     for index,red_missing_entry in redcap_missing_list.iterrows():
         if not in_dataframe(red_missing_entry,pipe_missing_list):
-            print red_missing_entry.values  
+            print(red_missing_entry.values)  
 
-    print " " 
+    print(" ") 
 
 if __name__ == '__main__':
     import argparse

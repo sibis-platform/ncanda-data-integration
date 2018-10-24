@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import datetime
 from matplotlib.dates import date2num
 from prettytable import PrettyTable
@@ -67,4 +68,4 @@ for inpt in unique(nns[:,2]):
 # fix column alignment    
 x.align = "r"
 #x.align['Day'] = "c"
-print x
+print(x)

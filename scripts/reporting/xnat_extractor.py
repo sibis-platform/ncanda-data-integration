@@ -8,6 +8,7 @@ NCANDA XNAT Extractor
 
 Extract all experiment, scan, and reading data from NCANDA's XNAT server.
 """
+from __future__ import print_function
 
 import os
 import glob
@@ -90,9 +91,9 @@ def extract_experiment_xml(session, experiment_dir, extract=None):
 def parse_xml_file(experiment_xml_file): 
     try : 
         return etree.parse(experiment_xml_file)
-    except Exception, err:
-        print "ERROR: Failed to parse", experiment_xml_file
-        print err 
+    except Exception as err:
+        print("ERROR: Failed to parse", experiment_xml_file)
+        print(err) 
         return None
     
 
@@ -130,7 +131,7 @@ def get_experiment_info(experiment_xml_file):
         if verbose:
             print("Parsed experiment info for: {0}".format(result))
     except : 
-        print "ERROR: %s does not have xnat:date or xnat:subject_ID defined !" % (experiment_xml_file)
+        print("ERROR: %s does not have xnat:date or xnat:subject_ID defined !" % (experiment_xml_file))
         result = ""
 
     return result
@@ -188,10 +189,10 @@ def get_scans_info(experiment_xml_file):
         for k, v in values.iteritems():
             try:
                 values[k] = v.text
-            except AttributeError, e:
+            except AttributeError as e:
                 values[k] = None
                 if verbose:
-                    print(e, "for attribute {0} in scan {1} of experiment {2}".format(k, scan_id, experiment_id))
+                    print((e, "for attribute {0} in scan {1} of experiment {2}".format(k, scan_id, experiment_id)))
 
         scan_dict = dict(experiment_id=experiment_id,
                          scan_id=scan_id,

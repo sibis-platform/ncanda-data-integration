@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import os
 import re
 import json
@@ -112,7 +113,7 @@ def check_experiment(session, eid, experiment):
             if changed_sites_phantom:
                 phantom_label = changed_sites_phantom
                 if args.verbose:
-                    print "Phantom switched sites - checking ", phantom_label
+                    print("Phantom switched sites - checking ", phantom_label)
             else : 
                 phantom_label = "%s-99999-P-9" % subject_label_match.group(1)
 
@@ -130,7 +131,7 @@ def check_experiment(session, eid, experiment):
             eids = phantom_scans.get('ID', always_list=True)
             phantom_scanners = [ifc.select.experiment(eid).attrs.get('scanner') for eid in eids]
             if args.verbose:
-                print "Phantom scans: {0}".format(phantom_scans)
+                print("Phantom scans: {0}".format(phantom_scans))
             if scanner not in phantom_scanners and len(phantom_scans) != 0:
 
                 err = "Error: {0} - scanner mismatch for session {1} (scanner: {2}) and phantom {3} (scanner: {4}).".format(prj, experiment_label, scanner, eids, phantom_scanners)
@@ -140,7 +141,7 @@ def check_experiment(session, eid, experiment):
                               project = prj)
             elif len(phantom_scans) == 0:
                 find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified, phantom_id, edate, etime, scanner)
-        except IndexError, e:
+        except IndexError as e:
             error="ERROR: Subject likely switched sites if site_id > NCANDA_S01010"
             slog.info(experiment_label,error,
                           site_id=sid,
@@ -193,7 +194,7 @@ slog.startTimer1()
 session = sibispy.Session()
 if not session.configure():
     if args.verbose:
-        print "Error: session configure file was not found"
+        print("Error: session configure file was not found")
 
     sys.exit()
 
@@ -201,18 +202,18 @@ if not session.configure():
 sibis_config = session.get_operations_dir()
 if not sibis_config :
     if args.verbose:
-        print "Error: Could not retrieve configuration"
+        print("Error: Could not retrieve configuration")
 
     sys.exit()
 
 # Create interface using stored configuration
 if args.verbose:
-    print "Connecting to XNAT..."
+    print("Connecting to XNAT...")
 ifc = session.connect_server('xnat',True)
 
 if not ifc :
     if args.verbose:
-        print "Error: Could not connect to XNAT"
+        print("Error: Could not connect to XNAT")
 
     sys.exit()
 
@@ -236,8 +237,8 @@ try:
     creation_date = json.loads(content)['ResultSet']['Result'][0]['create_date']
     date_last_checked = time.strptime(creation_date[0:19], xnat_date_format)
     if args.verbose:
-        print "Last checked on: {0}".format(time.strftime("%Y-%m-%d %H:%M:%S",
-                                                          date_last_checked))
+        print("Last checked on: {0}".format(time.strftime("%Y-%m-%d %H:%M:%S",
+                                                          date_last_checked)))
 except:
     pass
 

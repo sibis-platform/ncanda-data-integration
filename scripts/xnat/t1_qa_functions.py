@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import os
 import re
 import shutil
@@ -104,7 +105,7 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
         file = interface.select.project( project ).subject( subject ).experiment( session ).resource('QA').file( nii_file )
         file.insert( nii_file, format='nifti_gz', tags='qa,adni,nifti_gz', content='ADNI Phantom QA File', overwrite=True )
     except:
-        print "Something bad happened uploading file %s to Experiment %s/%s/%s" % (nii_file,project,session,label)
+        print("Something bad happened uploading file %s to Experiment %s/%s/%s" % (nii_file,project,session,label))
 
     # Run the PERL QA script and capture its output
     xml_file = 'phantom.xml'
@@ -124,7 +125,7 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
             file = interface.select.project( project ).subject( subject ).experiment( session ).resource('QA').file( fname )
             file.insert( fname, format=fmt, tags='qa,adni,%s' % fmt, content='ADNI Phantom QA File', overwrite=True )
         except:
-            print "Something bad happened uploading file %s to Experiment %s/%s" % (fname,project,session)
+            print("Something bad happened uploading file %s to Experiment %s/%s" % (fname,project,session))
 
     # Read and evaluate phantom XML file
     check_xml_file( xml_file, project, session, label )

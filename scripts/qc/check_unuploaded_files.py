@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 # coding: utf-8
 
@@ -95,7 +96,7 @@ def chunked_export(project, form, chunk_size=100, verbose=True):
 
 def load_form(api, form_name, verbose=True):
     if verbose:
-        print form_name
+        print(form_name)
     
     # 1. Standard load attempt
     # try:
@@ -107,31 +108,31 @@ def load_form(api, form_name, verbose=True):
     # except (ValueError, rc.RedcapError, pd.io.common.EmptyDataError):
     #     pass
     try:
-        print "Trying chunked export, 5000 records at a time"
+        print("Trying chunked export, 5000 records at a time")
         return chunked_export(api, form_name, 5000)
     except (ValueError, rc.RedcapError, pd.io.common.EmptyDataError):
         pass
     
     # 2. Chunked load with chunk size of 1000
     try:
-        print "Trying chunked export, 1000 records at a time"
+        print("Trying chunked export, 1000 records at a time")
         return chunked_export(api, form_name, 1000)
     except (ValueError, rc.RedcapError, pd.io.common.EmptyDataError):
         pass
     
     # 2. Chunked load with default chunk size
     try:
-        print "Trying chunked export, default chunk size (100)"
+        print("Trying chunked export, default chunk size (100)")
         return chunked_export(api, form_name, 100)
     except (ValueError, rc.RedcapError, pd.io.common.EmptyDataError):
         pass
     
     # 3. Chunked load with tiny chunk
     try:
-        print "Trying chunked export with tiny chunks (10)"
+        print("Trying chunked export with tiny chunks (10)")
         return chunked_export(api, form_name, 10)
     except (ValueError, rc.RedcapError, pd.io.common.EmptyDataError):
-        print "Giving up"
+        print("Giving up")
         return None
 
 def load_form_with_primary_key(api, form_name, verbose=True):

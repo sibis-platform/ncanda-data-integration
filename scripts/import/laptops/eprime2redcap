@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import os
 import argparse
 import re
@@ -36,14 +37,14 @@ args = parser.parse_args()
 session = sibispy.Session()
 if not session.configure() :
     if args.verbose:
-        print "Error: session configure file was not found"
+        print("Error: session configure file was not found")
  
     sys.exit(1)
 
 project = session.connect_server(args.project) 
 if not project : 
     if args.verbose:
-        print "Error: Could not connect to Redcap" 
+        print("Error: Could not connect to Redcap") 
 
     sys.exit(1)
 

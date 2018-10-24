@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import os
 import re
 import csv
@@ -212,7 +213,7 @@ def check_dti(dti_checker,experiment, session_dir, dti_scans, cases_dir, session
             if sequenceLabel in scantype:
                 if scan in incorrect_formatting_list : 
                     if args.verbose:
-                        print session_label, ": The following scans will not be checked in check_dti: ", scan, scantype
+                        print(session_label, ": The following scans will not be checked in check_dti: ", scan, scantype)
                     continue
 
                 scan_dir = '%s_%s' % (scan,scantype)
@@ -301,7 +302,7 @@ def incomplete_scan_check(experiment,manufacturer, session_label, eid, scan_type
             missing_scans = list(set(missing_scans).difference(missing_scans_exception_list))
             if missing_scans == [] : 
                 if args.verbose:
-                    print session_label, ": All missing scans are excepted!" 
+                    print(session_label, ": All missing scans are excepted!") 
                 return False
  
         err_msg = 'ERROR: Missing scans from Session!'
@@ -482,7 +483,7 @@ def mri_quality_check(experiment, session_dir, manufacturer, session_label, eid,
     if incorrect_formatting_exception:
         incorrect_formatting_list = str(incorrect_formatting_exception).split(',')
         if args.verbose:
-            print session_label, ": The following scans will not be checked in mri_quality_check: ", str(incorrect_formatting_list) 
+            print(session_label, ": The following scans will not be checked in mri_quality_check: ", str(incorrect_formatting_list)) 
 
         no_exception_list = list(set(scan_list).difference(incorrect_formatting_list))
     else :
@@ -626,14 +627,14 @@ slog.startTimer1()
 sibis_session = sibispy.Session()
 if not sibis_session.configure() :
     if verbose:
-        print "Error: session configure file was not found"
+        print("Error: session configure file was not found")
  
     sys.exit()
 
 ifc = sibis_session.connect_server('xnat', True)
 if not ifc : 
     if verbose:
-        print "Error: Could not connect to XNAT" 
+        print("Error: Could not connect to XNAT") 
 
     sys.exit()
 
@@ -642,7 +643,7 @@ server_address = str(sibis_session.get_xnat_server_address())
 dti_checker = chk_dti.check_dti_gradients()
 if not dti_checker.configure(sibis_session,check_decimals=2):
     if verbose:
-        print "Error: Could not initialize dti_checker" 
+        print("Error: Could not initialize dti_checker") 
     sys.exit()
 
 log_dir = os.path.join(sibis_session.get_log_dir(),'check_new_sessions')
@@ -686,7 +687,7 @@ if not args.check_all:
         creation_date = content[0]['create_date']
         date_last_checked = time.strptime(creation_date[0:19], xnat_date_format)
         if args.verbose:
-            print 'Script was last run %s' % creation_date
+            print('Script was last run %s' % creation_date)
 
         # Get list of previously flagged experiments that need to be checked
         # again
@@ -695,14 +696,14 @@ if not args.check_all:
         else:
             experiments_to_check = set(content[0]['contents'].split(','))
         if args.verbose:
-            print 'Re-checking %d previously flagged experiments' % \
-                  len(experiments_to_check)
+            print('Re-checking %d previously flagged experiments' % \
+                  len(experiments_to_check))
     except:
         # If we cannot get last script run date from server, leave at epoch
         # (Jan 1, 1970)
         if args.verbose:
-            print 'Unable to retrieve date of last script run and list of ' \
-                  'flagged projects from server.'
+            print('Unable to retrieve date of last script run and list of ' \
+                  'flagged projects from server.')
 
 
 
@@ -719,7 +720,7 @@ if args.last_month:
 # For comparison - convert time of last check to string in XNAT date format
 str_date_last_checked = time.strftime(xnat_date_format, date_last_checked)
 if args.verbose:
-    print "Checking sessions modified after", str_date_last_checked
+    print("Checking sessions modified after", str_date_last_checked)
 
 if not args.eid:
     criteria = [('xnat:mrSessionData/LAST_MODIFIED',
@@ -728,8 +729,8 @@ if not args.eid:
     new_sessions = ifc.select('xnat:mrSessionData',
                               fields_per_session).where(criteria).items()
     if args.verbose:
-        print '%d experiments have been modified since last run' % \
-              len(new_sessions)
+        print('%d experiments have been modified since last run' % \
+              len(new_sessions))
 
 # Also get necessary data for all sessions flagged during previous run of this
 # script
@@ -748,7 +749,7 @@ for eid in experiments_to_check:
 sessions_to_check = sorted(list(set(new_sessions + previous_sessions)),
                            key=lambda tupl: tupl[3])
 if args.verbose:
-    print 'Checking a total of %d experiments' % len(sessions_to_check)
+    print('Checking a total of %d experiments' % len(sessions_to_check))
 
 # Get list of fBIRN phantom subject IDs
 criteria = [('xnat:subjectData/SUBJECT_LABEL', 'LIKE', '%-00000-P-0')]
@@ -775,7 +776,7 @@ if False:
     #        break
     #    index += 1
     sessions_to_check = sessions_to_check[375:]
-    print "DEBUG: Checking " + str(len(sessions_to_check)) + " sessions." 
+    print("DEBUG: Checking " + str(len(sessions_to_check)) + " sessions.") 
 
 xnat_dir = sibis_session.get_xnat_dir()
 if not os.path.exists(xnat_dir):  
@@ -785,13 +786,13 @@ cases_dir = sibis_session.get_cases_dir()
 index = 0
 creatingNiftiFlag = True 
 if not creatingNiftiFlag: 
-  print "DEBUG: Not creating any new nifti files" 
+  print("DEBUG: Not creating any new nifti files") 
 
 for (eid, project, subject, insert_date,
      session_label, last_modified) in sessions_to_check:
     index +=1 
     if args.check_all:
-        print "==== ", index, eid
+        print("==== ", index, eid)
 
     #if index < 3517 :
     #    continue
@@ -1038,10 +1039,10 @@ for (eid, project, subject, insert_date,
             or (not physio_ok) or (not nifti_export_ok):
         experiments_for_next_run.append(eid)
         if args.verbose:
-            print "RECHECK"
+            print("RECHECK")
     else:
         if args.verbose:
-            print "OK"
+            print("OK")
 
 # Make links for all "new" sessions, i.e., those inserted after the
 # "last checked" date
@@ -1116,7 +1117,7 @@ if args.send_mail_to:
                html,
                False)
 elif args.verbose:
-    print html
+    print(html)
 
 # Write the scans to QC csv file.
 if len(scans_to_qc) > 1  and args.qc_csv :
@@ -1150,8 +1151,8 @@ if len(scans_to_qc) > 1  and args.qc_csv :
 # time that this script was last run
 if not args.no_update:
     if args.verbose:
-        print "Flagging %d series for re-inspection during next script run" % \
-              len(experiments_for_next_run)
+        print("Flagging %d series for re-inspection during next script run" % \
+              len(experiments_for_next_run))
     content = ifc._exec(uri='%s?inbody=true' % config_uri,
                         method='PUT',
                         body=','.join(set(experiments_for_next_run)),

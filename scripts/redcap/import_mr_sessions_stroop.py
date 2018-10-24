@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import os
 import re
 import tempfile
@@ -22,7 +23,7 @@ bindir = os.path.dirname( os.path.abspath(__file__) )
 def check_for_stroop( xnat, xnat_eid_list, verbose=False ):
     stroop_files = []
     if verbose : 
-        print "check_for_stroop: " + str(xnat_eid_list)
+        print("check_for_stroop: " + str(xnat_eid_list))
 
     for xnat_eid in xnat_eid_list:
         experiment = xnat.select.experiment( xnat_eid )
@@ -35,7 +36,7 @@ def check_for_stroop( xnat, xnat_eid_list, verbose=False ):
     # No matching files - nothing to do
     if len( stroop_files ) == 0:
         if verbose : 
-            print "check_for_stroop: no stroop"
+            print("check_for_stroop: no stroop")
         return (None, None, None)
 
     # Get first file from list, warn if more files
@@ -45,7 +46,7 @@ def check_for_stroop( xnat, xnat_eid_list, verbose=False ):
             slog.info(xnat_eid,error)
 	return (None, None, None)
     if verbose : 
-        print "check_for_stroop: Stroop File: " + str(stroop_files[0])
+        print("check_for_stroop: Stroop File: " + str(stroop_files[0]))
 
     return stroop_files[0]
 
@@ -53,7 +54,7 @@ def check_for_stroop( xnat, xnat_eid_list, verbose=False ):
 def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, \
                              redcap_key, verbose=False, no_upload=False, post_to_github=False, time_log_dir=None):
     if verbose:
-        print "Importing Stroop data from file %s:%s" % ( stroop_eid, stroop_file )
+        print("Importing Stroop data from file %s:%s" % ( stroop_eid, stroop_file ))
 
     # Download Stroop file from XNAT into temporary directory
     experiment = xnat.select.experiment( stroop_eid )
@@ -74,7 +75,7 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, \
             for file in added_files.split( '\n' ):
                 if re.match( '.*\.csv$', file ):
                     if verbose:
-                        print "Uploading ePrime Stroop scores",file
+                        print("Uploading ePrime Stroop scores",file)
                     cmd = str(os.path.join( bindir, 'csv2redcap' )) 
                     if post_to_github:
                         cmd += " -p"
@@ -94,7 +95,7 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, \
             cmd += ' --project data_entry --record ' + str(redcap_key[0]) + ' --event ' + str(redcap_key[1]) + ' ' + str(stroop_file_path) +  ' mri_stroop_log_file' 
                 
             if verbose:
-                print "Uploading ePrime Stroop file",stroop_file_path
+                print("Uploading ePrime Stroop file",stroop_file_path)
                 # print " ".join(cmd_array)
 
             (ecode,sout, serr) = sutils.call_shell_program(cmd)

@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import argparse
 import sys
 import os
@@ -65,10 +66,10 @@ def check_for_stroop( xnat, xnat_eid, redcap_key, verbose=False, no_upload=False
     # Get first file from list, warn if more files
     (stroop_resource, stroop_file) = experiment_files[0]
     if len( experiment_files ) > 1:
-        print "WARNING: experiment",xnat_eid,"has more than one Stroop .txt file - using file",stroop_file
+        print("WARNING: experiment",xnat_eid,"has more than one Stroop .txt file - using file",stroop_file)
 
     if verbose:
-        print "Importing Stroop data from file %s:%s" % ( xnat_eid, stroop_file )
+        print("Importing Stroop data from file %s:%s" % ( xnat_eid, stroop_file ))
 
     # Download Stroop file from XNAT into temporary directory
     tempdir = tempfile.mkdtemp()
@@ -94,7 +95,7 @@ def check_for_stroop( xnat, xnat_eid, redcap_key, verbose=False, no_upload=False
             for file in added_files.split( '\n' ):
                 if re.match( '.*\.csv$', file ):
                     if verbose:
-                        print "Uploading ePrime Stroop scores",file
+                        print("Uploading ePrime Stroop scores",file)
                     subprocess.call( [ os.path.join( bindir, 'csv2redcap' ), file ] )
             # Upload original ePrime file for future reference
             cmd_array = [ os.path.join( import_bindir, "eprime2redcap" ) ]
@@ -104,8 +105,8 @@ def check_for_stroop( xnat, xnat_eid, redcap_key, verbose=False, no_upload=False
             cmd_array += ['--project', 'data_entry', '--record' , redcap_key[0], '--event', redcap_key[1], stroop_file_path, 'mri_stroop_log_file' ] 
                 
             if verbose:
-                print "Uploading ePrime Stroop file",stroop_file_path
-                print " ".join(cmd_array)
+                print("Uploading ePrime Stroop file",stroop_file_path)
+                print(" ".join(cmd_array))
 
             subprocess.check_output( cmd_array )
     else:
@@ -118,14 +119,14 @@ def check_for_stroop( xnat, xnat_eid, redcap_key, verbose=False, no_upload=False
 session = sibispy.Session() 
 if not session.configure() :
     if args.verbose:
-        print "Error: session configure file was not found"
+        print("Error: session configure file was not found")
  
     sys.exit()
 
 redcap_project = session.connect_server('data_entry') 
 if not redcap_project : 
     if args.verbose:
-        print "Error: Could not connect to Redcap" 
+        print("Error: Could not connect to Redcap") 
 
     sys.exit()
 
@@ -135,7 +136,7 @@ form_event_mapping = redcap_project.export_fem( format='df' )
 xnat = session.connect_server('xnat') 
 if not xnat : 
     if args.verbose:
-        print "Error: Could not connect to XNAT" 
+        print("Error: Could not connect to XNAT") 
 
     sys.exit()
 
@@ -156,18 +157,18 @@ if not args.force_update:
     mr_sessions_redcap = mr_sessions_redcap[ mr_sessions_redcap['mri_stroop_complete'] < 2 ]
 
 if args.verbose:
-    print "Checking %d REDCap records." % len( mr_sessions_redcap )
+    print("Checking %d REDCap records." % len( mr_sessions_redcap ))
 
 # Iterate over all remaining rows
 for [key,row] in mr_sessions_redcap.iterrows():
     if not subject_data['exclude'][key[0]] or args.with_excluded:
         visit_date = str(visit_log_redcap['visit_date'][key])
         if visit_date == 'nan':
-            print "Missing '%s' date for subject %s" % ( key[1], key[0] )
+            print("Missing '%s' date for subject %s" % ( key[1], key[0] ))
         else:
             try:
                 for xnat_eid in row['mri_xnat_eids'].split( ' ' ):
                     check_for_stroop( xnat, xnat_eid, key, verbose=args.verbose, no_upload=args.no_upload,post_to_github=args.post_to_github)
-            except AttributeError, e:
+            except AttributeError as e:
                 error = "Error for xnat_eid: {}".format(e)
                 slog.info(xnat_eid,error)

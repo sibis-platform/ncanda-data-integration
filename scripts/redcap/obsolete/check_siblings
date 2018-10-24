@@ -12,6 +12,7 @@ check_siblings
 * verify that the selected representative really the first enrolled
 
 """
+from __future__ import print_function
 
 # system packages
 import os
@@ -62,10 +63,10 @@ def validate_siblings(records):
         result = sib_recs[(~sib_recs.siblings_id1.isin(study_ids)) & (pd.notnull(sib_recs.siblings_id1))]
         columns = ['study_id', 'siblings_id1']
 
-        print "Subject 'study_id' list subject 'sibling_id1' as their sibling, but the latter does not exist as a subject:"
-        print
-        print result.to_string(index=False, columns=columns)
-        print
+        print("Subject 'study_id' list subject 'sibling_id1' as their sibling, but the latter does not exist as a subject:")
+        print()
+        print(result.to_string(index=False, columns=columns))
+        print()
 
     def check_sibling_enrolled():
         """
@@ -81,10 +82,10 @@ def validate_siblings(records):
 
         columns = ['siblings_id1','referring_study_id']
 
-        print "Subject 'sibling_id1' is listed as sibling of 'referring_study_id' but does not itself indicate having a sibling enrolled:"
-        print
-        print result.to_string(index=False, columns=columns)
-        print
+        print("Subject 'sibling_id1' is listed as sibling of 'referring_study_id' but does not itself indicate having a sibling enrolled:")
+        print()
+        print(result.to_string(index=False, columns=columns))
+        print()
 
     def check_sibling_listed():
         """
@@ -93,10 +94,10 @@ def validate_siblings(records):
         result = sib_recs[~pd.notnull(sib_recs.siblings_id1)]
         columns = ['study_id']
 
-        print "Subject 'study_id' indicates siblings but does not list a sibling ID:"
-        print
-        print result.to_string(index=False, columns=columns)
-        print
+        print("Subject 'study_id' indicates siblings but does not list a sibling ID:")
+        print()
+        print(result.to_string(index=False, columns=columns))
+        print()
 
     def check_representatives():
         """Is the selected representative really the first enrolled?"""
@@ -117,11 +118,11 @@ def validate_siblings(records):
         result = sib_filter.set_index(['siblings_id1', 'study_id'])
         result.index.names = ['siblings_id1', 'referring_study_id']
 
-        print "Subject 'study_id' is listed as the sibling of 'referring_study_id', but is not the first enrolled:"
-        print
-        print "study_id\treferring_study_id\n"
-        print '\n'.join( [ '%s\t%s' % (s1,s2) for (s1,s2) in result.index ] )
-        print
+        print("Subject 'study_id' is listed as the sibling of 'referring_study_id', but is not the first enrolled:")
+        print()
+        print("study_id\treferring_study_id\n")
+        print('\n'.join( [ '%s\t%s' % (s1,s2) for (s1,s2) in result.index ] ))
+        print()
 
     def check_representative_sibling():
         """
@@ -146,11 +147,11 @@ def validate_siblings(records):
         # Sibling ids referenced w/o matching study id
         columns = ['rep_study_id', 'siblings_id1']
 
-        print "The rep_study_id indicated does not list itself in the " \
-              "sibling_id1 field:"
-        print
-        print result.to_string(index=False, columns=columns)
-        print
+        print("The rep_study_id indicated does not list itself in the " \
+              "sibling_id1 field:")
+        print()
+        print(result.to_string(index=False, columns=columns))
+        print()
 
     # run all the checks
     return [check_sibling_exists(), check_sibling_enrolled(),
@@ -188,7 +189,7 @@ def main(argv=None):
     if len( records ):
         validate_siblings(records)
     else:
-        print "No records to check (verify 'site' selection?)."
+        print("No records to check (verify 'site' selection?).")
 
 
 if __name__ == "__main__":

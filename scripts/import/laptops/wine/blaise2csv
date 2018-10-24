@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import argparse
 import tempfile
 import shutil
@@ -103,7 +104,7 @@ def process_ascfile( ascfile_name ):
 
                     try:
                         pandas.DataFrame( [ ssaga_fields ] ).to_csv( filename_fields, index=False )
-                        print filename_fields
+                        print(filename_fields)
                     except:
                         pass
 
@@ -124,7 +125,7 @@ def process_ascfile( ascfile_name ):
 
                     try:
                         ssaga_scores.to_csv( filename_scores, index=False )
-                        print filename_scores
+                        print(filename_scores)
                     except:
                         pass
 

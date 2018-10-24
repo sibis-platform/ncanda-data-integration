@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import argparse
 import os
 import pandas
@@ -47,7 +48,7 @@ def get_forms_list():
             if form in rc_summary.forms:
                 forms_list.append( form )
             else:
-                print "WARNING: form '%s' does not exist.\n" % form
+                print("WARNING: form '%s' does not exist.\n" % form)
 
     # If exclusion list given, remove them from list
     if args.exclude_forms:

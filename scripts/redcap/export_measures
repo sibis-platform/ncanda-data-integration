@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import os
 import re
 import sys
@@ -50,7 +51,7 @@ uploads = 0
 session = sibispy.Session()
 if not session.configure(ordered_config_load_flag = True):
     if args.verbose:
-        print "Error: session configure file was not found"
+        print("Error: session configure file was not found")
 
     sys.exit()
 
@@ -108,20 +109,20 @@ if args.locked_form_report:
     engine = session.connect_server('redcap_mysql_db', True)
     if not engine :
         if args.verbose:
-            print "Error: Could not connect to REDCap mysql db"
+            print("Error: Could not connect to REDCap mysql db")
 
         sys.exit(1)
 
     if args.verbose:
-        print "Configured to output a report of locked forms..."
-        print "Connected to REDCap MySQL: {0}".format(engine)
+        print("Configured to output a report of locked forms...")
+        print("Connected to REDCap MySQL: {0}".format(engine))
 
 
 # Open connection with XNAT server
 xnat = session.connect_server('xnat',True)
 if not xnat :
     if args.verbose:
-        print "Error: Could not connect to XNAT"
+        print("Error: Could not connect to XNAT")
 
     sys.exit(1)
 
@@ -206,14 +207,14 @@ if args.subject:
     visit_log_redcap = visit_log_redcap.loc[[args.subject]]
 
 if args.verbose:
-    print "Exporting %d REDCap records." % len( visit_log_redcap )
+    print("Exporting %d REDCap records." % len( visit_log_redcap ))
 
 # Iterate over all remaining rows
 for [key,row] in visit_log_redcap.iterrows():
     if key[0] not in subject_label_to_sid_dict.keys():
         if args.verbose:
             # there is no xnat id over entire study for this subject , thus no subhect id to write to casesdir, thus ignore  
-            print "Missing XNAT ID for subject",key[0]
+            print("Missing XNAT ID for subject",key[0])
         continue
     # only do sessions that are not ignored
     if row['visit_ignore___yes'] :
@@ -223,7 +224,7 @@ for [key,row] in visit_log_redcap.iterrows():
     visit_date = str(row['visit_date'])
     if visit_date == 'nan':
         if args.verbose:
-            print "Missing '%s' visit date for subject %s" % ( key[1], key[0] )
+            print("Missing '%s' visit date for subject %s" % ( key[1], key[0] ))
     else:
             this_subject_data = subject_data.ix[key[0]]
             subject_dob_str = str( this_subject_data['dob'] )

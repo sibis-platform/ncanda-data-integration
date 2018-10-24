@@ -14,6 +14,7 @@ Scan Report Comment Search
 This code searches through comments to find those with No MRI. In addition, a list of subjects that were skipped is also generated.
 
 """
+from __future__ import print_function
 
 #import needed libraries
 import time
@@ -75,4 +76,4 @@ f.write("\n".join(map(lambda x: str(x), year2_noscan)))
 f.close()
 
 elapsed = (time.time() - start)
-print elapsed
+print(elapsed)

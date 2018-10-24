@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import argparse
 import string
 import os
@@ -36,7 +37,7 @@ slog.startTimer1()
 session = sibispy.Session()
 if not session.configure():
     if args.verbose:
-        print "Error: session configure file was not found"
+        print("Error: session configure file was not found")
 
     sys.exit(1)
 
@@ -58,7 +59,7 @@ except Exception as e:
 
 if not redcap: 
     if args.verbose:
-        print "ERROR:Could not connect to redcap server!"
+        print("ERROR:Could not connect to redcap server!")
     sys.exit(1)
 
 
@@ -85,7 +86,7 @@ else :
 
 # Anything left?
 if not len( data ) and args.verbose:
-    print "No new records to import."
+    print("No new records to import.")
     exit(0)
 
 # Set "Completeness" as "Unverified"
@@ -128,7 +129,7 @@ for [key,row] in data.iterrows():
     # Upload new data to REDCap
     import_response = session.redcap_import_record_to_api([record], None, 'cvs2redcap-import')
     if not import_response : 
-        print "WARNING: failed to upload record",record['record_id']
+        print("WARNING: failed to upload record",record['record_id'])
         continue 
 
     # If there were any errors, try to print them as well as possible
@@ -138,20 +139,20 @@ for [key,row] in data.iterrows():
 
     if 'fields' in import_response.keys():
         for field in import_response['fields']:
-            print "\t", field
+            print("\t", field)
 
     if 'records' in import_response.keys():
         for record in import_response['records']:
-            print "\t", record
+            print("\t", record)
 
     if 'count' in import_response.keys():
         uploaded += int( import_response['count'] )
     else:
-        print "WARNING: failed to upload record",record['record_id']
+        print("WARNING: failed to upload record",record['record_id'])
 
 # Finally, print upload status if so desired
 if args.verbose:
-    print "Successfully uploaded %d/%d records to REDCap." % ( uploaded, len( data ) )
+    print("Successfully uploaded %d/%d records to REDCap." % ( uploaded, len( data ) ))
 
 slog.takeTimer1("script_time","{'records': " + str(len(data)) + ", 'uploads': " + str(uploaded) + "}")
 

@@ -4,6 +4,7 @@
 ##  See COPYING file distributed along with the ncanda-data-integration package
 ##  for the copyright and license terms
 ##
+from __future__ import print_function
 import os
 import glob
 import shutil
@@ -23,7 +24,7 @@ from sibispy import utils as sutils
 #
 def export_to_nifti(experiment, subject, session, session_label, scan, scantype, xnat_dir, verbose=False):
     if verbose:
-        print "Starting export of nifti files for ", subject, session, session_label, scan, scantype,xnat_dir
+        print("Starting export of nifti files for ", subject, session, session_label, scan, scantype,xnat_dir)
 
     error_msg = []
 

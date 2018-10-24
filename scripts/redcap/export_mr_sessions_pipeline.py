@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import re
 import os
 import glob
@@ -357,7 +358,7 @@ def copy_manual_pipeline_files( xnat, xnat_eid, to_directory ):
 def delete_workdir(workdir,redcap_visit_id,verbose=False): 
     if os.path.exists(workdir):
         if verbose :
-            print "Deleting " + workdir
+            print("Deleting " + workdir)
         try :
             shutil.rmtree(workdir)            
         except Exception as err_msg:  
@@ -475,13 +476,13 @@ def export_and_queue(red2cas, redcap_visit_id, xnat, session_data, redcap_key, p
     pipeline_workdir = os.path.join( pipeline_root_dir, pipeline_workdir_rel )
     
     if verbose:
-        print subject_label,'/',subject_code,'/',event_label,'to',pipeline_workdir
+        print(subject_label,'/',subject_code,'/',event_label,'to',pipeline_workdir)
 
     new_files_created = export_to_workdir(redcap_visit_id,xnat, session_data, pipeline_workdir, redcap_key, xnat_dir, stroop=stroop, verbose=verbose, timerFlag= timerFlag)
 
     if (new_files_created and run_pipeline_script):
         if verbose:
-            print 'Submitting script',run_pipeline_script,'to process',pipeline_workdir
+            print('Submitting script',run_pipeline_script,'to process',pipeline_workdir)
         just_pipeline_script=os.path.basename(run_pipeline_script)
         qsub_exe = 'cd %s; %s %s' % ( pipeline_root_dir,run_pipeline_script,pipeline_workdir_rel)
         # Changed title so it is informative when displayed in short form through qsub

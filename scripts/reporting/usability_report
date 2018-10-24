@@ -8,6 +8,7 @@ usability_report
 ======================
 This script checks for missing scans and scan sessions. 
 """
+from __future__ import print_function
 import os
 import sys
 
@@ -93,21 +94,21 @@ def main(args):
     usability_report = pd.read_csv(args.usabilityreport)
 
     check_missing_sessions_df = check_missing_sessions(df,project_df,subject_ids)
-    print "Checking on missing sessions\n"
+    print("Checking on missing sessions\n")
     if check_missing_sessions_df['mri_xnat_sid'].tolist():
-        print "Generating report\n"
+        print("Generating report\n")
         check_missing_sessions_df['mri_xnat_sid'].to_csv(os.path.join(args.csvoutputdirectory, "missing_sessions_scan.csv"), columns=list(usability_report.columns.values))
     else:
-        print "No Missing Sessions\n"
+        print("No Missing Sessions\n")
 
     for s in args.scans:
-        print "Check missing {}\n".format(s)
+        print("Check missing {}\n".format(s))
         check_missing_scan = check_missing_scans(df,usability_report,s)
         if check_missing_scan['subject_id'].tolist():
-            print "Generating report\n"
+            print("Generating report\n")
             check_missing_scan.to_csv(os.path.join(args.csvoutputdirectory, "missing_{}_scan.csv".format(s)), columns=list(usability_report.columns.values))
         else:
-            print "No {} Scans\n".format(s)
+            print("No {} Scans\n".format(s))
 
 
 if __name__ == '__main__':

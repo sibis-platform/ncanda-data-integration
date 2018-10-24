@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import pyxnat
 import os.path
 import time
@@ -39,7 +40,7 @@ def check_for_snapshots( xnat, subj, expt, project ):
             scans_found += 1
 
     if args.verbose:
-        print "Found a total of %d snapshots for %d scans" % (scans_w_snapshot,scans_found)
+        print("Found a total of %d snapshots for %d scans" % (scans_w_snapshot,scans_found))
 
     return (scans_found,scans_w_snapshot)
 
@@ -53,7 +54,7 @@ def check_project( xnat, project ):
             (scans_found,snapshots_found) = check_for_snapshots( xnat, subj, expt, project )
             if snapshots_found < scans_found:
                 if args.verbose:
-                    print "Missing snapshots for",subj,expt
+                    print("Missing snapshots for",subj,expt)
                 expt_obj = xnat.select.project( project ).subject( subj ).experiment( expt )
                 expt_obj.trigger_pipelines()
                 time.sleep(20 * (scans_found-snapshots_found)) ### inserting a small delay so I don't queue up 100's of processes

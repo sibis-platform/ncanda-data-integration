@@ -4,6 +4,7 @@
 ##  See COPYING file distributed along with the ncanda-data-integration package
 ##  for the copyright and license terms
 ##
+from __future__ import print_function
 from optparse import OptionParser
 import os
 import time
@@ -35,7 +36,7 @@ slog.startTimer1()
 session = sibispy.Session()
 if not session.configure() :
     if args.verbose:
-        print "Error: session configure file was not found"
+        print("Error: session configure file was not found")
 
     sys.exit()
 
@@ -43,7 +44,7 @@ if not session.configure() :
 interface = session.connect_server('xnat',True)
 if not xnat :
     if args.verbose:
-        print "Error: Could not connect to XNAT"
+        print("Error: Could not connect to XNAT")
 
     sys.exit()
 
@@ -66,7 +67,7 @@ except:
     interface = session.connect_server('xnat',True)
     if not xnat :
         if args.verbose:
-            print "Error: Could not connect to XNAT"
+            print("Error: Could not connect to XNAT")
 
         sys.exit()
 

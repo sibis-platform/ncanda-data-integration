@@ -10,6 +10,7 @@ Report: check_for_special_characters_in_csv
 Usage:
 python missing_eid_check.py --csv xnat_session_notes_report.csv --col note 
 """
+from __future__ import print_function
 
 import sys
 import pandas
@@ -24,7 +25,7 @@ def main(args):
         if pandas.notnull(note):
             if any(char in invalidChars for char in note):
                 #print row['site_id']
-                print "failed", row.values   
+                print("failed", row.values)   
  
             # else :
             #    print "good", index, repr(note)  

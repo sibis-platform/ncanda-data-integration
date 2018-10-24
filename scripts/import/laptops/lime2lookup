@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import argparse
 import re
 import pandas
@@ -29,4 +30,4 @@ for label in data.columns.tolist():
     ucsd_redcap = "%s_%s" % (args.prefix, re.sub( '_$', '', re.sub( '[_\W]+', '_', re.sub( 'subjid', 'subject_id', ucsd ) ) ) )
 
         
-    print '"%s",%s,%s,%s' % (label,redcap,ucsd_redcap,ucsd)
+    print('"%s",%s,%s,%s' % (label,redcap,ucsd_redcap,ucsd))

@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 # coding: utf-8
 
@@ -16,6 +17,7 @@ from operator import itemgetter  # for extracting multiple keys from a dict
 import sibispy
 from sibispy import sibislogger as slog
 import sys
+from functools import reduce
 
 
 # In[ ]:

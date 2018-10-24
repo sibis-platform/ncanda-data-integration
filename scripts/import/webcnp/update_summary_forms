@@ -4,6 +4,7 @@
 ##  See COPYING file distributed along with the ncanda-data-integration package
 ##  for the copyright and license terms
 ##
+from __future__ import print_function
 import os
 import argparse
 import cnp
@@ -55,14 +56,14 @@ slog.startTimer1()
 session = sibispy.Session()
 if not session.configure():
     if args.verbose:
-        print "Error: session configure file was not found"
+        print("Error: session configure file was not found")
 
     sys.exit()
 
 rc_import = session.connect_server('import_webcnp', True)
 if not rc_import : 
     if args.verbose:
-        print "Error: Could not connect to the REDCap project 'import_webcnp'" 
+        print("Error: Could not connect to the REDCap project 'import_webcnp'") 
 
     sys.exit(1)
 
@@ -71,7 +72,7 @@ if not rc_import :
 rc_summary = session.connect_server('data_entry', True)
 if not rc_summary : 
     if args.verbose:
-        print "Error: Could not connect to the REDCap project 'data_entry'" 
+        print("Error: Could not connect to the REDCap project 'data_entry'") 
 
     sys.exit(1)
 
@@ -113,7 +114,7 @@ if args.study_id :
         summary_records.set_index(['study_id', 'redcap_event_name'],inplace=True)
 
     else :
-        print "ERROR: No record found for",  args.study_id 
+        print("ERROR: No record found for",  args.study_id) 
         sys.exit(1)
 
 # Have to do it as otherwise int values are changed to float if NA included in colums and that creates problems  
@@ -223,7 +224,7 @@ for key, row in summary_records.iterrows():
 
             summary_records.at[key, 'cnp_summary_complete'] = summary_complete
         elif summary_records['cnp_summary_complete'][key] != '' and float( summary_records['cnp_summary_complete'][key] ) > 0 and ( summary_records['cnp_missing'][key] != 1 ):
-            print "WARNING: Previously assigned WebCNP data for subject",key[0],"event",key[1],"appears to have disappeared."
+            print("WARNING: Previously assigned WebCNP data for subject",key[0],"event",key[1],"appears to have disappeared.")
 
 # Drop all summary records for which there is no CNP data
 summary_records = summary_records[ summary_records['cnp_datasetid'] != '' ]
@@ -249,18 +250,18 @@ summary_records[rnd_list] = summary_records[rnd_list].apply(df_rounding, axis=1)
 
 if args.no_upload:
     if args.verbose:
-        print "Writing",len( summary_records ),"records to",args.no_upload
+        print("Writing",len( summary_records ),"records to",args.no_upload)
     summary_records.to_csv( args.no_upload )
 else:
     if args.verbose:
-        print "Uploading",len(summary_records),"records."
+        print("Uploading",len(summary_records),"records.")
 
     error_label = "ImportToDataEntry" 
     for from_index in range(0,len(summary_records),args.records_per_upload):
         # Upload next block of records of new data to REDCap
         to_index = min( from_index + args.records_per_upload, len(summary_records) )
         if args.verbose:
-            print "Uploading records",from_index,"to",to_index-1
+            print("Uploading records",from_index,"to",to_index-1)
         
         import_response =  session.redcap_import_record(error_label, "", "", "UploadRecords", summary_records[from_index:to_index])
         if import_response :
@@ -276,6 +277,6 @@ else:
 
     # Finally, print upload status if so desired                    
     if args.verbose:
-        print "Successfully uploaded %d/%d records to REDCap." % ( uploaded_count, len( summary_records ) )
+        print("Successfully uploaded %d/%d records to REDCap." % ( uploaded_count, len( summary_records ) ))
 
 slog.takeTimer1("script_time","{'records': " + str(len(summary_records)) + ", 'uploads': " +  str(uploaded_count) + "}")

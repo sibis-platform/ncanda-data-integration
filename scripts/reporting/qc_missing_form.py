@@ -11,6 +11,7 @@ Missing Forms
 ======================
 Generate a report indicating which Questionnaires and Forms have not been entered.
 """
+from __future__ import print_function
 import os
 import sys
 import json
@@ -92,7 +93,7 @@ def main(args=None):
 
 	for e in error:
 		if e != 'null':
-			print json.dumps(e, sort_keys = True)
+			print(json.dumps(e, sort_keys = True))
 
 
 if __name__ == '__main__':
