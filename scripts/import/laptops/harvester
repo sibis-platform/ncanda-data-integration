@@ -4,6 +4,7 @@
 ##  See COPYING file distributed along with the ncanda-data-integration package
 ##  for the copyright and license terms
 ##
+from __future__ import absolute_import
 import re
 import os
 import yaml
@@ -13,7 +14,7 @@ import subprocess
 import sys
 
 from sibispy import sibislogger as slog
-from sibispy.svn import SibisSvnException, UpdateActionTypes
+from sibispy.svn_util import SibisSvnException, UpdateActionTypes
 import sibispy 
 
 import hashlib
