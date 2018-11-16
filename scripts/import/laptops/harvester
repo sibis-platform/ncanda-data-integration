@@ -375,8 +375,8 @@ if dated_download :
     # Files that are added and deleted during the time period are now listed !
     try:
         diff = svn_client.diff_path(revision=dated_download)
-        for d in diff.files_changed(include_deleted=False):
-            updated_files.append(os.path.join(svndir,d.path))
+        for path in diff.files_changed(include_deleted=False):
+            updated_files.append(os.path.join(svndir,path))
 
     except SibisSvnException as ex:
         slog.info(hashlib.sha1('harvester' + str(ex)).hexdigest()[0:6],
