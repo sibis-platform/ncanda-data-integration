@@ -35,7 +35,11 @@ def export_spiral_files(redcap_visit_id, xnat, redcap_key, resource_location, to
             tmpdir = tempfile.mkdtemp()
 
             try:
-                stroop_file_tmp = xnat.select.experiment(stroop[0]).resource(stroop[1]).file(stroop[2]).get_copy(os.path.join( tmpdir, stroop[2]))
+                stroop_file_path = os.path.join(tmpdir, stroop[2])
+                stroop_file_dir = os.path.dirname(stroop_file_path)
+                if not os.path.isdir(stroop_file_dir):
+                    os.makedirs(stroop_file_dir)
+                stroop_file_tmp = xnat.select.experiment(stroop[0]).resource(stroop[1]).file(stroop[2]).get_copy(stroop_file_dir)
             except IOError as e:
                 details = "Error: export_spiral_files: for experiment {0}, unable to get copy of resource {1} in file {2} to be saved here: {3}".format(str(stroop[0]), str(stroop[1]), str(stroop[2]), os.path.join( tmpdir, stroop[2]))
                 slog.info(str(redcap_key[0]) + "-" +  str(redcap_key[1]), details, error={ 'message': str(e), 'details': details, 'errno': e.errno, 'filename': e.filename, 'strerror': e.strerror })

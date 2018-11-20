@@ -61,6 +61,10 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, \
 
     try:
         stroop_file_copy_path = os.path.join( tempdir, stroop_file )
+        stroop_dir_path = os.path.dirname(stroop_file_copy_path)
+        if not os.path.isdir(stroop_dir_path):
+            os.makedirs(stroop_dir_path)
+
         stroop_file_path = experiment.resource( stroop_resource ).file( stroop_file ).get_copy( stroop_file_copy_path )
     except IOError as e:
         details = "Error: import_mr_sessions_stroop: unable to get copy of resource {0} in file {1} to be saved here: {2}".format(stroop_resource, stroop_file, stroop_file_copy_path)
