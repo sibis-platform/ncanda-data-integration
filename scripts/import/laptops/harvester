@@ -4,7 +4,7 @@
 ##  See COPYING file distributed along with the ncanda-data-integration package
 ##  for the copyright and license terms
 ##
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import re
 import os
 import yaml
@@ -14,11 +14,12 @@ import subprocess
 import sys
 
 from sibispy import sibislogger as slog
+from sibispy.svn_util import SibisSvnException, UpdateActionTypes
 import sibispy 
 
 import hashlib
 updated_files = []
-import pysvn
+
 import datetime 
 # Setup command line parser
 parser = argparse.ArgumentParser(description="Harvest incoming data files from "
@@ -103,7 +104,8 @@ session = sibispy.Session()
 if not session.configure() :
     sys.exit()
 
-if not session.connect_server('svn_laptop', True) : 
+svn_client = session.connect_server('svn_laptop', True)
+if not svn_client: 
     sys.exit()
 
 
@@ -325,14 +327,6 @@ def handle_file_update(path, verbose, infer_dag=False):
         filename = re.search( '(.*)/([^/].*)', path ).group( 2 );
         handle_file(path, site, filename, verbose, infer_dag=infer_dag)
                             
-#
-# Callback: catch files added and updated since last svn update
-#
-def notify( event_dict ):
-    global updated_files
-    if event_dict['kind'] == pysvn.node_kind.file:
-        if event_dict['action'] == pysvn.wc_notify_action.update_add or event_dict['action'] == pysvn.wc_notify_action.update_update or event_dict['action'] == pysvn.wc_notify_action.restore:
-            updated_files.append( event_dict['path'] )
 
 #
 # Main function: perform svn update and catch all resulting events
@@ -345,9 +339,17 @@ if not args.omit_svn_update:
     if args.verbose :
         print("Run svn update ...")
  
-    if not session.run_svn('update', callbackNotifyFct = notify) : 
+    svn_info = svn_client.info()
+
+    svn_updates = svn_client.update()
+    if len(svn_updates.errors) > 0:
         sys.exit(1)
 
+    svn_diff = svn_client.diff_path(revision=svn_info['entry_revision'])
+
+    for changed in svn_diff.files_changed():
+        updated_files.append(os.path.join(svndir, changed))
+        
     if args.verbose :
         print("... done ") 
 
@@ -370,19 +372,17 @@ if args.last_week :
     dated_download =  "{" + str(date_last_week) + "}:{" + str(date_tomorrow) + "}"
 
 if dated_download : 
-    # Files that are added and deleted during the time period are now listed ! 
-    cmd ='cd {}; svn diff --no-auth-cache --username {} --password \'{}\' --summarize -r {} | grep -v "D     "  | tr " " "," | cut -d, -f8 | grep "\." | tr "\n" ","'.format( svndir, session.api['svn_laptop']['user'], session.api['svn_laptop']['password'], dated_download )
-    process = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-    out_std,out_err = process.communicate()
-    if out_err :
-        slog.info(hashlib.sha1('harvester' + out_err).hexdigest()[0:6],
+    # Files that are added and deleted during the time period are now listed !
+    try:
+        diff = svn_client.diff_path(revision=dated_download)
+        for path in diff.files_changed(include_deleted=False):
+            updated_files.append(os.path.join(svndir,path))
+
+    except SibisSvnException as ex:
+        slog.info(hashlib.sha1('harvester' + str(ex)).hexdigest()[0:6],
                   "ERROR: Failed to update files in range " + args.date + ". Continued without them!",
                   script='harvester',
-                  msg=out_err)
-    else :
-        if out_std :
-            for fName in out_std[:-1].split(',') :
-                updated_files.append(os.path.join(svndir,fName))               
+                  msg=str(ex))            
         
 elif args.file_to_upload:
     if not os.path.exists(args.file_to_upload):

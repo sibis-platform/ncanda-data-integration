@@ -59,8 +59,18 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, \
     # Download Stroop file from XNAT into temporary directory
     experiment = xnat.select.experiment( stroop_eid )
     tempdir = tempfile.mkdtemp()
-    stroop_file_path = experiment.resource( stroop_resource ).file( stroop_file ).get_copy( os.path.join( tempdir, stroop_file ) )
 
+    try:
+        stroop_file_copy_path = os.path.join( tempdir, stroop_file )
+        stroop_dir_path = os.path.dirname(stroop_file_copy_path)
+        if not os.path.isdir(stroop_dir_path):
+            os.makedirs(stroop_dir_path)
+
+        stroop_file_path = experiment.resource( stroop_resource ).file( stroop_file ).get_copy( stroop_file_copy_path )
+    except IOError as e:
+        details = "Error: import_mr_sessions_stroop: unable to get copy of resource {0} in file {1} to be saved here: {2}".format(stroop_resource, stroop_file, stroop_file_copy_path)
+        slog.info(str(redcap_key[0]) + "-" +  str(redcap_key[1]), details, error={ 'message': str(e), 'details': details, 'errno': e.errno, 'filename': e.filename, 'strerror': e.strerror })
+        return
     # Convert downloaded Stroop file to CSV scores file
     cmd = str(os.path.join( import_bindir, "stroop2csv" )) +  ' --mr-session --record ' +  redcap_key[0] + ' --event ' + redcap_key[1] + " " + str(stroop_file_path) + ' ' + str(tempdir) 
     (ecode,sout, serr) = sutils.call_shell_program(cmd)
