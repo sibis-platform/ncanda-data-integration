@@ -17,7 +17,6 @@ import argparse
 import operator
 
 import yaml
-import pyxnat
 import redcap
 import pandas as pd
 
@@ -99,12 +98,12 @@ def get_spiral_uris( xnat_eid_list ):
     spiral_uri = ''
     spiralrest_uri = ''
     for xnat_eid in xnat_eid_list:
-        resource_dict_list = xnat._get_json( '/data/experiments/%s/resources/?format=json' %xnat_eid )
+        resource_dict_list = xnat._get_json( '/data/experiments/%s/resources/' %xnat_eid )
         for res in resource_dict_list:
             if 'spiral' in res['label'].lower():
                 resource_id = res['xnat_abstractresource_id']
                 eid = res['cat_id']
-                obj = xnat._get_json('/data/experiments/%s/resources/%s/files?format=json' %(eid, resource_id))
+                obj = xnat._get_json('/data/experiments/%s/resources/%s/files' %(eid, resource_id))
                 if len( obj ) > 0:
                     file_path = obj[0]['Name']
                     if 'rest' in res['label'].lower():
@@ -120,18 +119,6 @@ def get_phantom_scans_for_date( date, scanner ):
 def get_phantom_scans_for_date_24h( yesterday, tomorrow, scanner ):
     return [ session for (session,sscanner,sdate) in xnat_phantom_sessions_list if ((sdate == yesterday) or (sdate == tomorrow)) and (sscanner == scanner) ]
 
-# Get one or more custom variables from XML representation of experiment
-def get_custom_variables( experiment, field_names, default_value=None ):
-    xml = experiment.get()
-    values = []
-    for field_name in field_names:
-        field_regex = '.*<xnat:field name="%s">(.*?)</xnat:field>' % field_name.lower()
-        match = re.match( field_regex, xml, flags=re.DOTALL )
-        if match:
-            values.append( re.sub( '\s*<!--.*?-->\s*', '', match.group( 1 ), flags=re.DOTALL ) )
-        else:
-            values.append( default_value )
-    return values
 
 #
 # Get list of all usable scans in the experiments listed
@@ -148,9 +135,10 @@ def get_usable_scans_list( session, xnat_eid_list, redcap_visit_id, xnat_sid):
                       xnat_sid = xnat_sid)
             return [None,True]  
 
-        for scan in xnat_exp.scans('*').get():
+        for scan in list(xnat_exp.scans):
             try : 
-                ( type, quality ) = xnat_exp.scan( scan ).attrs.mget(['type','quality'])
+                type = xnat_exp.scans[scan].type or ''
+                quality = xnat_exp.scans[scan].quality or ''
             except Exception as err_msg:
                 slog.info(redcap_visit_id + "-" + scan + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],
                           "ERROR: could not get type and quality of scan",
@@ -376,11 +364,11 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     # field_regex = '.*<xnat:scanner manufacturer="(.*?)" model="(.*?)">(.*?)</xnat:scanner>'
     first_eid = xnat_eid_list[0]
     field_regex = '.*<xnat:scanner manufacturer="(.*?)" model="(.*?)"'
-    match = re.match(field_regex, xnat.select.experiment(first_eid).get(), flags=re.DOTALL)
+    match = re.match(field_regex, xnat.raw_text(xnat.select.experiments[first_eid]), flags=re.DOTALL)
     scannerMfc = "" 
     if match:
         scannerMfc = match.group(1).upper().split(" ",1)[0]
-        result['mri_scanner'] = match.group(1) + " " + match.group(2) + " " + str(xnat.select.experiment(first_eid).attrs.get('scanner'))
+        result['mri_scanner'] = match.group(1) + " " + match.group(2) + " " + str(xnat.select.experiments[first_eid].get('scanner'))
 
 
 
@@ -429,7 +417,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
 
     for xnat_eid in xnat_eid_list:
         result['mri_xnat_eids'] += xnat_eid + ' '
-        note = xnat.select.experiment(xnat_eid).attrs.get('note')
+        note = xnat.select.experiments[xnat_eid].note or ''
         experiment_note = note.strip()
         if len(experiment_note) > 0:
             result['mri_notes'] += '[%s] %s ' % (xnat_eid, re.sub('&quot;', '"', experiment_note))
@@ -478,9 +466,14 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
                 result['mri_adni_phantom'] = '3'  # Missing
 
     # Get custom variables of the "Reading" group
-    t1w_experiment = xnat.select.project( xnat_pid ).subject( xnat_sid ).experiment( re.sub('/.*', '', result['mri_series_t1']))
-    [ result['mri_datetodvd'], result['mri_findingsdate'], result['mri_findings'],
-      result['mri_excludefromanalysis'], result['mri_referredtopi']] = get_custom_variables( t1w_experiment, [ 'DateToDVD', 'FindingsDate', 'Findings', 'ExcludeFromAnalysis', 'ReferredToPI'], '')
+    try:
+        t1w_experiment = xnat.select.projects[xnat_pid].subjects[xnat_sid].experiments[re.sub('/.*', '', result['mri_series_t1'])]
+        [ result['mri_datetodvd'], result['mri_findingsdate'], result['mri_findings'],
+        result['mri_excludefromanalysis'], result['mri_referredtopi']] = xnat.get_custom_variables( t1w_experiment, [ 'DateToDVD', 'FindingsDate', 'Findings', 'ExcludeFromAnalysis', 'ReferredToPI'], '')
+    except KeyError:
+        def _empty_init(obj, f):
+            obj[f] = ''
+        any(_empty_init(result, x) for x in ['mri_datetodvd', 'mri_findingsdate', 'mri_findings', 'mri_excludefromanalysis', 'mri_referredtopi'])
 
     # Check if images have received reading and have either been labeled 'normal' or marked as checked
     if (result['mri_findings'].lower() == 'normal') or mri_inspection_completed:
@@ -679,7 +672,7 @@ for ( session_id, session_subject_id, projects, date, scanner ) in xnat_sessions
 # Get ADNI phantom scans from XNAT
 #
 # try:
-#     xnat_phantom_sessions_list = xnat.select( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SCANNER','xnat:mrSessionData/DATE'] ).where( [ ('xnat:mrSessionData/LABEL','LIKE', '%-99999-P-9-%') ] ).items()
+#     xnat_phantom_sessions_list = xnat.search( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SCANNER','xnat:mrSessionData/DATE'] ).where( [ ('xnat:mrSessionData/LABEL','LIKE', '%-99999-P-9-%') ] ).items()
 # except:
 #     sys.exit( "ERROR: retrieving phantom session list from XNAT failed." )
 xnat_phantom_sessions_list = session.xnat_export_general('xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SCANNER','xnat:mrSessionData/DATE'], [ ('xnat:mrSessionData/LABEL','LIKE', '%-99999-P-9-%') ],'phantom_session_data')

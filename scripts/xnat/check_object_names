@@ -12,7 +12,6 @@ import stat
 import time
 import argparse
 import datetime
-import pyxnat
 import sys
 
 import sibispy
@@ -51,34 +50,23 @@ args = parser.parse_args()
 slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: Check Object Names Message', 'check_object_names', args.time_log_dir)
 slog.startTimer1()
 
-# Get one or more custom variables from XML representation of experiment
-def get_custom_variables( experiment, field_names, default_value=None ):
-    xml = experiment.get()
-    values = []
-    for field_name in field_names:
-        field_regex = '.*<xnat:field name="%s">(.*?)</xnat:field>' % field_name.lower()
-        match = re.match( field_regex, xml, flags=re.DOTALL )
-        if match:
-            values.append( re.sub( '\s*<!--.*?-->\s*', '', match.group( 1 ), flags=re.DOTALL ) )
-        else:
-            values.append( default_value )
-    return values
-
 #
 # Export T1w and T2w DICOM files to ZIP archive
 #
 def export_t1t2_to_zip( experiment, experiment_label,xnat_dir):
     # Get list of all scans in the session
     scan_dirs = []
-    for scan in experiment.scans().get():
-        scan_type = experiment.scan( scan ).attrs.get( 'type' )
+    for scan in experiment.scans.listing:
+        scan_type = scan.type
         if ('t1spgr' in scan_type) or ('mprage' in scan_type) or ('t2fse' in scan_type):
-            match = re.match('.*(' + xnat_dir + '/.*)scan_.*_catalog.xml.*', experiment.scan(scan).get(), re.DOTALL)
-            if match:
-                # Replace the path stored in XNAT with the NFS mount path.
-                xnat_path = match.group(1).replace('storage/XNAT',
-                                                   'ncanda-xnat')
-                scan_dirs.append(xnat_path)
+            for _, val in sutils.objwalk(scan.fulldata):
+                match = re.match('.*(' + xnat_dir + '/.*)scan_.*_catalog.xml.*', experiment.scan(scan).get(), re.DOTALL)
+                if match:
+                    # Replace the path stored in XNAT with the NFS mount path.
+                    xnat_path = match.group(1).replace('storage/XNAT',
+                                                    'ncanda-xnat')
+                    scan_dirs.append(xnat_path)
+                    break
 
     if len( scan_dirs ) > 0:
         if args.verbose:
@@ -152,8 +140,8 @@ def validate_experiment( ifc, project, sid, slabel, eid, elabel, edate, einsert,
         correct_label = '%s-%s' % ( slabel, edate_short )
         if re.match( '^%s(-[0-9]){0,1}' % correct_label, elabel ):
             if not 'P' in slabel:
-                experiment = ifc.select.project( project ).subject( sid ).experiment( eid )
-                edvddate = get_custom_variables( experiment, [ 'DateToDVD' ] )[0]
+                experiment = ifc.select.projects[project].subjects[sid].experiments[eid]
+                edvddate = ifc.get_custom_variables( experiment, [ 'DateToDVD' ] )[0]
                 if (eid in objects_force_write) or (edvddate == None) or not re.match( '^2[0,1][0-9]{2}-[0-1][0-9]-[0-3][0-9]$', edvddate ):
                     if args.zip_none:
                         check_again.append( eid )
@@ -212,8 +200,8 @@ subject_list = []
 
 def validate_new_and_outstanding( ifc, project, objects_to_check, objects_force_write, date_last_checked,xnat_dir):
     # Get all subjects and sessions from XNAT - this speeds things up a lot
-    subject_list = ifc.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID','xnat:subjectData/SUBJECT_LABEL','xnat:subjectData/INSERT_USER','xnat:subjectData/INSERT_DATE'] ).where( [ ('xnat:subjectData/PROJECT','LIKE', '%'+project+'%') ] )
-    experiment_list = ifc.select( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/LABEL','xnat:mrSessionData/SUBJECT_ID','xnat:mrSessionData/DATE','xnat:mrSessionData/INSERT_USER','xnat:mrSessionData/LAST_MODIFIED'] ).where( [ ('xnat:mrSessionData/PROJECT','LIKE', '%'+project+'%') ] )
+    subject_list = ifc.search( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID','xnat:subjectData/SUBJECT_LABEL','xnat:subjectData/INSERT_USER','xnat:subjectData/INSERT_DATE'] ).where( [ ('xnat:subjectData/PROJECT','LIKE', '%'+project+'%') ] )
+    experiment_list = ifc.search( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/LABEL','xnat:mrSessionData/SUBJECT_ID','xnat:mrSessionData/DATE','xnat:mrSessionData/INSERT_USER','xnat:mrSessionData/LAST_MODIFIED'] ).where( [ ('xnat:mrSessionData/PROJECT','LIKE', '%'+project+'%') ] )
 
     check_again = []
     if len( subject_list ) > 0:
@@ -270,7 +258,7 @@ config_uri = '/data/config/pyxnat/check_object_names'
 if not args.check_all:
     try:
         # Retrieve script config from XNAT server
-        content = ifc._get_json( '%s' % config_uri )
+        content = ifc._get_json( config_uri )
 
         # Extract date this script was last run
         creation_date = content[0]['create_date']
@@ -317,7 +305,7 @@ if args.last_month:
 str_date_last_checked = time.strftime( xnat_date_format, date_last_checked )
 
 # Get a list of all MR imaging sessions
-project_ids = ifc.select.projects().get()
+project_ids = list(ifc.select.projects)
 check_again = []
 for pid in project_ids:
     check_again += validate_new_and_outstanding( ifc, pid, objects_to_check, objects_force_write, str_date_last_checked,session.get_xnat_dir() )
@@ -335,7 +323,7 @@ if not args.no_update:
     else :
         check_again_str = 'NONE'
 
-    content = ifc._exec( uri='%s?inbody=true' % config_uri, method='PUT', body=check_again_str, headers={'content-type':'text/plain'} )
+    content = ifc._exec( uri=config_uri, query={'inbody':'true'}, method='PUT', body=check_again_str, headers={'content-type':'text/plain'} )
 
 slog.takeTimer1("script_time","{'TotalSubjects': " + str(len(subject_list)) + ", 'TotalExperiments': " +  str(len(experiment_list)) + "}")
 

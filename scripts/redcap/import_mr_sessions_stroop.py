@@ -26,11 +26,11 @@ def check_for_stroop( xnat, xnat_eid_list, verbose=False ):
         print("check_for_stroop: " + str(xnat_eid_list))
 
     for xnat_eid in xnat_eid_list:
-        experiment = xnat.select.experiment( xnat_eid )
+        experiment = xnat.select.experiments[ xnat_eid ]
 
         # Get list of resource files that match the Stroop file name pattern
-        for resource in  experiment.resources().get():
-            resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files?format=json' % ( xnat_eid, resource ) );
+        for resource in list(experiment.resources):
+            resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files' % ( xnat_eid, resource ) );
             stroop_files += [ (xnat_eid, resource, re.sub( '.*\/files\/', '', file['URI']) ) for file in resource_files if re.match( '^NCANDAStroopMtS_3cycles_7m53stask_.*.txt$', file['Name'] ) ]
 
     # No matching files - nothing to do
@@ -57,18 +57,18 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, \
         print("Importing Stroop data from file %s:%s" % ( stroop_eid, stroop_file ))
 
     # Download Stroop file from XNAT into temporary directory
-    experiment = xnat.select.experiment( stroop_eid )
+    experiment = xnat.select.experiments[stroop_eid]
     tempdir = tempfile.mkdtemp()
 
     try:
-        stroop_file_copy_path = os.path.join( tempdir, stroop_file )
-        stroop_dir_path = os.path.dirname(stroop_file_copy_path)
+        stroop_file_path = os.path.join( tempdir, stroop_file )
+        stroop_dir_path = os.path.dirname(stroop_file_path)
         if not os.path.isdir(stroop_dir_path):
             os.makedirs(stroop_dir_path)
 
-        stroop_file_path = experiment.resource( stroop_resource ).file( stroop_file ).get_copy( stroop_file_copy_path )
+        experiment.resources[stroop_resource].files[stroop_file].download( stroop_file_path )
     except IOError as e:
-        details = "Error: import_mr_sessions_stroop: unable to get copy resource {0} file {1} to {2}".format(stroop_resource, stroop_file, stroop_file_copy_path)
+        details = "Error: import_mr_sessions_stroop: unable to get copy resource {0} file {1} to {2}".format(stroop_resource, stroop_file, stroop_file_path)
         slog.info(str(redcap_key[0]) + "-" +  str(redcap_key[1]), details, error_obj={ 'message': str(e), 'errno': e.errno, 'filename': e.filename, 'strerror': e.strerror })
         return
     # Convert downloaded Stroop file to CSV scores file

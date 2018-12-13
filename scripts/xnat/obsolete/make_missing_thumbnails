@@ -6,11 +6,12 @@
 ##
 
 from __future__ import print_function
-import pyxnat
 import os.path
 import time
 import sys
 import re
+
+from sibispy.xnat_util import XNATExperimentUtil, get_xnat_util
 
 import argparse
 parser = argparse.ArgumentParser( description="Trigger pipelines to generate missing thumbnails for sessions that are missing them." )
@@ -18,7 +19,7 @@ parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_
 args = parser.parse_args()
 
 # Create interface using stored configuration
-xnat = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+xnat = get_xnat_util()
 
 # List of scan type wildcards to exclude
 exclude_types = [ '.*phoenix.*', '.*colfa.*', '.*tensor.*' ]
@@ -29,14 +30,17 @@ def check_for_snapshots( xnat, subj, expt, project ):
     In some cases a scan may exist that has no snapshot, so I will have to set a threshold/ % that would suggest
     the Autorun pipeline properly generated webQC Images--- some images by default do not generate snapshots such as phoenix
     reports and other type of non-image scans"""
-    expt_obj = xnat.select.project( project ).subject( subj ).experiment( expt )
+    expt_obj = xnat.select.projects[project].subjects[subj].experiments[expt]
     scans_found = 0
     scans_w_snapshot = 0
-    for scan in expt_obj.scans():
-        if not len( [ t for t in exclude_types if re.match( t, scan.attrs.get('type').lower() ) ] ):
-            a = scan.resource('SNAPSHOTS')
-            if a.id():
-                scans_w_snapshot +=1
+    for scan in expt_obj.scans.values():
+        if not len( [ t for t in exclude_types if re.match( t, scan.type.lower() ) ] ):
+            try:
+                a = scan.resources['SNAPSHOTS']
+                if a.id:
+                    scans_w_snapshot +=1
+            except KeyError:
+                pass
             scans_found += 1
 
     if args.verbose:
@@ -46,21 +50,22 @@ def check_for_snapshots( xnat, subj, expt, project ):
 
 # Check one project
 def check_project( xnat, project ):
-    subj_list = xnat.select.project( project ).subjects().get('label')
+    subj_list = list(xnat.select.projects[project].subjects)
 
     for subj in subj_list:
-        expt_list = xnat.select.project( project ).subject( subj ).experiments().get('label')
+        expt_list = list(xnat.select.projects[project].subject[subj].experiments)
         for expt in expt_list:
             (scans_found,snapshots_found) = check_for_snapshots( xnat, subj, expt, project )
             if snapshots_found < scans_found:
                 if args.verbose:
                     print("Missing snapshots for",subj,expt)
-                expt_obj = xnat.select.project( project ).subject( subj ).experiment( expt )
-                expt_obj.trigger_pipelines()
+                expt_obj = xnat.select.project[project].subject[subj].experiment[expt]
+                expt_util = XNATExperimentUtil(expt_obj)
+                expt_util.trigger_pipelines()
                 time.sleep(20 * (scans_found-snapshots_found)) ### inserting a small delay so I don't queue up 100's of processes
                 ### may want to throttle this/add ap ause as it doens't seem to queue things but tries to run everything at once 
 
 # Get a list of all MR imaging sessions
-project_ids = xnat.select.projects().get()
+project_ids = list(xnat.select.projects)
 for pid in project_ids:
     check_project( xnat, pid )

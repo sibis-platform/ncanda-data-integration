@@ -10,11 +10,11 @@ import datetime
 from matplotlib.dates import date2num
 from prettytable import PrettyTable
 import numpy as np
-from pyxnat import Interface
-import os
 
-conf = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' )
-interface = Interface( config=conf )
+import os
+from sibispy.xnat_util import get_xnat_util
+
+interface = get_xnat_util()
  
 #unique elements of a list
 def unique(seq, idfun=None): 
@@ -35,7 +35,7 @@ def numconv(dt):
     return dd
  
 #extract all session ids with session insert date, session project and sesion scan date
-sess = interface.select( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/INSERT_DATE','xnat:mrSessionData/PROJECT','xnat:mrSessionData/DATE']).all().items()
+sess = interface.search( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/INSERT_DATE','xnat:mrSessionData/PROJECT','xnat:mrSessionData/DATE']).all().items()
  
 #numpy verrsion of the above information matrix
 nns = np.array(sess)

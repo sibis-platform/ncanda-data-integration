@@ -16,22 +16,21 @@ import os
 import json
 from prettytable import PrettyTable
 from operator import itemgetter
-from pyxnat import Interface
+from sibispy.xnat_util import get_xnat_util, default_config
 ## parsing options
 import argparse
 parser = argparse.ArgumentParser( description="Temporal Scanner Performance Stability table based on FBIRN." )
 parser.add_argument( "-c", "--CSV" ,  help="save a csv file of the table", action="store_true")
 parser.add_argument( "-p","--Print" , help="print the table to Shell/Interpreter", action="store_true")
+parser.add_argument( "--config", help="sibis configuration file", default=default_config)
 args = parser.parse_args()
 
 ## Create interface from stored configuration
-import os
-conf = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' )
-interface = Interface( config=conf )
+interface = get_xnat_util(args.config)
 interface._memtimeout = 0
 ## Get project, scanner, insert_date, session_id and subject_id for all phantoms 
-phtm = interface.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID']).where([('xnat:subjectData/SUBJECT_LABEL','LIKE','%-00000-P-%')  ]).get('subject_id')
-phs = [interface.select( 'xnat:mrSessionData', ['xnat:mrSessionData/PROJECT','xnat:mrSessionData/SCANNER_CSV','xnat:mrSessionData/INSERT_DATE','xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SUBJECT_ID']).where([('xnat:mrSessionData/SUBJECT_ID','LIKE',hh)  ] ).items() for hh in phtm]
+phtm = interface.search( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID']).where([('xnat:subjectData/SUBJECT_LABEL','LIKE','%-00000-P-%')  ]).get('subject_id')
+phs = [interface.search( 'xnat:mrSessionData', ['xnat:mrSessionData/PROJECT','xnat:mrSessionData/SCANNER_CSV','xnat:mrSessionData/INSERT_DATE','xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SUBJECT_ID']).where([('xnat:mrSessionData/SUBJECT_ID','LIKE',hh)  ] ).items() for hh in phtm]
 sessions = [it for sublist in phs for it in sublist] #put them in a decent tuple form 
 ## download the QA test file based on the above information and analyze it  
 sscom = []

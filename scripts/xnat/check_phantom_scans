@@ -13,36 +13,15 @@ import time
 import argparse
 import datetime
 import yaml
-import pyxnat
 import sys
 
 import sibispy
 from sibispy import sibislogger as slog
-from sibispy import sibis_email 
+from sibispy import sibis_email, xnat_util
 
 #
 # Functions
 #
-
-# Get a custom variable from XML representation of experiment
-def get_custom_variable(eid, exp_get, field_name ):
-    field_regex = '.*<xnat:field name="%s">(.*?)</xnat:field>' % field_name
-    xnat_output = None
-    try:
-           match = re.match(field_regex, exp_get, flags=re.DOTALL)
-    except Exception as e:
-        slog.info(eid, "ERROR: failed to create xml document from experiment obj for '" + str(field_name) +"'",
-                  info = "Please check if eid still exists in xnat. If not ignore error and otherwise run ./check_phantom_scans -e " + eid,
-                  error_msg=str(e),
-                  xnat_api_output = xnat_output)
-
-        return None
-
-    if match:
-        return re.sub('\s*<!--.*?-->\s*', '', match.group(1), flags=re.DOTALL)
-    else:
-        return None
-
 
 # Find a phantom scan within 24h of the given experiment
 def find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified, phantom_id, edate, etime, scanner):
@@ -55,7 +34,7 @@ def find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified,
     constraints = [('xnat:mrSessionData/SUBJECT_ID','LIKE',phantom_id), 'AND',
                    [[('xnat:mrSessionData/DATE', '=', edate_yesterday), ('xnat:mrSessionData/TIME', '>=', etime), 'AND'],
                     [('xnat:mrSessionData/DATE', '=', edate_tomorrow), ('xnat:mrSessionData/TIME', '<=', etime), 'AND'], 'OR']]
-    phantom_scans = ifc.select('xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID', 'xnat:mrSessionData/DATE', 'xnat:mrSessionData/TIME']).where(constraints).items()
+    phantom_scans = ifc.search('xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID', 'xnat:mrSessionData/DATE', 'xnat:mrSessionData/TIME']).where(constraints).items()
     # Still haven't found anything - then there is no phantom scan
     if len(phantom_scans) == 0:
         if args.sendmail:
@@ -81,10 +60,11 @@ def find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified,
 
 # Check one experiment for matching phantom scans
 def check_experiment(session, eid, experiment):
+    expUtil = xnat_util.XNATSessionElementUtil(experiment)
     try:
-        experiment_last_modified = experiment.attrs.get('last_modified')
+        experiment_last_modified = expUtil.get('last_modified')
         if experiment_last_modified == '':
-            experiment_last_modified = experiment.attrs.get('insert_date')
+            experiment_last_modified = expUtil.get('insert_date')
         date_last_modified = time.strptime(experiment_last_modified[0:19], xnat_date_format ) # truncate ".###" fractional seconds by using only 0..19th characters
     except:
         # default to right now
@@ -93,7 +73,7 @@ def check_experiment(session, eid, experiment):
     experiment_last_modified = ''
 
     try:
-        prj, sid, seid, experiment_label, edate, etime, scanner = experiment.attrs.mget(['project', 'subject_ID', 'ID', 'label', 'date', 'time', 'scanner'])
+        prj, sid, seid, experiment_label, edate, etime, scanner = expUtil.mget(['project', 'subject_ID', 'ID', 'label', 'date', 'time', 'scanner'])
     except:
         error = "ERROR: failed to get data for experiment"
         slog.info(eid, error, 
@@ -125,11 +105,11 @@ def check_experiment(session, eid, experiment):
                           related_issues = issue_url,
                           cmd=" ".join(sys.argv))
                 return False
-                
+            
             phantom_scans = ifc.array.experiments(experiment_type='xnat:mrSessionData', constraints={ 'xnat:mrSessionData/subject_id':phantom_id, 'date': edate})
             # handle check for phantoms on the same day but wrong scanner
             eids = phantom_scans.get('ID', always_list=True)
-            phantom_scanners = [ifc.select.experiment(eid).attrs.get('scanner') for eid in eids]
+            phantom_scanners = [ifc.select.experiments[eid].get('scanner') for eid in eids]
             if args.verbose:
                 print("Phantom scans: {0}".format(phantom_scans))
             if scanner not in phantom_scanners and len(phantom_scans) != 0:
@@ -233,7 +213,7 @@ email = sibis_email.xnat_email(session)
 date_last_checked = time.localtime(0)
 config_uri = '/data/config/pyxnat/check_phantom_scans'
 try:
-    content = ifc._exec('%s?format=json' % config_uri)
+    content = ifc._exec(config_uri, format='json')
     creation_date = json.loads(content)['ResultSet']['Result'][0]['create_date']
     date_last_checked = time.strptime(creation_date[0:19], xnat_date_format)
     if args.verbose:
@@ -250,24 +230,20 @@ if args.eid:
     experiment_ids.append(args.eid)
 else:
     # Get a list of all MR imaging sessions
-    experiment_ids = ifc.select.experiments().get()
+    experiment_ids = list(ifc.select.experiments)
 
 for eid in experiment_ids:
     # For each experiment, see if the override variable is set. Otherwise check it
-    experiment = ifc.select.experiment(eid)
-    try: 
-        with sibispy.session.Capturing() as xnat_output: 
-            exp_get = experiment.get()
-
-    except Exception as e:
+    try:
+        experiment = ifc.select.experiments[eid]
+    except KeyError as e:
         slog.info(eid, "ERROR: failed to retrieve experiment from XNAT", 
                   info = "Please check if eid still exists in xnat. If not ignore error and otherwise run ./check_phantom_scans -e " + eid,
-                  error_msg=str(e),
-                  xnat_api_output = xnat_output)
+                  error_msg=str(e))
         continue
 
     # Do not change to True ! as xnat saves it as 'true' 
-    if get_custom_variable(eid, exp_get, 'phantommissingoverride') != 'true' :
+    if 'phantommissingoverride' in experiment.fields and experiment.fields['phantommissingoverride'] != 'true':
         count_phantom += 1
         check_experiment(session, eid, experiment)
 

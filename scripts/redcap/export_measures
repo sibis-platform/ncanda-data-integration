@@ -130,7 +130,7 @@ if not xnat :
 # Get subject and project IDs
 #
 try:
-    subject_project_list = xnat.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_LABEL', 'xnat:subjectData/SUBJECT_ID','xnat:subjectData/PROJECT'] ).where( [ ('xnat:subjectData/SUBJECT_LABEL','LIKE', '%')] ).items()
+    subject_project_list = xnat.search( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_LABEL', 'xnat:subjectData/SUBJECT_ID','xnat:subjectData/PROJECT'] ).where( [ ('xnat:subjectData/SUBJECT_LABEL','LIKE', '%')] ).items()
 except:
     sys.exit( "ERROR: retrieving subject list from XNAT failed." )
 

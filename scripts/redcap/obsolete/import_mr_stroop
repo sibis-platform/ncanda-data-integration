@@ -21,7 +21,6 @@ import pandas
 import sibispy
 from sibispy import sibislogger as slog
 import redcap
-import pyxnat
 
 # Setup command line parser
 parser = argparse.ArgumentParser( description="For all subjects and visits with MR reports in the REDCap database, find MR Stroop files and upload to REDCap", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
@@ -43,14 +42,14 @@ import_bindir = os.path.join( os.path.dirname( os.path.dirname( os.path.abspath(
 bindir = os.path.dirname( os.path.abspath(__file__) )
 
 def check_for_stroop( xnat, xnat_eid, redcap_key, verbose=False, no_upload=False, post_to_github=False):
-    experiment = xnat.select.experiment( xnat_eid )
+    experiment = xnat.select.experiments[ xnat_eid ]
 
     # Get list of resource files that match the Stroop file name pattern
     experiment_files = []
 
 
-    for resource in  experiment.resources().get():
-        resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files?format=json' % ( xnat_eid, resource ) );
+    for resource in list(experiment.resources):
+        resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files' % ( xnat_eid, resource ) );
 
         experiment_files += [ (resource, re.sub( '.*\/files\/', '', file['URI']) ) for file in resource_files if re.match( '^troop*.zip$', file['Name'] ) ]
 

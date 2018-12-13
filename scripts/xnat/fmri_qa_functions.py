@@ -14,6 +14,7 @@ import shutil
 
 from sibispy import sibislogger as slog
 from sibispy import utils as sutil
+from sibispy.xnat_util import XNATResourceUtil, XNATSessionElementUtil
 
 # QA metric thresholds - defines a general threshold, either upper or lower.
 #  Having this as a class makes it easier to put all thresholds, upper and lower, into a single table.
@@ -77,8 +78,9 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
 
     # Upload detail file to XNAT
     try:
-        qa_file = interface.select.project( project ).subject( subject ).experiment( session ).resource('QA').file( 'QA-Details.txt' )
-        qa_file.insert( details_file_path, format='text', tags='qa,fbirn,txt', content='QA Analysis Details', overwrite=True )
+        qa_resource = interface.select.projects[project].subjects[subject].experiments[session].resources['QA']
+        resource_util = XNATResourceUtil(qa_resource)
+        resource_util.detailed_upload( details_file_path, 'QA-Details.txt', format='text', tags='qa,fbirn,txt', content='QA Analysis Details', overwrite=True)
     except:
         print("Something bad happened uploading QA details file to Experiment %s/%s/%s" % (project,session,label))
 
@@ -106,8 +108,9 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
     if sutils.htmldoc('--quiet --webpage --no-title --no-toc --compression=9 --outfile %s %s/index.html' % (summary_file_path,html_dir)) and os.path.exists( summary_file_path ):
         # Upload QA files to XNAT as file resources
         try:
-            qa_file = interface.select.project( project ).subject( subject ).experiment( session ).resource('QA').file( 'QA-Summary.pdf' )
-            qa_file.insert( summary_file_path, format='pdf', tags='qa,fbirn,pdf', content='QA Analysis Summary', overwrite=True )
+            qa_resource = interface.select.projects[project].subjects[subject].experiments[session].resources['QA']
+            resource_util = XNATResourceUtil(qa_resource)
+            resource_util.detailed_upload(summary_file_path, 'QA-Summary.pdf', format='pdf', tags='qa,fbirn,pdf', content='QA Analysis Summary', overwrite=True)
         except:
             print("Something bad happened uploading QA summary file to Experiment %s/%s" % (session,label))
     else:
@@ -121,21 +124,22 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
 # Process a phantom MR imaging session
 def process_phantom_session( interface, project, subject, session, label, xnat_dir,force_updates=False ):
     # Get the experiment object
-    experiment = interface.select.experiment( session )
+    experiment = interface.select.experiment[session]
 
     # First, see if the QA files are already there
-    files = experiment.resources().files().get()
+    files = [ fn.id for fn in r.files.values() for r in experiment.resources.values() ]
     if force_updates or not (('QA-Summary.pdf' in files) and ('QA-Details.txt' in files)):
         dicom_path=''
 
         # Get list of all scans in the session
-        scans = experiment.scans().get()
+        scans = experiment.scans.values()
         for scan in scans:
             # Check only 'usable' scans with the proper name
-            [scan_type,quality] = experiment.scan( scan ).attrs.mget( ['type', 'quality'] )
+            scan_type = scan.type
+            quality = scan.quality
             if re.match( '.*-rsfmri-.*', scan_type ):
                 # Extract the DICOM file directory from the XML representation
-                match = re.match( '.*(' + xnat_dir + '/.*)scan_.*_catalog.xml.*', experiment.scan( scan ).get(), re.DOTALL )
+                match = re.match( '.*(' + xnat_dir + '/.*)scan_.*_catalog.xml.*', interface.raw_text(scan), re.DOTALL )
                 if match:
                     dicom_path = match.group(1)
 
@@ -175,8 +179,10 @@ def run_subject_qa( interface, project, subject, session, scan_number, dicom_pat
     if sutils.htmldoc('--webpage --browserwidth 1024 --no-title --no-toc --compression=9 --outfile %s %s/index.html >& /dev/null' % (summary_file_path,html_dir)) and os.path.exists( summary_file_path ):
         # Upload QA files to XNAT as file resources
         try:
-            qa_file = interface.select.project( project ).subject( subject ).experiment( session ).resource('QA').file( 'QA-%s-Summary.pdf' % scan_number )
-            qa_file.insert( summary_file_path, format='pdf', tags='qa,fbirn,pdf', content='QA Analysis Summary', overwrite=True )
+            qa_resource = interface.select.project[project].subject[subject].experiment[session].resource['QA']
+            qa_file =  'QA-%s-Summary.pdf' % scan_number
+            resource_util = XNATResourceUtil(qa_resource)
+            resource_util.detailed_upload(summary_file_path, qa_file, format='pdf', tags='qa,fbirn,pdf', content='QA Analysis Summary', overwrite=True)
         except:
             print("Something bad happened uploading QA summary file to Experiment %s" % session)
     else:
@@ -189,16 +195,17 @@ def run_subject_qa( interface, project, subject, session, scan_number, dicom_pat
 # Process a subject MR imaging session
 def process_subject_session( interface, project, subject, session, xnat_dir, force_updates=False ):
     # Get the experiment object
-    experiment = interface.select.experiment( session )
+    experiment = interface.select.experiment[session]
 
     # Get list of all scans in the session
-    scans = experiment.scans().get()
+    scans = experiment.scans.values()
     for scan in scans:
         # Check only 'usable' scans with the proper name
-        [scan_type,quality] = experiment.scan( scan ).attrs.mget( ['type', 'quality'] )
+        scan_type = scan.type
+        quality = scan.quality
         if re.match( '.*fmri.*', scan_type ):
             # Extract the DICOM file directory from the XML representation
-            match = re.match( '.*('+ xnat_dir + '/.*)scan_.*_catalog.xml.*', experiment.scan( scan ).get(), re.DOTALL )
+            match = re.match( '.*('+ xnat_dir + '/.*)scan_.*_catalog.xml.*', interface.raw_text(scan), re.DOTALL )
             if match:
                 # If we found a matching scan, run the QA
-                run_subject_qa( interface, project, subject, session, scan, match.group(1) )
+                run_subject_qa( interface, project, subject, session, scan.id, match.group(1) )

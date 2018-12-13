@@ -85,7 +85,7 @@ def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_
     CreateDicomFlag=False
     for session_and_scan in session_and_scan_list.split( ' ' ):
         [ session, scan ] = session_and_scan.split( '/' )
-        match = re.match( '.*(' + xnat_dir +'/.*)scan_.*_catalog.xml.*', xnat.select.experiment( session ).scan( scan ).get(), re.DOTALL )
+        match = re.match( '.*(' + xnat_dir +'/.*)scan_.*_catalog.xml.*', xnat.raw_text(xnat.select.experiments[ session ].scans[ scan ]), re.DOTALL )
         if match:
             dicom_path = match.group(1)
             if not os.path.exists( dicom_path ):
@@ -185,12 +185,12 @@ def copy_adni_phantom_t1w( xnat, xnat_eid, to_directory ):
         return False
 
     # Get XNAT experiment object
-    experiment = xnat.select.experiment( xnat_eid )
+    experiment = xnat.select.experiments[ xnat_eid ]
 
     # Get list of resource files that match the T1w image file name pattern
     experiment_files = []
-    for resource in  experiment.resources().get():
-        resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files?format=json' % ( xnat_eid, resource ) );
+    for resource in  [ x.id for x in experiment.resources.listing ]:
+        resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files' % ( xnat_eid, resource ) );
         experiment_files += [ (resource, re.sub( '.*\/files\/', '', file['URI']) ) for file in resource_files if re.match( '^t1.nii.gz$', file['Name'] ) ]
 
     # No matching files - nothing to do
@@ -199,7 +199,7 @@ def copy_adni_phantom_t1w( xnat, xnat_eid, to_directory ):
 
     # Get first file from list, warn if more files
     (phantom_resource, phantom_file) = experiment_files[0]
-    phantom_file_path = experiment.resource( phantom_resource ).file( phantom_file ).get_copy( phantom_path )
+    experiment.resources[phantom_resource].files[ phantom_file ].download( phantom_path )
 
     return True
 
@@ -215,12 +215,12 @@ def copy_adni_phantom_xml( xnat, xnat_eid, to_directory ):
         return False
 
     # Get XNAT experiment object
-    experiment = xnat.select.experiment( xnat_eid )
+    experiment = xnat.select.experiments[ xnat_eid ]
 
     # Get list of resource files that match the phantom XML file name pattern
     experiment_files = []
-    for resource in  experiment.resources().get():
-        resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files?format=json' % ( xnat_eid, resource ) )
+    for resource in [ x.id for x in experiment.resources.listing ]:
+        resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files' % ( xnat_eid, resource ) )
         experiment_files += [ (resource, re.sub( '.*\/files\/', '', file['URI']) ) for file in resource_files if re.match( '^phantom.xml$', file['Name'] ) ]
 
     # No matching files - nothing to do
@@ -229,7 +229,7 @@ def copy_adni_phantom_xml( xnat, xnat_eid, to_directory ):
 
     # Get first file from list, warn if more files
     (phantom_resource, phantom_file) = experiment_files[0]
-    phantom_file_path = experiment.resource( phantom_resource ).file( phantom_file ).get_copy( phantom_path )
+    experiment.resources[ phantom_resource ].files[ phantom_file ].download( phantom_path )
 
     return True
 
@@ -257,7 +257,7 @@ def copy_rsfmri_physio_files( xnat, xnat_eid_and_scan, to_directory ):
         xnat_scan = match.group( 2 )
 
     # Get XNAT experiment object
-    experiment = xnat.select.experiment( xnat_eid )
+    experiment = xnat.select.experiments[ xnat_eid ]
 
     # Until we can look for "physio" tagged files, define list of filename patterns. Note that one type of files needs the scan number in the pattern to pick the right one
     physio_filename_patterns = { '.*\.puls' : 'card_data_50hz',
@@ -272,8 +272,8 @@ def copy_rsfmri_physio_files( xnat, xnat_eid_and_scan, to_directory ):
 
     # Get list of resource files that match one of the physio file name patterns
     physio_files = []
-    for resource in experiment.resources().get():
-        resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files?format=json' % ( xnat_eid, resource ) )
+    for resource in [ x.id for x in experiment.resources.listing ]:
+        resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files' % ( xnat_eid, resource ) )
         for (pattern,outfile_name) in physio_filename_patterns.iteritems():
             physio_files += [ (resource, re.sub( '.*\/files\/', '', file['URI']), outfile_name ) for file in resource_files if re.match( pattern, file['Name'] ) ]
 
@@ -283,7 +283,7 @@ def copy_rsfmri_physio_files( xnat, xnat_eid_and_scan, to_directory ):
 
     files_created = False
     for physio in physio_files:
-        (physio_resource, physio_file,outfile_name) = physio
+        (physio_resource, physio_file, outfile_name) = physio
 
         # What will be the output file name? Does it already exist?
         physio_file_path = os.path.join( to_directory, outfile_name )
@@ -292,7 +292,11 @@ def copy_rsfmri_physio_files( xnat, xnat_eid_and_scan, to_directory ):
             if not os.path.exists( to_directory ):
                 os.makedirs( to_directory )
 
-            physio_file_path_cache = experiment.resource( physio_resource ).file( physio_file ).get()
+            # determine a temporary target location
+            fh, physio_file_path_cache = tempfile.mkstemp(suffix='physio_cache')
+            fh.close()
+
+            experiment.resources[ physio_resource ].files[ physio_file ].download(physio_file_path_cache)
 
             if not '.txt' in physio_file:
                 shutil.move( physio_file_path_cache, physio_file_path )
@@ -317,6 +321,9 @@ def copy_rsfmri_physio_files( xnat, xnat_eid_and_scan, to_directory ):
                     files_created = True
                 finally:
                     to_file.close()
+            
+            # remove cached file
+            shutil.rmtree(physio_file_path_cache, ignore_errors=True)
 
     return files_created
 
@@ -327,12 +334,12 @@ def copy_rsfmri_physio_files( xnat, xnat_eid_and_scan, to_directory ):
 #
 def copy_manual_pipeline_files( xnat, xnat_eid, to_directory ):
     # Get XNAT experiment object
-    experiment = xnat.select.experiment( xnat_eid )
+    experiment = xnat.select.experiments[ xnat_eid ]
 
     # Get list of resource files that match one of the physio file name patterns
     files = []
-    for resource in experiment.resources().get():
-        resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files?format=json' % ( xnat_eid, resource ) )
+    for resource in list(experiment.resources):
+        resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files' % ( xnat_eid, resource ) )
         files += [ (resource, re.sub( '.*\/files\/', '', file['URI']) ) for file in resource_files if file['collection'] == 'pipeline' ]
 
     # No matching files - nothing to do
@@ -348,8 +355,9 @@ def copy_manual_pipeline_files( xnat, xnat_eid, to_directory ):
             if not os.path.exists( file_dir ):
                 os.makedirs( file_dir )
 
-            file_path_cache = experiment.resource( resource ).file( file_name ).get()
-            shutil.move( file_path_cache, file_path )
+            
+            experiment.resources[resource].files[file_name].download(file_path)
+ 
             files_created = True
 
     return files_created

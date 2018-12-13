@@ -19,7 +19,6 @@ import os
 
 import sibispy
 from sibispy import sibislogger as slog
-import pyxnat
 
 verbose = None
 
@@ -48,8 +47,6 @@ def main(args=None):
         print("Error: could not connect to xnat server!") 
         sys.exit()
 
-    # ifc = pyxnat.Interface(config=args.config)
-
     if args.reverse_lookup:
         search_field = 'xnat:subjectData/SUBJECT_ID'
         result_idx = 2
@@ -66,7 +63,7 @@ def main(args=None):
     output = ""
     for search in args.search:
         pattern = (search_field, 'LIKE', '%' + search + '%')
-        subjects = ifc.select('xnat:subjectData',
+        subjects = ifc.search('xnat:subjectData',
                               fields_per_subject).where([pattern]).items()
         if args.print_keys:
             if len(subjects) > 0:
