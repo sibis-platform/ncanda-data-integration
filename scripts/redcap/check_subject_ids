@@ -9,6 +9,7 @@ Validate that the last digit of a Subject ID is the same as the last digit of th
 """
 from __future__ import print_function
 # system packages
+from builtins import str
 import sys
 import hashlib
 

@@ -5,6 +5,7 @@ from __future__ import print_function
 # In[ ]:
 
 
+from builtins import range
 import pandas as pd
 import os
 import redcap as rc
@@ -64,7 +65,7 @@ form_names_subset
 def chunked_export(project, form, chunk_size=100, verbose=True):
     def chunks(l, n):
         """Yield successive n-sized chunks from list l"""
-        for i in xrange(0, len(l), n):
+        for i in range(0, len(l), n):
             yield l[i:i+n]
     record_list = project.export_records(fields=[project.def_field])
     records = [r[project.def_field] for r in record_list]
@@ -193,7 +194,7 @@ def set_emptiness_flags(row, form_name, drop_columns=None):
 
 
 emptiness_df = {form_name: all_data[form_name].apply(lambda x: set_emptiness_flags(x, form_name), axis=1) 
-                for form_name in all_data.keys() 
+                for form_name in list(all_data.keys()) 
                 if all_data[form_name] is not None}
 #all_data['recovery_questionnaire'].apply(lambda x: set_emptiness_flags(x, 'recovery_questionnaire'), axis=1)
 
@@ -201,9 +202,9 @@ emptiness_df = {form_name: all_data[form_name].apply(lambda x: set_emptiness_fla
 # In[ ]:
 
 
-for form_name in emptiness_df.keys():
+for form_name in list(emptiness_df.keys()):
     emptiness_df[form_name]['form'] = form_name
-all_forms_emptiness = pd.concat(emptiness_df.values())
+all_forms_emptiness = pd.concat(list(emptiness_df.values()))
 all_forms_emptiness.shape
 
 

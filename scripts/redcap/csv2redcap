@@ -7,6 +7,7 @@
 
 # Setup command line parser
 from __future__ import print_function
+from builtins import str
 import os
 import re
 import sys
@@ -95,19 +96,19 @@ for [key,row] in data.iterrows():
 import_response = project.import_records( record_list, overwrite='overwrite' )
 
 # If there were any errors, try to print them as well as possible
-if 'error' in import_response.keys():
+if 'error' in list(import_response.keys()):
     print("UPLOAD ERROR:", import_response['error'])
 
-if 'fields' in import_response.keys():
+if 'fields' in list(import_response.keys()):
     for field in import_response['fields']:
         print("\t", field)
 
-if 'records' in import_response.keys():
+if 'records' in list(import_response.keys()):
     for record in import_response['records']:
         print("\t", record)
 
 # Finally, print upload status if so desired
-if args.verbose and 'count' in import_response.keys():
+if args.verbose and 'count' in list(import_response.keys()):
     print("Successfully uploaded %d/%d records to REDCap." % ( import_response['count'], len( data ) ))
 
 slog.takeTimer1("script_time","{'records': " +  str(import_response['count']) + "}")

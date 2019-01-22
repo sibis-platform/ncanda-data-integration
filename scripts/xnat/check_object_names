@@ -6,6 +6,7 @@
 ##
 
 from __future__ import print_function
+from builtins import str
 import os
 import re
 import stat
@@ -207,12 +208,12 @@ def validate_new_and_outstanding( ifc, project, objects_to_check, objects_force_
     if len( subject_list ) > 0:
         subject_lookup = dict()
         # First, check each subject
-        for (sid,slabel,sinsert,sdate) in subject_list.items():
+        for (sid,slabel,sinsert,sdate) in list(subject_list.items()):
             subject_lookup[sid] = slabel
             if (sid in objects_to_check) or (sdate > date_last_checked):
                 check_again += validate_subject( ifc, sid, slabel, sinsert )
 
-                if len( [ eid for ( eid,elabel,esid,edate,einsert,emodified ) in experiment_list.items() if sid == esid ] ) == 0:
+                if len( [ eid for ( eid,elabel,esid,edate,einsert,emodified ) in list(experiment_list.items()) if sid == esid ] ) == 0:
                     check_again.append( sid )
                     if args.send_mail:
                         subject_uri = '%s/app/action/DisplayItemAction/search_element/xnat:subjectData/search_field/xnat:subjectData.ID/search_value/%s/project/%s' % (server_address,sid,project)
@@ -222,9 +223,9 @@ def validate_new_and_outstanding( ifc, project, objects_to_check, objects_force_
 
         # Second check each experiment
         if len(experiment_list) > 0:
-            for eid, elabel, sid, edate, einsert, emodified in experiment_list.items():
+            for eid, elabel, sid, edate, einsert, emodified in list(experiment_list.items()):
                 if (eid in objects_to_check) or (emodified > date_last_checked):
-                    if sid in subject_lookup.keys():
+                    if sid in list(subject_lookup.keys()):
                         check_again += validate_experiment(ifc, project, sid, subject_lookup[sid], eid, elabel, edate, einsert,xnat_dir,objects_force_write)
                     else:
                         error = 'ERROR: cannot determine (unique) label'

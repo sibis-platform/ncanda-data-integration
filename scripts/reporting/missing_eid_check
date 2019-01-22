@@ -14,6 +14,7 @@ python missing_eid_check.py xnat_inventory.csv redcap_inventory.csv
 """
 from __future__ import print_function
 
+from builtins import str
 import sys
 import pandas
 import datetime
@@ -45,7 +46,7 @@ def main(args):
     special_subject_list = []
     with open(args.special_cases) as fi:
         export_measures_map = yaml.load(fi).get('site_change').get('export_measures')
-        for sub in export_measures_map.iterkeys():
+        for sub in export_measures_map.keys():
             sub_map = export_measures_map.get(sub).get('default')  
             if sub_map.get('subject') in subject_list :
                 special_subject_list += [ sub_map.get('xnat_subject_id') ] 

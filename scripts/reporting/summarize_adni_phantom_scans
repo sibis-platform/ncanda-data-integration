@@ -6,9 +6,12 @@
 ##
 
 from __future__ import print_function
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
 import csv
 import numpy as np
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import base64
 import re
 import os
@@ -30,7 +33,7 @@ interface = get_xnat_util(args.config)
 interface._memtimeout = 0
 ## Get project, scanner, insert_date, session_id and subject_id for all phantoms 
 phtm = interface.search( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID']).where([('xnat:subjectData/SUBJECT_LABEL','LIKE','%-99999-P-%')  ]).get('subject_id')
-phs = [interface.search( 'xnat:mrSessionData', ['xnat:mrSessionData/PROJECT','xnat:mrSessionData/SCANNER_CSV','xnat:mrSessionData/INSERT_DATE','xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SUBJECT_ID']).where([('xnat:mrSessionData/SUBJECT_ID','LIKE',hh)  ] ).items() for hh in phtm]
+phs = [list(interface.search( 'xnat:mrSessionData', ['xnat:mrSessionData/PROJECT','xnat:mrSessionData/SCANNER_CSV','xnat:mrSessionData/INSERT_DATE','xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SUBJECT_ID']).where([('xnat:mrSessionData/SUBJECT_ID','LIKE',hh)  ] ).items()) for hh in phtm]
  
 sessions = [it for sublist in phs for it in sublist] #put them in a decent tuple form 
 ## download the QA test file based on the above information and analyze it  
@@ -43,12 +46,12 @@ for ss in sessions:
         atr= ptof.attributes()
         fpath=atr['URI'] #get the URI from the website so we can download the files without Pyxnat
         webl = 'https://ncanda.sri.com/xnat'+fpath # address to the file based on the info above
-        request = urllib2.Request(webl) # make a request
+        request = urllib.request.Request(webl) # make a request
         uname =str(json.load(open(conf,'rb'))[u'user'])
         pword = str(json.load(open(conf,'rb'))[u'password'])
         base64string = base64.encodestring('%s:%s' % (uname,pword)).replace('\n', '')
         request.add_header("Authorization", "Basic %s" % base64string) #authenticate
-        result = urllib2.urlopen(request).read()
+        result = urllib.request.urlopen(request).read()
 
 
         SNR = float(re.findall(r'\d+\.\d+',re.findall(r'<snr>\d+\.\d+',result)[0])[0])

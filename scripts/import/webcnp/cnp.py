@@ -30,7 +30,7 @@ instruments = { 'test_sessions' : 'test_sessions',
 def get_copy_variables( project_src, project_dst ):
     copy_vars = []
     form_dst_vars = [ field['field_name'][4:] for field in project_dst.metadata if (field['form_name'] == 'cnp_summary' ) ] ## get fields from 'cnp_summary' form and remove 'cnp_prefix'
-    for form in instruments.values():
+    for form in list(instruments.values()):
         form_src_vars = [ field['field_name'] for field in project_src.metadata if (field['form_name'] == form) ]
         copy_vars += list( set( form_src_vars ) & set( form_dst_vars ) )
     return copy_vars

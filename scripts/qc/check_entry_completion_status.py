@@ -110,7 +110,7 @@ data_all = get_data_for_event(api, qc_event)
 # Save the intermediate product if needed
 save_to_csv = False
 if save_to_csv:
-    [df.to_csv("data_20180226/" + form + '.csv') for form, df in data_all.items()]
+    [df.to_csv("data_20180226/" + form + '.csv') for form, df in list(data_all.items())]
 
 
 # In[ ]:
@@ -139,7 +139,7 @@ all_meta = {form: data_all[form].filter(regex=r'_date$|_notes?$') for form in fo
 
 
 meta_df = reduce(lambda x, y: pd.merge(x, y, left_index=True, right_index=True), 
-                 all_meta.values())
+                 list(all_meta.values()))
 notes_df = meta_df.filter(regex=r'_notes?$')
 dates_df = meta_df.filter(regex=r'_date$')
 
@@ -208,7 +208,7 @@ show_mr_flags(data_all).filter(regex=r'^mri_xnat|_date$|missing$|visit_notes|mri
 # In[ ]:
 
 
-np_keys = filter(lambda x: x.startswith('np'), data_all.keys())
+np_keys = [x for x in list(data_all.keys()) if x.startswith('np')]
 np_keys = ['visit_date'] + np_keys
 
 
@@ -305,13 +305,13 @@ np_forms = forms_for_qc[9:15] # could also filter with a regex
 def get_items_containing(needle, haystack):
     return [elt for elt in haystack if needle in elt]
 def get_items_matching_regex(regex, haystack):
-    return filter(lambda x: re.search(regex, x), haystack)
+    return [x for x in haystack if re.search(regex, x)]
 
 
 # In[ ]:
 
 
-{form: get_items_matching_regex(r"complete$|missing$", df.columns) for form, df in data_all.items()}
+{form: get_items_matching_regex(r"complete$|missing$", df.columns) for form, df in list(data_all.items())}
 
 
 # You can see the "multiple" subforms e.g. in form `clinical`, which has multiple completion variables (but no missingness variables - which is a separate problem).
@@ -687,7 +687,7 @@ def extract_flags_for_site(flags, site):  # Site is assumed to be a single chara
 def divide_flags_by_site(flags_by_form, sites = ['A', 'B', 'C', 'D', 'E']):
     by_site = dict.fromkeys(sites)
     for site in sites:
-        by_site[site] = {form_name: extract_flags_for_site(form, site) for (form_name, form) in flags_by_form.items()}
+        by_site[site] = {form_name: extract_flags_for_site(form, site) for (form_name, form) in list(flags_by_form.items())}
     return by_site
 unverified_by_site = divide_flags_by_site(unverified_flags)
 unverified_by_site
@@ -714,7 +714,7 @@ def make_urls_for_ids_by_form(flags_by_form, event_id=76):
     root_url = 'https://ncanda.sri.com/redcap/redcap_v6.10.5/DataEntry/index.php'
     entry_link_schema = root_url + '?pid=20&id=%s&event_id=%d&page=%s'
     links = {}
-    for form_name, form_flags in flags_by_form.iteritems():
+    for form_name, form_flags in flags_by_form.items():
         if form_flags:
             links[form_name] = {study_id: entry_link_schema % (study_id, event_id, form_name) for study_id in form_flags}
     return links
@@ -727,17 +727,17 @@ def make_urls_for_ids_by_form(flags_by_form, event_id=76):
 
 unverified_urls_by_site = {site: make_urls_for_ids_by_form(site_unverified) 
                            for site, site_unverified 
-                           in unverified_by_site.items()}
+                           in list(unverified_by_site.items())}
 
 
 # In[ ]:
 
 
-for site, flags_by_form in unverified_urls_by_site.iteritems():
+for site, flags_by_form in unverified_urls_by_site.items():
     print('# %s\n' % site)
-    for form_name, flags_in_form in flags_by_form.iteritems():
+    for form_name, flags_in_form in flags_by_form.items():
         print('## %s\n' % form_name)
-        for study_id, url in flags_in_form.iteritems():
+        for study_id, url in flags_in_form.items():
             print('* [%s](%s)' % (study_id, url))
     
 

@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 from __future__ import print_function
+from builtins import str
 import argparse
 import re
 import sys
@@ -58,7 +59,7 @@ for zfile in args.zip_files:
         continue
 
     try:
-        experiment = ifc.search( 'xnat:mrSessionData', ['xnat:mrSessionData/PROJECT','xnat:mrSessionData/SUBJECT_ID','xnat:mrSessionData/SESSION_ID'] ).where( [ ('xnat:mrSessionData/LABEL','LIKE',match.group(1)) ] ).items()[0]
+        experiment = list(ifc.search( 'xnat:mrSessionData', ['xnat:mrSessionData/PROJECT','xnat:mrSessionData/SUBJECT_ID','xnat:mrSessionData/SESSION_ID'] ).where( [ ('xnat:mrSessionData/LABEL','LIKE',match.group(1)) ] ).items())[0]
     except:
         error = "ERROR: session not found in XNAT"
         slog.info(match.group(1),error)

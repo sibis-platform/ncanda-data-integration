@@ -6,6 +6,7 @@
 ##
 
 from __future__ import print_function
+from builtins import str
 import argparse
 import string
 import os
@@ -92,7 +93,7 @@ if not len( data ) and args.verbose:
 # Set "Completeness" as "Unverified"
 data['test_sessions_complete'] = 1
 
-for sheet in cnp.instruments.keys():
+for sheet in list(cnp.instruments.keys()):
     if not sheet == 'test_sessions':
         col_name='%s_valid_code' % sheet
         if col_name in data :
@@ -133,19 +134,19 @@ for [key,row] in data.iterrows():
         continue 
 
     # If there were any errors, try to print them as well as possible
-    if 'error' in import_response.keys():
+    if 'error' in list(import_response.keys()):
         error = "UPLOAD ERROR: {}".format(import_response['error'])
         slog.info(hashlib.sha1(error).hexdigest()[0:6], error)
 
-    if 'fields' in import_response.keys():
+    if 'fields' in list(import_response.keys()):
         for field in import_response['fields']:
             print("\t", field)
 
-    if 'records' in import_response.keys():
+    if 'records' in list(import_response.keys()):
         for record in import_response['records']:
             print("\t", record)
 
-    if 'count' in import_response.keys():
+    if 'count' in list(import_response.keys()):
         uploaded += int( import_response['count'] )
     else:
         print("WARNING: failed to upload record",record['record_id'])

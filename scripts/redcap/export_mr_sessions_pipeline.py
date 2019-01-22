@@ -6,6 +6,7 @@
 ##
 
 from __future__ import print_function
+from builtins import str
 import re
 import os
 import glob
@@ -274,7 +275,7 @@ def copy_rsfmri_physio_files( xnat, xnat_eid_and_scan, to_directory ):
     physio_files = []
     for resource in [ x.id for x in experiment.resources.listing ]:
         resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files' % ( xnat_eid, resource ) )
-        for (pattern,outfile_name) in physio_filename_patterns.iteritems():
+        for (pattern,outfile_name) in list(physio_filename_patterns.items()):
             physio_files += [ (resource, re.sub( '.*\/files\/', '', file['URI']), outfile_name ) for file in resource_files if re.match( pattern, file['Name'] ) ]
 
     # No matching files - nothing to do
@@ -454,7 +455,7 @@ def export_to_workdir( redcap_visit_id, xnat, session_data, pipeline_workdir, re
 
     # Copy any manual pipeline override files from all involved experiments
     #   First, extract "Experiment ID" part from each "EID/SCAN" string, unless empty, then make into set of unique IDs.
-    all_sessions = set( [ eid for eid in [ re.sub( '/.*', '', session_data[series] ) for series in session_data.keys() if 'mri_series_' in series ] if 'NCANDA_E' in eid ] )
+    all_sessions = set( [ eid for eid in [ re.sub( '/.*', '', session_data[series] ) for series in list(session_data.keys()) if 'mri_series_' in series ] if 'NCANDA_E' in eid ] )
     for session in all_sessions:
         new_files_created = copy_manual_pipeline_files( xnat, session, pipeline_workdir ) or new_files_created
 

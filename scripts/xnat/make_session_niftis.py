@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 from __future__ import print_function
+from builtins import str
 import os
 import glob
 import shutil

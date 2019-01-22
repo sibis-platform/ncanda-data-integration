@@ -6,6 +6,7 @@
 ##
 
 from __future__ import print_function
+from builtins import str
 import os
 import re
 import tempfile

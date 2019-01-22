@@ -6,6 +6,9 @@
 ##
 
 from __future__ import print_function
+from __future__ import division
+from builtins import str
+from past.utils import old_div
 import os
 import re
 import ast
@@ -215,7 +218,7 @@ def get_fieldmap_scans( usable_scans_list, for_scan, scannerMfg,redcap_visit_id,
     return matched_fieldmaps
 
 def get_eid_from_scan_list(session_and_scan, sType):
-    if sType in session_and_scan.keys(): 
+    if sType in list(session_and_scan.keys()): 
         return session_and_scan[sType][0]
     return None
 
@@ -225,7 +228,7 @@ def get_eid_from_scan_list(session_and_scan, sType):
 def encode_session_and_scan( session_and_scan, type_list, match_eid = None ):
     # GE and siemens use different names for scans such as mprage and t1spgr
     for type in type_list:
-        if type in session_and_scan.keys(): 
+        if type in list(session_and_scan.keys()): 
             type_id = session_and_scan[type][0]
             if not match_eid :
                 return "%s/%s" % (type_id,session_and_scan[type][1])
@@ -297,7 +300,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     # Get project and subject IDs for this subject by name
     redcap_visit_id=subject+"-"+visit_date
 
-    if subject not in subject_project_dict.keys():
+    if subject not in list(subject_project_dict.keys()):
         slog.info(redcap_visit_id,"Subject cannot be found in XNAT!",
                   subject = subject, 
                   xnat_subject_id=xnat_sid)
@@ -332,7 +335,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
             # TODO: Check that today - date_of_birth doesn't fall into one of
             # the exceptions (if subject is 23, 25, or 26)
             error = 'Missing MRI for Subject with visit date.'
-            age = round(red2cas.days_between_dates(date_of_birth, visit_date) / 365.242, 2)
+            age = round(old_div(red2cas.days_between_dates(date_of_birth, visit_date), 365.242), 2)
             age_note = ("Participant age on visit date was %.2f. It is "
                         "possible that scan wasn't acquired because protocol "
                         "states that scans be skipped at ages 23, 25, and 26."
@@ -389,7 +392,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     result['mri_series_t1'] = encode_session_and_scan(scans_by_type, ['t1spgr', 'mprage'],struct_eid)
 
     # Get fieldmap series for the DTI and the rs-fMRI scans
-    if 'dti60b1000' in scans_by_type.keys() and 'dti6b500pepolar' in scans_by_type.keys() :
+    if 'dti60b1000' in list(scans_by_type.keys()) and 'dti6b500pepolar' in list(scans_by_type.keys()) :
         # Make sure all scans  are from the same experiment
 
         result['mri_series_dti6b500pepolar'] = encode_session_and_scan(scans_by_type, ['dti6b500pepolar'])
@@ -402,9 +405,9 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
         result['mri_series_dti_fieldmap'] = ' '.join(['%s/%s' % (eid,scan) for (eid, scan) in fieldmaps_dti60])
 
         result['mri_dti_date'] = xnat_sessions_dict[scans_by_type['dti60b1000'][0]][0]
-        result['mri_dti_age'] = str(red2cas.days_between_dates( date_of_birth, result['mri_dti_date']) / 365.242)
+        result['mri_dti_age'] = str(old_div(red2cas.days_between_dates( date_of_birth, result['mri_dti_date']), 365.242))
 
-    if 'rsfmri' in scans_by_type.keys():
+    if 'rsfmri' in list(scans_by_type.keys()):
         result['mri_series_rsfmri'] = encode_session_and_scan( scans_by_type, ['rsfmri'])
 
         # only choose gradient map that was acquired in the same session as fmri scan
@@ -412,7 +415,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
         result['mri_series_rsfmri_fieldmap'] = ' '.join(['%s/%s' % (eid,scan) for (eid, scan) in fieldmaps_rsfmri])
 
         result['mri_rsfmri_date'] = xnat_sessions_dict[scans_by_type['rsfmri'][0]][0]
-        result['mri_rsfmri_age'] = str(red2cas.days_between_dates(date_of_birth, result['mri_rsfmri_date']) / 365.242)
+        result['mri_rsfmri_age'] = str(old_div(red2cas.days_between_dates(date_of_birth, result['mri_rsfmri_date']), 365.242))
 
 
     for xnat_eid in xnat_eid_list:
@@ -431,9 +434,9 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     (result['mri_eid_spiral_stroop'], result['mri_eid_spiral_rest']) = get_spiral_uris(xnat_eid_list)
 
     # Get the T1w data (MPRAGE or SPGR) and its associated ADNI phantom scan
-    if 't1spgr' in scans_by_type.keys():
+    if 't1spgr' in list(scans_by_type.keys()):
         t1w_experiment_data = xnat_sessions_dict[scans_by_type['t1spgr'][0]]
-    elif 'mprage' in scans_by_type.keys():
+    elif 'mprage' in list(scans_by_type.keys()):
         t1w_experiment_data = xnat_sessions_dict[scans_by_type['mprage'][0]]
     else:
         t1w_experiment_data = None
@@ -441,7 +444,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     if t1w_experiment_data:
         # Compute age at T1w scan
         result['mri_t1_date'] = t1w_experiment_data[0]
-        result['mri_t1_age'] = str(red2cas.days_between_dates( date_of_birth, t1w_experiment_data[0]) / 365.242)
+        result['mri_t1_age'] = str(old_div(red2cas.days_between_dates( date_of_birth, t1w_experiment_data[0]), 365.242))
 
         # Find ADNI phantom scan in appropriate date range (either same day or within 24h)
         # Found same-day phantom scan?
@@ -516,7 +519,7 @@ def get_subject_next_visit_date(subject, after_visit_date):
 
 
 def get_sibling_id1(subject_label):
-    if subject_label in subject_label_to_sid_dict.keys():
+    if subject_label in list(subject_label_to_sid_dict.keys()):
         result = subject_label_to_sid_dict[subject_label]
     else:
         result = ''
@@ -818,7 +821,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
             print("Missing birthdate for subject %s" % key[0])
         else:
             # Update XNAT SID and PID for subjects that changed sites
-            if subject_label in export_measures_map.iterkeys():
+            if subject_label in iter(export_measures_map.keys()):
                 sub_map = export_measures_map.get(subject_label)
                 event = key[1]
                 if event == 'baseline_visit_arm_1':
@@ -838,7 +841,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                 sid, pid = subject_project_dict[subject_label]
                 pipe_id = sid
 
-            visit_age = red2cas.days_between_dates( this_subject_data['dob'], visit_date ) / 365.242
+            visit_age = old_div(red2cas.days_between_dates( this_subject_data['dob'], visit_date ), 365.242)
             next_visit_date = get_subject_next_visit_date(key[0], visit_date)
             [xnat_data,errFlag] = get_xnat_data(session,red2cas,
                                       key,
@@ -881,7 +884,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                 # Make session data into dict for REDCap import
                 record = dict( row )
                 (record['study_id'], record['redcap_event_name']) = key
-                for (key,value) in xnat_data.iteritems():
+                for (key,value) in xnat_data.items():
                     record[key] = value
 
                 # only record the first upload - otherwise creating too many records
@@ -894,13 +897,13 @@ for [key, row] in mr_sessions_redcap.iterrows():
                 if not import_response : 
                     continue
 
-                if 'count' in import_response.keys():
+                if 'count' in list(import_response.keys()):
                     records_uploaded += import_response['count']
 
-                if 'error' in import_response.keys():
+                if 'error' in list(import_response.keys()):
                     slog.info(redcap_visit_id, "UPLOAD ERROR: {}".format(import_response['error']), record)
 
-                if 'records' in import_response.keys():
+                if 'records' in list(import_response.keys()):
                     for r in import_response['records']:
                         print("\t Import Response from REDCap: ", r)
 

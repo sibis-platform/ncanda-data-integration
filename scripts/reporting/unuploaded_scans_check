@@ -9,6 +9,7 @@
 #   b. marked unusable, but there is no associated note
 
 from __future__ import print_function
+from builtins import str
 import sys
 import argparse
 

@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 from __future__ import print_function, absolute_import
+from builtins import str
 import re
 import os
 import yaml
@@ -428,7 +429,7 @@ for file in updated_files:
                     print("Skipping ", file)
                 continue 
 
-    if laptop in ignore_data.iterkeys():
+    if laptop in iter(ignore_data.keys()):
         ignore_laptop=ignore_data[laptop].split(',')  
         if os.path.join(visit,cFile) in ignore_laptop :
             if args.verbose : 

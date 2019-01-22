@@ -192,7 +192,7 @@ output_df = output_df.reset_index()  # get subjectno as a column
 
 # Assign the constant values required by ADM
 # pandas 0.16: output_df = output_df.assign(**form_specifics.constant_fields)
-for k, v in form_specifics.constant_fields.items():
+for k, v in list(form_specifics.constant_fields.items()):
     output_df[k] = v
 
 # Rename columns to be reused

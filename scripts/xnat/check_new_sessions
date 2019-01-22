@@ -6,6 +6,9 @@
 ##
 
 from __future__ import print_function
+from builtins import filter
+from builtins import map
+from builtins import str
 import os
 import re
 import csv
@@ -83,8 +86,8 @@ required_ge = {'ncanda-t1spgr-v1': 1,
                'ncanda-rsfmri-v1': 1}
 
 
-scan_type_dictionary = {'GE MEDICAL SYSTEMS': required_ge.keys(),
-                        'SIEMENS': required_siemens.keys()}
+scan_type_dictionary = {'GE MEDICAL SYSTEMS': list(required_ge.keys()),
+                        'SIEMENS': list(required_siemens.keys())}
 
 # Dictionaries of required series for ADNI (separate for GE and Siemens) and
 # fBIRN phantom sessions
@@ -402,12 +405,12 @@ def frame_check(experiment, manufacturer, scan_list):
         for (k, v, z) in frames:
             if k == 'ncanda-grefieldmap-v1':
                 # insert it sorted 
-                ind=bisect.bisect_left(map(int,voxel_dim_list),int(v))
+                ind=bisect.bisect_left(list(map(int,voxel_dim_list)),int(v))
                 voxel_dim_list.insert(ind,v)
                 seq_id_list.insert(ind,z)
 
         grefieldmap_list = ['ncanda-grefieldmap-v1', voxel_dim_list, seq_id_list]
-        frames = filter(lambda x: x[0] != 'ncanda-grefieldmap-v1', frames) 
+        frames = [x for x in frames if x[0] != 'ncanda-grefieldmap-v1'] 
 
         if voxel_dim_list : 
             # Change all frames with fixed grefieldmap
@@ -445,7 +448,7 @@ def image_check(experiment, session_dir, manufacturer, scan_list):
         scan_type =  experiment.scans[scan_id].get('type')
 
         # Nothing to do 
-        if not scan_type in expected_images[manufacturer].keys():
+        if not scan_type in list(expected_images[manufacturer].keys()):
             continue 
 
         imgrange = expected_images[manufacturer][scan_type]
@@ -468,10 +471,10 @@ def mri_quality_check(experiment, session_dir, manufacturer, session_label, eid,
     # only use first part of string so GE Manufacturer is turned into GE
     # manufacturer_u = manufacturer.split(' ',1)[0].upper()
 
-    if not manufacturer in expected_images.keys():
+    if not manufacturer in list(expected_images.keys()):
         slog.info(session_label, "Error: Manufacturer '" + manufacturer + "' unkwnown", 
                   manufacturer=str(manufacturer), 
-                  defined=str(expected_images.keys()),
+                  defined=str(list(expected_images.keys())),
                   eid =eid)
 
         return False
@@ -732,8 +735,8 @@ if not args.eid:
     criteria = [('xnat:mrSessionData/LAST_MODIFIED',
                  '>=',
                  str_date_last_checked)]
-    new_sessions = ifc.search('xnat:mrSessionData',
-                              fields_per_session).where(criteria).items()
+    new_sessions = list(ifc.search('xnat:mrSessionData',
+                              fields_per_session).where(criteria).items())
     if args.verbose:
         print('%d experiments have been modified since last run' % \
               len(new_sessions))
@@ -743,8 +746,8 @@ if not args.eid:
 previous_sessions = []
 for eid in experiments_to_check:
     criteria = [('xnat:mrSessionData/ID', 'LIKE', eid.strip())]
-    this_session = ifc.search('xnat:mrSessionData',
-                              fields_per_session).where(criteria).items()
+    this_session = list(ifc.search('xnat:mrSessionData',
+                              fields_per_session).where(criteria).items())
     if len(this_session):
         previous_sessions.append(this_session[0])
     else:
@@ -897,16 +900,16 @@ for (eid, project, subject, insert_date,
             for scan in list(experiment.scans)]
         final = [
             scantype for (scan, scantype, quality) in scantype_and_quality
-            if scantype in required_series.keys() and quality in ['usable', 'unusable']]
+            if scantype in list(required_series.keys()) and quality in ['usable', 'unusable']]
         usable = [
             scantype for (scan, scantype, quality) in scantype_and_quality
-            if scantype in required_series.keys() and quality == 'usable']
+            if scantype in list(required_series.keys()) and quality == 'usable']
         questionable = [
             scantype for (scan, scantype, quality) in scantype_and_quality
-            if scantype in required_series.keys() and quality == 'questionable']
+            if scantype in list(required_series.keys()) and quality == 'questionable']
         unseen_scans = [
             [scan,scantype] for (scan, scantype, quality) in scantype_and_quality
-            if scantype in required_series.keys() and quality in ['unset','unknown']]
+            if scantype in list(required_series.keys()) and quality in ['unset','unknown']]
         dti_scans = [
             (scan, scantype) for (scan, scantype, quality) in scantype_and_quality
             if re.match('^ncanda-dti.*-v1$', scantype) and quality != 'unusable']
@@ -1059,7 +1062,7 @@ for (eid, project, subject, insert_date,
 
     # duplicated scantypes
     dupl =[scantype for scantype in usable
-           if (scantype in required_series.keys()) and
+           if (scantype in list(required_series.keys())) and
            (usable.count(scantype) > required_series[scantype]) and more_of_type_map.get(session_label) != scantype ]
     if len(dupl):
         htmld.append(''.join([session_html_link,

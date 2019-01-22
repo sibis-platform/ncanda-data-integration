@@ -6,6 +6,11 @@
 ##
 
 from __future__ import print_function
+from __future__ import division
+from builtins import zip
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import os
 import re
 import sys
@@ -84,7 +89,11 @@ forms_date_increments = {
  
 # Convert to string, or empty if nan.
 def nan_to_empty( x ):
-    s = str(x)
+    try:
+        s = x.decode('utf-8')
+    except: 
+        s = str(x)
+        
     if s != 'nan':
         return s
     else:
@@ -107,14 +116,14 @@ def to_redcap(session, form_name, subject_id, event, timelabel, upload_records, 
 
     # If there were any errors, try to print them as well as possible
     if import_response:
-        if 'error' in import_response.keys():
+        if 'error' in list(import_response.keys()):
             slog.info(error_label + "-" + hashlib.sha1(str(import_response['error'])).hexdigest()[0:6], "ERROR: Uploading Data", error_msg = str(import_response['error']))
-        if 'fields' in import_response.keys():
+        if 'fields' in list(import_response.keys()):
             slog.info(error_label + "-" + hashlib.sha1(str(import_response['fields'])).hexdigest()[0:6], "Info: something wrong with fields ! Not sure what to do !", fields =  str(import_response['fields']))
-        if 'records' in import_response.keys():
+        if 'records' in list(import_response.keys()):
             slog.info(error_label + "-" + hashlib.sha1(str(import_response['records'])).hexdigest()[0:6], "Info: something wrong with redcords ! Not sure what to do !", records =  str(import_response['records']))
         # Finally, print upload status if so desired
-        if 'count' in import_response.keys():
+        if 'count' in list(import_response.keys()):
             return import_response['count']
  
     return 0
@@ -151,7 +160,7 @@ def get_subject_age( subject_id, at_date ):
     # Set actual age - do this after everything else, because some surveys have
     # "age" fields; we want to overwrite those
     try:
-        return str(days_between_dates(date_of_birth, at_date) / 365.242)
+        return str(old_div(days_between_dates(date_of_birth, at_date), 365.242))
     except:
         if at_date != 'nan':
             error = "ERROR: could not parse visit date"
@@ -181,7 +190,7 @@ def get_subject_next_visit_date(subject, after_visit_date, form):
 def add_to_upload(session, form_prefix, form_name, subject_id, event_name, data, subject_age, verbose = False):
     record = {'study_id': subject_id, 'redcap_event_name': event_name, '%s_record_id' % form_prefix: data.name, '%s_missing' % form_prefix: '0', '%s_missing_why' % form_prefix: ''}
 
-    for key, value in dict(data).iteritems():
+    for key, value in dict(data).items():
         if (key in summary_field_names) or (key == '%s_complete' % form_name):
             strval = str(value)
             if strval == 'nan':
@@ -344,10 +353,10 @@ with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
 if args.forms:
     forms = dict()
     for f in args.forms.split(','):
-        if f in all_forms.keys():
+        if f in list(all_forms.keys()):
             forms[f] = all_forms[f]
-        elif f in all_forms.values():
-            lookup = [k for (k, v) in all_forms.iteritems() if v == f]
+        elif f in list(all_forms.values()):
+            lookup = [k for (k, v) in all_forms.items() if v == f]
             forms[lookup[0]] = f
         else:
             print("WARNING: no form with name or prefix '%s' defined.\n" % f)
@@ -357,8 +366,8 @@ else:
 if args.verbose:
     print("Processing the following forms:\n\t", '\n\t'.join( sorted(forms.values())))
 
-form_prefixes = forms.keys()
-form_names = forms.values()
+form_prefixes = list(forms.keys())
+form_names = list(forms.values())
 
 # Open connection with REDCap server - Import Project
 import_project = session.connect_server('import_laptops', True)
@@ -438,7 +447,7 @@ if args.no_excluded:
 all_records = 0
 all_uploaded = 0
 
-for form_prefix, form_name in forms.iteritems():
+for form_prefix, form_name in forms.items():
     if args.verbose:
         print("Processing form",form_prefix,"/",form_name)
 
@@ -468,7 +477,7 @@ for form_prefix, form_name in forms.iteritems():
         s_records = pandas.DataFrame(columns =  complete_records.columns)
         for sid in args.study_id.split(',') :
             sids = sid.strip() 
-            sidr = complete_records[map(lambda record_id_record_subject_id: sids in record_id_record_subject_id[0] or sids == str(record_id_record_subject_id[1]).strip(), zip(complete_records.index.tolist(),complete_records[subject_id_label].tolist()))]
+            sidr = complete_records[[sids in record_id_record_subject_id[0] or sids == str(record_id_record_subject_id[1]).strip() for record_id_record_subject_id in zip(complete_records.index.tolist(),complete_records[subject_id_label].tolist())]]
             if len(sidr) :
                 s_records = s_records.append(sidr)
 

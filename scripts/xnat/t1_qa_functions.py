@@ -6,6 +6,7 @@
 ##
 
 from __future__ import print_function
+from builtins import str
 import os
 import re
 import shutil
@@ -143,12 +144,12 @@ def process_phantom_session( interface, project, subject, session, label, xnat_d
     # Get the experiment object
     experiment = interface.select.experiment[session]
     # First, see if the QA files are already there
-    files = [f for f in list(res.files) for res in experiment.resources.values()]
+    files = [f for f in list(res.files) for res in list(experiment.resources.values())]
     if force_updates or not (('t1.nii.gz' in files) and ('phantom.xml' in files) and ('phantom.nii.gz' in files)):
         dicom_path=''
 
         # Get list of all scans in the session
-        scans = experiment.scans.values()
+        scans = list(experiment.scans.values())
         for scan in scans:
             # Check only 'usable' scans with the proper name
             scan_type = scan.type

@@ -24,6 +24,7 @@ no_findings_before_date - filters no_findings_or_date by date
 """
 from __future__ import print_function
 
+from builtins import str
 import os
 import sys
 import pandas as pd

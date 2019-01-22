@@ -63,8 +63,8 @@ def main(args=None):
     output = ""
     for search in args.search:
         pattern = (search_field, 'LIKE', '%' + search + '%')
-        subjects = ifc.search('xnat:subjectData',
-                              fields_per_subject).where([pattern]).items()
+        subjects = list(ifc.search('xnat:subjectData',
+                              fields_per_subject).where([pattern]).items())
         if args.print_keys:
             if len(subjects) > 0:
                 fmt = '{0},{1}'

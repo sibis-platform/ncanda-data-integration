@@ -74,7 +74,7 @@ def extract_experiment_xml(session, experiment_dir, extract=None):
     experiment_ids = df_experiments.ID[:extract]
     experiment_files = list()
 
-    for idx, experiment_id in experiment_ids.iteritems():
+    for idx, experiment_id in list(experiment_ids.items()):
         experiment = session.xnat_http_get_experiment_xml(experiment_id)
         experiment_file = os.path.join(outdir, '{0}.xml'.format(experiment_id))
         experiment_files.append(experiment_file)
@@ -186,7 +186,7 @@ def get_scans_info(experiment_xml_file):
                                                namespaces=ns))
         values.update(scan_note=scan.find('./xnat:note', namespaces=ns))
 
-        for k, v in values.iteritems():
+        for k, v in list(values.items()):
             try:
                 values[k] = v.text
             except AttributeError as e:
@@ -247,7 +247,7 @@ def get_reading_info(experiment_xml_file):
                            namespaces=ns)
         # handle null finds
         values[name] = value
-    for k, v in values.iteritems():
+    for k, v in list(values.items()):
         try:
             values[k] = v[1]
         except IndexError:

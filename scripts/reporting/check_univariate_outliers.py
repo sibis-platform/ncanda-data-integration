@@ -23,6 +23,7 @@ from __future__ import print_function
 # TODO: Actually use longitudinal outlier check
 # TODO: Test normalization by column from a different file
 
+from builtins import range
 import pandas as pd
 
 
@@ -93,7 +94,7 @@ def get_univariate_outliers_in_file(filename, sd_count=3, reference="baseline",
 
     if args.last_event:
         all_events = [number_to_event_name(x) for x
-                      in xrange(0, args.last_event + 1)]
+                      in range(0, args.last_event + 1)]
         df = df[df.index.get_level_values(level='visit').isin(all_events)]
 
     if args.normalize_file:

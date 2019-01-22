@@ -6,6 +6,7 @@
 ##
 
 from __future__ import print_function
+from builtins import str
 import datetime
 from matplotlib.dates import date2num
 from prettytable import PrettyTable
@@ -35,7 +36,7 @@ def numconv(dt):
     return dd
  
 #extract all session ids with session insert date, session project and sesion scan date
-sess = interface.search( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/INSERT_DATE','xnat:mrSessionData/PROJECT','xnat:mrSessionData/DATE']).all().items()
+sess = list(interface.search( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/INSERT_DATE','xnat:mrSessionData/PROJECT','xnat:mrSessionData/DATE']).all().items())
  
 #numpy verrsion of the above information matrix
 nns = np.array(sess)

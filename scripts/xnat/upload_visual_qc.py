@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from builtins import str
 import pandas as pd
 import sibispy
 from sibispy import sibislogger as slog

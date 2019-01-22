@@ -33,7 +33,7 @@ def check_for_snapshots( xnat, subj, expt, project ):
     expt_obj = xnat.select.projects[project].subjects[subj].experiments[expt]
     scans_found = 0
     scans_w_snapshot = 0
-    for scan in expt_obj.scans.values():
+    for scan in list(expt_obj.scans.values()):
         if not len( [ t for t in exclude_types if re.match( t, scan.type.lower() ) ] ):
             try:
                 a = scan.resources['SNAPSHOTS']

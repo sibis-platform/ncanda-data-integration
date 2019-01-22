@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 from __future__ import print_function
+from builtins import str
 from optparse import OptionParser
 import os
 import time
@@ -76,10 +77,10 @@ str_date_last_checked = time.strftime( xnat_date_format, date_last_checked )
 
 # Now find all subject sessions and see which ones need to have QA done
 # Search XNAT database for all Subjects (i.e., all non-phantoms)
-subject_IDs = interface.search( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID','xnat:subjectData/PROJECT']).where([('xnat:subjectData/SUBJECT_LABEL','NOT LIKE','%-P-%')]).items()
+subject_IDs = list(interface.search( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID','xnat:subjectData/PROJECT']).where([('xnat:subjectData/SUBJECT_LABEL','NOT LIKE','%-P-%')]).items())
 for [subject,project] in subject_IDs:
     # For each phantom subject (one per project), get the IDs and last_modified dates of all its imaging sessions
-    sessions = interface.search( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/LAST_MODIFIED'] ).where([('xnat:mrSessionData/SUBJECT_ID','LIKE',subject)]).items()
+    sessions = list(interface.search( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/LAST_MODIFIED'] ).where([('xnat:mrSessionData/SUBJECT_ID','LIKE',subject)]).items())
 
     # Iterate over all imaging sessions
     for [session,last_modified] in sessions:

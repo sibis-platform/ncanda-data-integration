@@ -49,8 +49,8 @@ def get_phantom_ts(xml_list, metric):
     series = pd.Series(data=m, index=timepoints)
     return series
 
-snr = {k: get_phantom_ts(v, 'snr') for k, v in xml_dict.iteritems()}
-snr_plots = [v.plot(label=k) for k, v in snr.iteritems()]
+snr = {k: get_phantom_ts(v, 'snr') for k, v in list(xml_dict.items())}
+snr_plots = [v.plot(label=k) for k, v in list(snr.items())]
 snr_ledgend = [i.legend(loc="bottom right") for i in snr_plots]
 
 

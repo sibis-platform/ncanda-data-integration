@@ -14,6 +14,7 @@ python missing_subjects.py pipeline_subject.log case.csv
 """
 from __future__ import print_function
 
+from builtins import str
 import sys
 import pandas
 

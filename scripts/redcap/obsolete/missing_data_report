@@ -89,7 +89,7 @@ for form in get_forms_list():
                 missing = records[ records['redcap_data_access_group'] == dag ][ ['visit_date'] ]
                 missing[form] = missing['visit_date']
                 if len( missing ) > 0:
-                    if dag in missing_by_dag.keys():
+                    if dag in list(missing_by_dag.keys()):
                         missing = missing.drop( ['visit_date'], axis=1 )
                         missing_by_dag[dag] = pandas.merge( missing_by_dag[dag], missing, how='outer', left_index=True, right_index=True ).fillna('')
                     else:
@@ -97,6 +97,6 @@ for form in get_forms_list():
                     # Fill in missing bits in the 'visit_date' column
                     missing_by_dag[dag]['visit_date'] = missing_by_dag[dag].apply( lambda row: row['visit_date'] if row['visit_date'] != '' else missing[form][row.name], axis=1 )
 
-for dag in missing_by_dag.keys():
+for dag in list(missing_by_dag.keys()):
     this_dag = missing_by_dag[dag].reindex(sorted(missing_by_dag[dag].columns), axis=1).sort( 'visit_date' ).drop( 'visit_date', axis=1 )
     this_dag.to_csv( dag + '.csv' )

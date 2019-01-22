@@ -7,6 +7,7 @@
 
 # system packages
 from __future__ import print_function
+from builtins import str
 import sys
 import hashlib
 
@@ -84,7 +85,7 @@ def update_false_negatives( project_interface, subjects ):
 
     import_response = project_interface.import_records( upload, overwrite='overwrite' )
 
-    if 'count' in import_response.keys():
+    if 'count' in list(import_response.keys()):
         if str( import_response['count'] ) == str( len ( upload ) ):
             list_subjects = str(subjects)
             error = 'INFO: updated drinking exception status for the following false-negative subjects'
@@ -165,10 +166,10 @@ if __name__ == "__main__":
                                       'false_pos' : [false_pos, len(false_pos), error_false_pos], \
                                       'true_pos' : [true_pos, len(true_pos), error_true_pos]}
         
-        for key, value in validate_exceptions_errors.iteritems():
+        for key, value in validate_exceptions_errors.items():
             if value[1] == 0: continue
             #Get only experiment_site_id
-            list_subject = str(map(lambda x: x[0], value[0]))
+            list_subject = str([x[0] for x in value[0]])
             slog.info(hashlib.sha1('check_exceptions {}'.format(list_subject)).hexdigest()[0:6], value[2],
                       list_subject=list_subject)
 

@@ -6,6 +6,7 @@
 ##
 
 from __future__ import print_function
+from builtins import object
 import re
 import os
 import os.path
@@ -18,7 +19,7 @@ from sibispy.xnat_util import XNATResourceUtil, XNATSessionElementUtil
 
 # QA metric thresholds - defines a general threshold, either upper or lower.
 #  Having this as a class makes it easier to put all thresholds, upper and lower, into a single table.
-class QAMetric:
+class QAMetric(object):
     # Create object
     def __init__( self, thresh, name, sign ):
         self._thresh = thresh
@@ -90,7 +91,7 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
         match = re.match( '^#([A-Za-z]+)=(.*)$', line )
 
         # Is this key in the list of thresholds?
-        if match and (match.group(1) in QA_thresholds.keys()):
+        if match and (match.group(1) in list(QA_thresholds.keys())):
             value = float( match.group(2) )
             metric = QA_thresholds[match.group(1)]
             if metric.exceeds(value):
@@ -127,12 +128,12 @@ def process_phantom_session( interface, project, subject, session, label, xnat_d
     experiment = interface.select.experiment[session]
 
     # First, see if the QA files are already there
-    files = [ fn.id for fn in r.files.values() for r in experiment.resources.values() ]
+    files = [ fn.id for fn in list(r.files.values()) for r in list(experiment.resources.values()) ]
     if force_updates or not (('QA-Summary.pdf' in files) and ('QA-Details.txt' in files)):
         dicom_path=''
 
         # Get list of all scans in the session
-        scans = experiment.scans.values()
+        scans = list(experiment.scans.values())
         for scan in scans:
             # Check only 'usable' scans with the proper name
             scan_type = scan.type
@@ -198,7 +199,7 @@ def process_subject_session( interface, project, subject, session, xnat_dir, for
     experiment = interface.select.experiment[session]
 
     # Get list of all scans in the session
-    scans = experiment.scans.values()
+    scans = list(experiment.scans.values())
     for scan in scans:
         # Check only 'usable' scans with the proper name
         scan_type = scan.type

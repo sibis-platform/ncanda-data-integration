@@ -6,6 +6,7 @@
 ##
 
 from __future__ import print_function
+from builtins import str
 import os
 import re
 import sys
@@ -167,7 +168,7 @@ for form in forms_list:
                         err_field = error_list[1]
 
                         error_id= err_subject_id + "-" + err_event_id
-                        error_index_list = map(lambda form_subject_id_form_event_id: err_subject_id.strip() == form_subject_id_form_event_id[0].strip() and err_event_id.strip() == form_subject_id_form_event_id[1].strip(), form_status.index.tolist())
+                        error_index_list = [err_subject_id.strip() == form_subject_id_form_event_id[0].strip() and err_event_id.strip() == form_subject_id_form_event_id[1].strip() for form_subject_id_form_event_id in form_status.index.tolist()]
                         new_value = str(form_status[err_field][error_index_list].values) 
                         old_value = str(old_form_status[err_field][error_index_list].values) 
 
@@ -188,7 +189,7 @@ for form in forms_list:
                               error_title,
                               msg=str(remaining_error))
             else:
-                if 'count' in import_response.keys():
+                if 'count' in list(import_response.keys()):
                     records_uploaded += import_response['count']
                     if args.verbose:
                         print("Uploaded",import_response['count'],"records to REDCap.")

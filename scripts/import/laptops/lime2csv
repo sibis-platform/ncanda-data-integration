@@ -6,6 +6,7 @@
 ##
 
 from __future__ import print_function
+from builtins import str
 import argparse
 import os
 import sys
@@ -144,7 +145,7 @@ def handle_survey(subject_label, survey_id, data, verbose ):
     columns = list()
     columns_to_drop = list()
     for label in data.columns:
-        if label in label_exceptions.keys():
+        if label in list(label_exceptions.keys()):
             newLabel = '%s_%s' % (this_survey,label_exceptions[label])
         else:
             newLabel = label_to_sri( this_survey, label )
@@ -273,7 +274,7 @@ subject_label = str(args.infile).split('/')[-2]
 if not match:
     post_issue_and_exit("ERROR: file " + str(args.infile) + " cannot be parsed!", info="File name does not follow naming convention, i.e., *survey_<5 dig num>_subjid_<id>_<8 dig num>_<10 dig num>.csv")
 
-if not match.group(1) in surveys.keys():
+if not match.group(1) in list(surveys.keys()):
     post_issue_and_exit("ERROR: survey '%s' is unknown or not supported" % (match.group(1)))
 
 survey_id = match.group(1)

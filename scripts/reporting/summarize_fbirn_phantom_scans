@@ -7,9 +7,15 @@
 
 
 from __future__ import print_function
+from __future__ import division
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import csv
 import numpy as np
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import base64
 import re
 import os
@@ -30,7 +36,7 @@ interface = get_xnat_util(args.config)
 interface._memtimeout = 0
 ## Get project, scanner, insert_date, session_id and subject_id for all phantoms 
 phtm = interface.search( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID']).where([('xnat:subjectData/SUBJECT_LABEL','LIKE','%-00000-P-%')  ]).get('subject_id')
-phs = [interface.search( 'xnat:mrSessionData', ['xnat:mrSessionData/PROJECT','xnat:mrSessionData/SCANNER_CSV','xnat:mrSessionData/INSERT_DATE','xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SUBJECT_ID']).where([('xnat:mrSessionData/SUBJECT_ID','LIKE',hh)  ] ).items() for hh in phtm]
+phs = [list(interface.search( 'xnat:mrSessionData', ['xnat:mrSessionData/PROJECT','xnat:mrSessionData/SCANNER_CSV','xnat:mrSessionData/INSERT_DATE','xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SUBJECT_ID']).where([('xnat:mrSessionData/SUBJECT_ID','LIKE',hh)  ] ).items()) for hh in phtm]
 sessions = [it for sublist in phs for it in sublist] #put them in a decent tuple form 
 ## download the QA test file based on the above information and analyze it  
 sscom = []
@@ -40,12 +46,12 @@ for ss in sessions:
     if atr:
 	    fpath=atr['URI'] #get the URI from the website so we can download the files without Pyxnat
 	    webl = 'https://ncanda.sri.com/xnat'+fpath # address to the file based on the info above
-	    request = urllib2.Request(webl) # make a request
+	    request = urllib.request.Request(webl) # make a request
 	    uname =str(json.load(open(conf,'rb'))[u'user'])
 	    pword = str(json.load(open(conf,'rb'))[u'password'])
 	    base64string = base64.encodestring('%s:%s' % (uname,pword)).replace('\n', '')
 	    request.add_header("Authorization", "Basic %s" % base64string) #authenticate
-	    result = urllib2.urlopen(request).read()
+	    result = urllib.request.urlopen(request).read()
 	    spro = re.search(''.join(['mean_scaled', '\)']),result ).end() #get the frequency and amplitude data from the QA test file
 	    epro = re.search('#rdc', result).start()#get the frequency and amplitude data from the QA test file
 	    mass1 = re.sub('\\n',' ', result[spro:epro]).split() #get the frequency and amplitude data from the QA test file
@@ -57,8 +63,8 @@ for ss in sessions:
 	        else:
 	            ampl.append(float(mass1[ii]))
 
-	    sns = max(ampl)/np.mean(ampl) #SNR caculation based on the "ON the Statistical significane of the electrophysiological steady-state responses" suggestion
-	    stsig = [str(1/(1 + float(sns*sns))) if sns >= 4.36 else ''][0] #do the statistical analysis based on the "ON the Statistical significane of the electrophysiological steady-state responses"
+	    sns = old_div(max(ampl),np.mean(ampl)) #SNR caculation based on the "ON the Statistical significane of the electrophysiological steady-state responses" suggestion
+	    stsig = [str(old_div(1,(1 + float(sns*sns)))) if sns >= 4.36 else ''][0] #do the statistical analysis based on the "ON the Statistical significane of the electrophysiological steady-state responses"
     #finding the metrics from the txt files
 
 	    SNR = float(re.findall(r'\d+\.\d+',re.findall(r'SNR=\d+\.\d+',result)[0])[0])

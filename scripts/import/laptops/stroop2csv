@@ -5,6 +5,10 @@
 ##  for the copyright and license terms
 ##
 from __future__ import print_function
+from __future__ import division
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import os
 import re
 import csv
@@ -137,7 +141,7 @@ def samplestd(data):
     try:
         mean=data.mean()
         if len(data) > 1 :
-            samplestd=math.sqrt(sum((data-mean)**2)/(len(data)-1))
+            samplestd=math.sqrt(old_div(sum((data-mean)**2),(len(data)-1)))
 
     except RuntimeWarning as e:
         post_issue_and_exit(hashlib.sha1('stroop2csv {}'.format(e)).hexdigest()[0:6], "Error: could not compute samplestd", 
@@ -227,7 +231,7 @@ error[8]=mean[8]+3*std[8]
 # calculate z scores
 for j in range(1,9):
     if std[j-1] > 0:
-        z[j-1]=(mean[j-1]-mean[8])/std[j-1]
+        z[j-1]=old_div((mean[j-1]-mean[8]),std[j-1])
     else:
         z[j-1] = np.nan
 
