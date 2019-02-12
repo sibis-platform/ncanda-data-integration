@@ -11,6 +11,7 @@ This script generates a list of all subject that have a valid baseline.
 Usage:
 python baseline_cases.py
 """
+from __future__ import print_function
 import os
 
 import pandas

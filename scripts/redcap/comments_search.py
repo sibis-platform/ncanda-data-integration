@@ -14,8 +14,11 @@ Scan Report Comment Search
 This code searches through comments to find those with No MRI. In addition, a list of subjects that were skipped is also generated.
 
 """
+from __future__ import print_function
 
 #import needed libraries
+from past.builtins import execfile
+from builtins import str
 import time
 start = time.time()
 import pandas as pd
@@ -57,22 +60,22 @@ while i < (len(y1_y2)):
 
 #write files to name
 f = open("./Year1_ignore.txt", "w")
-f.write("\n".join(map(lambda x: str(x), year1_ignore)))
+f.write("\n".join([str(x) for x in year1_ignore]))
 
 f.close()
 
 f = open("./Year2_ignore.txt", "w")
-f.write("\n".join(map(lambda x: str(x), year2_ignore)))
+f.write("\n".join([str(x) for x in year2_ignore]))
 f.close()
 
 f = open("./Year1_NoScan.txt", "w")
-f.write("\n".join(map(lambda x: str(x), year1_noscan)))
+f.write("\n".join([str(x) for x in year1_noscan]))
 
 f.close()
 
 f = open("./Year2_NoScan.txt", "w")
-f.write("\n".join(map(lambda x: str(x), year2_noscan)))
+f.write("\n".join([str(x) for x in year2_noscan]))
 f.close()
 
 elapsed = (time.time() - start)
-print elapsed
+print(elapsed)

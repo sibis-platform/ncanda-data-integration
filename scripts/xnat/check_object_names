@@ -5,13 +5,14 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
+from builtins import str
 import os
 import re
 import stat
 import time
 import argparse
 import datetime
-import pyxnat
 import sys
 
 import sibispy
@@ -22,7 +23,7 @@ from sibispy import utils as sutils
 
 session = sibispy.Session()
 if not session.configure():
-    print "Error: session configure file was not found"
+    print("Error: session configure file was not found")
 
     sys.exit()
 
@@ -50,38 +51,27 @@ args = parser.parse_args()
 slog.init_log(args.verbose, args.post_to_github,'NCANDA XNAT: Check Object Names Message', 'check_object_names', args.time_log_dir)
 slog.startTimer1()
 
-# Get one or more custom variables from XML representation of experiment
-def get_custom_variables( experiment, field_names, default_value=None ):
-    xml = experiment.get()
-    values = []
-    for field_name in field_names:
-        field_regex = '.*<xnat:field name="%s">(.*?)</xnat:field>' % field_name.lower()
-        match = re.match( field_regex, xml, flags=re.DOTALL )
-        if match:
-            values.append( re.sub( '\s*<!--.*?-->\s*', '', match.group( 1 ), flags=re.DOTALL ) )
-        else:
-            values.append( default_value )
-    return values
-
 #
 # Export T1w and T2w DICOM files to ZIP archive
 #
 def export_t1t2_to_zip( experiment, experiment_label,xnat_dir):
     # Get list of all scans in the session
     scan_dirs = []
-    for scan in experiment.scans().get():
-        scan_type = experiment.scan( scan ).attrs.get( 'type' )
+    for scan in experiment.scans.listing:
+        scan_type = scan.type
         if ('t1spgr' in scan_type) or ('mprage' in scan_type) or ('t2fse' in scan_type):
-            match = re.match('.*(' + xnat_dir + '/.*)scan_.*_catalog.xml.*', experiment.scan(scan).get(), re.DOTALL)
-            if match:
-                # Replace the path stored in XNAT with the NFS mount path.
-                xnat_path = match.group(1).replace('storage/XNAT',
-                                                   'ncanda-xnat')
-                scan_dirs.append(xnat_path)
+            for _, val in sutils.objwalk(scan.fulldata):
+                match = re.match('.*(' + xnat_dir + '/.*)scan_.*_catalog.xml.*', experiment.scan(scan).get(), re.DOTALL)
+                if match:
+                    # Replace the path stored in XNAT with the NFS mount path.
+                    xnat_path = match.group(1).replace('storage/XNAT',
+                                                    'ncanda-xnat')
+                    scan_dirs.append(xnat_path)
+                    break
 
     if len( scan_dirs ) > 0:
         if args.verbose:
-            print "INFO: exporting T1w and T2w DICOM files for",experiment,"/",experiment_label
+            print("INFO: exporting T1w and T2w DICOM files for",experiment,"/",experiment_label)
 
         # Remove common prefix to make archive more flat
         if len( scan_dirs ) > 1:
@@ -115,7 +105,7 @@ def export_t1t2_to_zip( experiment, experiment_label,xnat_dir):
         if os.path.exists( zipfile ):
             os.chmod( zipfile, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO )
             if args.verbose:
-                print "Successfully created T1/T2 DICOM archive",zipfile
+                print("Successfully created T1/T2 DICOM archive",zipfile)
             try:
                 experiment.attrs.set( 'xnat:mrSessionData/fields/field[name=datetodvd]/field', date_today )
             except:
@@ -136,7 +126,7 @@ experiment_label_pattern = '^[A-FX]-[0-9]{5}-[MFPT]-[0-9]-20[0-9]{2}[01][0-9][0-
 #
 def validate_experiment( ifc, project, sid, slabel, eid, elabel, edate, einsert, xnat_dir,objects_force_write):
     if args.verbose:
-        print "INFO: checking experiment %s (%s)" % (elabel,eid)
+        print("INFO: checking experiment %s (%s)" % (elabel,eid))
 
     global email
     global server_address
@@ -151,8 +141,8 @@ def validate_experiment( ifc, project, sid, slabel, eid, elabel, edate, einsert,
         correct_label = '%s-%s' % ( slabel, edate_short )
         if re.match( '^%s(-[0-9]){0,1}' % correct_label, elabel ):
             if not 'P' in slabel:
-                experiment = ifc.select.project( project ).subject( sid ).experiment( eid )
-                edvddate = get_custom_variables( experiment, [ 'DateToDVD' ] )[0]
+                experiment = ifc.select.projects[project].subjects[sid].experiments[eid]
+                edvddate = ifc.get_custom_variables( experiment, [ 'DateToDVD' ] )[0]
                 if (eid in objects_force_write) or (edvddate == None) or not re.match( '^2[0,1][0-9]{2}-[0-1][0-9]-[0-3][0-9]$', edvddate ):
                     if args.zip_none:
                         check_again.append( eid )
@@ -168,7 +158,7 @@ def validate_experiment( ifc, project, sid, slabel, eid, elabel, edate, einsert,
                 experiment_uri = '%s/app/action/DisplayItemAction/search_element/xnat:mrSessionData/search_field/xnat:mrSessionData.ID/search_value/%s/popup/false' % (server_address,eid)
                 email.add_user_message( einsert, 'Session "%s" (<a href="%s">%s</a>) is not named correctly (should be: "%s")' % (elabel, experiment_uri, eid, correct_label) )
             else:
-                print 'Session "%s" (%s) is not named correctly (should be: "%s")' % (elabel, eid, correct_label)
+                print('Session "%s" (%s) is not named correctly (should be: "%s")' % (elabel, eid, correct_label))
     else:
         # If subject ID was incorrect, match Session Name against pattern instead of (unknown) correct label
         if not re.match( experiment_label_pattern, elabel ):
@@ -177,7 +167,7 @@ def validate_experiment( ifc, project, sid, slabel, eid, elabel, edate, einsert,
                 experiment_uri = '%s/app/action/DisplayItemAction/search_element/xnat:mrSessionData/search_field/xnat:mrSessionData.ID/search_value/%s/popup/false' % (server_address,eid)
                 email.add_user_message( einsert, 'Session "%s" (<a href="%s">%s</a>) does not conform with naming convention (fix subject ID first)' % (elabel, experiment_uri, eid) )
             else:
-                print 'Session "%s" (%s) does not conform to naming convention' % (elabel, eid)
+                print('Session "%s" (%s) does not conform to naming convention' % (elabel, eid))
 
     return check_again
 
@@ -186,7 +176,7 @@ def validate_experiment( ifc, project, sid, slabel, eid, elabel, edate, einsert,
 #
 def validate_subject( ifc, sid, slabel, sinsert ):
     if args.verbose:
-        print "INFO: checking subject %s (%s)" % ( slabel, sid )
+        print("INFO: checking subject %s (%s)" % ( slabel, sid ))
 
     global email
 
@@ -199,7 +189,7 @@ def validate_subject( ifc, sid, slabel, sinsert ):
             subject_uri = '%s/app/action/DisplayItemAction/search_element/xnat:subjectData/search_field/xnat:subjectData.ID/search_value/%s' % (server_address,sid)
             email.add_user_message( sinsert, 'Subject name "%s" (<a href="%s">%s</a>) does not conform with ID convention' % (slabel, subject_uri, sid) )
         else:
-            print 'Subject name "%s" (%s) does not conform to ID convention' % (slabel, sid)
+            print('Subject name "%s" (%s) does not conform to ID convention' % (slabel, sid))
 
     return check_again
 
@@ -211,31 +201,31 @@ subject_list = []
 
 def validate_new_and_outstanding( ifc, project, objects_to_check, objects_force_write, date_last_checked,xnat_dir):
     # Get all subjects and sessions from XNAT - this speeds things up a lot
-    subject_list = ifc.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID','xnat:subjectData/SUBJECT_LABEL','xnat:subjectData/INSERT_USER','xnat:subjectData/INSERT_DATE'] ).where( [ ('xnat:subjectData/PROJECT','LIKE', '%'+project+'%') ] )
-    experiment_list = ifc.select( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/LABEL','xnat:mrSessionData/SUBJECT_ID','xnat:mrSessionData/DATE','xnat:mrSessionData/INSERT_USER','xnat:mrSessionData/LAST_MODIFIED'] ).where( [ ('xnat:mrSessionData/PROJECT','LIKE', '%'+project+'%') ] )
+    subject_list = ifc.search( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_ID','xnat:subjectData/SUBJECT_LABEL','xnat:subjectData/INSERT_USER','xnat:subjectData/INSERT_DATE'] ).where( [ ('xnat:subjectData/PROJECT','LIKE', '%'+project+'%') ] )
+    experiment_list = ifc.search( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/LABEL','xnat:mrSessionData/SUBJECT_ID','xnat:mrSessionData/DATE','xnat:mrSessionData/INSERT_USER','xnat:mrSessionData/LAST_MODIFIED'] ).where( [ ('xnat:mrSessionData/PROJECT','LIKE', '%'+project+'%') ] )
 
     check_again = []
     if len( subject_list ) > 0:
         subject_lookup = dict()
         # First, check each subject
-        for (sid,slabel,sinsert,sdate) in subject_list.items():
+        for (sid,slabel,sinsert,sdate) in list(subject_list.items()):
             subject_lookup[sid] = slabel
             if (sid in objects_to_check) or (sdate > date_last_checked):
                 check_again += validate_subject( ifc, sid, slabel, sinsert )
 
-                if len( [ eid for ( eid,elabel,esid,edate,einsert,emodified ) in experiment_list.items() if sid == esid ] ) == 0:
+                if len( [ eid for ( eid,elabel,esid,edate,einsert,emodified ) in list(experiment_list.items()) if sid == esid ] ) == 0:
                     check_again.append( sid )
                     if args.send_mail:
                         subject_uri = '%s/app/action/DisplayItemAction/search_element/xnat:subjectData/search_field/xnat:subjectData.ID/search_value/%s/project/%s' % (server_address,sid,project)
                         email.add_user_message( sinsert, 'Subject "%s" (<a href="%s">%s</a>) does not have any MR sessions. Consider deleting it.' % (slabel, subject_uri, sid) )
                     else:
-                        print 'Subject name "%s" (%s) does not have any MR sessions' % (slabel, sid)
+                        print('Subject name "%s" (%s) does not have any MR sessions' % (slabel, sid))
 
         # Second check each experiment
         if len(experiment_list) > 0:
-            for eid, elabel, sid, edate, einsert, emodified in experiment_list.items():
+            for eid, elabel, sid, edate, einsert, emodified in list(experiment_list.items()):
                 if (eid in objects_to_check) or (emodified > date_last_checked):
-                    if sid in subject_lookup.keys():
+                    if sid in list(subject_lookup.keys()):
                         check_again += validate_experiment(ifc, project, sid, subject_lookup[sid], eid, elabel, edate, einsert,xnat_dir,objects_force_write)
                     else:
                         error = 'ERROR: cannot determine (unique) label'
@@ -269,13 +259,13 @@ config_uri = '/data/config/pyxnat/check_object_names'
 if not args.check_all:
     try:
         # Retrieve script config from XNAT server
-        content = ifc._get_json( '%s' % config_uri )
+        content = ifc._get_json( config_uri )
 
         # Extract date this script was last run
         creation_date = content[0]['create_date']
         date_last_checked = time.strptime( creation_date[0:19], xnat_date_format )
         if args.verbose:
-            print 'Script was last run %s' % creation_date
+            print('Script was last run %s' % creation_date)
 
         # Get list of previously flagged experiments that need to be checked again
         # Remove new line at the last element as otherwise dropped from list 
@@ -287,8 +277,8 @@ if not args.check_all:
     except Exception as e:
         # If we cannot get last script run date from server, leave at epoch (Jan 1, 1970)
         if args.verbose:
-            print 'Unable to retrieve date of last script run and list of flagged projects from server.'
-            print e 
+            print('Unable to retrieve date of last script run and list of flagged projects from server.')
+            print(e) 
 
 
 
@@ -301,7 +291,7 @@ if not args.check_all:
     objects_to_check  = set(objects_to_check)
 
     if args.verbose:
-        print 'Re-checking %d previously flagged objects' % len( objects_to_check )
+        print('Re-checking %d previously flagged objects' % len( objects_to_check ))
 
 
 # If "last week" option is used, override last checked date
@@ -316,7 +306,7 @@ if args.last_month:
 str_date_last_checked = time.strftime( xnat_date_format, date_last_checked )
 
 # Get a list of all MR imaging sessions
-project_ids = ifc.select.projects().get()
+project_ids = list(ifc.select.projects)
 check_again = []
 for pid in project_ids:
     check_again += validate_new_and_outstanding( ifc, pid, objects_to_check, objects_force_write, str_date_last_checked,session.get_xnat_dir() )
@@ -327,14 +317,14 @@ if args.send_mail:
 # Finally, update config stored on the server to have current date/time as the time that this script was last run
 if not args.no_update:
     if args.verbose:
-        print "Flagging %d objects for re-inspection during next script run" % len( check_again )
+        print("Flagging %d objects for re-inspection during next script run" % len( check_again ))
 
     if len( check_again ) > 0:
         check_again_str = ','.join( set( check_again ) )
     else :
         check_again_str = 'NONE'
 
-    content = ifc._exec( uri='%s?inbody=true' % config_uri, method='PUT', body=check_again_str, headers={'content-type':'text/plain'} )
+    content = ifc._exec( uri=config_uri, query={'inbody':'true'}, method='PUT', body=check_again_str, headers={'content-type':'text/plain'} )
 
 slog.takeTimer1("script_time","{'TotalSubjects': " + str(len(subject_list)) + ", 'TotalExperiments': " +  str(len(experiment_list)) + "}")
 

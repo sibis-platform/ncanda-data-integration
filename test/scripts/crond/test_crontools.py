@@ -31,7 +31,7 @@ def get_exported_var():
 def boilerplate_env(config_file):
   cur_env = os.environ
   return cur_env.update({
-    "SIBIS_PYTHON_PATH": os.environ.get("SIBIS_PYTHON_PATH") if os.environ.has_key("SIBIS_PYTHON_PATH") else os.path.realpath(os.path.join(__script_dir, '../../../../')),
+    "SIBIS_PYTHON_PATH": os.environ.get("SIBIS_PYTHON_PATH") if "SIBIS_PYTHON_PATH" in os.environ else os.path.realpath(os.path.join(__script_dir, '../../../../')),
     "SIBIS_CONFIG": config_file,
     "DOCKER_CONTAINER_NAME": "jim_pipeline-back_1",
     "SCRIPT_LABEL": "back-nightly"

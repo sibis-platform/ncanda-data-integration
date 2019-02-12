@@ -16,14 +16,15 @@ Usage
 -----
 
 """
+from __future__ import print_function
 
 import os
 import sys
 
-import pyxnat
 import redcap
 import pandas as pd
 
+from sibispy.xnat_util import get_xnat_util
 
 event_mapping = dict(baseline='baseline_visit_arm_1',
                      followup_1y='1y_visit_arm_1',
@@ -75,9 +76,10 @@ def main(args=None):
 
     # now look up what info is on xnat
     # Create interface using stored configuration
-    ifc = pyxnat.Interface(config=os.path.join(os.path.expanduser("~"),
-                                               '.server_config/ncanda.cfg'))
-    print visit_form
+    util = get_xnat_util()
+    ifc = util.connect()
+
+    print(visit_form)
 
 if __name__ == "__main__":
     import argparse

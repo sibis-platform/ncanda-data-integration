@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
 import argparse
 import sys
 import os
@@ -53,7 +54,7 @@ if not args.with_excluded:
     parcellation_sessions_redcap = parcellation_sessions_redcap[ parcellation_sessions_redcap.index.map( lambda key: False if subject_data['exclude'][key[0]] == 1 else True ) ]
 
 if args.verbose:
-    print "Checking %d REDCap records." % len( parcellation_sessions_redcap )
+    print("Checking %d REDCap records." % len( parcellation_sessions_redcap ))
 
 # Import files for one type of parcellation
 def import_parcellation( parc_label, records ):
@@ -68,7 +69,7 @@ def import_parcellation( parc_label, records ):
         if visit_code != "baseline":
             visit_code = "followup_%s" % visit_code
 
-        print subject_code,visit_code
+        print(subject_code,visit_code)
 
 # Loop over all selected parcellations
 for parc_label in parcellations:

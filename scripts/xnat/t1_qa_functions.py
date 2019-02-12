@@ -5,6 +5,8 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
+from builtins import str
 import os
 import re
 import shutil
@@ -13,6 +15,7 @@ import hashlib
 
 from sibispy import sibislogger as slog
 from sibispy import utils as sutils
+from sibispy.xnat_util import XNATResourceUtil
 
 # Check the phantom XML file for various thresholds
 def check_xml_file( xml_file, project, session, label ):
@@ -101,10 +104,11 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
 
     # Upload NIFTI file
     try:
-        file = interface.select.project( project ).subject( subject ).experiment( session ).resource('QA').file( nii_file )
-        file.insert( nii_file, format='nifti_gz', tags='qa,adni,nifti_gz', content='ADNI Phantom QA File', overwrite=True )
+        qa_res = interface.select.projects[project].subjects[subject].experiments[session].resources['QA']
+        res_util = XNATResourceUtil(qa_res)
+        res_util.detailed_upload(nii_file, nii_file, format='nifti_gz', tags='qa,adni,nifti_gz', content='ADNI Phantom QA File', overwrite=True )
     except:
-        print "Something bad happened uploading file %s to Experiment %s/%s/%s" % (nii_file,project,session,label)
+        print("Something bad happened uploading file %s to Experiment %s/%s/%s" % (nii_file,project,session,label))
 
     # Run the PERL QA script and capture its output
     xml_file = 'phantom.xml'
@@ -121,10 +125,11 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
     # Upload phantom files to XNAT
     for (fname,fmt) in [ (xml_file, 'xml'), (lbl_file, 'nifti_gz') ]:
         try:
-            file = interface.select.project( project ).subject( subject ).experiment( session ).resource('QA').file( fname )
-            file.insert( fname, format=fmt, tags='qa,adni,%s' % fmt, content='ADNI Phantom QA File', overwrite=True )
+            qa_res = interface.select.projects[project].subjects[subject].experiments[session].resources['QA']
+            res_util = XNATResourceUtil(qa_res)
+            res_util.detailed_upload(fname, fname, format=fmt, tags='qa,adni,%s' % fmt, content='ADNI Phantom QA File', overwrite=True)
         except:
-            print "Something bad happened uploading file %s to Experiment %s/%s" % (fname,project,session)
+            print("Something bad happened uploading file %s to Experiment %s/%s" % (fname,project,session))
 
     # Read and evaluate phantom XML file
     check_xml_file( xml_file, project, session, label )
@@ -137,20 +142,21 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
 # Process a phantom MR imaging session
 def process_phantom_session( interface, project, subject, session, label, xnat_dir,force_updates=False ):
     # Get the experiment object
-    experiment = interface.select.experiment( session )
+    experiment = interface.select.experiment[session]
     # First, see if the QA files are already there
-    files = experiment.resources().files().get()
+    files = [f for f in list(res.files) for res in list(experiment.resources.values())]
     if force_updates or not (('t1.nii.gz' in files) and ('phantom.xml' in files) and ('phantom.nii.gz' in files)):
         dicom_path=''
 
         # Get list of all scans in the session
-        scans = experiment.scans().get()
+        scans = list(experiment.scans.values())
         for scan in scans:
             # Check only 'usable' scans with the proper name
-            [scan_type,quality] = experiment.scan( scan ).attrs.mget( ['type', 'quality'] )
+            scan_type = scan.type
+            quality = scan.quality
             if ('mprage' in scan_type) or ('t1spgr' in scan_type):
                 # Extract the DICOM file directory from the XML representation
-                match = re.match( '.*('+ xnat_dir + '/.*)scan_.*_catalog.xml.*', experiment.scan( scan ).get(), re.DOTALL )
+                match = re.match( '.*('+ xnat_dir + '/.*)scan_.*_catalog.xml.*', interface.raw_text(scan), re.DOTALL )
                 if match:
                     dicom_path = match.group(1)
 
@@ -161,5 +167,5 @@ def process_phantom_session( interface, project, subject, session, label, xnat_d
             # If there was no matching scan in the session, print a warning
             warning = "WARNING: ADNI phantom session: {}, experiment: {}, subject: {} does not have \
                        a usable T1-weighted scan".format(session, experiment, subject)
-            slog.info(hashlib.sha1('t1_qa_functions').hexdigest()[0:6], warning,
+            slog.info(hashlib.sha1(b't1_qa_functions').hexdigest()[0:6], warning,
                           script='t1_qa_functions')

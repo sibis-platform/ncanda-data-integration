@@ -42,7 +42,7 @@ data = pandas.read_excel(args.input, sheet_name=0)  # return first sheet
 form_specifics = get_aseba_form(args.form)
 dict_renames = form_specifics.post_score_renames
 data = data.rename(columns=dict_renames)
-data = data.loc[:, dict_renames.values()]
+data = data.loc[:, list(dict_renames.values())]
 
 # Modify the metadata columns
 data.loc[data['arm'].isnull(), 'arm'] = 'standard'

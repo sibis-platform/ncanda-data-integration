@@ -5,6 +5,10 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
+from __future__ import division
+from builtins import str
+from past.utils import old_div
 import os
 import re
 import ast
@@ -16,7 +20,6 @@ import argparse
 import operator
 
 import yaml
-import pyxnat
 import redcap
 import pandas as pd
 
@@ -56,7 +59,7 @@ def get_sessions_in_range(redcap_visit_id,xnat, subject_label, project_id, subje
     if not sessions_in_range:
         # handling special cases 
         if verbose: 
-            print "  No session in range for ", subject_id, date_range_from, date_range_to
+            print("  No session in range for ", subject_id, date_range_from, date_range_to)
 
         # Outside visit window
         exception_list = exceptions_window.get(subject_id)
@@ -77,7 +80,7 @@ def get_sessions_in_range(redcap_visit_id,xnat, subject_label, project_id, subje
 
                             else:
                                 if verbose: 
-                                    print "  Exception: Adding session", e_eid, projects, date 
+                                    print("  Exception: Adding session", e_eid, projects, date) 
 
                                 sessions_in_range.append((e_eid, projects, date))
 
@@ -98,12 +101,12 @@ def get_spiral_uris( xnat_eid_list ):
     spiral_uri = ''
     spiralrest_uri = ''
     for xnat_eid in xnat_eid_list:
-        resource_dict_list = xnat._get_json( '/data/experiments/%s/resources/?format=json' %xnat_eid )
+        resource_dict_list = xnat._get_json( '/data/experiments/%s/resources/' %xnat_eid )
         for res in resource_dict_list:
             if 'spiral' in res['label'].lower():
                 resource_id = res['xnat_abstractresource_id']
                 eid = res['cat_id']
-                obj = xnat._get_json('/data/experiments/%s/resources/%s/files?format=json' %(eid, resource_id))
+                obj = xnat._get_json('/data/experiments/%s/resources/%s/files' %(eid, resource_id))
                 if len( obj ) > 0:
                     file_path = obj[0]['Name']
                     if 'rest' in res['label'].lower():
@@ -119,18 +122,6 @@ def get_phantom_scans_for_date( date, scanner ):
 def get_phantom_scans_for_date_24h( yesterday, tomorrow, scanner ):
     return [ session for (session,sscanner,sdate) in xnat_phantom_sessions_list if ((sdate == yesterday) or (sdate == tomorrow)) and (sscanner == scanner) ]
 
-# Get one or more custom variables from XML representation of experiment
-def get_custom_variables( experiment, field_names, default_value=None ):
-    xml = experiment.get()
-    values = []
-    for field_name in field_names:
-        field_regex = '.*<xnat:field name="%s">(.*?)</xnat:field>' % field_name.lower()
-        match = re.match( field_regex, xml, flags=re.DOTALL )
-        if match:
-            values.append( re.sub( '\s*<!--.*?-->\s*', '', match.group( 1 ), flags=re.DOTALL ) )
-        else:
-            values.append( default_value )
-    return values
 
 #
 # Get list of all usable scans in the experiments listed
@@ -141,17 +132,18 @@ def get_usable_scans_list( session, xnat_eid_list, redcap_visit_id, xnat_sid):
     for xnat_eid in xnat_eid_list:
         xnat_exp = session.xnat_get_experiment(xnat_eid)
         if not xnat_exp : 
-            slog.info(redcap_visit_id + "-" +  + hashlib.sha1(xnat_eid).hexdigest()[0:6],"ERROR: could not get experiment",
+            slog.info(redcap_visit_id + "-" +  + hashlib.sha1(xnat_eid.encode()).hexdigest()[0:6],"ERROR: could not get experiment",
                       info="Most likely due to internet connection! Please rerun script for subject and visit", 
                       redcap_visit_id = redcap_visit_id,
                       xnat_sid = xnat_sid)
             return [None,True]  
 
-        for scan in xnat_exp.scans('*').get():
+        for scan in list(xnat_exp.scans):
             try : 
-                ( type, quality ) = xnat_exp.scan( scan ).attrs.mget(['type','quality'])
-            except Exception, err_msg:
-                slog.info(redcap_visit_id + "-" + scan + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],
+                type = xnat_exp.scans[scan].type or ''
+                quality = xnat_exp.scans[scan].quality or ''
+            except Exception as err_msg:
+                slog.info(redcap_visit_id + "-" + scan + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],
                           "ERROR: could not get type and quality of scan",
                           info="Most likely due to internet connection! Please rerun script for subject and visit", 
                           redcap_visit_id = redcap_visit_id,
@@ -226,7 +218,7 @@ def get_fieldmap_scans( usable_scans_list, for_scan, scannerMfg,redcap_visit_id,
     return matched_fieldmaps
 
 def get_eid_from_scan_list(session_and_scan, sType):
-    if sType in session_and_scan.keys(): 
+    if sType in list(session_and_scan.keys()): 
         return session_and_scan[sType][0]
     return None
 
@@ -236,7 +228,7 @@ def get_eid_from_scan_list(session_and_scan, sType):
 def encode_session_and_scan( session_and_scan, type_list, match_eid = None ):
     # GE and siemens use different names for scans such as mprage and t1spgr
     for type in type_list:
-        if type in session_and_scan.keys(): 
+        if type in list(session_and_scan.keys()): 
             type_id = session_and_scan[type][0]
             if not match_eid :
                 return "%s/%s" % (type_id,session_and_scan[type][1])
@@ -297,7 +289,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     if next_visit_date and next_visit_date < visit_date_plusNd:
         visit_date_plusNd = next_visit_date
         if verbose:
-            print "Due to next visit date being within visit date range, the visit date range is shortened to (", visit_date , ", " , visit_date_plusNd +")."  
+            print("Due to next visit date being within visit date range, the visit date range is shortened to (", visit_date , ", " , visit_date_plusNd +").")  
 
     if verbose:
         print("Checking {} for {} with visit date {} to {}".format(subject,
@@ -308,7 +300,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     # Get project and subject IDs for this subject by name
     redcap_visit_id=subject+"-"+visit_date
 
-    if subject not in subject_project_dict.keys():
+    if subject not in list(subject_project_dict.keys()):
         slog.info(redcap_visit_id,"Subject cannot be found in XNAT!",
                   subject = subject, 
                   xnat_subject_id=xnat_sid)
@@ -336,14 +328,14 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
 
 
     if verbose:
-        print "XNAT Session Data:", xnat_session_data
+        print("XNAT Session Data:", xnat_session_data)
 
     if not xnat_session_data:
         if today > visit_date_plusNd:
             # TODO: Check that today - date_of_birth doesn't fall into one of
             # the exceptions (if subject is 23, 25, or 26)
             error = 'Missing MRI for Subject with visit date.'
-            age = round(red2cas.days_between_dates(date_of_birth, visit_date) / 365.242, 2)
+            age = round(old_div(red2cas.days_between_dates(date_of_birth, visit_date), 365.242), 2)
             age_note = ("Participant age on visit date was %.2f. It is "
                         "possible that scan wasn't acquired because protocol "
                         "states that scans be skipped at ages 23, 25, and 26."
@@ -375,11 +367,11 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     # field_regex = '.*<xnat:scanner manufacturer="(.*?)" model="(.*?)">(.*?)</xnat:scanner>'
     first_eid = xnat_eid_list[0]
     field_regex = '.*<xnat:scanner manufacturer="(.*?)" model="(.*?)"'
-    match = re.match(field_regex, xnat.select.experiment(first_eid).get(), flags=re.DOTALL)
+    match = re.match(field_regex, xnat.raw_text(xnat.select.experiments[first_eid]), flags=re.DOTALL)
     scannerMfc = "" 
     if match:
         scannerMfc = match.group(1).upper().split(" ",1)[0]
-        result['mri_scanner'] = match.group(1) + " " + match.group(2) + " " + str(xnat.select.experiment(first_eid).attrs.get('scanner'))
+        result['mri_scanner'] = match.group(1) + " " + match.group(2) + " " + str(xnat.select.experiments[first_eid].get('scanner'))
 
 
 
@@ -387,7 +379,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     [usable_scans_list,errFlag] = get_usable_scans_list(session, xnat_eid_list, redcap_visit_id, xnat_sid)
     if errFlag : 
         if verbose : 
-            print "ERROR: Failed to get usable scans for ", redcap_visit_id, "(" +  xnat_sid + ")!"
+            print("ERROR: Failed to get usable scans for ", redcap_visit_id, "(" +  xnat_sid + ")!")
         return [None, True]
 
     # Now each of the standard NCANDA scans from the usable list - select
@@ -400,7 +392,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     result['mri_series_t1'] = encode_session_and_scan(scans_by_type, ['t1spgr', 'mprage'],struct_eid)
 
     # Get fieldmap series for the DTI and the rs-fMRI scans
-    if 'dti60b1000' in scans_by_type.keys() and 'dti6b500pepolar' in scans_by_type.keys() :
+    if 'dti60b1000' in list(scans_by_type.keys()) and 'dti6b500pepolar' in list(scans_by_type.keys()) :
         # Make sure all scans  are from the same experiment
 
         result['mri_series_dti6b500pepolar'] = encode_session_and_scan(scans_by_type, ['dti6b500pepolar'])
@@ -413,9 +405,9 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
         result['mri_series_dti_fieldmap'] = ' '.join(['%s/%s' % (eid,scan) for (eid, scan) in fieldmaps_dti60])
 
         result['mri_dti_date'] = xnat_sessions_dict[scans_by_type['dti60b1000'][0]][0]
-        result['mri_dti_age'] = str(red2cas.days_between_dates( date_of_birth, result['mri_dti_date']) / 365.242)
+        result['mri_dti_age'] = str(old_div(red2cas.days_between_dates( date_of_birth, result['mri_dti_date']), 365.242))
 
-    if 'rsfmri' in scans_by_type.keys():
+    if 'rsfmri' in list(scans_by_type.keys()):
         result['mri_series_rsfmri'] = encode_session_and_scan( scans_by_type, ['rsfmri'])
 
         # only choose gradient map that was acquired in the same session as fmri scan
@@ -423,12 +415,12 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
         result['mri_series_rsfmri_fieldmap'] = ' '.join(['%s/%s' % (eid,scan) for (eid, scan) in fieldmaps_rsfmri])
 
         result['mri_rsfmri_date'] = xnat_sessions_dict[scans_by_type['rsfmri'][0]][0]
-        result['mri_rsfmri_age'] = str(red2cas.days_between_dates(date_of_birth, result['mri_rsfmri_date']) / 365.242)
+        result['mri_rsfmri_age'] = str(old_div(red2cas.days_between_dates(date_of_birth, result['mri_rsfmri_date']), 365.242))
 
 
     for xnat_eid in xnat_eid_list:
         result['mri_xnat_eids'] += xnat_eid + ' '
-        note = xnat.select.experiment(xnat_eid).attrs.get('note')
+        note = xnat.select.experiments[xnat_eid].note or ''
         experiment_note = note.strip()
         if len(experiment_note) > 0:
             result['mri_notes'] += '[%s] %s ' % (xnat_eid, re.sub('&quot;', '"', experiment_note))
@@ -442,9 +434,9 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     (result['mri_eid_spiral_stroop'], result['mri_eid_spiral_rest']) = get_spiral_uris(xnat_eid_list)
 
     # Get the T1w data (MPRAGE or SPGR) and its associated ADNI phantom scan
-    if 't1spgr' in scans_by_type.keys():
+    if 't1spgr' in list(scans_by_type.keys()):
         t1w_experiment_data = xnat_sessions_dict[scans_by_type['t1spgr'][0]]
-    elif 'mprage' in scans_by_type.keys():
+    elif 'mprage' in list(scans_by_type.keys()):
         t1w_experiment_data = xnat_sessions_dict[scans_by_type['mprage'][0]]
     else:
         t1w_experiment_data = None
@@ -452,7 +444,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     if t1w_experiment_data:
         # Compute age at T1w scan
         result['mri_t1_date'] = t1w_experiment_data[0]
-        result['mri_t1_age'] = str(red2cas.days_between_dates( date_of_birth, t1w_experiment_data[0]) / 365.242)
+        result['mri_t1_age'] = str(old_div(red2cas.days_between_dates( date_of_birth, t1w_experiment_data[0]), 365.242))
 
         # Find ADNI phantom scan in appropriate date range (either same day or within 24h)
         # Found same-day phantom scan?
@@ -477,9 +469,14 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
                 result['mri_adni_phantom'] = '3'  # Missing
 
     # Get custom variables of the "Reading" group
-    t1w_experiment = xnat.select.project( xnat_pid ).subject( xnat_sid ).experiment( re.sub('/.*', '', result['mri_series_t1']))
-    [ result['mri_datetodvd'], result['mri_findingsdate'], result['mri_findings'],
-      result['mri_excludefromanalysis'], result['mri_referredtopi']] = get_custom_variables( t1w_experiment, [ 'DateToDVD', 'FindingsDate', 'Findings', 'ExcludeFromAnalysis', 'ReferredToPI'], '')
+    try:
+        t1w_experiment = xnat.select.projects[xnat_pid].subjects[xnat_sid].experiments[re.sub('/.*', '', result['mri_series_t1'])]
+        [ result['mri_datetodvd'], result['mri_findingsdate'], result['mri_findings'],
+        result['mri_excludefromanalysis'], result['mri_referredtopi']] = xnat.get_custom_variables( t1w_experiment, [ 'DateToDVD', 'FindingsDate', 'Findings', 'ExcludeFromAnalysis', 'ReferredToPI'], '')
+    except KeyError:
+        def _empty_init(obj, f):
+            obj[f] = ''
+        any(_empty_init(result, x) for x in ['mri_datetodvd', 'mri_findingsdate', 'mri_findings', 'mri_excludefromanalysis', 'mri_referredtopi'])
 
     # Check if images have received reading and have either been labeled 'normal' or marked as checked
     if (result['mri_findings'].lower() == 'normal') or mri_inspection_completed:
@@ -522,7 +519,7 @@ def get_subject_next_visit_date(subject, after_visit_date):
 
 
 def get_sibling_id1(subject_label):
-    if subject_label in subject_label_to_sid_dict.keys():
+    if subject_label in list(subject_label_to_sid_dict.keys()):
         result = subject_label_to_sid_dict[subject_label]
     else:
         result = ''
@@ -586,7 +583,7 @@ parser.add_argument("-t","--time-log-dir",
 args = parser.parse_args()
 
 if args.verbose:
-    print args
+    print(args)
 
 slog.init_log(args.verbose, args.post_to_github,'NCANDA Pipeline Feeder Messages', 'import_mr_sessions', args.time_log_dir)
 slog.startTimer1()
@@ -594,14 +591,14 @@ slog.startTimer1()
 session = sibispy.Session() 
 if not session.configure(ordered_config_load_flag = True) :
     if args.verbose:
-        print "Error: session configure file was not found"
+        print("Error: session configure file was not found")
  
     sys.exit()
 
 redcap_project = session.connect_server('data_entry', True) 
 if not redcap_project : 
     if args.verbose:
-        print "Error: Could not connect to Redcap" 
+        print("Error: Could not connect to Redcap") 
 
     sys.exit()
 
@@ -609,7 +606,7 @@ if not redcap_project :
 xnat = session.connect_server('xnat',True) 
 if not xnat : 
     if args.verbose:
-        print "Error: Could not connect to XNAT" 
+        print("Error: Could not connect to XNAT") 
 
     sys.exit()
 
@@ -649,7 +646,7 @@ subject_project_list = session.xnat_export_general( 'xnat:subjectData', ['xnat:s
 # do not perform if not subject_project_list : as this is also true for [] !
 if subject_project_list == None: 
     if args.verbose:
-        print "ERROR: retrieving subject list from XNAT failed."
+        print("ERROR: retrieving subject list from XNAT failed.")
     sys.exit(1)
 
 subject_project_dict = dict()
@@ -665,7 +662,7 @@ xnat_sessions_fields = ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SUBJ
 xnat_sessions_list = session.xnat_export_general( 'xnat:mrSessionData', xnat_sessions_fields, [ ('xnat:mrSessionData/SESSION_ID','LIKE', '%') ],"subject_session_data")
 if xnat_sessions_list == None :
     if args.verbose : 
-        print "ERROR: retrieving session list from XNAT failed."
+        print("ERROR: retrieving session list from XNAT failed.")
 
     sys.exit(1) 
 
@@ -678,13 +675,13 @@ for ( session_id, session_subject_id, projects, date, scanner ) in xnat_sessions
 # Get ADNI phantom scans from XNAT
 #
 # try:
-#     xnat_phantom_sessions_list = xnat.select( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SCANNER','xnat:mrSessionData/DATE'] ).where( [ ('xnat:mrSessionData/LABEL','LIKE', '%-99999-P-9-%') ] ).items()
+#     xnat_phantom_sessions_list = xnat.search( 'xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SCANNER','xnat:mrSessionData/DATE'] ).where( [ ('xnat:mrSessionData/LABEL','LIKE', '%-99999-P-9-%') ] ).items()
 # except:
 #     sys.exit( "ERROR: retrieving phantom session list from XNAT failed." )
 xnat_phantom_sessions_list = session.xnat_export_general('xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID','xnat:mrSessionData/SCANNER','xnat:mrSessionData/DATE'], [ ('xnat:mrSessionData/LABEL','LIKE', '%-99999-P-9-%') ],'phantom_session_data')
 if xnat_phantom_sessions_list  == None :
     if args.verbose:
-       print "ERROR: retrieving subject list from XNAT failed." 
+       print("ERROR: retrieving subject list from XNAT failed.") 
 
     sys.exit(1)
 
@@ -699,7 +696,7 @@ subject_data = session.redcap_export_records("subject_data",fields=['study_id','
 
 if type(subject_data) == type(None) or subject_data.empty:
     if verbose: 
-        print "No subjects selected" 
+        print("No subjects selected") 
     sys.exit(1)
 
 # Gather all the subject data.
@@ -724,7 +721,7 @@ visit_log_redcap = session.redcap_export_records("visit_log",
 
 if type(visit_log_redcap) == type(None) or visit_log_redcap.empty:
     if verbose: 
-        print "No subjects selected" 
+        print("No subjects selected") 
     sys.exit(1)
 
 # Limit export by site.
@@ -773,13 +770,13 @@ mr_sessions_redcap = mr_sessions_redcap[ mr_sessions_redcap.index.map( lambda ke
 # Filter out all visits where the MR Session report is permanenetly missing 
 if mr_sessions_redcap.empty : 
     if args.verbose:
-        print "Warning: Nothing to import !" 
+        print("Warning: Nothing to import !") 
     sys.exit()
 
 mr_sessions_redcap = mr_sessions_redcap[ ~(mr_sessions_redcap['mri_missing'] > 0) ]
 
 if args.verbose:
-    print "Checking %d REDCap records." % len( mr_sessions_redcap )
+    print("Checking %d REDCap records." % len( mr_sessions_redcap ))
 
 # Iterate over all remaining rows
 records_uploaded = 0
@@ -801,11 +798,11 @@ for [key, row] in mr_sessions_redcap.iterrows():
 
     if not subject_label in subject_project_dict:
         if args.verbose: 
-            print index, "Passing on", key , " does not exist in XNAT"
+            print(index, "Passing on", key , " does not exist in XNAT")
         continue
 
     if args.verbose: 
-        print index, "Processing", key 
+        print(index, "Processing", key) 
 
     # Need to drop it otherwise upload to redcap fails 
     row = row.drop('mri_missing') 
@@ -821,10 +818,10 @@ for [key, row] in mr_sessions_redcap.iterrows():
 
         this_subject_data = subject_data.ix[key[0]]
         if str( this_subject_data['dob'] ) == 'nan':
-            print "Missing birthdate for subject %s" % key[0]
+            print("Missing birthdate for subject %s" % key[0])
         else:
             # Update XNAT SID and PID for subjects that changed sites
-            if subject_label in export_measures_map.iterkeys():
+            if subject_label in iter(export_measures_map.keys()):
                 sub_map = export_measures_map.get(subject_label)
                 event = key[1]
                 if event == 'baseline_visit_arm_1':
@@ -844,7 +841,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                 sid, pid = subject_project_dict[subject_label]
                 pipe_id = sid
 
-            visit_age = red2cas.days_between_dates( this_subject_data['dob'], visit_date ) / 365.242
+            visit_age = old_div(red2cas.days_between_dates( this_subject_data['dob'], visit_date ), 365.242)
             next_visit_date = get_subject_next_visit_date(key[0], visit_date)
             [xnat_data,errFlag] = get_xnat_data(session,red2cas,
                                       key,
@@ -861,7 +858,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
 
             if errFlag:   
                 if args.verbose: 
-                    print "ERROR: Failed to get xnat data for ", red2cas, "(" +  sid + ")!"
+                    print("ERROR: Failed to get xnat data for ", red2cas, "(" +  sid + ")!")
                 continue 
                 
 
@@ -883,11 +880,11 @@ for [key, row] in mr_sessions_redcap.iterrows():
                         # only run timer once - otherwise collect too much data
                         runTimerForImportToPipeline = False
 
-            if not args.no_upload and (xnat_data['mr_session_report_complete'] > 0 or args.force_update):
+            if not args.no_upload and (int(xnat_data['mr_session_report_complete']) > 0 or args.force_update):
                 # Make session data into dict for REDCap import
                 record = dict( row )
                 (record['study_id'], record['redcap_event_name']) = key
-                for (key,value) in xnat_data.iteritems():
+                for (key,value) in xnat_data.items():
                     record[key] = value
 
                 # only record the first upload - otherwise creating too many records
@@ -900,20 +897,20 @@ for [key, row] in mr_sessions_redcap.iterrows():
                 if not import_response : 
                     continue
 
-                if 'count' in import_response.keys():
+                if 'count' in list(import_response.keys()):
                     records_uploaded += import_response['count']
 
-                if 'error' in import_response.keys():
+                if 'error' in list(import_response.keys()):
                     slog.info(redcap_visit_id, "UPLOAD ERROR: {}".format(import_response['error']), record)
 
-                if 'records' in import_response.keys():
+                if 'records' in list(import_response.keys()):
                     for r in import_response['records']:
-                        print "\t Import Response from REDCap: ", r
+                        print("\t Import Response from REDCap: ", r)
 
 if args.verbose:
     if not args.no_upload:
-        print "Successfully uploaded %d/%d records to REDCap." % ( records_uploaded, len( mr_sessions_redcap ) )
+        print("Successfully uploaded %d/%d records to REDCap." % ( records_uploaded, len( mr_sessions_redcap ) ))
     else:
-        print "Suppressed uploading of %d records to REDCap." % ( len( mr_sessions_redcap ) )
+        print("Suppressed uploading of %d records to REDCap." % ( len( mr_sessions_redcap ) ))
 
 slog.takeTimer1("script_time","{'records': " + str(len(mr_sessions_redcap)) + ", 'uploads': " +  str(records_uploaded) + "}")

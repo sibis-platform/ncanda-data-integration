@@ -5,6 +5,8 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
+from builtins import str
 import re
 import os 
 import sys
@@ -71,7 +73,7 @@ slog.startTimer1()
 session = sibispy.Session()
 if not session.configure():
     if args.verbose:
-        print "Error: session configure file was not found"
+        print("Error: session configure file was not found")
 
     sys.exit()
 
@@ -79,7 +81,7 @@ project = session.connect_server(args.project, True)
 
 if not project:
     if args.verbose:
-        print "Error: Could not connect to Redcap"
+        print("Error: Could not connect to Redcap")
 
     sys.exit()
 
@@ -109,8 +111,8 @@ def process_file(fname):
         site = get_dag_from_df(data, verbose=args.verbose)
         if not site:
             slog.info(
-                (hashlib.sha1('import-laptops-csv2redcap / use-file-dag {}'
-                              .format(os.path.basename(fname)))
+                (hashlib.sha1(('import-laptops-csv2redcap / use-file-dag {}'
+                              .format(os.path.basename(fname))).encode())
                  .hexdigest()[0:6]),
                 "ERROR: Site could not be inferred from file",
                 instruction="You should re-run csv2redcap with a manually "
@@ -143,7 +145,7 @@ def process_file(fname):
             justFile = os.path.basename(fname)
             slog.info(
                 "%s-%s" % (str(row['redcap_data_access_group']),
-                           hashlib.sha1(fname).hexdigest()[0:6]),
+                           hashlib.sha1(fname.encode()).hexdigest()[0:6]),
                 "'record_id' is not defined in file '%s'!" % justFile,
                 cmd=" ".join(sys.argv),
                 file_name=fname,
@@ -158,7 +160,7 @@ def process_file(fname):
             if record_id in existing_data.index.tolist():
                 if existing_data[complete_field][record_id] == 2:
                     if args.force_update:
-                        print "Forcing update of 'Complete' record", record_id
+                        print("Forcing update of 'Complete' record", record_id)
                     else:
                         continue
 
@@ -166,8 +168,8 @@ def process_file(fname):
         if args.update_dag_only:
             row = row[['record_id', 'redcap_data_access_group']]
             if args.verbose:
-                print "%s assigned to %s" % (record_id,
-                                             row['redcap_data_access_group'])
+                print("%s assigned to %s" % (record_id,
+                                             row['redcap_data_access_group']))
 
         # Prune and convert to dict
         record = dict(row.dropna().apply(lambda s: re.sub('&quot;', '""', s)))
@@ -179,7 +181,7 @@ def process_file(fname):
 
     except Exception as err_msg: 
         justFile = os.path.basename(fname)
-        slog.info( str(args.data_access_group) + "-" + hashlib.sha1(fname + str(err_msg)).hexdigest()[0:6], "Upload error to redcap for file " + justFile,
+        slog.info( str(args.data_access_group) + "-" + hashlib.sha1((fname + str(err_msg)).encode()).hexdigest()[0:6], "Upload error to redcap for file " + justFile,
                    error_msg=str(err_msg),
                    record_list =str(record_list), 
                    cmd = " ".join(sys.argv),
@@ -189,26 +191,26 @@ def process_file(fname):
 
         
     # If there were any errors, try to print them as well as possible
-    if 'error' in import_response.keys():
+    if 'error' in list(import_response.keys()):
         error = "Upload error"
-        slog.info(hashlib.sha1('import-laptops-csv2redcap {}'.format(import_response['error'])).hexdigest()[0:6], error,
+        slog.info(hashlib.sha1('import-laptops-csv2redcap {}'.format(import_response['error']).encode()).hexdigest()[0:6], error,
                   error_msg=str(import_response['error']))
 
-    if 'fields' in import_response.keys():
+    if 'fields' in list(import_response.keys()):
         for field in import_response['fields']:
-            print "\t", field
+            print("\t", field)
 
-    if 'records' in import_response.keys():
+    if 'records' in list(import_response.keys()):
         for record in import_response['records']:
-            print "\t", record
+            print("\t", record)
 
     # Finally, print upload status if so desired
-    if 'count' in import_response.keys():
+    if 'count' in list(import_response.keys()):
         uploaded += import_response['count']
         records += len(data)
         if args.verbose:
-            print ("%s: Successfully uploaded %d/%d records to REDCap.") % \
-                  (fname, import_response['count'], len(data))
+            print(("%s: Successfully uploaded %d/%d records to REDCap.") % \
+                  (fname, import_response['count'], len(data)))
     else:
         failed.append(fname)
 
@@ -239,8 +241,8 @@ def get_dag_from_df(df, dag_field_regex=r'_[sS]ite\d?', site_lookup=None,
     varnames = [col for col in df.columns if re.search(dag_field_regex, col)]
     if len(varnames) != 1:
         if verbose:
-            print "Regex %s found %d columns, expected 1" % (dag_field_regex,
-                                                             len(varnames))
+            print("Regex %s found %d columns, expected 1" % (dag_field_regex,
+                                                             len(varnames)))
         return None
     dag_varname = varnames[0]
 
@@ -263,7 +265,7 @@ for f in args.csvfile:
 
 # Print failures
 if len(failed) > 0:
-    slog.info(hashlib.sha1('import-laptops-csv2redcap {}'.format(' '.join(failed))).hexdigest()[0:6], "ERROR uploading file(s)", 
+    slog.info(hashlib.sha1('import-laptops-csv2redcap {}'.format(' '.join(failed)).encode()).hexdigest()[0:6], "ERROR uploading file(s)", 
               files_not_uploaded = str(failed) )
     sys.exit()
 # Only take timer if all were uploaded

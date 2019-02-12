@@ -50,7 +50,7 @@ meta = api.export_metadata(format='df')
 
 def get_items_matching_regex(regex, haystack):
     import re
-    return filter(lambda x: re.search(regex, x), haystack)
+    return [x for x in haystack if re.search(regex, x)]
 
 
 # To be considered as "having content", the form has to pass any of the three tests:
@@ -116,12 +116,11 @@ form_groups = {
 
 results = pd.DataFrame()
 results_detailed = pd.DataFrame()
-for group_name, form_group in form_groups.items():
+for group_name, form_group in list(form_groups.items()):
     data = api.export_records(fields=[api.def_field], forms=form_group, format="df")
     form_group_fields = [meta.loc[meta['form_name'] == form].index.tolist()
                          for form in form_group]
-    per_form_results = map(lambda form_fields: data.loc[:, form_fields].apply(form_has_content, axis=1), 
-                           form_group_fields)
+    per_form_results = [data.loc[:, form_fields].apply(form_has_content, axis=1) for form_fields in form_group_fields]
     per_form_results = pd.concat(per_form_results, axis=1)
     per_form_results.columns = form_group
     group_results = (per_form_results

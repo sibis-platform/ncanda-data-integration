@@ -6,6 +6,8 @@
 ##
 
 # Setup command line parser
+from __future__ import print_function
+from builtins import str
 import os
 import re
 import sys
@@ -51,15 +53,15 @@ if not args.data_access_group == None:
 session = sibispy.Session()
 if not session.configure():
     if args.verbose:
-        print "Error: session configure file was not found"
+        print("Error: session configure file was not found")
 
     sys.exit()
 
 # If connection to redcap server fail, try multiple times
 try:
     project = session.connect_server(args.project, True)
-except Exception, error:
-    slog.info(hashlib.sha1('csv2redcap').hexdigest()[0:6],
+except Exception as error:
+    slog.info(hashlib.sha1(b'csv2redcap').hexdigest()[0:6],
     "ERROR: Could not connect to redcap!",
     script = 'csv2redcap')
     sys.exit()
@@ -94,19 +96,19 @@ for [key,row] in data.iterrows():
 import_response = project.import_records( record_list, overwrite='overwrite' )
 
 # If there were any errors, try to print them as well as possible
-if 'error' in import_response.keys():
-    print "UPLOAD ERROR:", import_response['error']
+if 'error' in list(import_response.keys()):
+    print("UPLOAD ERROR:", import_response['error'])
 
-if 'fields' in import_response.keys():
+if 'fields' in list(import_response.keys()):
     for field in import_response['fields']:
-        print "\t", field
+        print("\t", field)
 
-if 'records' in import_response.keys():
+if 'records' in list(import_response.keys()):
     for record in import_response['records']:
-        print "\t", record
+        print("\t", record)
 
 # Finally, print upload status if so desired
-if args.verbose and 'count' in import_response.keys():
-    print "Successfully uploaded %d/%d records to REDCap." % ( import_response['count'], len( data ) )
+if args.verbose and 'count' in list(import_response.keys()):
+    print("Successfully uploaded %d/%d records to REDCap." % ( import_response['count'], len( data ) ))
 
 slog.takeTimer1("script_time","{'records': " +  str(import_response['count']) + "}")

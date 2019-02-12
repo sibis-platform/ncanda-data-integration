@@ -5,6 +5,10 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
+from __future__ import division
+from builtins import str
+from past.utils import old_div
 import os
 import re
 import sys
@@ -50,7 +54,7 @@ uploads = 0
 session = sibispy.Session()
 if not session.configure(ordered_config_load_flag = True):
     if args.verbose:
-        print "Error: session configure file was not found"
+        print("Error: session configure file was not found")
 
     sys.exit()
 
@@ -108,20 +112,20 @@ if args.locked_form_report:
     engine = session.connect_server('redcap_mysql_db', True)
     if not engine :
         if args.verbose:
-            print "Error: Could not connect to REDCap mysql db"
+            print("Error: Could not connect to REDCap mysql db")
 
         sys.exit(1)
 
     if args.verbose:
-        print "Configured to output a report of locked forms..."
-        print "Connected to REDCap MySQL: {0}".format(engine)
+        print("Configured to output a report of locked forms...")
+        print("Connected to REDCap MySQL: {0}".format(engine))
 
 
 # Open connection with XNAT server
 xnat = session.connect_server('xnat',True)
 if not xnat :
     if args.verbose:
-        print "Error: Could not connect to XNAT"
+        print("Error: Could not connect to XNAT")
 
     sys.exit(1)
 
@@ -129,7 +133,7 @@ if not xnat :
 # Get subject and project IDs
 #
 try:
-    subject_project_list = xnat.select( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_LABEL', 'xnat:subjectData/SUBJECT_ID','xnat:subjectData/PROJECT'] ).where( [ ('xnat:subjectData/SUBJECT_LABEL','LIKE', '%')] ).items()
+    subject_project_list = list(xnat.search( 'xnat:subjectData', ['xnat:subjectData/SUBJECT_LABEL', 'xnat:subjectData/SUBJECT_ID','xnat:subjectData/PROJECT'] ).where( [ ('xnat:subjectData/SUBJECT_LABEL','LIKE', '%')] ).items())
 except:
     sys.exit( "ERROR: retrieving subject list from XNAT failed." )
 
@@ -162,7 +166,7 @@ subject_data = redcap_project.export_records(fields=subject_fields,
                                              event_name='unique',
                                              format='df')
 subject_data = pandas.concat([subject_data.xs(event, level=1) for event in baseline_events])
-subject_data['siblings_id1'] = subject_data['siblings_id1'].map( lambda x: subject_label_to_sid_dict[x] if x in subject_label_to_sid_dict.keys() else '' )
+subject_data['siblings_id1'] = subject_data['siblings_id1'].map( lambda x: subject_label_to_sid_dict[x] if x in list(subject_label_to_sid_dict.keys()) else '' )
 
 visit_log_fields = ['study_id', 'redcap_data_access_group', 'visit_date',
                     'mri_qa_completed', 'mri_t1_age', 'mri_dti_age',
@@ -189,7 +193,7 @@ if args.events:
     visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: key[1] in events ) ]
 
 # Filter out events not yet supported by the pipeline exporter
-visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: key[1] in red2cas.get_event_dictionary().keys() ) ]
+visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: key[1] in list(red2cas.get_event_dictionary().keys()) ) ]
 
 forms_by_event_dict = dict()
 for event in redcap_project.events:
@@ -206,14 +210,14 @@ if args.subject:
     visit_log_redcap = visit_log_redcap.loc[[args.subject]]
 
 if args.verbose:
-    print "Exporting %d REDCap records." % len( visit_log_redcap )
+    print("Exporting %d REDCap records." % len( visit_log_redcap ))
 
 # Iterate over all remaining rows
 for [key,row] in visit_log_redcap.iterrows():
-    if key[0] not in subject_label_to_sid_dict.keys():
+    if key[0] not in list(subject_label_to_sid_dict.keys()):
         if args.verbose:
             # there is no xnat id over entire study for this subject , thus no subhect id to write to casesdir, thus ignore  
-            print "Missing XNAT ID for subject",key[0]
+            print("Missing XNAT ID for subject",key[0])
         continue
     # only do sessions that are not ignored
     if row['visit_ignore___yes'] :
@@ -223,7 +227,7 @@ for [key,row] in visit_log_redcap.iterrows():
     visit_date = str(row['visit_date'])
     if visit_date == 'nan':
         if args.verbose:
-            print "Missing '%s' visit date for subject %s" % ( key[1], key[0] )
+            print("Missing '%s' visit date for subject %s" % ( key[1], key[0] ))
     else:
             this_subject_data = subject_data.ix[key[0]]
             subject_dob_str = str( this_subject_data['dob'] )
@@ -231,7 +235,7 @@ for [key,row] in visit_log_redcap.iterrows():
                 error = "Missing or invalid birthdate '%s' for subject %s" % ( subject_dob_str, key[0] )
                 slog.info(str(key[0]), error)
             else:
-                visit_age = red2cas.days_between_dates( subject_dob_str, visit_date ) / 365.242
+                visit_age = old_div(red2cas.days_between_dates( subject_dob_str, visit_date ), 365.242)
 
                 # If exclude flag is set, this will override the excludes value and export excluded subjects
                 if args.exclude:
@@ -259,11 +263,11 @@ for [key,row] in visit_log_redcap.iterrows():
 
                         # Handle mapping demographic info for subjects that
                         # changed site
-                        if redcap_subject in export_measures_map.iterkeys():
+                        if redcap_subject in iter(export_measures_map.keys()):
                             # Only set for visits in the past
                             visit_case_id_map = export_measures_map.get(
                                 redcap_subject)
-                            if visit_code in visit_case_id_map.iterkeys():
+                            if visit_code in iter(visit_case_id_map.keys()):
                                 case_id_map = visit_case_id_map.get(visit_code)
                                 # Use correct case id (NCANDA_S00001)
                                 subject_code = case_id_map.get('subject')

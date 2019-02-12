@@ -5,6 +5,12 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
+from __future__ import division
+from builtins import zip
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import os
 import re
 import sys
@@ -83,7 +89,11 @@ forms_date_increments = {
  
 # Convert to string, or empty if nan.
 def nan_to_empty( x ):
-    s = str(x)
+    try:
+        s = x.decode('utf-8')
+    except: 
+        s = str(x)
+        
     if s != 'nan':
         return s
     else:
@@ -95,25 +105,25 @@ def to_redcap(session, form_name, subject_id, event, timelabel, upload_records, 
         return 0
 
     if verbose :
-        print "to_redcap: ", form_name, subject_id, event, timelabel, record_id 
+        print("to_redcap: ", form_name, subject_id, event, timelabel, record_id) 
         id_label = '%s_missing' % form_name
 
     error_label = subject_id +"-"+ event + "-" + form_name 
     import_response =  session.redcap_import_record(error_label,subject_id,event,timelabel,[upload_records],record_id) 
  
     if verbose :
-        print "... done" 
+        print("... done") 
 
     # If there were any errors, try to print them as well as possible
     if import_response:
-        if 'error' in import_response.keys():
-            slog.info(error_label + "-" + hashlib.sha1(str(import_response['error'])).hexdigest()[0:6], "ERROR: Uploading Data", error_msg = str(import_response['error']))
-        if 'fields' in import_response.keys():
-            slog.info(error_label + "-" + hashlib.sha1(str(import_response['fields'])).hexdigest()[0:6], "Info: something wrong with fields ! Not sure what to do !", fields =  str(import_response['fields']))
-        if 'records' in import_response.keys():
-            slog.info(error_label + "-" + hashlib.sha1(str(import_response['records'])).hexdigest()[0:6], "Info: something wrong with redcords ! Not sure what to do !", records =  str(import_response['records']))
+        if 'error' in list(import_response.keys()):
+            slog.info(error_label + "-" + hashlib.sha1(str(import_response['error']).encode()).hexdigest()[0:6], "ERROR: Uploading Data", error_msg = str(import_response['error']))
+        if 'fields' in list(import_response.keys()):
+            slog.info(error_label + "-" + hashlib.sha1(str(import_response['fields']).encode()).hexdigest()[0:6], "Info: something wrong with fields ! Not sure what to do !", fields =  str(import_response['fields']))
+        if 'records' in list(import_response.keys()):
+            slog.info(error_label + "-" + hashlib.sha1(str(import_response['records']).encode()).hexdigest()[0:6], "Info: something wrong with redcords ! Not sure what to do !", records =  str(import_response['records']))
         # Finally, print upload status if so desired
-        if 'count' in import_response.keys():
+        if 'count' in list(import_response.keys()):
             return import_response['count']
  
     return 0
@@ -143,14 +153,14 @@ def get_subject_age( subject_id, at_date ):
     # Get subject Date of Birth
     try:
         date_of_birth = subject_dates_of_birth[subject_id]
-    except KeyError, e:
+    except KeyError as e:
         error = "ERROR: no birth date for subject"
         slog.info(subject_id, error, e=e)
         return ''
     # Set actual age - do this after everything else, because some surveys have
     # "age" fields; we want to overwrite those
     try:
-        return str(days_between_dates(date_of_birth, at_date) / 365.242)
+        return str(old_div(days_between_dates(date_of_birth, at_date), 365.242))
     except:
         if at_date != 'nan':
             error = "ERROR: could not parse visit date"
@@ -180,7 +190,7 @@ def get_subject_next_visit_date(subject, after_visit_date, form):
 def add_to_upload(session, form_prefix, form_name, subject_id, event_name, data, subject_age, verbose = False):
     record = {'study_id': subject_id, 'redcap_event_name': event_name, '%s_record_id' % form_prefix: data.name, '%s_missing' % form_prefix: '0', '%s_missing_why' % form_prefix: ''}
 
-    for key, value in dict(data).iteritems():
+    for key, value in dict(data).items():
         if (key in summary_field_names) or (key == '%s_complete' % form_name):
             strval = str(value)
             if strval == 'nan':
@@ -325,7 +335,7 @@ session = sibispy.Session()
 
 if not session.configure():
     if args.verbose:
-        print "Error: session configure file was not found"
+        print("Error: session configure file was not found")
 
     sys.exit()
 
@@ -343,27 +353,27 @@ with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
 if args.forms:
     forms = dict()
     for f in args.forms.split(','):
-        if f in all_forms.keys():
+        if f in list(all_forms.keys()):
             forms[f] = all_forms[f]
-        elif f in all_forms.values():
-            lookup = [k for (k, v) in all_forms.iteritems() if v == f]
+        elif f in list(all_forms.values()):
+            lookup = [k for (k, v) in all_forms.items() if v == f]
             forms[lookup[0]] = f
         else:
-            print "WARNING: no form with name or prefix '%s' defined.\n" % f
+            print("WARNING: no form with name or prefix '%s' defined.\n" % f)
 else:
     forms = all_forms
 
 if args.verbose:
-    print "Processing the following forms:\n\t", '\n\t'.join( sorted(forms.values()))
+    print("Processing the following forms:\n\t", '\n\t'.join( sorted(forms.values())))
 
-form_prefixes = forms.keys()
-form_names = forms.values()
+form_prefixes = list(forms.keys())
+form_names = list(forms.values())
 
 # Open connection with REDCap server - Import Project
 import_project = session.connect_server('import_laptops', True)
 if not import_project :
     if args.verbose:
-        print "Error: Could not connect to Redcap for Import Project"
+        print("Error: Could not connect to Redcap for Import Project")
 
     sys.exit()
 
@@ -371,7 +381,7 @@ if not import_project :
 redcap_project = session.connect_server('data_entry', True)
 if not redcap_project :
     if args.verbose:
-        print "Error: Could not connect to Redcap for Data Entry"
+        print("Error: Could not connect to Redcap for Data Entry")
 
     sys.exit()
 
@@ -437,9 +447,9 @@ if args.no_excluded:
 all_records = 0
 all_uploaded = 0
 
-for form_prefix, form_name in forms.iteritems():
+for form_prefix, form_name in forms.items():
     if args.verbose:
-        print "Processing form",form_prefix,"/",form_name
+        print("Processing form",form_prefix,"/",form_name)
 
     total_records = 0
     total_uploaded = 0
@@ -467,20 +477,20 @@ for form_prefix, form_name in forms.iteritems():
         s_records = pandas.DataFrame(columns =  complete_records.columns)
         for sid in args.study_id.split(',') :
             sids = sid.strip() 
-            sidr = complete_records[map(lambda (record_id,record_subject_id): sids in record_id or sids == str(record_subject_id).strip(), zip(complete_records.index.tolist(),complete_records[subject_id_label].tolist()))]
+            sidr = complete_records[[sids in record_id_record_subject_id[0] or sids == str(record_id_record_subject_id[1]).strip() for record_id_record_subject_id in zip(complete_records.index.tolist(),complete_records[subject_id_label].tolist())]]
             if len(sidr) :
                 s_records = s_records.append(sidr)
 
         complete_records = s_records 
         if args.verbose:
-            print "Record list from Import project:", str(complete_records.index.tolist())
+            print("Record list from Import project:", str(complete_records.index.tolist()))
                 
 
     records = complete_records.index.tolist()
     if len(records) == 0:
         error_id = form_name 
         if args.study_id :
-            error_id += "-" + hashlib.sha1(args.study_id).hexdigest()[0:6] 
+            error_id += "-" + hashlib.sha1(str(args.study_id).encode()).hexdigest()[0:6] 
 
         # if you stop here then missing data might be not discovered 
         slog.info(error_id, "Warning: stop processing as no records in import project for this form",
@@ -503,7 +513,7 @@ for form_prefix, form_name in forms.iteritems():
     imported_records = pandas.concat(returned_records)
 
     if args.verbose:
-        print "Form {} has {} records in import project.".format(forms, len(imported_records))
+        print("Form {} has {} records in import project.".format(forms, len(imported_records)))
 
     # From the index, extract the original subject ID and date from each imported
     # record IO and use these wherever not overridden by manually-entered values
@@ -551,7 +561,7 @@ for form_prefix, form_name in forms.iteritems():
     index = 0
     for key, row in entry_form_data.iterrows():
         if args.verbose :
-            print "Processing", key
+            print("Processing", key)
         # Select imported records for this subject
         records_this_subject = imported_records[ imported_records[subject_label] == key[0] ].drop( [subject_label], axis=1 )
 
@@ -575,7 +585,7 @@ for form_prefix, form_name in forms.iteritems():
                                  event_id=key[1],
                                  visit_date=form_target_date)
                     if args.verbose:
-                        print records_this_visit
+                        print(records_this_visit)
                 elif len(records_this_visit) == 1:
                     total_uploaded += add_to_upload(session, form_prefix, form_name, key[0], key[1], records_this_visit.ix[0], subject_age, args.verbose)
                 elif (entry_form_data[complete_label][key] > 0) and (entry_form_data[missing_label][key] != 1):
@@ -633,7 +643,7 @@ for form_prefix, form_name in forms.iteritems():
             exception_list = exceptions_data.get(subject_visit_id)
             if exception_list: 
                 if args.verbose: 
-                    print "Exception:", exception_list 
+                    print("Exception:", exception_list) 
                 for excep_date in exception_list.split(','):  
                      records_this_visit=records_this_visit.append(records_this_subject[ records_this_subject[date_label] == excep_date]) 
 
@@ -664,7 +674,7 @@ for form_prefix, form_name in forms.iteritems():
             elif ('ssaga' in form_prefix) and ('parent' in form_prefix) and float( subject_age ) > 18:
                 # For over-18 subjects, we do not require Parent SSAGA
                 if args.verbose:
-                    print "Marking over-18",form_name,"as missing for",key[0],"/",key[1]
+                    print("Marking over-18",form_name,"as missing for",key[0],"/",key[1])
                 total_uploaded += add_over18_to_upload(session, form_prefix, form_name, key[0], key[1] )
             # We absolutely have no records to assign - check now if one had been assigned
             # previously and somehow disappeared
@@ -678,7 +688,7 @@ for form_prefix, form_name in forms.iteritems():
 
     # Anything to upload?
     if args.verbose:
-        print "Uploaded", total_uploaded, "of", total_records, "records to form", form_name
+        print("Uploaded", total_uploaded, "of", total_records, "records to form", form_name)
 
     all_uploaded += total_uploaded
     all_records += total_records

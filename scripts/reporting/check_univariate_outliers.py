@@ -19,9 +19,11 @@ Sample use:
       --column-regex "_grayvol$" \
       -- $SOURCE_FILE1 $SOURCE_FILE2 > $RESULT_FILE 
 """
+from __future__ import print_function
 # TODO: Actually use longitudinal outlier check
 # TODO: Test normalization by column from a different file
 
+from builtins import range
 import pandas as pd
 
 
@@ -92,7 +94,7 @@ def get_univariate_outliers_in_file(filename, sd_count=3, reference="baseline",
 
     if args.last_event:
         all_events = [number_to_event_name(x) for x
-                      in xrange(0, args.last_event + 1)]
+                      in range(0, args.last_event + 1)]
         df = df[df.index.get_level_values(level='visit').isin(all_events)]
 
     if args.normalize_file:
@@ -257,7 +259,7 @@ if __name__ == "__main__":
     file_dfs = []
     for f in args.files:
         if args.verbose:
-            print "Now processing %s..." % f
+            print("Now processing %s..." % f)
         # TODO: Join with get_longitudinal_outliers, when that's written
         file_dfs.append(
             get_univariate_outliers_in_file(f, sd_count=args.sd_count,

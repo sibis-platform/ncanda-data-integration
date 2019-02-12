@@ -6,6 +6,8 @@ Primarily used by find_limesurvey_status.
 FIXME:
 - Form number is not sufficient for identifying whether LSSAGA is Youth or Parent -- necessary to consult `_typeintertranslate`
 """
+from builtins import zip
+from builtins import str
 import pandas as pd
 import numpy as np
 from fnmatch import fnmatch
@@ -40,7 +42,7 @@ def limesurvey_name_to_number(ls_name, lookup_df=None):
 def limesurvey_name_short_to_long(ls_name, lookup_df=None):
     if lookup_df is None:
         lookup_df = get_ncanda_form_lookup(as_dataframe=True)
-    lookup_dict = dict(zip(lookup_df['short_name'], lookup_df['long_name']))
+    lookup_dict = dict(list(zip(lookup_df['short_name'], lookup_df['long_name'])))
     return lookup_dict.get(ls_name)
 
 def limesurvey_name_glob_to_names(ls_glob, lookup_df=None):

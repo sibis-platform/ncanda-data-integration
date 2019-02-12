@@ -5,6 +5,10 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
+from builtins import filter
+from builtins import map
+from builtins import str
 import os
 import re
 import csv
@@ -16,12 +20,13 @@ import datetime
 import yaml
 import hashlib
 import bisect 
-import pyxnat
 import pandas as pd 
+import traceback
 
 import sibispy
 from sibispy import sibislogger as slog
 from sibispy import check_dti_gradients as chk_dti
+from sibispy.xnat_util import XNATSessionElementUtil, XNATExperimentUtil
 import make_session_niftis
 
 import upload_visual_qc
@@ -81,8 +86,8 @@ required_ge = {'ncanda-t1spgr-v1': 1,
                'ncanda-rsfmri-v1': 1}
 
 
-scan_type_dictionary = {'GE MEDICAL SYSTEMS': required_ge.keys(),
-                        'SIEMENS': required_siemens.keys()}
+scan_type_dictionary = {'GE MEDICAL SYSTEMS': list(required_ge.keys()),
+                        'SIEMENS': list(required_siemens.keys())}
 
 # Dictionaries of required series for ADNI (separate for GE and Siemens) and
 # fBIRN phantom sessions
@@ -173,13 +178,13 @@ def check_physio(experiment,ifc,eid):
             return True
 
     except Exception as err_msg: 
-        slog.info(eid + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not retrieve physioproblemoverride',
+        slog.info(eid + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],'ERROR: Could not retrieve physioproblemoverride',
                   err_msg = str(err_msg))
         return False
 
 
-    for resource in experiment.resources().get():
-        json_path = '/data/experiments/{}/resources/{}/files?format=json'
+    for resource in list(experiment.resources):
+        json_path = '/data/experiments/{}/resources/{}/files'
         files = ifc._get_json(json_path.format(eid, resource))
         for fl in files:
             for ph in physio:
@@ -212,7 +217,7 @@ def check_dti(dti_checker,experiment, session_dir, dti_scans, cases_dir, session
             if sequenceLabel in scantype:
                 if scan in incorrect_formatting_list : 
                     if args.verbose:
-                        print session_label, ": The following scans will not be checked in check_dti: ", scan, scantype
+                        print(session_label, ": The following scans will not be checked in check_dti: ", scan, scantype)
                     continue
 
                 scan_dir = '%s_%s' % (scan,scantype)
@@ -223,7 +228,8 @@ def check_dti(dti_checker,experiment, session_dir, dti_scans, cases_dir, session
                     errors.append('gradient check failed for ' + scan_dir)
             
                 try : 
-                    xnat_para = experiment.scan(scan).attrs.mget(scan_attrs)
+                    util = XNATSessionElementUtil(experiment.scans[scan])
+                    xnat_para = util.mget(scan_attrs)
                     xnat_para.append(scan)
                     parameters += [xnat_para]
 
@@ -301,7 +307,7 @@ def incomplete_scan_check(experiment,manufacturer, session_label, eid, scan_type
             missing_scans = list(set(missing_scans).difference(missing_scans_exception_list))
             if missing_scans == [] : 
                 if args.verbose:
-                    print session_label, ": All missing scans are excepted!" 
+                    print(session_label, ": All missing scans are excepted!") 
                 return False
  
         err_msg = 'ERROR: Missing scans from Session!'
@@ -316,7 +322,7 @@ def incomplete_scan_check(experiment,manufacturer, session_label, eid, scan_type
         return True
 
 def voxelres_get(experiment, scan):
-        scan_info = experiment.scan(scan).get()
+        scan_info = XNATSessionElementUtil(experiment.scans[scan]).xml
         field_regex = '.*<xnat:voxelRes (.*?)/>'
         match = re.match(field_regex, scan_info, flags=re.DOTALL)
         if match:
@@ -329,7 +335,7 @@ def voxelRes_check(experiment, manufacturer, scan_list):
     voxel_res = []
     error = []
     for scan in scan_list:
-        scan_res = [experiment.scan(scan).attrs.get('type'),
+        scan_res = [experiment.scans[scan].get('type'),
                     voxelres_get(experiment, scan),scan]
         voxel_res.append(scan_res)
 
@@ -378,7 +384,8 @@ def frame_check(experiment, manufacturer, scan_list):
     error = []
 
     for scan in scan_list:
-        frame = experiment.scan(scan).attrs.mget(['type','frames'])
+        util = XNATSessionElementUtil(experiment.scans[scan])
+        frame = util.mget(['type','frames'])
         frame.append(scan)
         frames.append(frame)
 
@@ -398,12 +405,12 @@ def frame_check(experiment, manufacturer, scan_list):
         for (k, v, z) in frames:
             if k == 'ncanda-grefieldmap-v1':
                 # insert it sorted 
-                ind=bisect.bisect_left(map(int,voxel_dim_list),int(v))
+                ind=bisect.bisect_left(list(map(int,voxel_dim_list)),int(v))
                 voxel_dim_list.insert(ind,v)
                 seq_id_list.insert(ind,z)
 
         grefieldmap_list = ['ncanda-grefieldmap-v1', voxel_dim_list, seq_id_list]
-        frames = filter(lambda x: x[0] != 'ncanda-grefieldmap-v1', frames) 
+        frames = [x for x in frames if x[0] != 'ncanda-grefieldmap-v1'] 
 
         if voxel_dim_list : 
             # Change all frames with fixed grefieldmap
@@ -438,10 +445,10 @@ def image_check(experiment, session_dir, manufacturer, scan_list):
     error = [] 
 
     for scan_id in scan_list:
-        scan_type =  experiment.scan(scan_id).attrs.get('type')
+        scan_type =  experiment.scans[scan_id].get('type')
 
         # Nothing to do 
-        if not scan_type in expected_images[manufacturer].keys():
+        if not scan_type in list(expected_images[manufacturer].keys()):
             continue 
 
         imgrange = expected_images[manufacturer][scan_type]
@@ -464,10 +471,10 @@ def mri_quality_check(experiment, session_dir, manufacturer, session_label, eid,
     # only use first part of string so GE Manufacturer is turned into GE
     # manufacturer_u = manufacturer.split(' ',1)[0].upper()
 
-    if not manufacturer in expected_images.keys():
+    if not manufacturer in list(expected_images.keys()):
         slog.info(session_label, "Error: Manufacturer '" + manufacturer + "' unkwnown", 
                   manufacturer=str(manufacturer), 
-                  defined=str(expected_images.keys()),
+                  defined=str(list(expected_images.keys())),
                   eid =eid)
 
         return False
@@ -482,7 +489,7 @@ def mri_quality_check(experiment, session_dir, manufacturer, session_label, eid,
     if incorrect_formatting_exception:
         incorrect_formatting_list = str(incorrect_formatting_exception).split(',')
         if args.verbose:
-            print session_label, ": The following scans will not be checked in mri_quality_check: ", str(incorrect_formatting_list) 
+            print(session_label, ": The following scans will not be checked in mri_quality_check: ", str(incorrect_formatting_list)) 
 
         no_exception_list = list(set(scan_list).difference(incorrect_formatting_list))
     else :
@@ -516,7 +523,7 @@ def remove_file(session_label,fileName):
     try :  
         os.remove(fileName)
     except Exception as err_msg: 
-        slog.info(session_label + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not remove file - please check access rights! - stopped processing',
+        slog.info(session_label + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],'ERROR: Could not remove file - please check access rights! - stopped processing',
                   fileName = fileName,
                   error_msg=str(err_msg))
         sys.exit("Stopped due to access file issues!")
@@ -529,7 +536,7 @@ def rename_file(session_label,oldFileName,newFileName):
     try :  
         os.rename(oldFileName,newFileName)
     except Exception as err_msg: 
-        slog.info(session_label + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not rename file - please check access rights! Processing stopped',
+        slog.info(session_label + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],'ERROR: Could not rename file - please check access rights! Processing stopped',
                   oldFileName = oldFileName,
                   newFileName = newFileName,
                   error_msg=str(err_msg))
@@ -561,7 +568,7 @@ def make_session_link(server_address, eid, project, label,xnat_dir):
 # Get a custom variable from XML representation of experiment
 def get_custom_variable(experiment, field_name):
     field_regex = '.*<xnat:field name="%s">(.*?)</xnat:field>' % field_name
-    match = re.match(field_regex, experiment.get(), flags=re.DOTALL)
+    match = re.match(field_regex, XNATSessionElementUtil(experiment).xml, flags=re.DOTALL)
     if match:
         return re.sub('\s*<!--.*?-->\s*',
                       '',
@@ -600,6 +607,9 @@ parser.add_argument("-M", "--last-month",
 parser.add_argument("-e", "--eid",
                     help="Check all MR sessions that are associated with eids. Multiple eids need to be seperated by comma. ",
                     action="store")
+parser.add_argument("-r", "--restart",
+                    help="Skip to provided eid.",
+                    action="store")
 parser.add_argument("--no-update",
                     help="Do not update the persistent data stored on the "
                          "XNAT server (e.g., last run date, list of flagged "
@@ -626,14 +636,14 @@ slog.startTimer1()
 sibis_session = sibispy.Session()
 if not sibis_session.configure() :
     if verbose:
-        print "Error: session configure file was not found"
+        print("Error: session configure file was not found")
  
     sys.exit()
 
 ifc = sibis_session.connect_server('xnat', True)
 if not ifc : 
     if verbose:
-        print "Error: Could not connect to XNAT" 
+        print("Error: Could not connect to XNAT") 
 
     sys.exit()
 
@@ -642,7 +652,7 @@ server_address = str(sibis_session.get_xnat_server_address())
 dti_checker = chk_dti.check_dti_gradients()
 if not dti_checker.configure(sibis_session,check_decimals=2):
     if verbose:
-        print "Error: Could not initialize dti_checker" 
+        print("Error: Could not initialize dti_checker") 
     sys.exit()
 
 log_dir = os.path.join(sibis_session.get_log_dir(),'check_new_sessions')
@@ -680,13 +690,13 @@ config_uri = '/data/config/pyxnat/check_new_sessions'
 if not args.check_all:
     try:
         # Retrieve script config from XNAT server
-        content = ifc._get_json('%s' % config_uri)
+        content = ifc._get_json(config_uri)
 
         # Extract date this script was last run
         creation_date = content[0]['create_date']
         date_last_checked = time.strptime(creation_date[0:19], xnat_date_format)
         if args.verbose:
-            print 'Script was last run %s' % creation_date
+            print('Script was last run %s' % creation_date)
 
         # Get list of previously flagged experiments that need to be checked
         # again
@@ -695,14 +705,14 @@ if not args.check_all:
         else:
             experiments_to_check = set(content[0]['contents'].split(','))
         if args.verbose:
-            print 'Re-checking %d previously flagged experiments' % \
-                  len(experiments_to_check)
+            print('Re-checking %d previously flagged experiments' % \
+                  len(experiments_to_check))
     except:
         # If we cannot get last script run date from server, leave at epoch
         # (Jan 1, 1970)
         if args.verbose:
-            print 'Unable to retrieve date of last script run and list of ' \
-                  'flagged projects from server.'
+            print('Unable to retrieve date of last script run and list of ' \
+                  'flagged projects from server.')
 
 
 
@@ -719,25 +729,25 @@ if args.last_month:
 # For comparison - convert time of last check to string in XNAT date format
 str_date_last_checked = time.strftime(xnat_date_format, date_last_checked)
 if args.verbose:
-    print "Checking sessions modified after", str_date_last_checked
+    print("Checking sessions modified after", str_date_last_checked)
 
 if not args.eid:
     criteria = [('xnat:mrSessionData/LAST_MODIFIED',
                  '>=',
                  str_date_last_checked)]
-    new_sessions = ifc.select('xnat:mrSessionData',
-                              fields_per_session).where(criteria).items()
+    new_sessions = list(ifc.search('xnat:mrSessionData',
+                              fields_per_session).where(criteria).items())
     if args.verbose:
-        print '%d experiments have been modified since last run' % \
-              len(new_sessions)
+        print('%d experiments have been modified since last run' % \
+              len(new_sessions))
 
 # Also get necessary data for all sessions flagged during previous run of this
 # script
 previous_sessions = []
 for eid in experiments_to_check:
     criteria = [('xnat:mrSessionData/ID', 'LIKE', eid.strip())]
-    this_session = ifc.select('xnat:mrSessionData',
-                              fields_per_session).where(criteria).items()
+    this_session = list(ifc.search('xnat:mrSessionData',
+                              fields_per_session).where(criteria).items())
     if len(this_session):
         previous_sessions.append(this_session[0])
     else:
@@ -748,17 +758,17 @@ for eid in experiments_to_check:
 sessions_to_check = sorted(list(set(new_sessions + previous_sessions)),
                            key=lambda tupl: tupl[3])
 if args.verbose:
-    print 'Checking a total of %d experiments' % len(sessions_to_check)
+    print('Checking a total of %d experiments' % len(sessions_to_check))
 
 # Get list of fBIRN phantom subject IDs
 criteria = [('xnat:subjectData/SUBJECT_LABEL', 'LIKE', '%-00000-P-0')]
-fbirn_ids_search = ifc.select('xnat:subjectData',
+fbirn_ids_search = ifc.search('xnat:subjectData',
                               ['xnat:subjectData/SUBJECT_ID']).where(criteria)
 fbirn_ids = fbirn_ids_search.get('subject_id')
 
 # Get list of ADNI phantom subject IDs
 criteria = [('xnat:subjectData/SUBJECT_LABEL', 'LIKE', '%-99999-P-9')]
-adni_ids_search = ifc.select('xnat:subjectData',
+adni_ids_search = ifc.search('xnat:subjectData',
                              ['xnat:subjectData/SUBJECT_ID']).where(criteria)
 adni_ids = adni_ids_search.get('subject_id')
 
@@ -775,7 +785,16 @@ if False:
     #        break
     #    index += 1
     sessions_to_check = sessions_to_check[375:]
-    print "DEBUG: Checking " + str(len(sessions_to_check)) + " sessions." 
+    print("DEBUG: Checking " + str(len(sessions_to_check)) + " sessions.") 
+
+if args.restart:
+    restart = False
+    def _filter_fun(ses):
+        global restart
+        if restart == False and ses[0] == args.restart:
+            restart = True
+        return restart
+    sessions_to_check = list(filter(_filter_fun, sessions_to_check))
 
 xnat_dir = sibis_session.get_xnat_dir()
 if not os.path.exists(xnat_dir):  
@@ -785,13 +804,13 @@ cases_dir = sibis_session.get_cases_dir()
 index = 0
 creatingNiftiFlag = True 
 if not creatingNiftiFlag: 
-  print "DEBUG: Not creating any new nifti files" 
+  print("DEBUG: Not creating any new nifti files") 
 
 for (eid, project, subject, insert_date,
      session_label, last_modified) in sessions_to_check:
     index +=1 
     if args.check_all:
-        print "==== ", index, eid
+        print("==== ", index, eid)
 
     #if index < 3517 :
     #    continue
@@ -823,21 +842,24 @@ for (eid, project, subject, insert_date,
         continue 
 
     try :
-        manufacturer = 'xnat:mrSessionData/scanner/manufacturer'
-        manufacturer = experiment.attrs.get(manufacturer)
-        scanner_model_str = 'xnat:mrSessionData/scanner/model'
-        scanner_model = experiment.attrs.get(scanner_model_str)
-        sess_type = 'xnat:mrSessionData/scans/scan/type'
-        scan_types = experiment.attrs.get(sess_type)
-        scan_id = 'xnat:mrSessionData/scans/scan/id'
-        scan_id_list = experiment.attrs.get(scan_id)
+
+        manufacturer = 'scanner/manufacturer'
+        manufacturer = experiment.get(manufacturer) or ''
+        scanner_model_str = 'scanner/model'
+        scanner_model = experiment.get(scanner_model_str) or ''
+
+        exp_util = XNATExperimentUtil(experiment)
+        scan_types = exp_util.summarize('scans/scan', 'type')
+        scan_id_list =  exp_util.summarize('scans/scan', 'id')
 
     except Exception as err_msg: 
+        info = sys.exc_info()
         slog.info(session_label,'ERROR: Could not retrieve experiment specific parameters from xnat - skipping session',
                   project = project,
                   eid = eid,
                   info = "Most likely network problem or another app is trying to access xnat at the same time",
-                  err_msg=str(err_msg))
+                  err_msg=str(err_msg),
+                  detail=traceback.format_exception(info[0], info[1], info[2]))
         experiments_for_next_run.append(eid)
         remove_file(session_label,qc_file_tmp)
         continue
@@ -874,20 +896,20 @@ for (eid, project, subject, insert_date,
     # Get quality rating for each scan type
     try :
         scantype_and_quality = [
-            [scan] + experiment.scan(scan).attrs.mget(['type','quality'])
-            for scan in experiment.scans('*').get()]
+            [scan] + XNATSessionElementUtil(experiment.scans[scan]).mget(['type','quality'])
+            for scan in list(experiment.scans)]
         final = [
             scantype for (scan, scantype, quality) in scantype_and_quality
-            if scantype in required_series.keys() and quality in ['usable', 'unusable']]
+            if scantype in list(required_series.keys()) and quality in ['usable', 'unusable']]
         usable = [
             scantype for (scan, scantype, quality) in scantype_and_quality
-            if scantype in required_series.keys() and quality == 'usable']
+            if scantype in list(required_series.keys()) and quality == 'usable']
         questionable = [
             scantype for (scan, scantype, quality) in scantype_and_quality
-            if scantype in required_series.keys() and quality == 'questionable']
+            if scantype in list(required_series.keys()) and quality == 'questionable']
         unseen_scans = [
             [scan,scantype] for (scan, scantype, quality) in scantype_and_quality
-            if scantype in required_series.keys() and quality in ['unset','unknown']]
+            if scantype in list(required_series.keys()) and quality in ['unset','unknown']]
         dti_scans = [
             (scan, scantype) for (scan, scantype, quality) in scantype_and_quality
             if re.match('^ncanda-dti.*-v1$', scantype) and quality != 'unusable']
@@ -896,11 +918,13 @@ for (eid, project, subject, insert_date,
             if re.match('^ncanda-.*fmri.*-v1$', scantype) and quality != 'unusable']
 
     except Exception as err_msg: 
-        slog.info(session_label + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not retrieve scan specific parameters from xnat - skipping session',
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        slog.info(session_label + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],'ERROR: Could not retrieve scan specific parameters from xnat - skipping session',
                   project = project,
                   eid = eid,
                   info = "Most likely network problem",
-                  err_msg=str(err_msg))
+                  err_msg=str(err_msg),
+                  detail=traceback.format_exception(exc_type, exc_value, exc_traceback))
         experiments_for_next_run.append(eid)
         remove_file(session_label,qc_file_tmp)
         continue
@@ -924,10 +948,12 @@ for (eid, project, subject, insert_date,
                                                                                            xnat_dir,
                                                                                            verbose=args.verbose)
                 except Exception as err_msg: 
-                    slog.info(session_label + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not generate nifti files - skipping session',
+                    info = sys.exc_info()
+                    slog.info(session_label + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],'ERROR: Could not generate nifti files - skipping session',
                           eid = eid,
                           project = project,
-                          err_msg=str(err_msg))
+                          err_msg=str(err_msg),
+                          detail=traceback.format_exception(*info))
                     experiments_for_next_run.append(eid)
                     remove_file(session_label,qc_file_tmp)
                     continue 
@@ -981,15 +1007,28 @@ for (eid, project, subject, insert_date,
             
             # If no error is detected write flag to data drive
             if not errorFlag:
-                with open(qc_file, 'a'):
-                    os.utime(qc_file, None)
+                try:
+                    with open(qc_file, 'a'):
+                        os.utime(qc_file, None)
+                except IOError as err:
+                    if err.errno != 2:
+                        raise err
+                    else:
+                        slog.info(session_label + "-" + hashlib.sha1(str(err).encode()).hexdigest()[0:6],'WARNING: File not found',
+                            project = project,
+                            file = qc_file,
+                            eid = eid,
+                            error=str(err)
+                        )
 
         except Exception as err_msg: 
-            slog.info(session_label + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not check quality of session',
+            info = sys.exc_info()
+            slog.info(session_label + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],'ERROR: Could not check quality of session',
                       project = project,
                       info = "Most likely network problem",
                       eid = eid,
-                      error=str(err_msg))
+                      error=str(err_msg),
+                      detail=traceback.format_exception(*info))
             experiments_for_next_run.append(eid)
             remove_file(session_label,qc_file_tmp)
             continue
@@ -1007,10 +1046,12 @@ for (eid, project, subject, insert_date,
     if len(unseen_scans):
         unseen_scans_type = [] 
 
-        exp_note = experiment.attrs.get('note').replace('\r','').replace('\n',' ') .replace(',',' -') 
+        exp_note = experiment.get('note') or ''
+        exp_note = exp_note.replace('\r','').replace('\n',' ') .replace(',',' -')
         for scan,scan_type in unseen_scans:
              unseen_scans_type.append(scan_type)
-             scan_note=experiment.scan(scan).attrs.get('note').replace('\r','').replace('\n',' ') .replace(',',' -') 
+             scan_note=experiment.scans[scan].get('note') or ''
+             scan_note=scan_note.replace('\r','').replace('\n',' ') .replace(',',' -') 
              row =  eid + "," + session_dir + "," +  scan + "," + scan_type + ',"' + exp_note + '",,"'+ scan_note + '"\n' 
              scans_to_qc.append(row)
 
@@ -1021,7 +1062,7 @@ for (eid, project, subject, insert_date,
 
     # duplicated scantypes
     dupl =[scantype for scantype in usable
-           if (scantype in required_series.keys()) and
+           if (scantype in list(required_series.keys())) and
            (usable.count(scantype) > required_series[scantype]) and more_of_type_map.get(session_label) != scantype ]
     if len(dupl):
         htmld.append(''.join([session_html_link,
@@ -1038,10 +1079,10 @@ for (eid, project, subject, insert_date,
             or (not physio_ok) or (not nifti_export_ok):
         experiments_for_next_run.append(eid)
         if args.verbose:
-            print "RECHECK"
+            print("RECHECK")
     else:
         if args.verbose:
-            print "OK"
+            print("OK")
 
 # Make links for all "new" sessions, i.e., those inserted after the
 # "last checked" date
@@ -1116,7 +1157,7 @@ if args.send_mail_to:
                html,
                False)
 elif args.verbose:
-    print html
+    print(html)
 
 # Write the scans to QC csv file.
 if len(scans_to_qc) > 1  and args.qc_csv :
@@ -1150,9 +1191,10 @@ if len(scans_to_qc) > 1  and args.qc_csv :
 # time that this script was last run
 if not args.no_update:
     if args.verbose:
-        print "Flagging %d series for re-inspection during next script run" % \
-              len(experiments_for_next_run)
-    content = ifc._exec(uri='%s?inbody=true' % config_uri,
+        print("Flagging %d series for re-inspection during next script run" % \
+              len(experiments_for_next_run))
+    content = ifc._exec(uri=config_uri,
+                        query={'inbody':'true'},
                         method='PUT',
                         body=','.join(set(experiments_for_next_run)),
                         headers={'content-type': 'text/plain'})

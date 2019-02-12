@@ -13,6 +13,7 @@ Data processing is done separately in aseba_prep.py and aseba_reformat.py.
 """
 
 
+from builtins import object
 import time
 from collections import OrderedDict
 
@@ -30,7 +31,7 @@ def get_aseba_form(form_type):
     else:
         raise NotImplementedError("Form type %s not implemented!" % form_type)
 
-class FormASEBA:
+class FormASEBA(object):
     """
     Base class for ASEBA forms. Should never be instantiated on its own.
     

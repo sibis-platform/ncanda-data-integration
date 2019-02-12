@@ -12,6 +12,7 @@ This script generates a report of the numbers needed for the IRB renewal.
 -y is the year
 
 """
+from __future__ import print_function
 import os
 import sys
 
@@ -65,10 +66,10 @@ def main(args):
     project_df['visit_date'] = pd.to_datetime(project_df['visit_date'])
     total_number_of_records_this_year = len(project_df[(project_df['visit_date'] > datetime.date((year-1),12,31)) & (project_df['visit_date'] < datetime.date((year+1),1,1)) ]['visit_date'].tolist())
 
-    print "\nIRB Annual Report:"
-    print "Total Number of Subjects: {}".format(total_number_of_subjects)
-    print "Total Number of Records: {}".format(total_number_of_records)
-    print "Total Number of Records the Past Year: {}".format(total_number_of_records_this_year)
+    print("\nIRB Annual Report:")
+    print("Total Number of Subjects: {}".format(total_number_of_subjects))
+    print("Total Number of Records: {}".format(total_number_of_records))
+    print("Total Number of Records the Past Year: {}".format(total_number_of_records_this_year))
 
 if __name__ == '__main__':
     import argparse

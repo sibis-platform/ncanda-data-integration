@@ -5,6 +5,11 @@
 """
 A collection of utility functions used by aseba_prep.py and aseba_reformat.py
 """
+from __future__ import print_function
+from __future__ import division
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import pandas as pd
 import re
 
@@ -36,7 +41,7 @@ def get_year_set(year_int):
     Only allows for full-year standard-arm events.
     """
     events = ["baseline"]
-    events.extend([str(i) + "y" for i in xrange(1, 10)])
+    events.extend([str(i) + "y" for i in range(1, 10)])
     events = [e + "_visit_arm_1" for e in events]
     return events[0:(year_int + 1)]
 
@@ -169,7 +174,7 @@ def cbc_colname_sorter(colname):
         number = float(match.group(1))
         letter = match.group(2)
         if len(letter) > 0:
-            letter = (ord(letter) - 96) / 100
+            letter = old_div((ord(letter) - 96), 100)
         else:
             letter = 0.0
     return number + letter

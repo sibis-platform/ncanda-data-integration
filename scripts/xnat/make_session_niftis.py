@@ -4,6 +4,8 @@
 ##  See COPYING file distributed along with the ncanda-data-integration package
 ##  for the copyright and license terms
 ##
+from __future__ import print_function
+from builtins import str
 import os
 import glob
 import shutil
@@ -16,6 +18,7 @@ import sys
 
 from sibispy import sibislogger as slog
 from sibispy import utils as sutils
+from sibispy.xnat_util import XNATSessionElementUtil
 
 
 #
@@ -23,7 +26,7 @@ from sibispy import utils as sutils
 #
 def export_to_nifti(experiment, subject, session, session_label, scan, scantype, xnat_dir, verbose=False):
     if verbose:
-        print "Starting export of nifti files for ", subject, session, session_label, scan, scantype,xnat_dir
+        print("Starting export of nifti files for ", subject, session, session_label, scan, scantype,xnat_dir)
 
     error_msg = []
 
@@ -33,7 +36,7 @@ def export_to_nifti(experiment, subject, session, session_label, scan, scantype,
     # and comment out the proceeding one 
     # if not xnat_log.exists() or 'dti60b1000' in scantype:
     # if not xnat_log.exists():
-    match = re.match('.*('+ xnat_dir + '/.*)scan_.*_catalog.xml.*',experiment.scan(scan).get(),re.DOTALL)
+    match = re.match('.*('+ xnat_dir + '/.*)scan_.*_catalog.xml.*',XNATSessionElementUtil(experiment.scans[scan]).xml,re.DOTALL)
     if not match:
         error_msg.append("XNAT scan info fails to contain catalog.xml location! SID:""%s EID:%s Label: %s SCAN: %s" % (dicom_path, subject, session,session_label,scan))
         return error_msg,0

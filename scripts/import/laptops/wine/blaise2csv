@@ -5,6 +5,8 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
+from builtins import str
 import argparse
 import tempfile
 import shutil
@@ -46,7 +48,7 @@ def score_ssaga( filename_asc ):
     for sas_script in ['crtpreNSSAGA_v3.sas', 'crtNSSAGA.sas', 'crtalldx.sas', 'toCSV.sas']:
         if not sibis_wine.sas(sas_script) : 
             error = 'ERROR: SAS script cannot be run for this file'
-            sibis_wine.log(hashlib.sha1("blaise2csv {} {}".format(sas_script, filename_asc)).hexdigest()[0:6],error,
+            sibis_wine.log(hashlib.sha1("blaise2csv {} {}".format(sas_script, filename_asc).encode()).hexdigest()[0:6],error,
                         sas_script=str(sas_script),
                         filename_asc=str(filename_asc))
             shutil.rmtree( '/tmp/ssaga' )
@@ -103,7 +105,7 @@ def process_ascfile( ascfile_name ):
 
                     try:
                         pandas.DataFrame( [ ssaga_fields ] ).to_csv( filename_fields, index=False )
-                        print filename_fields
+                        print(filename_fields)
                     except:
                         pass
 
@@ -124,7 +126,7 @@ def process_ascfile( ascfile_name ):
 
                     try:
                         ssaga_scores.to_csv( filename_scores, index=False )
-                        print filename_scores
+                        print(filename_scores)
                     except:
                         pass
 
@@ -140,7 +142,7 @@ def process_blaise( infile ):
 
     (returncode, out, err) =  sibis_wine.manipula(tempdir,infile) 
     if returncode : 
-        post_issue_and_exit(hashlib.sha1("blaise2csv {} {}".format(err, infile)).hexdigest()[0:6], 'ERROR: could not run wine/Manipula: ', err_msg = str(err))
+        post_issue_and_exit(hashlib.sha1("blaise2csv {} {}".format(err, infile).encode()).hexdigest()[0:6], 'ERROR: could not run wine/Manipula: ', err_msg = str(err))
 
     # Run Manipula
     olddir = os.getcwd()

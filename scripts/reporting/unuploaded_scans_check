@@ -8,6 +8,8 @@
 #   a. marked usable-extra
 #   b. marked unusable, but there is no associated note
 
+from __future__ import print_function
+from builtins import str
 import sys
 import argparse
 
@@ -26,13 +28,13 @@ def main(args):
     session = sibispy.Session() 
     if not session.configure(ordered_config_load_flag = True) :
         if args.verbose:
-            print "Error: session configure file was not found"
+            print("Error: session configure file was not found")
         sys.exit()
 
     redcap_api = session.connect_server('data_entry', True) 
     if not redcap_api: 
         if args.verbose:
-            print "Error: Could not connect to Redcap" 
+            print("Error: Could not connect to Redcap") 
         sys.exit()
 
     # Load XNAT report from passed-in CSV

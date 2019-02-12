@@ -22,7 +22,9 @@ no_findings_or_date - no findings or findings date listed
 no_findings_before_date - filters no_findings_or_date by date
 
 """
+from __future__ import print_function
 
+from builtins import str
 import os
 import sys
 import pandas as pd
@@ -47,7 +49,7 @@ def set_experiment_attrs(session,server,project, subject, experiment, key, value
         :param value: str
         :return: str
         """
-        print "ERROR: NEVER TESTED IT - PLEASE DO SO BEFORE USE" 
+        print("ERROR: NEVER TESTED IT - PLEASE DO SO BEFORE USE") 
         sys.exit()
 
         server_path = session.get_xnat_data_address() 
@@ -141,12 +143,12 @@ def main(args=None):
     session.configure()
     if not session.configure() :
         if args.verbose:
-            print "Error: session configure file was not found"
+            print("Error: session configure file was not found")
         sys.exit()
 
     server = session.connect_server('xnat_http', True)
     if not server:
-        print "Error: could not connect to xnat server!" 
+        print("Error: could not connect to xnat server!") 
         sys.exit()
 
     # Update the cache of XNAT Experiment XML files
@@ -194,7 +196,7 @@ def main(args=None):
         for subject in df['subject_id'].tolist():
             if subject in dates_df['mri_xnat_sid'].tolist():
                 if args.verbose:
-                    print "Checking for {}".format(subject)
+                    print("Checking for {}".format(subject))
                 eids = dates_df[dates_df['mri_xnat_sid'] == subject]['mri_xnat_eids'].tolist()
                 date = dates_df[dates_df['mri_xnat_sid'] == subject]['mri_datetodvd'].tolist()
                 if eids != []:
@@ -222,12 +224,12 @@ def main(args=None):
     elif args.report_type == 'no_findings_before_date':
         # Findings and Findings Date is empty before a given date
         if not args.before_date:
-            raise(Exception("Please set --before-date YYYY-MM-DD when running the no_findings_before_date report."))
+            raise Exception
         has_dvd_before_date = check_dvdtodate_before_date(df, before_date=args.before_date)
         result = findings_and_date_empty(has_dvd_before_date)
         result.to_csv(args.outfile, index=False)
     else:
-        raise(NotImplementedError("The report you entered is not in the list."))
+        raise NotImplementedError
 
     result.to_csv(args.outfile,
                   columns=['project', 'subject_id', 'experiment_id',

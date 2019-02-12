@@ -34,6 +34,7 @@ done
 ```
 
 """
+from __future__ import print_function
 import pandas as pd
 import argparse
 import sys
@@ -96,7 +97,7 @@ project_entry = session.connect_server('data_entry', True)
 ## 1. Extract general info
 if not args.demographics_file:
     if args.verbose:
-        print "No demographics file provided; loading information from API."
+        print("No demographics file provided; loading information from API.")
     demo_cols = ['study_id', 'redcap_event_name', 'sex', 'age', 'mri_xnat_sid']
     general_df = project_entry.export_records(fields=demo_cols,
                                               events=selected_events,
@@ -127,7 +128,7 @@ form_specifics = get_aseba_form(args.form)
 ## 3. Extract form-specific info
 if not args.input:
     if args.verbose:
-        print "No input files provided; loading information from API."
+        print("No input files provided; loading information from API.")
     aseba_df = project_entry.export_records(fields=['study_id'],
                                             events=selected_events,
                                             forms=[form_specifics.form],
@@ -191,7 +192,7 @@ output_df = output_df.reset_index()  # get subjectno as a column
 
 # Assign the constant values required by ADM
 # pandas 0.16: output_df = output_df.assign(**form_specifics.constant_fields)
-for k, v in form_specifics.constant_fields.items():
+for k, v in list(form_specifics.constant_fields.items()):
     output_df[k] = v
 
 # Rename columns to be reused

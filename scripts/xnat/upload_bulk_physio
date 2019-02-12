@@ -4,6 +4,8 @@
 ##  See COPYING file distributed along with the ncanda-data-integration package
 ##  for the copyright and license terms
 ##
+from __future__ import print_function
+from builtins import str
 import argparse
 import re
 import sys
@@ -33,7 +35,7 @@ slog.startTimer1()
 session = sibispy.Session()
 if not session.configure():
     if args.verbose:
-        print "Error: session configure file was not found"
+        print("Error: session configure file was not found")
 
     sys.exit()
 
@@ -41,7 +43,7 @@ if not session.configure():
 ifc = session.connect_server('xnat',True)
 if not ifc :
     if args.verbose:
-        print "Error: Could not connect to XNAT"
+        print("Error: Could not connect to XNAT")
 
     sys.exit()
 
@@ -57,16 +59,16 @@ for zfile in args.zip_files:
         continue
 
     try:
-        experiment = ifc.select( 'xnat:mrSessionData', ['xnat:mrSessionData/PROJECT','xnat:mrSessionData/SUBJECT_ID','xnat:mrSessionData/SESSION_ID'] ).where( [ ('xnat:mrSessionData/LABEL','LIKE',match.group(1)) ] ).items()[0]
+        experiment = list(ifc.search( 'xnat:mrSessionData', ['xnat:mrSessionData/PROJECT','xnat:mrSessionData/SUBJECT_ID','xnat:mrSessionData/SESSION_ID'] ).where( [ ('xnat:mrSessionData/LABEL','LIKE',match.group(1)) ] ).items())[0]
     except:
         error = "ERROR: session not found in XNAT"
         slog.info(match.group(1),error)
         continue
 
     try:
-        ifc.select.project( experiment[0] ).subject( experiment[1] ).experiment( experiment[2] ).resource( args.resource_name ).put_zip( zfile, overwrite=True, extract=(not args.no_extract) )
+        ifc.select.projects[experiment[0]].subjects[experiment[1]].experiments[experiment[2]].resources[args.resource_name].upload( zfile, zfile, overwrite=True, extract=(not args.no_extract) )
         records_uploaded += 1
-        print "SUCCESS: uploaded file",zfile,"to experiment",match.group(1)
+        print("SUCCESS: uploaded file",zfile,"to experiment",match.group(1))
     except:
         error = "ERROR: unable to upload ZIP filemto experiment"
         slog.info(zfile,error,

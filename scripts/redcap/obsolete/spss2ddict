@@ -6,6 +6,7 @@
 ##
 
 # Setup command line parser
+from builtins import str
 import argparse
 parser = argparse.ArgumentParser( description="Convert SPSS syntax file to REDCap data dictionary", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
 parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")

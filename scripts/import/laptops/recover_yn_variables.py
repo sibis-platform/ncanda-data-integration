@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from builtins import str
 import pandas
 
 #
@@ -127,7 +128,7 @@ recovery_yesonly_dict['youthreport1'] = { "youthreport1_tbimore" : [ "youthrepor
 # Apply yes-only recovery
 def recover_full( row, recovery_dict ):
     for field in row.index:
-        if field in recovery_dict.keys():
+        if field in list(recovery_dict.keys()):
             for dep in recovery_dict[field]:
                 if str(row[dep]) != 'nan':
                     row[field] = 'Y'
@@ -136,7 +137,7 @@ def recover_full( row, recovery_dict ):
 # Apply full recovery
 def recover_full( row, recovery_dict ):
     for field in row.index:
-        if field in recovery_dict.keys():
+        if field in list(recovery_dict.keys()):
             row[field] = 'N' # This is the only difference to yes-only recovery: if non of the dependent fields are set, this gets a 'N'
             for dep in recovery_dict[field]:
                 if str(row[dep]) != 'nan':
@@ -146,8 +147,8 @@ def recover_full( row, recovery_dict ):
 
 # Recover Y/N responses
 def recover( row, form_prefix ):
-    if form_prefix in recovery_full_dict.keys():
+    if form_prefix in list(recovery_full_dict.keys()):
         row = recover_full( row, recovery_full_dict[form_prefix] )
-    if form_prefix in recovery_yesonly_dict.keys():
+    if form_prefix in list(recovery_yesonly_dict.keys()):
         row = recover_full( row, recovery_yesonly_dict[form_prefix] )
     return row

@@ -3,12 +3,14 @@
 # Given a CSV with the current data dictionary and a list of patch files with
 # updated / newly inserted variables, produce a full patched data dictionary.
 # """
+from __future__ import print_function
+from __future__ import absolute_import
 import sys
 import pandas as pd
 import csv
 import argparse
 
-from datadict_utils import load_datadict, insert_rows_at
+from .datadict_utils import load_datadict, insert_rows_at
 
 parser = argparse.ArgumentParser(
     description="Apply patches to the current data dictionary.",
@@ -62,14 +64,14 @@ for patch_file in args.patch_files:
     existing_rows = dd.index.intersection(patch_df.index)
     new_rows = patch_df.index.difference(dd.index)
     if args.verbose:
-        print "\nProcessing %s:" % patch_file.name
-        print "Updating the following columns:"
-        print existing_rows.tolist()
+        print("\nProcessing %s:" % patch_file.name)
+        print("Updating the following columns:")
+        print(existing_rows.tolist())
         if args.update_only:
-            print "Ignoring the following new columns:"
+            print("Ignoring the following new columns:")
         else:
-            print "Inserting the following new columns:"
-        print new_rows.tolist()
+            print("Inserting the following new columns:")
+        print(new_rows.tolist())
 
     # 1. In the patch, find the entries that already exist and simply rewrite
     #       them

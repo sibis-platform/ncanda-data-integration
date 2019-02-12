@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+from builtins import str
 import pandas as pd
 import sibispy
 from sibispy import sibislogger as slog
@@ -25,7 +26,7 @@ def upload_findings_to_xnat(sibis_session,qc_csv_file, sendEmailFlag):
     for index,row in fData.iterrows():
 
         exp=sibis_session.xnat_get_experiment(row['xnat_experiment_id'])
-        scan=exp.scan(str(row['scan_id'])).attrs
+        scan=exp.scans[str(row['scan_id'])]
 
         # quality
         if row['decision']==1:
@@ -42,7 +43,7 @@ def upload_findings_to_xnat(sibis_session,qc_csv_file, sendEmailFlag):
 
         # comment
         if isinstance(row['scan_note'],str) and len(row['scan_note'])>0:
-		scan.set('note',row['scan_note'])
+                scan.set('note',row['scan_note'])
 
     # send email to qc manager
     if sendEmailFlag and len(questionable_scans) :

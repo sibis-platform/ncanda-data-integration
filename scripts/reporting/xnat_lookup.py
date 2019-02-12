@@ -14,11 +14,11 @@ NCANDA_S00236
 xnat_lookup.py --print-keys --reverse-lookup NCANDA_S00236
 NCANDA_S00236,B-00149-M-0
 """
+from __future__ import print_function
 import os
 
 import sibispy
 from sibispy import sibislogger as slog
-import pyxnat
 
 verbose = None
 
@@ -39,15 +39,13 @@ def main(args=None):
     session.configure()
     if not session.configure() :
         if args.verbose:
-            print "Error: session configure file was not found"
+            print("Error: session configure file was not found")
         sys.exit()
 
     ifc = session.connect_server('xnat', True)
     if not ifc:
-        print "Error: could not connect to xnat server!" 
+        print("Error: could not connect to xnat server!") 
         sys.exit()
-
-    # ifc = pyxnat.Interface(config=args.config)
 
     if args.reverse_lookup:
         search_field = 'xnat:subjectData/SUBJECT_ID'
@@ -65,8 +63,8 @@ def main(args=None):
     output = ""
     for search in args.search:
         pattern = (search_field, 'LIKE', '%' + search + '%')
-        subjects = ifc.select('xnat:subjectData',
-                              fields_per_subject).where([pattern]).items()
+        subjects = list(ifc.search('xnat:subjectData',
+                              fields_per_subject).where([pattern]).items())
         if args.print_keys:
             if len(subjects) > 0:
                 fmt = '{0},{1}'
@@ -84,9 +82,9 @@ def main(args=None):
             fi.write(output)
             fi.close()
         if verbose:
-            print output
+            print(output)
     else:
-        print output
+        print(output)
 
 if __name__ == "__main__":
     import sys

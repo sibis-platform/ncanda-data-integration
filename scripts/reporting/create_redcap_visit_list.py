@@ -9,6 +9,7 @@ Creates a csv files containing all visits of cases included in the study. Run -h
 Usage:
 python create_redcap_visit_list.py 
 """
+from __future__ import print_function
 import os
 import sys
 from sibispy import sibislogger as slog
@@ -45,14 +46,14 @@ def main(args=None):
     session = sibispy.Session()
     if not session.configure():
         if args.verbose:
-            print "Error: session configure file was not found"
+            print("Error: session configure file was not found")
 
         sys.exit()
 
     rc_summary = session.connect_server('data_entry', True)
     if not rc_summary :
         if args.verbose:
-            print "Error: Could not connect to Redcap for Import Project"
+            print("Error: Could not connect to Redcap for Import Project")
 
         sys.exit()
 
@@ -68,7 +69,7 @@ def main(args=None):
 
         project_base = project[project.index.map( lambda key: key[1] == "baseline_visit_arm_1" )]
         if len(project_base.index.values) == 0 :
-            print "Error: event baseline_visit_arm_1 needs to be part of search"
+            print("Error: event baseline_visit_arm_1 needs to be part of search")
             sys.exit(0)
 
         project_base_subject = project_base[project_base.mri_xnat_sid.isin(subject_list) ]

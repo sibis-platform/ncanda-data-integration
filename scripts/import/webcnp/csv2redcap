@@ -5,6 +5,8 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
+from builtins import str
 import argparse
 import string
 import os
@@ -36,7 +38,7 @@ slog.startTimer1()
 session = sibispy.Session()
 if not session.configure():
     if args.verbose:
-        print "Error: session configure file was not found"
+        print("Error: session configure file was not found")
 
     sys.exit(1)
 
@@ -45,20 +47,20 @@ try:
     redcap = session.connect_server('import_webcnp', True)
 except KeyError as e:
     error = "ERROR: failed creating the metadata for Project"
-    slog.info(hashlib.sha1('csv2redcap').hexdigest()[0:6], error,
+    slog.info(hashlib.sha1(b'csv2redcap').hexdigest()[0:6], error,
                   script='csv2redcap',
                   msg=str(e))
     sys.exit(1)
 except Exception as e:
     error = "ERROR: failed creating Project object"
-    slog.info(hashlib.sha1('csv2redcap').hexdigest()[0:6], error,
+    slog.info(hashlib.sha1(b'csv2redcap').hexdigest()[0:6], error,
                   script='csv2redcap',
                   msg=str(e))
     sys.exit(1)
 
 if not redcap: 
     if args.verbose:
-        print "ERROR:Could not connect to redcap server!"
+        print("ERROR:Could not connect to redcap server!")
     sys.exit(1)
 
 
@@ -66,7 +68,7 @@ if not redcap:
 data = pandas.io.parsers.read_csv( args.infile )
 
 # Replace periods in column labels with underscores
-data.rename( columns = lambda s: string.lower( s.replace( '.', '_' ) ), inplace=True )
+data.rename( columns = lambda s: s.replace( '.', '_' ).lower(), inplace=True )
 
 # Remove all sessions before ID 22000 - these are junk
 data = data[data['test_sessions_datasetid'] >= 22000]
@@ -85,20 +87,20 @@ else :
 
 # Anything left?
 if not len( data ) and args.verbose:
-    print "No new records to import."
+    print("No new records to import.")
     exit(0)
 
 # Set "Completeness" as "Unverified"
 data['test_sessions_complete'] = 1
 
-for sheet in cnp.instruments.keys():
+for sheet in list(cnp.instruments.keys()):
     if not sheet == 'test_sessions':
         col_name='%s_valid_code' % sheet
         if col_name in data :
             data['%s_complete' % cnp.instruments[sheet]] = data[col_name].map( lambda s: 1 if str(s) != '' else 0 )
         else : 
             error = "Webcnp form does not comply with expected format - column '" + sheet+ ".valid_code' does not exist!"
-            slog.info(hashlib.sha1(error).hexdigest()[0:6], error,
+            slog.info(hashlib.sha1(error.encode()).hexdigest()[0:6], error,
                       cmd=" ".join(sys.argv))
             sys.exit(1)
 
@@ -118,7 +120,7 @@ for [ index, row ] in data.iterrows():
 data = data.drop( ['test_sessions_subid', 'test_sessions_dotest'], axis=1 )
 
 # Bring original "siteid" column back to assign each record to the correct data access group
-data['redcap_data_access_group'] = data['test_sessions_siteid'].map(lambda s: string.lower(s));
+data['redcap_data_access_group'] = data['test_sessions_siteid'].map(lambda s: s.lower());
 
 # Make list of dicts for REDCap import
 uploaded = 0
@@ -128,30 +130,30 @@ for [key,row] in data.iterrows():
     # Upload new data to REDCap
     import_response = session.redcap_import_record_to_api([record], None, 'cvs2redcap-import')
     if not import_response : 
-        print "WARNING: failed to upload record",record['record_id']
+        print("WARNING: failed to upload record",record['record_id'])
         continue 
 
     # If there were any errors, try to print them as well as possible
-    if 'error' in import_response.keys():
+    if 'error' in list(import_response.keys()):
         error = "UPLOAD ERROR: {}".format(import_response['error'])
-        slog.info(hashlib.sha1(error).hexdigest()[0:6], error)
+        slog.info(hashlib.sha1(error.encode()).hexdigest()[0:6], error)
 
-    if 'fields' in import_response.keys():
+    if 'fields' in list(import_response.keys()):
         for field in import_response['fields']:
-            print "\t", field
+            print("\t", field)
 
-    if 'records' in import_response.keys():
+    if 'records' in list(import_response.keys()):
         for record in import_response['records']:
-            print "\t", record
+            print("\t", record)
 
-    if 'count' in import_response.keys():
+    if 'count' in list(import_response.keys()):
         uploaded += int( import_response['count'] )
     else:
-        print "WARNING: failed to upload record",record['record_id']
+        print("WARNING: failed to upload record",record['record_id'])
 
 # Finally, print upload status if so desired
 if args.verbose:
-    print "Successfully uploaded %d/%d records to REDCap." % ( uploaded, len( data ) )
+    print("Successfully uploaded %d/%d records to REDCap." % ( uploaded, len( data ) ))
 
 slog.takeTimer1("script_time","{'records': " + str(len(data)) + ", 'uploads': " + str(uploaded) + "}")
 

@@ -5,6 +5,8 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
+from builtins import str
 import tempfile
 import pandas
 import sibispy
@@ -29,7 +31,7 @@ temp_dir_path = tempfile.mkdtemp()
 temp_csv = "%s/pasat.csv" % (temp_dir_path)
 (ecode,cout,cerr) = sutils.mdb_export("%s MainStressor_bb > %s" % (args.mdbfile, temp_csv))
 if ecode :
-   convert_util.post_issue_and_exit('pasat2csv', args.mdbfile, args.verbose, args.post_to_github, hashlib.sha1(str(cerr)).hexdigest()[0:6], "mdb-export failed!", error_msg=str(cerr))
+   convert_util.post_issue_and_exit('pasat2csv', args.mdbfile, args.verbose, args.post_to_github, hashlib.sha1(str(cerr).encode()).hexdigest()[0:6], "mdb-export failed!", error_msg=str(cerr))
 
 # Read the temporary CSV file
 pasat_csv = pandas.read_csv( temp_csv ).sort_values(by=['ID'], ascending=False)
@@ -90,7 +92,7 @@ for row_index, row in pasat.iterrows():
     if not os.path.exists( filename ) or args.overwrite:
         pandas.DataFrame( row ).transpose().to_csv( filename, index=False )
         # Print filename so we can get a list of updated files by capturing stdout
-        print filename
+        print(filename)
 
 # Clean up - remove temp directory
 import shutil

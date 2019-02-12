@@ -4,6 +4,11 @@
 ##  See COPYING file distributed along with the ncanda-data-integration package
 ##  for the copyright and license terms
 ##
+from __future__ import print_function
+from __future__ import division
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import os
 import argparse
 import cnp
@@ -55,14 +60,14 @@ slog.startTimer1()
 session = sibispy.Session()
 if not session.configure():
     if args.verbose:
-        print "Error: session configure file was not found"
+        print("Error: session configure file was not found")
 
     sys.exit()
 
 rc_import = session.connect_server('import_webcnp', True)
 if not rc_import : 
     if args.verbose:
-        print "Error: Could not connect to the REDCap project 'import_webcnp'" 
+        print("Error: Could not connect to the REDCap project 'import_webcnp'") 
 
     sys.exit(1)
 
@@ -71,7 +76,7 @@ if not rc_import :
 rc_summary = session.connect_server('data_entry', True)
 if not rc_summary : 
     if args.verbose:
-        print "Error: Could not connect to the REDCap project 'data_entry'" 
+        print("Error: Could not connect to the REDCap project 'data_entry'") 
 
     sys.exit(1)
 
@@ -86,7 +91,7 @@ cnp_events_list = form_event_mapping[form_event_mapping[form_key] == 'cnp_summar
 # Retrieve subject IDs, events, exclusions, visit dates, and current CNP summary data
 fields_summary = ['study_id', 'redcap_event_name', 'dob', 'exclude', 'visit_date', 'cnp_summary_complete', 'cnp_missing', 'cnp_datasetid', 'cnp_age', 'cnp_instruments']
 fields_summary+= [ 'cnp_%s' % v for v in cnp_copy_variables ]
-fields_summary+= [ 'cnp_%s_zscore' % v for v in cnp.mean_sdev_by_field_dict.keys() ]
+fields_summary+= [ 'cnp_%s_zscore' % v for v in list(cnp.mean_sdev_by_field_dict.keys()) ]
 baseline_events = ['baseline_visit_arm_1','baseline_visit_arm_4'] # these are the "baseline" events of the study arms that have them
 
 summary_records = rc_summary.export_records( fields=fields_summary, event_name='unique', format='df')
@@ -113,7 +118,7 @@ if args.study_id :
         summary_records.set_index(['study_id', 'redcap_event_name'],inplace=True)
 
     else :
-        print "ERROR: No record found for",  args.study_id 
+        print("ERROR: No record found for",  args.study_id) 
         sys.exit(1)
 
 # Have to do it as otherwise int values are changed to float if NA included in colums and that creates problems  
@@ -136,10 +141,10 @@ if args.update_all:
     for cnpvar in cnp_copy_variables:
         summary_records['cnp_%s' % cnpvar] = ''
 
-    for cnpvar in cnp.mean_sdev_by_field_dict.keys():
+    for cnpvar in list(cnp.mean_sdev_by_field_dict.keys()):
         summary_records['cnp_%s_zscore' % cnpvar] = ''
 
-    for [k,v] in cnp.instruments.iteritems():
+    for [k,v] in cnp.instruments.items():
         summary_records['cnp_instruments___%s' % k.replace('_','') ] = '0'
 else:
     summary_records = summary_records[ summary_records['cnp_datasetid'] == '' ]
@@ -148,7 +153,7 @@ else:
 
 # For now, get the "complete" fields for each instrument as well as record ID, subject ID, and date of test
 fields_imported = ['record_id', 'test_sessions_subid'] + cnp_copy_variables
-for i in cnp.instruments.values():
+for i in list(cnp.instruments.values()):
     fields_imported.append( '%s_complete' % i )
 imported_records = rc_import.export_records( fields=fields_imported, format='df')
 for cnpvar in cnp_copy_variables:
@@ -181,7 +186,7 @@ for key, row in summary_records.iterrows():
             if len( records_this_visit ) > 1:
                 # Not unique - warning
                 error = 'WARNING: More than one CNP record found for subject %s, event %s, visit date %s - selecting the latest record' % (key[0],key[1],visit_date)
-                slog.info( "DuplicateRecords-" + hashlib.sha1(error).hexdigest()[0:6], error,
+                slog.info( "DuplicateRecords-" + hashlib.sha1(error.encode()).hexdigest()[0:6], error,
                            records_this_visit = str(records_this_visit.index.tolist()))
 
             # Unique record - copy data from imported project to summary form
@@ -190,7 +195,7 @@ for key, row in summary_records.iterrows():
 
             date_of_birth = subject_dates_of_birth[key[0]]
             date_format_ymd = '%Y-%m-%d'
-            age_in_years = (datetime.datetime.strptime( cnp_data['test_sessions_dotest'], date_format_ymd ) - datetime.datetime.strptime( date_of_birth, date_format_ymd )).days / 365.242
+            age_in_years = old_div((datetime.datetime.strptime( cnp_data['test_sessions_dotest'], date_format_ymd ) - datetime.datetime.strptime( date_of_birth, date_format_ymd )).days, 365.242)
             summary_records.at[key, 'cnp_age'] = str( age_in_years )
 
             # Copy all variables that we want in the summary
@@ -200,18 +205,18 @@ for key, row in summary_records.iterrows():
 
             # Compute all z scores (only between 8 and 21 years)
             if age_in_years >= 8 and age_in_years < 22:
-                age_group = int( age_in_years / 2 ) * 2
-                for cnpvar in cnp.mean_sdev_by_field_dict.keys():
+                age_group = int( old_div(age_in_years, 2) ) * 2
+                for cnpvar in list(cnp.mean_sdev_by_field_dict.keys()):
                     if cnp_data[cnpvar] != '':
                         mean_sdev_col_label = cnp.mean_sdev_by_field_dict[cnpvar]
                         age_mean = cnp.mean_sdev_byage_table['%s_mean' % mean_sdev_col_label][age_group]
                         age_sdev = cnp.mean_sdev_byage_table['%s_sd' % mean_sdev_col_label][age_group]
-                        age_normalization = ( float( cnp_data[cnpvar] ) - age_mean ) / age_sdev
+                        age_normalization = old_div(( float( cnp_data[cnpvar] ) - age_mean ), age_sdev)
                         column_name = 'cnp_%s_zscore' % cnpvar
                         summary_records.at[key, column_name] = age_normalization
 
             # Check completion status of the CNP instruments
-            for [k,v] in cnp.instruments.iteritems():
+            for [k,v] in cnp.instruments.items():
                 summary_complete = 1
                 if cnp_data['%s_complete' % v] > 0:
                     column_name = 'cnp_instruments___%s' % k.replace('_','')
@@ -223,7 +228,7 @@ for key, row in summary_records.iterrows():
 
             summary_records.at[key, 'cnp_summary_complete'] = summary_complete
         elif summary_records['cnp_summary_complete'][key] != '' and float( summary_records['cnp_summary_complete'][key] ) > 0 and ( summary_records['cnp_missing'][key] != 1 ):
-            print "WARNING: Previously assigned WebCNP data for subject",key[0],"event",key[1],"appears to have disappeared."
+            print("WARNING: Previously assigned WebCNP data for subject",key[0],"event",key[1],"appears to have disappeared.")
 
 # Drop all summary records for which there is no CNP data
 summary_records = summary_records[ summary_records['cnp_datasetid'] != '' ]
@@ -249,33 +254,33 @@ summary_records[rnd_list] = summary_records[rnd_list].apply(df_rounding, axis=1)
 
 if args.no_upload:
     if args.verbose:
-        print "Writing",len( summary_records ),"records to",args.no_upload
+        print("Writing",len( summary_records ),"records to",args.no_upload)
     summary_records.to_csv( args.no_upload )
 else:
     if args.verbose:
-        print "Uploading",len(summary_records),"records."
+        print("Uploading",len(summary_records),"records.")
 
     error_label = "ImportToDataEntry" 
     for from_index in range(0,len(summary_records),args.records_per_upload):
         # Upload next block of records of new data to REDCap
         to_index = min( from_index + args.records_per_upload, len(summary_records) )
         if args.verbose:
-            print "Uploading records",from_index,"to",to_index-1
+            print("Uploading records",from_index,"to",to_index-1)
         
         import_response =  session.redcap_import_record(error_label, "", "", "UploadRecords", summary_records[from_index:to_index])
         if import_response :
             # Count uploaded records
-            if 'count' in import_response.keys():
+            if 'count' in list(import_response.keys()):
                 uploaded_count += import_response['count']
-            if 'error' in import_response.keys():
-                slog.info(error_label + "-" + hashlib.sha1(str(import_response['error'])).hexdigest()[0:6], "ERROR: Uploading Data", error_msg = str(import_response['error']))
-            if 'fields' in import_response.keys():
-                slog.info(error_label + "-" + hashlib.sha1(str(import_response['fields'])).hexdigest()[0:6], "Info: something wrong with fields ! Not sure what to do !", fields =  str(import_response['fields']))
-            if 'records' in import_response.keys():
-                slog.info(error_label + "-" + hashlib.sha1(str(import_response['records'])).hexdigest()[0:6], "Info: something wrong with redcords ! Not sure what to do !", records =  str(import_response['records']))
+            if 'error' in list(import_response.keys()):
+                slog.info(error_label + "-" + hashlib.sha1(str(import_response['error']).encode()).hexdigest()[0:6], "ERROR: Uploading Data", error_msg = str(import_response['error']))
+            if 'fields' in list(import_response.keys()):
+                slog.info(error_label + "-" + hashlib.sha1(str(import_response['fields']).encode()).hexdigest()[0:6], "Info: something wrong with fields ! Not sure what to do !", fields =  str(import_response['fields']))
+            if 'records' in list(import_response.keys()):
+                slog.info(error_label + "-" + hashlib.sha1(str(import_response['records']).encode()).hexdigest()[0:6], "Info: something wrong with redcords ! Not sure what to do !", records =  str(import_response['records']))
 
     # Finally, print upload status if so desired                    
     if args.verbose:
-        print "Successfully uploaded %d/%d records to REDCap." % ( uploaded_count, len( summary_records ) )
+        print("Successfully uploaded %d/%d records to REDCap." % ( uploaded_count, len( summary_records ) ))
 
 slog.takeTimer1("script_time","{'records': " + str(len(summary_records)) + ", 'uploads': " +  str(uploaded_count) + "}")

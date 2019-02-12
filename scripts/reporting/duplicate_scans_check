@@ -11,6 +11,7 @@ Example uses:
         --redcapcsv /tmp/redcap_inventory.csv --xnatcsv /tmp/xnat_inventory.csv
 
 """
+from __future__ import print_function
 
 import ipdb
 import sys
@@ -79,8 +80,8 @@ def add_end_window(rc, max_days=120, include_recovery_after_baseline=True,
     # TODO: Should this raise?
     questionable_idx = rc['window_end'].notnull() & (rc['window_end'] <= rc['visit_date'])
     if verbose:
-        print "The following records result in a strangely calculated window_end"
-        print rc.loc[questionable_idx]
+        print("The following records result in a strangely calculated window_end")
+        print(rc.loc[questionable_idx])
         # import ipdb; ipdb.set_trace()
     rc.loc[questionable_idx, 'window_end'] = pd.NaT
 

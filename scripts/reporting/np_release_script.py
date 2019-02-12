@@ -97,7 +97,7 @@ def main(args=None):
 
     # Create a series for each race where there is a 1 or 0 indicating if the
     # participant belongs to the race or not and append to the final_df
-    for k, v in race_map.iteritems():
+    for k, v in list(race_map.items()):
         race_filter = final_df.race == v
         final_df[k] = race_filter.apply(lambda x: 1 if x is True else 0)
 

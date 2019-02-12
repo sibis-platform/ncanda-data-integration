@@ -4,6 +4,11 @@
 ##  See COPYING file distributed along with the ncanda-data-integration package
 ##  for the copyright and license terms
 ##
+from __future__ import print_function
+from __future__ import division
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import os
 import re
 import csv
@@ -73,7 +78,7 @@ for s in file:
 
 if not subject or not session:
     errMsg = "ERROR: no subject or session ID in Stroop file %s" % args.infile 
-    post_issue_and_exit(hashlib.sha1('stroop2csv {}'.format(errMsg)).hexdigest()[0:6], errMsg)
+    post_issue_and_exit(hashlib.sha1('stroop2csv {}'.format(errMsg).encode()).hexdigest()[0:6], errMsg)
     # should be done differently but if called without -p option it is not posted when script is run from harvester
 
 digit_to_site = { '1': 'A', '2': 'B', '3': 'C', '4': 'D', '5': 'E', '6': 'F', '7': 'G', '8': 'H', '9': 'I', '0': 'J' }
@@ -93,7 +98,7 @@ if os.path.exists(output_filename):
     else:
         if args.verbose : 
             errMsg = "Warning: output file {} already exists. Scores are not updated!".format(output_filename)
-            post_issue_and_exit(hashlib.sha1('stroop2csv {}'.format(errMsg)).hexdigest()[0:6], errMsg)
+            post_issue_and_exit(hashlib.sha1('stroop2csv {}'.format(errMsg).encode()).hexdigest()[0:6], errMsg)
         else: 
             errMsg = 0
 
@@ -136,10 +141,10 @@ def samplestd(data):
     try:
         mean=data.mean()
         if len(data) > 1 :
-            samplestd=math.sqrt(sum((data-mean)**2)/(len(data)-1))
+            samplestd=math.sqrt(old_div(sum((data-mean)**2),(len(data)-1)))
 
-    except RuntimeWarning, e:
-        post_issue_and_exit(hashlib.sha1('stroop2csv {}'.format(e)).hexdigest()[0:6], "Error: could not compute samplestd", 
+    except RuntimeWarning as e:
+        post_issue_and_exit(hashlib.sha1('stroop2csv {}'.format(e).encode()).hexdigest()[0:6], "Error: could not compute samplestd", 
                   err_msg = str(e),
                   data_contained = data)
 
@@ -226,7 +231,7 @@ error[8]=mean[8]+3*std[8]
 # calculate z scores
 for j in range(1,9):
     if std[j-1] > 0:
-        z[j-1]=(mean[j-1]-mean[8])/std[j-1]
+        z[j-1]=old_div((mean[j-1]-mean[8]),std[j-1])
     else:
         z[j-1] = np.nan
 
@@ -297,4 +302,4 @@ wr.writerow(result)
 
 output_file.close()
 
-print output_filename
+print(output_filename)

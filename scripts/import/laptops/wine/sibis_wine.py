@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Wine related functions 
 
 import collections 
@@ -14,7 +15,7 @@ def log(uid, message, **kwargs):
     log.update(kwargs)
     jlog = json.dumps(log)
     log.clear()
-    print jlog
+    print(jlog)
 
 
 def call_shell_program(cmd):

@@ -5,6 +5,8 @@
 ##  for the copyright and license terms
 ##
 
+from __future__ import print_function
+from builtins import str
 import re
 import sys
 import json
@@ -48,7 +50,7 @@ counter_uploads = 0
 session = sibispy.Session()
 if not session.configure():
     if args.verbose:
-        print "Error: session configure file was not found"
+        print("Error: session configure file was not found")
 
     sys.exit()
 
@@ -56,7 +58,7 @@ if not session.configure():
 interface = session.connect_server('xnat', True)
 if not interface:
     if args.verbose:
-        print "Error: Could not connect to XNAT"
+        print("Error: Could not connect to XNAT")
 
     sys.exit()
 interface._memtimeout = 0
@@ -70,16 +72,16 @@ date_last_checked = time.localtime(0)
 config_uri = '/data/config/pyxnat/fmri_qa_phantom'
 try:
     # Retrieve script config from XNAT server
-    content = interface._exec( '%s?format=json' % config_uri )
+    content = interface._exec( config_uri, format='json' )
     # Extract date this script was last run
     creation_date = json.loads( content )['ResultSet']['Result'][0]['create_date']
     date_last_checked = time.strptime( creation_date[0:19], xnat_date_format )
     if args.verbose:
-        print 'Script was last run %s' % creation_date
+        print('Script was last run %s' % creation_date)
 except:
     # If we cannot get last script run date from server, leave at epoch (Jan 1, 1970)
     if args.verbose:
-        print 'Unable to retrieve date of last script run from server.'
+        print('Unable to retrieve date of last script run from server.')
 
 # For comparison - convert time of last check to string in XNAT date format
 str_date_last_checked = time.strftime( xnat_date_format, date_last_checked )
@@ -90,17 +92,17 @@ def process_fbirn(phantom_subjects_IDs,xnat_dir):
     for [phantom, project, label] in phantom_subject_IDs:
         counter_records += 1
         # For each phantom subject (one per project), get the IDs and last_modified dates of all its imaging sessions
-        phantom_sessions = interface.select('xnat:mrSessionData',
+        phantom_sessions = list(interface.search('xnat:mrSessionData',
                                             ['xnat:mrSessionData/SESSION_ID', 'xnat:mrSessionData/LABEL',
                                              'xnat:mrSessionData/LAST_MODIFIED']) \
-            .where([('xnat:mrSessionData/LABEL', '=', label)]).items()
+            .where([('xnat:mrSessionData/LABEL', '=', label)]).items())
         # Iterate over all imaging sessions
         for [session, label, last_modified] in phantom_sessions:
             counter_uploads += 1
             if (last_modified > str_date_last_checked) or args.force_updates \
                     or args.check_all or args.subj_label:
                 if args.verbose:
-                    print 'Running fBIRN phantom QA for session {0} in project {1}'.format(session, project)
+                    print('Running fBIRN phantom QA for session {0} in project {1}'.format(session, project))
                 qa.process_phantom_session(interface, project, phantom, session,
                                            label, xnat_dir,force_updates=args.force_updates)
 
@@ -109,17 +111,17 @@ def process_adni(phantom_subjects_IDs,xnat_dir):
     for [phantom, project, label] in phantom_subject_IDs:
         counter_records += 1
         # For each phantom subject (one per project), get the IDs and last_modified dates of all its imaging sessions
-        phantom_sessions = interface.select('xnat:mrSessionData',
+        phantom_sessions = list(interface.search('xnat:mrSessionData',
                                             ['xnat:mrSessionData/SESSION_ID', 'xnat:mrSessionData/LABEL',
                                              'xnat:mrSessionData/LAST_MODIFIED']) \
-            .where([('xnat:mrSessionData/LABEL', '=', label)]).items()
+            .where([('xnat:mrSessionData/LABEL', '=', label)]).items())
         # Iterate over all imaging sessions
         for [session, label, last_modified] in phantom_sessions:
             counter_uploads += 1
             if (last_modified > str_date_last_checked) or args.force_updates \
                     or args.check_all or args.subj_label:
                 if args.verbose:
-                    print 'Running ADNI phantom QA for session {0} in project {1}'.format(session, project)
+                    print('Running ADNI phantom QA for session {0} in project {1}'.format(session, project))
                 t1qa.process_phantom_session(interface, project, phantom, session, label, xnat_dir,
                                              force_updates=options.force_updates)
 
@@ -128,17 +130,17 @@ if args.subj_label:
     # Adjust the constraints for one subject id
     constraints = [('xnat:mrSessionData/LABEL', '=', args.subj_label)]
     # Search XNAT database for all Subjects that have the fBIRN with constraints from parameter
-    phantom_subject_IDs = interface.select('xnat:mrSessionData',
+    phantom_subject_IDs = list(interface.search('xnat:mrSessionData',
                                            ['xnat:mrSessionData/SUBJECT_ID', 'xnat:mrSessionData/PROJECT',
                                            'xnat:mrSessionData/LABEL']) \
-                                           .where(constraints).items()
+                                           .where(constraints).items())
     for subject_id, project, label in phantom_subject_IDs:
         if re.match('^[A-Z]-00000-P-0', label):
             process_fbirn(phantom_subject_IDs,session.get_xnat_dir())
         elif re.match('^[A-Z]-99999-P-9',label):
             process_adni(phantom_subject_IDs,session.get_xnat_dir())
         else:
-            print "subject_label did not match re for phantom label '^[A-Z]-00000-P-0' or '^[A-Z]-99999-P-9'"
+            print("subject_label did not match re for phantom label '^[A-Z]-00000-P-0' or '^[A-Z]-99999-P-9'")
             sys.exit(1)
 
 
@@ -146,30 +148,30 @@ if args.exclude_adni:
     # General constraints to get all fBIRN phantoms
     constraints = [('xnat:mrSessionData/LABEL', 'LIKE','%-00000-P-0-%')]
     # Search XNAT database for all Subjects that have the fBIRN with constraints from parameter
-    phantom_subject_IDs = interface.select('xnat:mrSessionData',
+    phantom_subject_IDs = list(interface.search('xnat:mrSessionData',
                                            ['xnat:mrSessionData/SUBJECT_ID', 'xnat:mrSessionData/PROJECT',
                                             'xnat:mrSessionData/LABEL']) \
-                                           .where(constraints).items()
+                                           .where(constraints).items())
     process_fbirn(phantom_subject_IDs,session.get_xnat_dir())
 
 if args.exclude_fbirn:
     # General constraints to get all adni phantoms
     constraints = [('xnat:mrSessionData/LABEL', 'LIKE', '%-99999-P-9-%')]
     # Search XNAT database for all Subjects that have the fBIRN with constraints from parameter
-    phantom_subject_IDs = interface.select('xnat:mrSessionData',
+    phantom_subject_IDs = list(interface.search('xnat:mrSessionData',
                                            ['xnat:mrSessionData/SUBJECT_ID', 'xnat:subjectData/PROJECT',
                                             'xnat:mrSessionData/LABEL']) \
-                                           .where(constraints).items()
+                                           .where(constraints).items())
     process_adni(phantom_subject_IDs,session.get_xnat_dir())
 
 # Finally, update config stored on the server to have current date/time as the time that this script was last run
 # (but don't update config if we excluded either ADNI of fBIRN phantom scans this time around)
 if not args.exclude_fbirn and not args.exclude_adni:
     try : 
-        content = interface._exec( uri='%s?inbody=true' % config_uri, method='PUT', body=now_str, headers={'content-type':'text/plain'} )
+        content = interface._exec( uri=config_uri, query={'inbody':'true'}, method='PUT', body=now_str, headers={'content-type':'text/plain'} )
     except Exception as err_msg: 
-        slog.info(hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not write to xnat',
-                  err_msg = str(err_msg))
+        slog.info(hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],'ERROR: Could not write to xnat',
+                  err_msg = str(err_msg), err_obj=err_msg)
         sys.exit(1) 
 
 
