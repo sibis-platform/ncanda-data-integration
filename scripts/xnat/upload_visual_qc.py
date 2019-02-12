@@ -28,22 +28,31 @@ def upload_findings_to_xnat(sibis_session,qc_csv_file, sendEmailFlag):
         exp=sibis_session.xnat_get_experiment(row['xnat_experiment_id'])
         scan=exp.scans[str(row['scan_id'])]
 
-        # quality
-        if row['decision']==1:
+        try : 
+            # quality
+            if row['decision']==1:
                 scan.set('quality','usable')
-        elif row['decision']==0:
+            elif row['decision']==0:
                 scan.set('quality','questionable')
                 questionable_scans +=  row['xnat_experiment_id'] + " " + str(row['scan_id']);
                 if isinstance(row['scan_note'],str) and len(row['scan_note'])>0:
                         questionable_scans +=  " " + row['scan_note']
 
                 questionable_scans +=  " " + str(os.path.join(row['nifti_folder'],str(row['scan_id']) + "_" + str(row['scan_type']), "*.gz")) +  "<BR>" 
-        else:
+            else:
                 scan.set('quality','unknown')
 
-        # comment
-        if isinstance(row['scan_note'],str) and len(row['scan_note'])>0:
+            # comment
+            if isinstance(row['scan_note'],str) and len(row['scan_note'])>0:
                 scan.set('note',row['scan_note'])
+
+        except Exception as e:
+            import hashlib, sys, traceback
+            slog.info(hashlib.sha1('upload_findings_to_xnat_{}'.format(row['xnat_experiment_id'])).hexdigest()[0:6], 
+                      'Problem processing findings for upload, exp: {}'.format(row['xnat_experiment_id']),
+                      error_msg=e.message,
+                      error_detail=traceback.format_exception(sys.exec_info()))
+            continue 
 
     # send email to qc manager
     if sendEmailFlag and len(questionable_scans) :
