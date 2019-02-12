@@ -499,7 +499,7 @@ def export_and_queue(red2cas, redcap_visit_id, xnat, session_data, redcap_key, p
             
     # It is very important to clear the PyXNAT cache, lest we run out of disk space and shut down all databases in the process
     try:
-        xnat.cache.clear()
+        xnat.client.clearcache()
     except:
         slog.info("export_mr_sessions_pipeline","WARNING: clearing PyXNAT cache threw an exception - are you running multiple copies of this script?")
 

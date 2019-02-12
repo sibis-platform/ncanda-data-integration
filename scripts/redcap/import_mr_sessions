@@ -132,7 +132,7 @@ def get_usable_scans_list( session, xnat_eid_list, redcap_visit_id, xnat_sid):
     for xnat_eid in xnat_eid_list:
         xnat_exp = session.xnat_get_experiment(xnat_eid)
         if not xnat_exp : 
-            slog.info(redcap_visit_id + "-" +  + hashlib.sha1(xnat_eid).hexdigest()[0:6],"ERROR: could not get experiment",
+            slog.info(redcap_visit_id + "-" +  + hashlib.sha1(xnat_eid.encode()).hexdigest()[0:6],"ERROR: could not get experiment",
                       info="Most likely due to internet connection! Please rerun script for subject and visit", 
                       redcap_visit_id = redcap_visit_id,
                       xnat_sid = xnat_sid)
@@ -143,7 +143,7 @@ def get_usable_scans_list( session, xnat_eid_list, redcap_visit_id, xnat_sid):
                 type = xnat_exp.scans[scan].type or ''
                 quality = xnat_exp.scans[scan].quality or ''
             except Exception as err_msg:
-                slog.info(redcap_visit_id + "-" + scan + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],
+                slog.info(redcap_visit_id + "-" + scan + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],
                           "ERROR: could not get type and quality of scan",
                           info="Most likely due to internet connection! Please rerun script for subject and visit", 
                           redcap_visit_id = redcap_visit_id,
@@ -880,7 +880,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                         # only run timer once - otherwise collect too much data
                         runTimerForImportToPipeline = False
 
-            if not args.no_upload and (xnat_data['mr_session_report_complete'] > 0 or args.force_update):
+            if not args.no_upload and (int(xnat_data['mr_session_report_complete']) > 0 or args.force_update):
                 # Make session data into dict for REDCap import
                 record = dict( row )
                 (record['study_id'], record['redcap_event_name']) = key

@@ -111,8 +111,8 @@ def process_file(fname):
         site = get_dag_from_df(data, verbose=args.verbose)
         if not site:
             slog.info(
-                (hashlib.sha1('import-laptops-csv2redcap / use-file-dag {}'
-                              .format(os.path.basename(fname)))
+                (hashlib.sha1(('import-laptops-csv2redcap / use-file-dag {}'
+                              .format(os.path.basename(fname))).encode())
                  .hexdigest()[0:6]),
                 "ERROR: Site could not be inferred from file",
                 instruction="You should re-run csv2redcap with a manually "
@@ -145,7 +145,7 @@ def process_file(fname):
             justFile = os.path.basename(fname)
             slog.info(
                 "%s-%s" % (str(row['redcap_data_access_group']),
-                           hashlib.sha1(fname).hexdigest()[0:6]),
+                           hashlib.sha1(fname.encode()).hexdigest()[0:6]),
                 "'record_id' is not defined in file '%s'!" % justFile,
                 cmd=" ".join(sys.argv),
                 file_name=fname,
@@ -181,7 +181,7 @@ def process_file(fname):
 
     except Exception as err_msg: 
         justFile = os.path.basename(fname)
-        slog.info( str(args.data_access_group) + "-" + hashlib.sha1(fname + str(err_msg)).hexdigest()[0:6], "Upload error to redcap for file " + justFile,
+        slog.info( str(args.data_access_group) + "-" + hashlib.sha1((fname + str(err_msg)).encode()).hexdigest()[0:6], "Upload error to redcap for file " + justFile,
                    error_msg=str(err_msg),
                    record_list =str(record_list), 
                    cmd = " ".join(sys.argv),
@@ -193,7 +193,7 @@ def process_file(fname):
     # If there were any errors, try to print them as well as possible
     if 'error' in list(import_response.keys()):
         error = "Upload error"
-        slog.info(hashlib.sha1('import-laptops-csv2redcap {}'.format(import_response['error'])).hexdigest()[0:6], error,
+        slog.info(hashlib.sha1('import-laptops-csv2redcap {}'.format(import_response['error']).encode()).hexdigest()[0:6], error,
                   error_msg=str(import_response['error']))
 
     if 'fields' in list(import_response.keys()):
@@ -265,7 +265,7 @@ for f in args.csvfile:
 
 # Print failures
 if len(failed) > 0:
-    slog.info(hashlib.sha1('import-laptops-csv2redcap {}'.format(' '.join(failed))).hexdigest()[0:6], "ERROR uploading file(s)", 
+    slog.info(hashlib.sha1('import-laptops-csv2redcap {}'.format(' '.join(failed)).encode()).hexdigest()[0:6], "ERROR uploading file(s)", 
               files_not_uploaded = str(failed) )
     sys.exit()
 # Only take timer if all were uploaded

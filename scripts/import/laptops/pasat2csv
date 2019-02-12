@@ -31,7 +31,7 @@ temp_dir_path = tempfile.mkdtemp()
 temp_csv = "%s/pasat.csv" % (temp_dir_path)
 (ecode,cout,cerr) = sutils.mdb_export("%s MainStressor_bb > %s" % (args.mdbfile, temp_csv))
 if ecode :
-   convert_util.post_issue_and_exit('pasat2csv', args.mdbfile, args.verbose, args.post_to_github, hashlib.sha1(str(cerr)).hexdigest()[0:6], "mdb-export failed!", error_msg=str(cerr))
+   convert_util.post_issue_and_exit('pasat2csv', args.mdbfile, args.verbose, args.post_to_github, hashlib.sha1(str(cerr).encode()).hexdigest()[0:6], "mdb-export failed!", error_msg=str(cerr))
 
 # Read the temporary CSV file
 pasat_csv = pandas.read_csv( temp_csv ).sort_values(by=['ID'], ascending=False)

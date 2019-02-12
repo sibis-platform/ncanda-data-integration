@@ -12,7 +12,7 @@ def post_issue_and_exit(script, infile, verbose, post_to_github, issue_label, is
         infoTxt = kwargs['post_resolution_instructions']
         del kwargs['post_resolution_instructions']
     
-    slog.info(issue_label + "-" + hashlib.sha1(infile).hexdigest()[0:6], issue_title, cmd = " ".join(sys.argv), post_resolution_instructions = infoTxt, **kwargs) 
+    slog.info(issue_label + "-" + hashlib.sha1(infile.encode()).hexdigest()[0:6], issue_title, cmd = " ".join(sys.argv), post_resolution_instructions = infoTxt, **kwargs) 
   
     sys.exit(1)
 

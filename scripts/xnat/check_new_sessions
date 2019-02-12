@@ -178,7 +178,7 @@ def check_physio(experiment,ifc,eid):
             return True
 
     except Exception as err_msg: 
-        slog.info(eid + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not retrieve physioproblemoverride',
+        slog.info(eid + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],'ERROR: Could not retrieve physioproblemoverride',
                   err_msg = str(err_msg))
         return False
 
@@ -523,7 +523,7 @@ def remove_file(session_label,fileName):
     try :  
         os.remove(fileName)
     except Exception as err_msg: 
-        slog.info(session_label + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not remove file - please check access rights! - stopped processing',
+        slog.info(session_label + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],'ERROR: Could not remove file - please check access rights! - stopped processing',
                   fileName = fileName,
                   error_msg=str(err_msg))
         sys.exit("Stopped due to access file issues!")
@@ -536,7 +536,7 @@ def rename_file(session_label,oldFileName,newFileName):
     try :  
         os.rename(oldFileName,newFileName)
     except Exception as err_msg: 
-        slog.info(session_label + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not rename file - please check access rights! Processing stopped',
+        slog.info(session_label + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],'ERROR: Could not rename file - please check access rights! Processing stopped',
                   oldFileName = oldFileName,
                   newFileName = newFileName,
                   error_msg=str(err_msg))
@@ -919,7 +919,7 @@ for (eid, project, subject, insert_date,
 
     except Exception as err_msg: 
         exc_type, exc_value, exc_traceback = sys.exc_info()
-        slog.info(session_label + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not retrieve scan specific parameters from xnat - skipping session',
+        slog.info(session_label + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],'ERROR: Could not retrieve scan specific parameters from xnat - skipping session',
                   project = project,
                   eid = eid,
                   info = "Most likely network problem",
@@ -949,7 +949,7 @@ for (eid, project, subject, insert_date,
                                                                                            verbose=args.verbose)
                 except Exception as err_msg: 
                     info = sys.exc_info()
-                    slog.info(session_label + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not generate nifti files - skipping session',
+                    slog.info(session_label + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],'ERROR: Could not generate nifti files - skipping session',
                           eid = eid,
                           project = project,
                           err_msg=str(err_msg),
@@ -1014,7 +1014,7 @@ for (eid, project, subject, insert_date,
                     if err.errno != 2:
                         raise err
                     else:
-                        slog.info(session_label + "-" + hashlib.sha1(str(err)).hexdigest()[0:6],'WARNING: File not found',
+                        slog.info(session_label + "-" + hashlib.sha1(str(err).encode()).hexdigest()[0:6],'WARNING: File not found',
                             project = project,
                             file = qc_file,
                             eid = eid,
@@ -1023,7 +1023,7 @@ for (eid, project, subject, insert_date,
 
         except Exception as err_msg: 
             info = sys.exc_info()
-            slog.info(session_label + "-" + hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not check quality of session',
+            slog.info(session_label + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],'ERROR: Could not check quality of session',
                       project = project,
                       info = "Most likely network problem",
                       eid = eid,

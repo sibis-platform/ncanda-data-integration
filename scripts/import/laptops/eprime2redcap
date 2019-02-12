@@ -67,7 +67,7 @@ for s in file:
         session = ("0000%s" % match.group(1))[-4:]
 
 if not subject or not session or not date_of_test:
-    post_issue_and_exit(hashlib.sha1('harvester' + args.infile).hexdigest()[0:6] , "ERROR: no subject, session ID, or test date in Stroop file %s" % args.infile)
+    post_issue_and_exit(hashlib.sha1(('harvester' + args.infile).encode()).hexdigest()[0:6] , "ERROR: no subject, session ID, or test date in Stroop file %s" % args.infile)
 
 # Reconstruct actual N-CANDA Subject ID
 digit_to_site = { '1': 'A', '2': 'B', '3': 'C', '4': 'D', '5': 'E', '6': 'F', '7': 'G', '8': 'H', '9': 'I', '0': 'J' }

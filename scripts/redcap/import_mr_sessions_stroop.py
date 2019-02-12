@@ -45,7 +45,7 @@ def check_for_stroop( xnat, xnat_eid_list, verbose=False ):
         error = "ERROR: experiment have/has more than one Stroop .txt file. Please make sure there is exactly one per session."
         for xnat_eid in xnat_eid_list:
             slog.info(xnat_eid,error)
-	return (None, None, None)
+        return (None, None, None)
     if verbose : 
         print("check_for_stroop: Stroop File: " + str(stroop_files[0]))
 

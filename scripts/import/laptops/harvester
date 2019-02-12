@@ -175,7 +175,7 @@ def run_converter(site, subject_label, command, verbose, infer_dag=False):
         for fi in added_files.strip().split('\n'):
             if re.match('.*\.csv$', fi):
                 if os.path.basename(fi).split('-')[0] in ['NOID', 'nan']: 
-                    slog.info(subject_label + "-" +  hashlib.sha1('harvester {}'.format(fi)).hexdigest()[0:6], 'converter_cmd created file that does not contain subject ID and thus cannot be uploaded to redcap',
+                    slog.info(subject_label + "-" +  hashlib.sha1('harvester {}'.format(fi).encode()).hexdigest()[0:6], 'converter_cmd created file that does not contain subject ID and thus cannot be uploaded to redcap',
                               file=str(fi),
                               converter_cmd=" ".join(command), 
                               harvester_cmd=" ".join(sys.argv)) 
@@ -221,24 +221,24 @@ def run_converter(site, subject_label, command, verbose, infer_dag=False):
 
                     except:
                         error = "Failed importing files into REDCap"
-                        slog.info(subject_label + "-" +  hashlib.sha1('harvester {}'.format(fi)).hexdigest()[0:6], error,
+                        slog.info(subject_label + "-" +  hashlib.sha1('harvester {}'.format(fi).encode()).hexdigest()[0:6], error,
                                   file=str(fi),
                                   converter_cmd=" ".join(command), 
                                   harvester_cmd=" ".join(sys.argv)) 
             else:
-                slog.info(subject_label + "-" +  hashlib.sha1('harvester {}'.format(fi)).hexdigest()[0:6], 'NOT A CSV FILE',
+                slog.info(subject_label + "-" +  hashlib.sha1('harvester {}'.format(fi).encode()).hexdigest()[0:6], 'NOT A CSV FILE',
                           file=str(fi),
                           converter_cmd=" ".join(command), 
                           harvester_cmd=" ".join(sys.argv)) 
 
     except Exception as emsg:
         if args.only_converter_post_to_github:
-            slog.sibisLogging().info(subject_label + "-" + hashlib.sha1(str(emsg)).hexdigest()[0:6], 'Failed to convert data into redcap conform csv file',
+            slog.sibisLogging().info(subject_label + "-" + hashlib.sha1(str(emsg).encode()).hexdigest()[0:6], 'Failed to convert data into redcap conform csv file',
                   converter_cmd=" ".join(command), 
                   harvester_cmd=" ".join(sys.argv), 
                   err_msg = str(emsg))
         else :
-            slog.info(subject_label + "-" + hashlib.sha1(str(emsg)).hexdigest()[0:6], 'Failed to convert data into redcap conform csv file',
+            slog.info(subject_label + "-" + hashlib.sha1(str(emsg).encode()).hexdigest()[0:6], 'Failed to convert data into redcap conform csv file',
                   converter_cmd=" ".join(command), 
                   harvester_cmd=" ".join(sys.argv), 
                   err_msg = str(emsg))
@@ -380,14 +380,14 @@ if dated_download :
             updated_files.append(os.path.join(svndir,path))
 
     except SibisSvnException as ex:
-        slog.info(hashlib.sha1('harvester' + str(ex)).hexdigest()[0:6],
+        slog.info(hashlib.sha1(('harvester' + str(ex)).encode()).hexdigest()[0:6],
                   "ERROR: Failed to update files in range " + args.date + ". Continued without them!",
                   script='harvester',
                   msg=str(ex))            
         
 elif args.file_to_upload:
     if not os.path.exists(args.file_to_upload):
-        slog.info(hashlib.sha1('harvester'+args.file_to_upload).hexdigest()[0:6],
+        slog.info(hashlib.sha1(('harvester'+args.file_to_upload).encode()).hexdigest()[0:6],
                   "ERROR: File does not exist!",
                   file=args.file_to_upload,
                   harvester_cmd=" ".join(sys.argv))

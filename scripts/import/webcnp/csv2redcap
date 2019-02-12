@@ -47,13 +47,13 @@ try:
     redcap = session.connect_server('import_webcnp', True)
 except KeyError as e:
     error = "ERROR: failed creating the metadata for Project"
-    slog.info(hashlib.sha1('csv2redcap').hexdigest()[0:6], error,
+    slog.info(hashlib.sha1(b'csv2redcap').hexdigest()[0:6], error,
                   script='csv2redcap',
                   msg=str(e))
     sys.exit(1)
 except Exception as e:
     error = "ERROR: failed creating Project object"
-    slog.info(hashlib.sha1('csv2redcap').hexdigest()[0:6], error,
+    slog.info(hashlib.sha1(b'csv2redcap').hexdigest()[0:6], error,
                   script='csv2redcap',
                   msg=str(e))
     sys.exit(1)
@@ -68,7 +68,7 @@ if not redcap:
 data = pandas.io.parsers.read_csv( args.infile )
 
 # Replace periods in column labels with underscores
-data.rename( columns = lambda s: string.lower( s.replace( '.', '_' ) ), inplace=True )
+data.rename( columns = lambda s: s.replace( '.', '_' ).lower(), inplace=True )
 
 # Remove all sessions before ID 22000 - these are junk
 data = data[data['test_sessions_datasetid'] >= 22000]
@@ -100,7 +100,7 @@ for sheet in list(cnp.instruments.keys()):
             data['%s_complete' % cnp.instruments[sheet]] = data[col_name].map( lambda s: 1 if str(s) != '' else 0 )
         else : 
             error = "Webcnp form does not comply with expected format - column '" + sheet+ ".valid_code' does not exist!"
-            slog.info(hashlib.sha1(error).hexdigest()[0:6], error,
+            slog.info(hashlib.sha1(error.encode()).hexdigest()[0:6], error,
                       cmd=" ".join(sys.argv))
             sys.exit(1)
 
@@ -120,7 +120,7 @@ for [ index, row ] in data.iterrows():
 data = data.drop( ['test_sessions_subid', 'test_sessions_dotest'], axis=1 )
 
 # Bring original "siteid" column back to assign each record to the correct data access group
-data['redcap_data_access_group'] = data['test_sessions_siteid'].map(lambda s: string.lower(s));
+data['redcap_data_access_group'] = data['test_sessions_siteid'].map(lambda s: s.lower());
 
 # Make list of dicts for REDCap import
 uploaded = 0
@@ -136,7 +136,7 @@ for [key,row] in data.iterrows():
     # If there were any errors, try to print them as well as possible
     if 'error' in list(import_response.keys()):
         error = "UPLOAD ERROR: {}".format(import_response['error'])
-        slog.info(hashlib.sha1(error).hexdigest()[0:6], error)
+        slog.info(hashlib.sha1(error.encode()).hexdigest()[0:6], error)
 
     if 'fields' in list(import_response.keys()):
         for field in import_response['fields']:

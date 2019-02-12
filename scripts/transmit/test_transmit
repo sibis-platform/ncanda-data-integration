@@ -36,7 +36,7 @@ s3cmd --help > /dev/null
 
 mysqldump --help > /dev/null
 
-/bin/su -h > /dev/null
+/bin/su -h 2>&1 | grep -v "must be run from a terminal"
 
 sqlite3 --version > /dev/null
 

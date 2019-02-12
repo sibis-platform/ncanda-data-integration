@@ -117,11 +117,11 @@ def to_redcap(session, form_name, subject_id, event, timelabel, upload_records, 
     # If there were any errors, try to print them as well as possible
     if import_response:
         if 'error' in list(import_response.keys()):
-            slog.info(error_label + "-" + hashlib.sha1(str(import_response['error'])).hexdigest()[0:6], "ERROR: Uploading Data", error_msg = str(import_response['error']))
+            slog.info(error_label + "-" + hashlib.sha1(str(import_response['error']).encode()).hexdigest()[0:6], "ERROR: Uploading Data", error_msg = str(import_response['error']))
         if 'fields' in list(import_response.keys()):
-            slog.info(error_label + "-" + hashlib.sha1(str(import_response['fields'])).hexdigest()[0:6], "Info: something wrong with fields ! Not sure what to do !", fields =  str(import_response['fields']))
+            slog.info(error_label + "-" + hashlib.sha1(str(import_response['fields']).encode()).hexdigest()[0:6], "Info: something wrong with fields ! Not sure what to do !", fields =  str(import_response['fields']))
         if 'records' in list(import_response.keys()):
-            slog.info(error_label + "-" + hashlib.sha1(str(import_response['records'])).hexdigest()[0:6], "Info: something wrong with redcords ! Not sure what to do !", records =  str(import_response['records']))
+            slog.info(error_label + "-" + hashlib.sha1(str(import_response['records']).encode()).hexdigest()[0:6], "Info: something wrong with redcords ! Not sure what to do !", records =  str(import_response['records']))
         # Finally, print upload status if so desired
         if 'count' in list(import_response.keys()):
             return import_response['count']
@@ -490,7 +490,7 @@ for form_prefix, form_name in forms.items():
     if len(records) == 0:
         error_id = form_name 
         if args.study_id :
-            error_id += "-" + hashlib.sha1(args.study_id).hexdigest()[0:6] 
+            error_id += "-" + hashlib.sha1(str(args.study_id).encode()).hexdigest()[0:6] 
 
         # if you stop here then missing data might be not discovered 
         slog.info(error_id, "Warning: stop processing as no records in import project for this form",

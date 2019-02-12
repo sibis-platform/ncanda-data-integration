@@ -78,7 +78,7 @@ for s in file:
 
 if not subject or not session:
     errMsg = "ERROR: no subject or session ID in Stroop file %s" % args.infile 
-    post_issue_and_exit(hashlib.sha1('stroop2csv {}'.format(errMsg)).hexdigest()[0:6], errMsg)
+    post_issue_and_exit(hashlib.sha1('stroop2csv {}'.format(errMsg).encode()).hexdigest()[0:6], errMsg)
     # should be done differently but if called without -p option it is not posted when script is run from harvester
 
 digit_to_site = { '1': 'A', '2': 'B', '3': 'C', '4': 'D', '5': 'E', '6': 'F', '7': 'G', '8': 'H', '9': 'I', '0': 'J' }
@@ -98,7 +98,7 @@ if os.path.exists(output_filename):
     else:
         if args.verbose : 
             errMsg = "Warning: output file {} already exists. Scores are not updated!".format(output_filename)
-            post_issue_and_exit(hashlib.sha1('stroop2csv {}'.format(errMsg)).hexdigest()[0:6], errMsg)
+            post_issue_and_exit(hashlib.sha1('stroop2csv {}'.format(errMsg).encode()).hexdigest()[0:6], errMsg)
         else: 
             errMsg = 0
 
@@ -144,7 +144,7 @@ def samplestd(data):
             samplestd=math.sqrt(old_div(sum((data-mean)**2),(len(data)-1)))
 
     except RuntimeWarning as e:
-        post_issue_and_exit(hashlib.sha1('stroop2csv {}'.format(e)).hexdigest()[0:6], "Error: could not compute samplestd", 
+        post_issue_and_exit(hashlib.sha1('stroop2csv {}'.format(e).encode()).hexdigest()[0:6], "Error: could not compute samplestd", 
                   err_msg = str(e),
                   data_contained = data)
 

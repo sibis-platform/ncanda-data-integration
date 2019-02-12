@@ -61,7 +61,7 @@ if not session.configure():
 try:
     project = session.connect_server(args.project, True)
 except Exception as error:
-    slog.info(hashlib.sha1('csv2redcap').hexdigest()[0:6],
+    slog.info(hashlib.sha1(b'csv2redcap').hexdigest()[0:6],
     "ERROR: Could not connect to redcap!",
     script = 'csv2redcap')
     sys.exit()

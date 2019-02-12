@@ -170,7 +170,7 @@ if __name__ == "__main__":
             if value[1] == 0: continue
             #Get only experiment_site_id
             list_subject = str([x[0] for x in value[0]])
-            slog.info(hashlib.sha1('check_exceptions {}'.format(list_subject)).hexdigest()[0:6], value[2],
+            slog.info(hashlib.sha1('check_exceptions {}'.format(list_subject).encode()).hexdigest()[0:6], value[2],
                       list_subject=list_subject)
 
 

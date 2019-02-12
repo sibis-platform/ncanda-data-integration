@@ -43,7 +43,7 @@ def upload_findings_to_xnat(sibis_session,qc_csv_file, sendEmailFlag):
 
         # comment
         if isinstance(row['scan_note'],str) and len(row['scan_note'])>0:
-		scan.set('note',row['scan_note'])
+                scan.set('note',row['scan_note'])
 
     # send email to qc manager
     if sendEmailFlag and len(questionable_scans) :

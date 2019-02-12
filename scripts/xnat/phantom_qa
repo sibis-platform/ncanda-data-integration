@@ -170,8 +170,8 @@ if not args.exclude_fbirn and not args.exclude_adni:
     try : 
         content = interface._exec( uri=config_uri, query={'inbody':'true'}, method='PUT', body=now_str, headers={'content-type':'text/plain'} )
     except Exception as err_msg: 
-        slog.info(hashlib.sha1(str(err_msg)).hexdigest()[0:6],'ERROR: Could not write to xnat',
-                  err_msg = str(err_msg))
+        slog.info(hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],'ERROR: Could not write to xnat',
+                  err_msg = str(err_msg), err_obj=err_msg)
         sys.exit(1) 
 
 

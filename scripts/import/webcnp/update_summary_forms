@@ -186,7 +186,7 @@ for key, row in summary_records.iterrows():
             if len( records_this_visit ) > 1:
                 # Not unique - warning
                 error = 'WARNING: More than one CNP record found for subject %s, event %s, visit date %s - selecting the latest record' % (key[0],key[1],visit_date)
-                slog.info( "DuplicateRecords-" + hashlib.sha1(error).hexdigest()[0:6], error,
+                slog.info( "DuplicateRecords-" + hashlib.sha1(error.encode()).hexdigest()[0:6], error,
                            records_this_visit = str(records_this_visit.index.tolist()))
 
             # Unique record - copy data from imported project to summary form
@@ -273,11 +273,11 @@ else:
             if 'count' in list(import_response.keys()):
                 uploaded_count += import_response['count']
             if 'error' in list(import_response.keys()):
-                slog.info(error_label + "-" + hashlib.sha1(str(import_response['error'])).hexdigest()[0:6], "ERROR: Uploading Data", error_msg = str(import_response['error']))
+                slog.info(error_label + "-" + hashlib.sha1(str(import_response['error']).encode()).hexdigest()[0:6], "ERROR: Uploading Data", error_msg = str(import_response['error']))
             if 'fields' in list(import_response.keys()):
-                slog.info(error_label + "-" + hashlib.sha1(str(import_response['fields'])).hexdigest()[0:6], "Info: something wrong with fields ! Not sure what to do !", fields =  str(import_response['fields']))
+                slog.info(error_label + "-" + hashlib.sha1(str(import_response['fields']).encode()).hexdigest()[0:6], "Info: something wrong with fields ! Not sure what to do !", fields =  str(import_response['fields']))
             if 'records' in list(import_response.keys()):
-                slog.info(error_label + "-" + hashlib.sha1(str(import_response['records'])).hexdigest()[0:6], "Info: something wrong with redcords ! Not sure what to do !", records =  str(import_response['records']))
+                slog.info(error_label + "-" + hashlib.sha1(str(import_response['records']).encode()).hexdigest()[0:6], "Info: something wrong with redcords ! Not sure what to do !", records =  str(import_response['records']))
 
     # Finally, print upload status if so desired                    
     if args.verbose:
