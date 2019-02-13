@@ -126,8 +126,8 @@ def handle_survey(subject_label, survey_id, data, verbose ):
 
     # If this is LimeSurvey SSAGA, figure out if it is Youth or Parent survey
     if 'lssaga' in this_survey:
-	typeinter =''
-	try:
+        typeinter =''
+        try:
             typeinter = str( data['typeinter'].ix[0] )
         except:
             post_issue_and_exit("ERROR: " + str(args.infile) + " does contain 'typeinter' field")
