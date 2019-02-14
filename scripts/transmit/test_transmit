@@ -5,6 +5,13 @@
 ##  for the copyright and license terms
 ##
 
+if [ "`whoami`" != "root" ]; then 
+    echo "ERROR: Please only run test as root on the pipeline-back container" 
+    exit 1 
+fi 
+
+echo "INFO: Test only works on pipeline-back container" 
+ 
 
 # Current date in seconds since 0:00 a.m., 1-1-1970.
 CURRENT_DATE_EPOCH=`date +%s`
@@ -30,13 +37,17 @@ DB_UPDATE_FLAG=0
 
 gtar --help > /dev/null
 
-aespipe --help > /dev/null
+MSG=`aespipe --help 2>&1`
+if ! echo "$MSG" | grep -q "usage: aespipe"; then
+   echo -e "$MSG" 
+fi 
 
 s3cmd --help > /dev/null
 
 mysqldump --help > /dev/null
 
-/bin/su -h 2>&1 | grep -v "must be run from a terminal"
+/bin/su -h > /dev/null
+# 2>&1 | grep -v "must be run from a terminal"
 
 sqlite3 --version > /dev/null
 
