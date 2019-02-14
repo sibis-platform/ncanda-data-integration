@@ -165,12 +165,11 @@ def run_converter(site, subject_label, command, verbose, infer_dag=False):
     filesProcessed = 0 
 
     try : 
-        added_files = subprocess.check_output(command)
+        added_files = subprocess.check_output(command).decode()
         if not len(added_files):
             if verbose : 
                 print("No files were transferred to csv") 
             return filesProcessed 
-
 
         for fi in added_files.strip().split('\n'):
             if re.match('.*\.csv$', fi):
@@ -236,12 +235,12 @@ def run_converter(site, subject_label, command, verbose, infer_dag=False):
             slog.sibisLogging().info(subject_label + "-" + hashlib.sha1(str(emsg).encode()).hexdigest()[0:6], 'Failed to convert data into redcap conform csv file',
                   converter_cmd=" ".join(command), 
                   harvester_cmd=" ".join(sys.argv), 
-                  err_msg = str(emsg))
+                  err_msg = str(emsg), trace=emsg)
         else :
             slog.info(subject_label + "-" + hashlib.sha1(str(emsg).encode()).hexdigest()[0:6], 'Failed to convert data into redcap conform csv file',
                   converter_cmd=" ".join(command), 
                   harvester_cmd=" ".join(sys.argv), 
-                  err_msg = str(emsg))
+                  err_msg = str(emsg), trace=emsg)
 
     return filesProcessed
 #
