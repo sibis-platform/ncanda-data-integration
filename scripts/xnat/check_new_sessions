@@ -312,7 +312,7 @@ def incomplete_scan_check(experiment,manufacturer, session_label, eid, scan_type
  
         err_msg = 'ERROR: Missing scans from Session!'
         if siemens_gradient_flag :
-            err_msg += "Note, Siemens scans require two 'ncanda-grefieldmap-v1'" 
+            err_msg += " Note, Siemens scans require two 'ncanda-grefieldmap-v1'" 
 
         slog.info(session_label,
                   err_msg,

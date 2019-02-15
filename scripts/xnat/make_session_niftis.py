@@ -18,8 +18,7 @@ import sys
 
 from sibispy import sibislogger as slog
 from sibispy import utils as sutils
-from sibispy.xnat_util import XNATSessionElementUtil
-
+from sibispy.xnat_util import XNATSessionElementUtil, XNATResourceUtil, XNATExperimentUtil
 
 #
 # Export experiment files to NIFTI
@@ -45,7 +44,6 @@ def export_to_nifti(experiment, subject, session, session_label, scan, scantype,
     if not os.path.exists(dicom_path):
         #try another description
         dicom_path = re.sub('storage/XNAT', 'ncanda-xnat', dicom_path)
-
         if not os.path.exists(dicom_path):
             error_msg.append("Path %s does not exist - export_to_nifti failed for SID:%s EID:%s Label: %s!" % (dicom_path, subject, session,session_label))
             return error_msg,0
@@ -61,7 +59,6 @@ def export_to_nifti(experiment, subject, session, session_label, scan, scantype,
         dicom_file_list = glob.glob(dicom_file_pattern)
         # ommit xml file - so that only dicom  files are left - xml file is updated every time somebody changes something in the gui for that session - which has no meaning for xml file 
         dicom_file_list =  [x for x in dicom_file_list if '.xml' not in x ]
-
         # if dicom file is not there something odd is going on
         if dicom_file_list == [] :
             slog.info(session_label, "Error: could not find dicom files ",
@@ -107,12 +104,14 @@ def export_to_nifti(experiment, subject, session, session_label, scan, scantype,
     log_filename = '%s/%s_%s/dcm2image.log' % (temp_dir, scan, scantype)
     output_file = open(log_filename, 'w')
     try:
-        output_file.writelines(sout)
+        output_file.writelines(sout.decode('utf-8'))
     finally:
         output_file.close()
 
     # Zipping directory with nifti files
-    zip_path = '%s/%s_%s.zip' % (temp_dir, scan, scantype)
+    zip_file_name = '%s_%s.zip' % (scan, scantype)
+    zip_path = '%s/%s' % (temp_dir, zip_file_name)
+    
     try:
         fzip = zipfile.ZipFile(zip_path, 'w')
         for src in sorted(glob.glob('%s/*/*' % temp_dir)):
@@ -131,9 +130,16 @@ def export_to_nifti(experiment, subject, session, session_label, scan, scantype,
         return error_msg,0
 
     try: 
-        experiment.resource('nifti').put_zip(zip_path, overwrite=True,extract=True)
-    except:
+        exp_util=XNATExperimentUtil(experiment) 
+        resource=exp_util.resources_insure('nifti')
+        resource_util = XNATResourceUtil(resource)
+        resource_util.detailed_upload(zip_path, zip_file_name, extract=True, overwrite=True)
+
+    except Exception as e:
         error_msg.append("Unable to upload ZIP file %s to experiment %s" % (zip_path, session))
+        print("ERROR",str(e))
+        print("DEBUG",error_msg) 
+        exit(0)
         # Clean up - remove temp directory
         shutil.rmtree(temp_dir)
         return error_msg,0
