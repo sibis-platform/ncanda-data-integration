@@ -61,7 +61,7 @@ def export_t1t2_to_zip( experiment, experiment_label,xnat_dir):
         scan_type = scan.type
         if ('t1spgr' in scan_type) or ('mprage' in scan_type) or ('t2fse' in scan_type):
             for _, val in sutils.objwalk(scan.fulldata):
-                match = re.match('.*(' + xnat_dir + '/.*)scan_.*_catalog.xml.*', experiment.scan(scan).get(), re.DOTALL)
+                match = re.match('.*(' + xnat_dir + '/.*)scan_.*_catalog.xml.*', scan.xnat_session.get(scan.uri, query={'format':'xml'}).text, re.DOTALL)
                 if match:
                     # Replace the path stored in XNAT with the NFS mount path.
                     xnat_path = match.group(1).replace('storage/XNAT',
@@ -107,7 +107,7 @@ def export_t1t2_to_zip( experiment, experiment_label,xnat_dir):
             if args.verbose:
                 print("Successfully created T1/T2 DICOM archive",zipfile)
             try:
-                experiment.attrs.set( 'xnat:mrSessionData/fields/field[name=datetodvd]/field', date_today )
+                experiment.set( 'xnat:mrSessionData/fields/field[name=datetodvd]/field', date_today )
             except:
                 error = "ERROR: failed to set DateToDVD field on experiment - removing archive file"
                 slog.info(experiment_label,error,zipfile = zipfile,eid = str(experiment.id()))
