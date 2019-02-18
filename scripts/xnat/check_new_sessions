@@ -1181,7 +1181,7 @@ if len(scans_to_qc) > 1  and args.qc_csv :
     if os.path.exists(qc_file):
         os.remove(qc_file) 
 
-    with open(qc_file, 'wb') as fi:
+    with open(qc_file, 'w') as fi:
         fi.writelines(scans_to_qc)
 
     # Make it so everybody can read and write the file 
