@@ -294,8 +294,9 @@ def copy_rsfmri_physio_files( xnat, xnat_eid_and_scan, to_directory ):
                 os.makedirs( to_directory )
 
             # determine a temporary target location
-            fh, physio_file_path_cache = tempfile.mkstemp(suffix='physio_cache')
-            fh.close()
+            (fh, physio_file_path_cache) = tempfile.mkstemp(suffix='physio_cache')
+            # fh is integer - if object is needed use tempfile.TemporaryFile()
+            # fh.close()
 
             experiment.resources[ physio_resource ].files[ physio_file ].download(physio_file_path_cache)
 
