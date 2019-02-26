@@ -83,7 +83,7 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, \
     if len( added_files ):
         if not no_upload:
             # Upload CSV file(s) (should only be one anyway)
-            for file in added_files.split( '\n' ):
+            for file in added_files.decode('utf-8').split( '\n' ):
                 if re.match( '.*\.csv$', file ):
                     if verbose:
                         print("Uploading ePrime Stroop scores",file)
