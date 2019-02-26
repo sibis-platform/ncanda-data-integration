@@ -43,7 +43,7 @@ slog.startTimer1()
 data = pandas.io.parsers.read_csv( args.csvfile )
 
 # Replace periods in column labels with underscores
-data.rename( columns = lambda s: string.lower( s.replace( '.', '_' ) ), inplace=True )
+data.rename( columns = lambda s: s.replace( '.', '_' ).lower(), inplace=True )
 
 # Bring original "siteid" column back to assign each record to the correct data access group
 if not args.data_access_group == None:
