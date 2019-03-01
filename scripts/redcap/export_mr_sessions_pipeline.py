@@ -358,7 +358,7 @@ def copy_manual_pipeline_files( xnat, xnat_eid, to_directory ):
                 os.makedirs( file_dir )
 
             
-            experiment.resources[resource].files[file_name].download(file_path)
+            experiment.resources[resource].files[file_name].download(file_path, verbose=False)
  
             files_created = True
 
