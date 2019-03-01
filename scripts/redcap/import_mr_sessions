@@ -405,7 +405,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
         result['mri_series_dti_fieldmap'] = ' '.join(['%s/%s' % (eid,scan) for (eid, scan) in fieldmaps_dti60])
 
         result['mri_dti_date'] = xnat_sessions_dict[scans_by_type['dti60b1000'][0]][0]
-        result['mri_dti_age'] = str(old_div(red2cas.days_between_dates( date_of_birth, result['mri_dti_date']), 365.242))
+        result['mri_dti_age'] = str(round(old_div(red2cas.days_between_dates( date_of_birth, result['mri_dti_date']), 365.242),10))
 
     if 'rsfmri' in list(scans_by_type.keys()):
         result['mri_series_rsfmri'] = encode_session_and_scan( scans_by_type, ['rsfmri'])
@@ -415,7 +415,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
         result['mri_series_rsfmri_fieldmap'] = ' '.join(['%s/%s' % (eid,scan) for (eid, scan) in fieldmaps_rsfmri])
 
         result['mri_rsfmri_date'] = xnat_sessions_dict[scans_by_type['rsfmri'][0]][0]
-        result['mri_rsfmri_age'] = str(old_div(red2cas.days_between_dates(date_of_birth, result['mri_rsfmri_date']), 365.242))
+        result['mri_rsfmri_age'] = str(round(old_div(red2cas.days_between_dates(date_of_birth, result['mri_rsfmri_date']), 365.242),10))
 
 
     for xnat_eid in xnat_eid_list:
@@ -444,7 +444,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     if t1w_experiment_data:
         # Compute age at T1w scan
         result['mri_t1_date'] = t1w_experiment_data[0]
-        result['mri_t1_age'] = str(old_div(red2cas.days_between_dates( date_of_birth, t1w_experiment_data[0]), 365.242))
+        result['mri_t1_age'] = str(round(old_div(red2cas.days_between_dates( date_of_birth, t1w_experiment_data[0]), 365.242),10))
 
         # Find ADNI phantom scan in appropriate date range (either same day or within 24h)
         # Found same-day phantom scan?
@@ -841,7 +841,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                 sid, pid = subject_project_dict[subject_label]
                 pipe_id = sid
 
-            visit_age = old_div(red2cas.days_between_dates( this_subject_data['dob'], visit_date ), 365.242)
+            visit_age = round(old_div(red2cas.days_between_dates( this_subject_data['dob'], visit_date ), 365.242),10)
             next_visit_date = get_subject_next_visit_date(key[0], visit_date)
             [xnat_data,errFlag] = get_xnat_data(session,red2cas,
                                       key,
