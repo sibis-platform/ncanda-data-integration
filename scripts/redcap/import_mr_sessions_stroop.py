@@ -67,7 +67,7 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, \
         if not os.path.isdir(stroop_dir_path):
             os.makedirs(stroop_dir_path)
 
-        experiment.resources[stroop_resource].files[stroop_file].download( stroop_file_path )
+        experiment.resources[stroop_resource].files[stroop_file].download( stroop_file_path, verbose=False )
     except IOError as e:
         details = "Error: import_mr_sessions_stroop: unable to get copy resource {0} file {1} to {2}".format(stroop_resource, stroop_file, stroop_file_path)
         slog.info(str(redcap_key[0]) + "-" +  str(redcap_key[1]), details, error_obj={ 'message': str(e), 'errno': e.errno, 'filename': e.filename, 'strerror': e.strerror })
