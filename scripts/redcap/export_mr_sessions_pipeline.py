@@ -200,7 +200,7 @@ def copy_adni_phantom_t1w( xnat, xnat_eid, to_directory ):
 
     # Get first file from list, warn if more files
     (phantom_resource, phantom_file) = experiment_files[0]
-    experiment.resources[phantom_resource].files[ phantom_file ].download( phantom_path )
+    experiment.resources[phantom_resource].files[ phantom_file ].download( phantom_path, verbose=False )
 
     return True
 
@@ -230,7 +230,7 @@ def copy_adni_phantom_xml( xnat, xnat_eid, to_directory ):
 
     # Get first file from list, warn if more files
     (phantom_resource, phantom_file) = experiment_files[0]
-    experiment.resources[ phantom_resource ].files[ phantom_file ].download( phantom_path )
+    experiment.resources[ phantom_resource ].files[ phantom_file ].download( phantom_path, verbose=False )
 
     return True
 
@@ -298,7 +298,7 @@ def copy_rsfmri_physio_files( xnat, xnat_eid_and_scan, to_directory ):
             # fh is integer - if object is needed use tempfile.TemporaryFile()
             # fh.close()
 
-            experiment.resources[ physio_resource ].files[ physio_file ].download(physio_file_path_cache)
+            experiment.resources[ physio_resource ].files[ physio_file ].download(physio_file_path_cache, verbose=False)
 
             if not '.txt' in physio_file:
                 shutil.move( physio_file_path_cache, physio_file_path )

@@ -41,7 +41,7 @@ def export_spiral_files(redcap_visit_id, xnat, redcap_key, resource_location, to
                 stroop_file_dir = os.path.dirname(stroop_file_path)
                 if not os.path.isdir(stroop_file_dir):
                     os.makedirs(stroop_file_dir)
-                xnat.select.experiments[stroop[0]].resources[stroop[1]].files[stroop[2]].download(stroop_file_path)
+                xnat.select.experiments[stroop[0]].resources[stroop[1]].files[stroop[2]].download(stroop_file_path, verbose=False)
             except IOError as e:
                 details = "Error: export_spiral_files: for experiment {0}, failed copying resource {1} file {2} to {3}".format(str(stroop[0]), str(stroop[1]), str(stroop[2]), os.path.join( tmpdir, stroop[2]))
                 slog.info(str(redcap_key[0]) + "-" +  str(redcap_key[1]), details, error_obj={ 'message': str(e), 'errno': e.errno, 'filename': e.filename, 'strerror': e.strerror })
@@ -69,7 +69,7 @@ def do_export_spiral_files(redcap_visit_id,xnat, redcap_key, resource_location, 
     [xnat_eid, resource_id, resource_file_bname] = resource_location.split('/')
     try : 
         tmp_file_path = os.path.join(tmpdir, "pfiles.tar.gz")
-        xnat.select.experiments[xnat_eid].resources[resource_id].files[resource_file_bname].download(tmp_file_path)
+        xnat.select.experiments[xnat_eid].resources[resource_id].files[resource_file_bname].download(tmp_file_path, verbose=False)
     except  Exception as err_msg:
         slog.info(xnat_eid + "_" +  resource_id, "Error: failed to download from xnat " + resource_file_bname, err_msg = str(err_msg))
         return False
