@@ -134,10 +134,10 @@ def get_completion_status_in_redcap(redcap, forms=None, subjects=None):
  
 
 def get_completion_status_for_pipe(df, redcap):
-    forms = df['form_long'].unique().tolist()
-    subjects = df['import_id'].unique().tolist()
-    status =  get_completion_status_in_redcap(redcap, forms=forms,
-                                              subjects=subjects)
+    forms = df['form_long'].dropna().unique().tolist()
+    subjects = df['import_id'].dropna().unique().tolist()
+    status = get_completion_status_in_redcap(redcap, forms=forms,
+                                             subjects=subjects)
     df_with_status = pd.merge(df, status,
                               how='left',
                               left_on=['import_id', 'form_long'],

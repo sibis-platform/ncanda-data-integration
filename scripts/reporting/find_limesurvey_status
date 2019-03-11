@@ -80,7 +80,7 @@ def find_processed_limesurvey_forms(subject='*', form_name='*', date='*',
     return (files
             .sort_values(['proc_date'])
             .pipe(get_import_url)
-            .pipe(get_completion_status_for_pipe, import_api))
+            .pipe(get_completion_status_for_pipe, redcap=import_api))
 
 
 def find_raw_limesurvey_uploads(subject='*', form_number='*', date='*',
