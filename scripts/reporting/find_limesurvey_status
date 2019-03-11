@@ -78,12 +78,10 @@ def find_processed_limesurvey_forms(subject='*', form_name='*', date='*',
         r'(([A-Z]-\d{5}-[MFTX]-\d)-(\d{4}-\d{2}-\d{2}))'
     ))
     files['proc_date'] = files['proc_date'].str.replace('-', '')
-    final_df = get_import_url(files.sort(['proc_date']))
-    final_df = get_completion_status_for_pipe(final_df, import_api)
-    return final_df
-    # sort_values and pipe not present yet in pandas 0.14
-    # return (files.sort_values(['proc_date'])
-    #         .pipe(get_import_url))
+    return (files
+            .sort_values(['proc_date'])
+            .pipe(get_import_url)
+            .pipe(get_completion_status_for_pipe, redcap=import_api))
 
 
 def find_raw_limesurvey_uploads(subject='*', form_number='*', date='*',
@@ -123,8 +121,7 @@ def find_raw_limesurvey_uploads(subject='*', form_number='*', date='*',
     # 6. Within-file date (main)
     # 7. Within-file date (others)
     # return files.raw_path.apply(get_within_file_info, is_lssaga=True)
-    return files.sort(['raw_date'])
-    # return files.sort_values(['raw_date'])
+    return files.sort_values(['raw_date'])
 
 
 def find_raw2processed_status(subject='*',
