@@ -1,7 +1,7 @@
 import pandas as pd
 
 def load_datadict(filepath, trim_index=True, trim_all=False):
-    df = pd.read_csv(filepath, index_col=0)
+    df = pd.read_csv(filepath, index_col=0, dtype=object)
     if trim_index:
         df.index = df.index.to_series().str.strip()
     if trim_all:
