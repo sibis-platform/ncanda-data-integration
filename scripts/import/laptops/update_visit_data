@@ -160,7 +160,7 @@ def get_subject_age( subject_id, at_date ):
     # Set actual age - do this after everything else, because some surveys have
     # "age" fields; we want to overwrite those
     try:
-        return str(old_div(days_between_dates(date_of_birth, at_date), 365.242))
+        return str(round(days_between_dates(date_of_birth, at_date) / 365.242, 10))
     except:
         if at_date != 'nan':
             error = "ERROR: could not parse visit date"
