@@ -503,7 +503,12 @@ for form_prefix, form_name in forms.items():
 
     forms = [form_name]
     return_format = 'df'
-    df_kwargs = {'index_col': import_project.def_field, 'dtype': 'object'}
+    df_kwargs = {'index_col': import_project.def_field,
+                 # Don't guess variable types
+                 'dtype': 'object',
+                 # Don't read in NA-like strings as np.nan
+                 'keep_default_na': False}
+
     returned_records = []
 
     for record_batch in batch(records, n=100):
