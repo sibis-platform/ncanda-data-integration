@@ -26,7 +26,19 @@ def upload_findings_to_xnat(sibis_session,qc_csv_file, sendEmailFlag):
     for index,row in fData.iterrows():
 
         exp=sibis_session.xnat_get_experiment(row['xnat_experiment_id'])
+        if exp is None:
+            import hashlib
+            slog.info("upload_findings_to_xnat-{}-{}".format(row['xnat_experiment_id'],hashlib.sha1('upload_findings_to_xnat_{xnat_experiment_id}'.format(**row).encode()).hexdigest()[0:6]),
+                'Experiment "{xnat_experiment_id}" from CSV file "{csv_file}" does not exist in XNAT.'.format(csv_file=qc_csv_file, **row),
+                src='upload_findings_to_xnat')
+            continue
         scan=exp.scans[str(row['scan_id'])]
+        if scan is None:
+            import hashlib
+            slog.info("upload_findings_to_xnat-{}-{}".format(row['xnat_experiment_id'],hashlib.sha1('upload_findings_to_xnat_{xnat_experiment_id}'.format(**row).encode()).hexdigest()[0:6]),
+                'Scan {scan_id} for Experiment "{xnat_experiment_id}" from CSV file "{csv_file}" does not exist in XNAT.'.format(csv_file=qc_csv_file, **row),
+                src='upload_findings_to_xnat')
+            continue
 
         try : 
             # quality
