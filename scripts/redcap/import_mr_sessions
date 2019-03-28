@@ -808,8 +808,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
     row = row.drop('mri_missing') 
 
     visit_date = str(visit_log_redcap['visit_date'][key])
-    print("HELLLLLLLLLLLLLLLLLLLP")
-    
+
     if visit_date == 'nan':
         if float(row['visit_ignore___yes']) != 1:
             error = 'Missing visit date for subject with visit data.'
@@ -837,12 +836,11 @@ for [key, row] in mr_sessions_redcap.iterrows():
                     id_map=sub_map.get('baseline')
                     if arm == 'visit_arm_4':
                         arm='visit_arm_1'
-                else
+                else : 
                     id_map = sub_map.get('followup_' + year)
                     
                 # if a visit has a specific xnat_subject_id defined then this overwrites the subject id defined under default 
                 if (arm == 'visit_arm_1') and id_map:
-                    print(id_map) 
                     xnat_id=id_map.get('xnat_subject_id')
                     if xnat_id:
                         sid = xnat_id
@@ -850,7 +848,6 @@ for [key, row] in mr_sessions_redcap.iterrows():
                     id_map = sub_map.get('default')
                     sid = id_map.get('xnat_subject_id')
 
-                print("sfsdfsfda" + sid)
                 pid = id_map.get('project')
                 
             else :
