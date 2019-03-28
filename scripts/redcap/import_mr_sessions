@@ -808,6 +808,8 @@ for [key, row] in mr_sessions_redcap.iterrows():
     row = row.drop('mri_missing') 
 
     visit_date = str(visit_log_redcap['visit_date'][key])
+    print("HELLLLLLLLLLLLLLLLLLLP")
+    
     if visit_date == 'nan':
         if float(row['visit_ignore___yes']) != 1:
             error = 'Missing visit date for subject with visit data.'
@@ -824,19 +826,33 @@ for [key, row] in mr_sessions_redcap.iterrows():
             if subject_label in iter(export_measures_map.keys()):
                 sub_map = export_measures_map.get(subject_label)
                 event = key[1]
-                if event == 'baseline_visit_arm_1':
-                    id_map = sub_map.get('baseline')
-                    sid = id_map.get('subject')
-                else :
-                    [year,arm] = event.split('_',1)
+                
+                id_map_def = sub_map.get('default')
+                sid = id_map_def.get('subject')
+                pipe_id = sid
+
+                [year,arm] = event.split('_',1)
+
+                if year == 'baseline' :
+                    id_map=sub_map.get('baseline')
+                    if arm == 'visit_arm_4':
+                        arm='visit_arm_1'
+                else
                     id_map = sub_map.get('followup_' + year)
-                    if (arm == 'visit_arm_1') and id_map:
-                        sid = id_map.get('subject')
-                    else:
-                        id_map = sub_map.get('default')
-                        sid = id_map.get('xnat_subject_id')
-                pipe_id = id_map.get('subject')
+                    
+                # if a visit has a specific xnat_subject_id defined then this overwrites the subject id defined under default 
+                if (arm == 'visit_arm_1') and id_map:
+                    print(id_map) 
+                    xnat_id=id_map.get('xnat_subject_id')
+                    if xnat_id:
+                        sid = xnat_id
+                else :
+                    id_map = sub_map.get('default')
+                    sid = id_map.get('xnat_subject_id')
+
+                print("sfsdfsfda" + sid)
                 pid = id_map.get('project')
+                
             else :
                 sid, pid = subject_project_dict[subject_label]
                 pipe_id = sid
