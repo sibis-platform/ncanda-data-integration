@@ -1171,7 +1171,12 @@ if len(scans_to_qc) > 1  and args.qc_csv :
         existing_review = pd.read_csv(qc_file)
         if len(existing_review.decision.value_counts()) : 
             # archive file         
-            archive_base_name=os.path.join(log_dir,'reviewed', 'qc_reviewed_' + now_str[0:10] + "_") 
+            reviewed_path = os.path.join(log_dir, 'reviewed')
+            if not os.path.exists(reviewed_path):
+                import pathlib
+                pathlib.Path(reviewed_path).mkdir(parents=True, exist_ok=True)
+            
+            archive_base_name=os.path.join(reviewed_path, 'qc_reviewed_' + now_str[0:10] + "_") 
             index=1 
             while os.path.exists(archive_base_name + str(index) + '.csv') :
                 index += 1 
