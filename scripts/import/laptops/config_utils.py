@@ -45,16 +45,3 @@ def flatten_path_dict(path_dict, base_prefix="", delimiter=os.sep):
         elif isinstance(val, string_types):
             output.append(new_prefix + delimiter + val)
     return output
-
-# if __name__ == '__main__':
-#     paths = {'ohsu': 
-#                 {'test': 'simple', 
-#                  'pasat': [
-#                      'A-31', 
-#                      'B-32', 
-#                      {'example': ['C-20']}]}}
-#         ['/fs/storage/laptops/import/ohsu/test/simple',
-#          '/fs/storage/laptops/import/ohsu/pasat/A-31',
-#          '/fs/storage/laptops/import/ohsu/pasat/B-32',
-#          '/fs/storage/laptops/import/ohsu/pasat/example/C-20']
-#     print(flatten_path_dict(paths, '/fs/storage/laptops/import'))
