@@ -45,6 +45,11 @@ def has_content_but_marked_missing(inventory):
     return ((inventory['missing'] == 1) & (inventory['non_nan_count'] > 0))
 
 
+def empty_and_not_complete(inventory):
+    # Useful only prior to data release - for marking all empties complete
+    return ((inventory['non_nan_count'] == 0) & (inventory['complete'] != 2))
+
+
 def get_filter_results(inventorized_data, filter_function, verbose=False):
     """
     Apply pd.Index-returning function to data and return it filtered.
@@ -80,6 +85,8 @@ def parse_args(filter_choices, input_args=None):
 
 
 if __name__ == '__main__':
+    # TODO: There should be some way to auto-generate this - maybe embed the
+    # filters in a file, import it, then get the names of all callables?
     FILTERS = {
             "probably_not_missing_but_unmarked": probably_not_missing_but_unmarked,
             "probably_missing_but_marked_present": probably_missing_but_marked_present,
@@ -88,6 +95,7 @@ if __name__ == '__main__':
             "missing_not_marked_complete": missing_not_marked_complete,
             "less_content_than_max": less_content_than_max,
             "has_content_but_marked_missing": has_content_but_marked_missing,
+            "empty_and_not_complete": empty_and_not_complete,
     }
 
     args = parse_args(FILTERS.keys())
@@ -109,5 +117,3 @@ if __name__ == '__main__':
             print("Filter {} used on {} => no matches, skipping.".format(args.filter, args.input))
         
     sys.exit(0)
-
-
