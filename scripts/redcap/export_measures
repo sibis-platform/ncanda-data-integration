@@ -66,10 +66,12 @@ if not os.path.isfile(special_cases_file) :
     sys.exit(1)
 
 # Get a map of subjects that changed sited
-# SB: Followed example in import_mr_sessions
 with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
-    site_change_map = yaml.load(fi).get('site_change')
+    special_cases_map=yaml.load(fi)
+    site_change_map = special_cases_map.get('site_change')
     export_measures_map = site_change_map.get('export_measures')
+
+    exceeds_criteria_baseline = special_cases_map.get('exceeds_criteria_baseline')
 
 redcap_project = session.connect_server('data_entry', True)
 if not redcap_project :
@@ -282,6 +284,12 @@ for [key,row] in visit_log_redcap.iterrows():
 
                         uploads += 1
 
+                        exceeds_criteria_subject = exceeds_criteria_baseline.get(subject_xnat_id)
+                        if exceeds_criteria_subject == None:
+                             exceeds_criteria_subject_value=-1                             
+                        else :
+                             exceeds_criteria_subject_value=exceeds_criteria_subject
+            
                         # Export measures from RECap into the pipeline.
                         red2cas.export_subject_all_forms(redcap_project,
                                           site,
@@ -295,6 +303,7 @@ for [key,row] in visit_log_redcap.iterrows():
                                           subject_xnat_id,
                                           subject_datadir,
                                           forms_by_event_dict[key[1]],
+                                          exceeds_criteria_subject_value,
                                           select_exports=select_exports,
                                           verbose=args.verbose)
 
