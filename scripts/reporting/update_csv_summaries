@@ -11,7 +11,7 @@
 ##
 
 # Get absolute path 
-bindir=$(cd "$(dirname $0)"; pwd)
+# bindir=$(cd "$(dirname $0)"; pwd)
 
 if [ $# -lt 2 ]; then
   echo "Please provide source and destination directories."
@@ -56,6 +56,41 @@ pushd ${srcdir} > /dev/null
 
 [ -d ${dstdir} ] || mkdir -p ${dstdir}
 
+concat_csv() {
+   OUTPUT_FILE=$1
+   shift
+   FIRST_CSV=$1
+   shift
+   REST_CSV=$@
+   if [ "$FIRST_CSV" == "" ]; then
+       echo "ERROR: Incomplete input to define $OUTPUT_FILE !"
+       return
+   fi
+
+   if [ -e ${OUTPUT_FILE} ]; then
+       rm -f ${OUTPUT_FILE}
+   fi
+
+   if [ ! -e ${FIRST_CSV} ]; then
+       echo "ERROR: ${FIRST_CSV} does not exist - skip ${OUTPUT_FILE}"
+       return
+   fi
+   cat ${FIRST_CSV} > ${OUTPUT_FILE}
+   HEAD_FIRST=`head -n1 ${FIRST_CSV}`
+      
+   for CSV in ${REST_CSV}; do
+       HEAD_SUBJECT=`head -n1 ${CSV}`
+       if [ "$HEAD_FIRST" != "$HEAD_SUBJECT" ]; then
+	   echo "ERROR:update_csv_summaries:Header of $CSV different from $FIRST_CSV! - skip ${OUTPUT_FILE}"
+	   rm ${OUTPUT_FILE}
+	   return
+       fi
+       tail -n+2 $CSV >> ${OUTPUT_FILE}
+   done
+}
+
+
+
 
 #
 # redcap measures
@@ -66,11 +101,11 @@ if [ "$redcapFlag" == "1" ]; then
   mkdir -p ${dstdir}/redcap_
 
   # These are all the baseline measures
-  measures="ataxia biological_mr biological_np brief cddr clinical cnp dd100 dd1000 demographics ehi grooved_pegboard highrisk ishihara landoltc limesurvey_ssaga_parent limesurvey_ssaga_youth locked_forms mri_report mri_stroop mr_session_report np_reyosterrieth_complex_figure_files parentreport participant_last_use_summary pasat rey-o saliva_samples sleep_behavior ssaga_parent ssaga_youth stroop wais4 wrat4 youthreport1 youthreport1b youthreport2" 
+  measures="ataxia biological_mr biological_np brief cddr clinical cnp dd100 dd1000 demographics ehi grooved_pegboard highrisk ishihara landoltc limesurvey_ssaga_parent limesurvey_ssaga_youth locked_forms mri_report mri_stroop mr_session_report np_reyosterrieth_complex_figure_files parentreport participant_last_use_summary pasat rey-o saliva_samples sleep_behavior ssaga_parent ssaga_youth stroop wais4 wrat4 youthreport1 youthreport1b youthreport2"
   for m in ${measures}; do
     files="$(ls */*/*/measures/${m}.csv 2>/dev/null)"
     if [ "$files" != ""  ]; then 
-       ${bindir}/concat_csv ${dstdir}/redcap_/${m}.csv ${files}
+        concat_csv ${dstdir}/redcap_/${m}.csv ${files}
     else 
 	echo "Skipping ${m}"
     fi  
@@ -111,8 +146,8 @@ if [ "$structuralFlag" == "1" ]; then
       VolMeasType=volumetry/sri24_padded/$TYPE
       for p in ${parc}; do
         # cross-sectional
-        ${bindir}/concat_csv ${cross_dir}_/${TYPE}_${p}.csv */*/*/structural/${VolMeasType}/${p}.csv
-        ${bindir}/concat_csv ${cross_dir}_/${TYPE}_${p}_scale.csv */*/*/structural/${VolMeasType}/${p}_scale.csv
+        concat_csv ${cross_dir}_/${TYPE}_${p}.csv */*/*/structural/${VolMeasType}/${p}.csv
+        concat_csv ${cross_dir}_/${TYPE}_${p}_scale.csv */*/*/structural/${VolMeasType}/${p}_scale.csv
         # longitudinal
   
         csv_list=
@@ -127,8 +162,8 @@ if [ "$structuralFlag" == "1" ]; then
             csv_scale_list="${csv_scale_list} `ls --color=no ${l}/structural/longitudinal/${VolMeasType}/*/${p}_scale.csv 2> /dev/null`"
           fi
         done
-        ${bindir}/concat_csv ${long_dir}_/${TYPE}_${p}.csv ${csv_list}
-        ${bindir}/concat_csv ${long_dir}_/${TYPE}_${p}_scale.csv ${csv_scale_list}
+        concat_csv ${long_dir}_/${TYPE}_${p}.csv ${csv_list}
+        concat_csv ${long_dir}_/${TYPE}_${p}_scale.csv ${csv_scale_list}
       done
     done
     [ -d ${cross_dir} ] && rm -rf ${cross_dir}
@@ -165,7 +200,7 @@ if [ "$structuralFlag" == "1" ]; then
   
   for type in ${REPORT_LIST}; do
     # cross-sectional
-    ${bindir}/concat_csv ${cross_dir}_/${type}.csv */*/*/structural/freesurfer_refined/NCANDA_S*/measures/${type}.csv
+    concat_csv ${cross_dir}_/${type}.csv */*/*/structural/freesurfer_refined/NCANDA_S*/measures/${type}.csv
 
     # longitudinal
     csv_list=
@@ -180,7 +215,7 @@ if [ "$structuralFlag" == "1" ]; then
         fi
       fi 
     done
-    ${bindir}/concat_csv ${long_dir}_/${type}.csv ${csv_list}
+    concat_csv ${long_dir}_/${type}.csv ${csv_list}
   done
 
   [ -d ${cross_dir} ] && rm -rf ${cross_dir}
@@ -199,7 +234,7 @@ diffusionReport()
   local filePostfix=$2
   for MOD in fa l1 lt md; do 
     FILE="${filePrefix}_${MOD}${filePostfix}"
-    ${bindir}/concat_csv ${dstdir}/diffusion_/${FILE} */*/*/diffusion/pepolar/measures/${FILE}
+    concat_csv ${dstdir}/diffusion_/${FILE} */*/*/diffusion/pepolar/measures/${FILE}
   done
 }
 
@@ -223,8 +258,8 @@ if [ "$restingstateFlag" == "1" ]; then
   [ -d ${dstdir}/restingstate_ ] && rm -rf ${dstdir}/restingstate_ 
   mkdir -p ${dstdir}/restingstate_ 
 
-  ${bindir}/concat_csv ${dstdir}/restingstate_/rs_qa.csv */*/*/restingstate/measures/rs_qa.csv 
-  ${bindir}/concat_csv ${dstdir}/restingstate_/rs_roi2roi_corr.csv  */*/*/restingstate/measures/sri24/rs_roi2roi_corr.csv
+  concat_csv ${dstdir}/restingstate_/rs_qa.csv */*/*/restingstate/measures/rs_qa.csv 
+  concat_csv ${dstdir}/restingstate_/rs_roi2roi_corr.csv  */*/*/restingstate/measures/sri24/rs_roi2roi_corr.csv
   [ -d ${dstdir}/restingstate ] && rm -rf ${dstdir}/restingstate 
   mv ${dstdir}/restingstate_ ${dstdir}/restingstate
 fi 
