@@ -19,17 +19,23 @@ if [ $# -lt 2 ]; then
   echo "0 or 1 = redcap summaries are created (1) or not (0) - default they are created" 
   echo "0 or 1 = structural summaries are created (1) or not (0) - default they are created" 
   echo "0 or 1 = diffusion summaries are created (1) or not (0) - default they are created" 
-  echo "0 or 1 = restingstate summaries are created (1) or not (0) - default they are created" 
+  echo "0 or 1 = restingstate summaries are created (1) or not (0) - default they are created"
+  echo "form   = only update one specific redcap form (e.g. demographics)"
   exit 1
 fi
 
 srcdir=$1
+if [ ! -e $srcdir ]; then
+    echo "ERROR:$srcdir does not exist!"
+    exit 1
+fi     
 dstdir=$2
 
 redcapFlag=$3
 if [ "$redcapFlag" == "" ]; then
     redcapFlag=1
 fi 
+redcapForm=$7
 
 structuralFlag=$4
 if [ "$structuralFlag" == "" ]; then
@@ -77,16 +83,21 @@ concat_csv() {
    fi
    cat ${FIRST_CSV} > ${OUTPUT_FILE}
    HEAD_FIRST=`head -n1 ${FIRST_CSV}`
-      
+
+   errFlag=0
    for CSV in ${REST_CSV}; do
        HEAD_SUBJECT=`head -n1 ${CSV}`
        if [ "$HEAD_FIRST" != "$HEAD_SUBJECT" ]; then
-	   echo "ERROR:update_csv_summaries:Header of $CSV different from $FIRST_CSV! - skip ${OUTPUT_FILE}"
-	   rm ${OUTPUT_FILE}
-	   return
+	   errFlag=1
+	   echo "ERROR:update_csv_summaries:$CSV:Incorrect header!"
+	   continue 
        fi
        tail -n+2 $CSV >> ${OUTPUT_FILE}
    done
+   if [ $errFlag -eq 1 ]; then
+       echo "INFO:Due to earlier errors removing ${OUTPUT_FILE}!"
+       rm ${OUTPUT_FILE}
+   fi      
 }
 
 
@@ -96,22 +107,29 @@ concat_csv() {
 # redcap measures
 #
 if [ "$redcapFlag" == "1" ]; then
-  # echo "Run REDCap Reports" 
-  [ -d ${dstdir}/redcap_ ] && rm -rf ${dstdir}/redcap_ 
-  mkdir -p ${dstdir}/redcap_
-
-  # These are all the baseline measures
+    # echo "Run REDCap Reports"
+    if [ "$redcapForm" != "" ]; then
+	redDIR=${dstdir}/redcap
+	measures="$redcapForm"
+    else
+        redDIR=${dstdir}/redcap_
+        [ -d ${redDIR} ] && rm -rf ${redDIR}
+	# These are all the baseline measures
   measures="ataxia biological_mr biological_np brief cddr clinical cnp dd100 dd1000 demographics ehi grooved_pegboard highrisk ishihara landoltc limesurvey_ssaga_parent limesurvey_ssaga_youth locked_forms mri_report mri_stroop mr_session_report np_reyosterrieth_complex_figure_files parentreport participant_last_use_summary pasat rey-o saliva_samples sleep_behavior ssaga_parent ssaga_youth stroop wais4 wrat4 youthreport1 youthreport1b youthreport2"
-  for m in ${measures}; do
-    files="$(ls */*/*/measures/${m}.csv 2>/dev/null)"
-    if [ "$files" != ""  ]; then 
-        concat_csv ${dstdir}/redcap_/${m}.csv ${files}
-    else 
+    fi 
+    mkdir -p ${redDIR}
+    for m in ${measures}; do
+      files="$(ls */*/*/measures/${m}.csv 2>/dev/null)"
+      if [ "$files" != ""  ]; then 
+        concat_csv ${redDIR}/${m}.csv ${files}
+      else 
 	echo "Skipping ${m}"
-    fi  
-  done
-  [ -d ${dstdir}/redcap ] && rm -rf ${dstdir}/redcap 
-  mv ${dstdir}/redcap_ ${dstdir}/redcap
+      fi  
+    done
+    if [ "$redcapForm" == "" ]; then
+       [ -d ${dstdir}/redcap ] && rm -rf ${dstdir}/redcap 
+       mv ${redDIR} ${dstdir}/redcap
+    fi 
 fi
 
 if [ "$structuralFlag" == "1" ]; then
