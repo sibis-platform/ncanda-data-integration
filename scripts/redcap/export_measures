@@ -61,7 +61,7 @@ parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_
 parser.add_argument( "--locked_form_report", help="Output a report indicating locked forms ", action="store_true")
 parser.add_argument( "--site", help="Limit export by site (SRI, UCSD, OHSU, UPMC, DUKE). Multiple sites can be listed, separated by comma (',')", action="store", default=None )
 parser.add_argument( "--events", help="Limit export by event labels (e.g., 'baseline_visit_arm_1'). Multiple events can be listed, separated by comma (',')", action="store", default=None )
-parser.add_argument( "--subject", help="Limit export by subject site id (e.g., 'X-12345-X-9').", action="store", default=None )
+parser.add_argument( "--subject", help="Limit export by subject site id (e.g., 'X-12345-X-9') - multiple subjects seperated with ',' .", action="store", default=None )
 parser.add_argument( "--export", help="Limit export by output file (e.g., 'cddr'; do not include '.txt' suffix). Multiple exports can be listed, separated by comma (',')", action="store", default=None )
 parser.add_argument( "-e", "--exclude", help="Exports Meausres for excluded subjects", action="store_true" )
 parser.add_argument( "--datadict-dir", help="Provides a directory in which the script creates data dictionaries for all supported export files.", action="store", default=None )
@@ -121,8 +121,6 @@ if not session.connect_server('redcap_mysql_db', True) :
 
     sys.exit(1)
 
-red_lock = redcap_locking_data.redcap_locking_data()
-red_lock.configure(session)
 
 # Organize REDCap metadata, e.g., filter all confidential fields out of export lists, and make code-to-label lookup dictionaries
 #red.organize_metadata( redcap_project.metadata )
@@ -152,9 +150,12 @@ if args.locked_form_report:
 
     # if you do not sort it - the list arranges the form names every time differently - so you get different outputs when run seperately 
     locked_forms_name = sorted(list(redcap_project.forms))
-    print(locked_forms_name)
 
+    red_lock = redcap_locking_data.redcap_locking_data()
+    red_lock.configure(session)
 
+    locked_form_table=red_lock.report_locked_forms_all('ncanda_subject_visit_log')
+    
 
 # Open connection with XNAT server
 xnat = session.connect_server('xnat',True)
@@ -238,7 +239,7 @@ else:
     select_exports = None
 
 if args.subject:
-    visit_log_redcap = visit_log_redcap.loc[[args.subject]]
+    visit_log_redcap = visit_log_redcap.loc[args.subject.split( ',' )]
 
 if args.verbose:
     print("Exporting %d REDCap records." % len( visit_log_redcap ))
@@ -343,7 +344,7 @@ for [key,row] in visit_log_redcap.iterrows():
          # Get a dataframe of the locked forms
          arm = "{0} Protocol".format(arm_code.capitalize())
 
-         locked_forms = red_lock.report_locked_forms(redcap_subject, subject_pipeline_id, locked_forms_name, 'ncanda_subject_visit_log', arm, visit)
+         locked_forms = red_lock.report_locked_forms(redcap_subject, subject_pipeline_id, locked_forms_name, 'ncanda_subject_visit_log', arm, visit,locked_form_table)
          
          filename = os.path.join(os.path.abspath(subject_datadir), 'measures', 'locked_forms.csv')
          sutils.safe_dataframe_to_csv(locked_forms, filename, verbose=args.verbose)
