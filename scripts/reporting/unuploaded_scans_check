@@ -44,8 +44,12 @@ def main(args):
     xnat.loc[:, 'scan_type'] = xnat.scan_type.apply(simplify_scan_name)
 
     # Null out any whitespace-only notes and create an indicator variable for scan note presence
-    xnat.loc[xnat['scan_note'].str.contains(r'^\s*$', na=False), 'scan_note'] = np.nan  
-    xnat['has_note'] = xnat['scan_note'].notnull()
+    if "scan_note" in iter(xnat.columns): 
+       xnat.loc[xnat['scan_note'].str.contains(r'^\s*$', na=False), 'scan_note'] = np.nan  
+       xnat['has_note'] = xnat['scan_note'].notnull()
+    else:
+       print("WARNING: xnat report does not contain scan notes!") 
+       xnat['has_note'] = False
 
     scan_fields = ['mri_series_t1', 'mri_series_t2', 'mri_series_dti6b500pepolar',
                    'mri_series_dti30b400', 'mri_series_dti60b1000', 'mri_series_dti_fieldmap',
