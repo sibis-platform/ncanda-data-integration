@@ -6,6 +6,7 @@
 ##
 from __future__ import print_function
 from builtins import str
+from pathlib import Path
 import argparse
 import re
 import sys
@@ -50,6 +51,11 @@ if not ifc :
 records_uploaded = 0
 
 for zfile in args.zip_files:
+    zfile_path = Path(zfile)
+    if not zfile_path.is_file():
+        slog.info(zfile,F"ERROR: File is missing and cannot be uploaded.")
+        continue
+
     experiment_label_pattern = '[A-FX]-[0-9]{5}-[MFPT]-[0-9]-20[0-9]{2}[01][0-9][0-3][0-9](-[0-9]){0,1}'
     match = re.match( '.*(' + experiment_label_pattern + ').*$', zfile )
 
@@ -57,7 +63,7 @@ for zfile in args.zip_files:
         error = "ERROR: file name does not match valid experiment label"
         slog.info(zfile,error)
         continue
-
+    
     try:
         experiment = list(ifc.search( 'xnat:mrSessionData', ['xnat:mrSessionData/PROJECT','xnat:mrSessionData/SUBJECT_ID','xnat:mrSessionData/SESSION_ID'] ).where( [ ('xnat:mrSessionData/LABEL','LIKE',match.group(1)) ] ).items())[0]
     except:
@@ -66,12 +72,16 @@ for zfile in args.zip_files:
         continue
 
     try:
-        ifc.select.projects[experiment[0]].subjects[experiment[1]].experiments[experiment[2]].resources[args.resource_name].upload( zfile, zfile, overwrite=True, extract=(not args.no_extract) )
+        exp_instance = ifc.select.projects[experiment[0]].subjects[experiment[1]].experiments[experiment[2]]
+        try:
+            res_instance = exp_instance.resources[args.resource_name]
+        except:
+            res_instance = ifc.client.classes.ResourceCatalog(parent=exp_instance, label=args.resource_name)
+        res_instance.upload( zfile, zfile, overwrite=True, extract=(not args.no_extract) )
         records_uploaded += 1
         print("SUCCESS: uploaded file",zfile,"to experiment",match.group(1))
     except:
-        error = "ERROR: unable to upload ZIP filemto experiment"
-        slog.info(zfile,error,
-                      match.group(1))
+        error = "ERROR: unable to upload ZIP file to experiment"
+        slog.info(zfile,error,match.group(1))
 
 slog.takeTimer1("script_time","{'records': " + str(len(args.zip_files)) + ", 'uploads': " +  str(records_uploaded) + "}")
