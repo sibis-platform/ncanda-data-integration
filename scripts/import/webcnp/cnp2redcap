@@ -32,7 +32,8 @@ eval set -- "$original_args"
 #
 # First, retrieve XLS file from Penn via Selenium
 #
-${bindir}/get_results_selenium $* ${tmpdir} 
+CMD="${bindir}/get_results_selenium $* ${tmpdir}"
+$CMD
 
 if ${helpFlag}; then
     exit 0 
@@ -43,7 +44,6 @@ fi
 #
 for csv in `cd ${tmpdir}; ls | fgrep .csv`; do
     cmd="${bindir}/csv2redcap ${selected_args} --import-all ${tmpdir}/${csv}"
-    # echo $cmd 
     if ! $cmd; then
 	# if it fails with exit 1 than network connection is instable - stop loop so you do not get lots of these errors 
 	# generally only one file in the loop anyway
@@ -55,8 +55,8 @@ done
 #
 # Third, update summary records
 #
-${bindir}/update_summary_forms ${selected_args} --max-days-after-visit 120
-
+CMD="${bindir}/update_summary_forms ${selected_args} --max-days-after-visit 120"
+$CMD 
 #
 # Finally, clean up
 #
