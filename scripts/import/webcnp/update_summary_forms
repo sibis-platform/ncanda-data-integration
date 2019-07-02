@@ -155,7 +155,7 @@ else:
 fields_imported = ['record_id', 'test_sessions_subid'] + cnp_copy_variables
 for i in list(cnp.instruments.values()):
     fields_imported.append( '%s_complete' % i )
-imported_records = rc_import.export_records( fields=fields_imported, format='df')
+imported_records = rc_import.export_records( fields=fields_imported, format='df', df_kwargs={'low_memory': False}).set_index('record_id')
 for cnpvar in cnp_copy_variables:
     imported_records[cnpvar] = imported_records[cnpvar].map( nan_to_empty )
 
