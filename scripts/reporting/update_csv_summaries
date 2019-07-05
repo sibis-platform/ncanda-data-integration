@@ -43,7 +43,6 @@ if [ "$structuralFlag" == "" ]; then
 fi 
 
 SRI24_FLAG=true
-#SRI24_FLAG=false
 #SELECTED_LIST="aseg_outliers"
 
 
@@ -101,8 +100,6 @@ concat_csv() {
 }
 
 
-
-
 #
 # redcap measures
 #
@@ -136,15 +133,22 @@ if [ "$structuralFlag" == "1" ]; then
   # echo "Run Structural Reports" 
 
   # make last visit list 'last_list
+  PATTERN=NCANDA_S0*
+  LONGITUDINAL_FLAG=true
   last_list=
-  for subject in `ls -d --color=no NCANDA_S*`; do
+    
+  if ${LONGITUDINAL_FLAG}; then   
+    for subject in `ls -d --color=no $PATTERN*`; do
       # only include those that have a baseline scan 
       if [ -d $subject/standard/baseline/structural/volumetry ]; then 
 	  sList=`ls -d1 --color=no $subject/standard/*/structural/volumetry | grep -e baseline -e followup_1y -e followup_2y -e followup_3y`   
 	  last=`echo ${sList} | rev | cut -d' ' -f1  | rev | cut -d'/' -f1-3`
 	  last_list="${last_list} $last"
       fi 
-  done
+    done
+  else
+      echo "Skipping Structural Longitudinal!"
+  fi 
 
   if ${SRI24_FLAG}; then 
     # These are all the MR measurements extracted by our pipeline 
@@ -203,8 +207,17 @@ if [ "$structuralFlag" == "1" ]; then
   cross_dir=${dstdir}/structural/cross-sectional/freesurfer 
   long_dir=${dstdir}/structural/longitudinal/freesurfer
   if [ "${SELECTED_LIST}" != "" ]; then
-      mv ${cross_dir} ${cross_dir}_
-      mv ${long_dir} ${long_dir}_
+      if [ -e ${cross_dir} ]; then  
+	  mv ${cross_dir} ${cross_dir}_
+      else
+	  mkdir -p ${cross_dir}_
+      fi
+      if [ -e ${cross_dir} ]; then        
+          mv ${long_dir} ${long_dir}_
+      else 
+	  mkdir -p ${long_dir}_
+      fi
+      
       REPORT_LIST=${SELECTED_LIST}
       echo "Only running report on: $REPORT_LIST" 
   else 
@@ -215,27 +228,49 @@ if [ "$structuralFlag" == "1" ]; then
       mkdir -p ${long_dir}_
       REPORT_LIST="aseg lh.aparc.DKTatlas40 lh.w-g.pct rh.BA wmparc lh.BA rh.aparc.a2009s rh.BA.thresh lh.aparc.a2009s lh.BA.thresh rh.aparc  rh.entorhinal_exvivo lh.aparc lh.entorhinal_exvivo rh.aparc.DKTatlas40  rh.w-g.pct wmsnr.e3 aseg_outliers" 
   fi 
-  
+
+  tmpDir=`mktemp -d` 
   for type in ${REPORT_LIST}; do
     # cross-sectional
-    concat_csv ${cross_dir}_/${type}.csv */*/*/structural/freesurfer_refined/NCANDA_S*/measures/${type}.csv
+    concat_csv ${cross_dir}_/${type}.csv ${PATTERN}*/*/*/structural/freesurfer_refined/${PATTERN}*/measures/${type}.csv
 
-    # longitudinal
-    csv_list=
-    for l in ${last_list}; do
-      visit=`echo ${l} | rev | cut -d "/" -f1 | rev`
-      if [ "${visit}" == "baseline" ]; then
-        csv_list="${csv_list}`ls --color=no ${l}/structural/freesurfer_refined/NCANDA_S*/measures/${type}.csv 2> /dev/null` "
-      else
-	baseFile=`ls --color=no ${l}/structural/longitudinal/freesurfer_refined/baseline.long.template*/measures/${type}.csv 2> /dev/null | head -n1` 
-	if [ "$baseFile" != "" ]; then 
+    if $LONGITUDINAL_FLAG; then 
+      # longitudinal
+      csv_list=
+      for l in ${last_list}; do
+        visit=`echo ${l} | rev | cut -d "/" -f1 | rev`
+        if [ "${visit}" == "baseline" ]; then
+          FILE=`ls --color=no ${l}/structural/freesurfer_refined/${PATTERN}*/measures/${type}.csv 2> /dev/null`
+	  if [ $type == "aseg" ]; then
+	      # in longitudinal files the following columns are missing
+	      # head -n1 NCANDA_S00090/standard/baseline/structural/freesurfer_refined/NCANDA_S00090_standard_baseline/measures/aseg.csv | tr "," "\n" | grep -n surfaceholes
+	      # 21:measure_lhsurfaceholes
+	      # 22:measure_rhsurfaceholes
+	      # 23:measure_surfaceholes
+
+	      if [ -e $FILE ]; then
+		  outFile=${tmpDir}/`echo ${l} | tr "/" "_"`_${type}.csv
+		  cut -d, -f1-20,24- $FILE > $outFile
+		  csv_list="${csv_list}$outFile "
+	      fi
+	  else
+	      csv_list="${csv_list}$FILE "
+	  fi     
+        else
+	  baseFile=`ls --color=no ${l}/structural/longitudinal/freesurfer_refined/baseline.long.template*/measures/${type}.csv 2> /dev/null | head -n1` 
+	  if [ "$baseFile" != "" ]; then 
             csv_list="${csv_list}${baseFile} `ls --color=no ${l}/structural/longitudinal/freesurfer_refined/*y.long.template*/measures/${type}.csv 2> /dev/null` "
-        fi
-      fi 
-    done
-    concat_csv ${long_dir}_/${type}.csv ${csv_list}
+          fi
+        fi 
+      done
+      concat_csv ${long_dir}_/${type}.csv ${csv_list}
+    else
+       echo "skipping longitudinal"
+    fi
   done
 
+  rm -rf $tmpDir
+  
   [ -d ${cross_dir} ] && rm -rf ${cross_dir}
   mv ${cross_dir}_ ${cross_dir}
 
