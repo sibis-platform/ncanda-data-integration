@@ -179,7 +179,7 @@ def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_
 #
 # Returns - True if new file as created, False if not
 #
-def copy_adni_phantom_t1w( xnat, xnat_eid, to_directory ):
+def copy_adni_phantom_t1w( redcap_visit_id, xnat, xnat_eid, to_directory ):
     # Check if target file already exists
     phantom_path = os.path.join( to_directory, 'phantom_t1.nii.gz' )
     if os.path.exists( phantom_path ):
@@ -190,9 +190,9 @@ def copy_adni_phantom_t1w( xnat, xnat_eid, to_directory ):
 
     # Get list of resource files that match the T1w image file name pattern
     experiment_files = []
-    for resource in  [ x.id for x in experiment.resources.listing ]:
-        resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files' % ( xnat_eid, resource ) );
-        experiment_files += [ (resource, re.sub( '.*\/files\/', '', file['URI']) ) for file in resource_files if re.match( '^t1.nii.gz$', file['Name'] ) ]
+    resource_list=get_resource_list(redcap_visit_id,xnat,xnat_eid,experiment.resources)
+    for resource in resource_list:
+        experiment_files += [ (file['cat_ID'], re.sub( '.*\/files\/', '', file['URI']) ) for file in resource if re.match( '^t1.nii.gz$', file['Name'] ) ]
 
     # No matching files - nothing to do
     if len( experiment_files ) == 0:
@@ -209,7 +209,7 @@ def copy_adni_phantom_t1w( xnat, xnat_eid, to_directory ):
 #
 # Returns - True if new file as created, False if not
 #
-def copy_adni_phantom_xml( xnat, xnat_eid, to_directory ):
+def copy_adni_phantom_xml( redcap_visit_id, xnat, xnat_eid, to_directory ):
     # Check if target file already exists
     phantom_path = os.path.join( to_directory, 'phantom.xml' )
     if os.path.exists( phantom_path ):
@@ -220,9 +220,9 @@ def copy_adni_phantom_xml( xnat, xnat_eid, to_directory ):
 
     # Get list of resource files that match the phantom XML file name pattern
     experiment_files = []
-    for resource in [ x.id for x in experiment.resources.listing ]:
-        resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files' % ( xnat_eid, resource ) )
-        experiment_files += [ (resource, re.sub( '.*\/files\/', '', file['URI']) ) for file in resource_files if re.match( '^phantom.xml$', file['Name'] ) ]
+    resource_list=get_resource_list(redcap_visit_id,xnat,xnat_eid,experiment.resources)
+    for resource in resource_list:
+        experiment_files += [ (file['cat_ID'], re.sub( '.*\/files\/', '', file['URI']) ) for file in resource if re.match( '^phantom.xml$', file['Name'] ) ]
 
     # No matching files - nothing to do
     if len( experiment_files ) == 0:
@@ -243,12 +243,32 @@ def gzip_physio( physio_file_path ):
         error = "ERROR: unable to compress physio file"
         slog.info(physio_file_path,error, err_msg = str(eout))
 
-#
+def get_resource_list(redcap_visit_id,xnat,xnat_eid,exp_resources):
+
+    print("export_mr_sessions_pipeline:get_resource_list:Just to debug - remove test code after you are confident")
+
+    resource_list=[]
+    for resource in exp_resources.listing:
+        uri='/data/experiments/%s/resources/%s/files' % ( xnat_eid, resource.id )
+        try : 
+            json_data=xnat._get_json(uri)
+            resource_list.append(json_data)
+
+            # ==== test code === 
+            for file in json_data:
+                if file['cat_ID'] != resource.id :
+                    raise RuntimeError("cat_id was different than resource.id for", uri,str(file))
+            
+        except Exception as err_msg:
+            slog.info(redcap_visit_id, "WARNING: Could not retrieve" + uri  + " from xnat.", error_msg=str(err_msg),info="Modt likely file data of session is outdated - to update file data load session in xnat, select 'Manage Files', and press 'Update File Data'!", resource_dir=resource.label,resource_id=resource.id)
+
+    return resource_list
+
 # Copy physio files (cardio and respiratory) for resting-state fMRI session
 #
 # Returns - True if new file as created, False if not
 #
-def copy_rsfmri_physio_files( xnat, xnat_eid_and_scan, to_directory ):
+def copy_rsfmri_physio_files( redcap_visit_id, xnat, xnat_eid_and_scan, to_directory ):
     # Extract EID and scan from EID/Scan string
     match = re.match( '^(NCANDA_E[0-9]*)/([0-9]+).*', xnat_eid_and_scan )
     if not match:
@@ -273,10 +293,10 @@ def copy_rsfmri_physio_files( xnat, xnat_eid_and_scan, to_directory ):
 
     # Get list of resource files that match one of the physio file name patterns
     physio_files = []
-    for resource in [ x.id for x in experiment.resources.listing ]:
-        resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files' % ( xnat_eid, resource ) )
+    resource_list=get_resource_list(redcap_visit_id,xnat,xnat_eid,experiment.resources)
+    for resource in resource_list:
         for (pattern,outfile_name) in list(physio_filename_patterns.items()):
-            physio_files += [ (resource, re.sub( '.*\/files\/', '', file['URI']), outfile_name ) for file in resource_files if re.match( pattern, file['Name'] ) ]
+             physio_files += [ (file['cat_ID'], re.sub( '.*\/files\/', '', file['URI']), outfile_name ) for file in resource if re.match( pattern, file['Name'] ) ]
 
     # No matching files - nothing to do
     if len( physio_files ) == 0:
@@ -334,17 +354,17 @@ def copy_rsfmri_physio_files( xnat, xnat_eid_and_scan, to_directory ):
 #
 # Returns - True if new file as created, False if not
 #
-def copy_manual_pipeline_files( xnat, xnat_eid, to_directory ):
+def copy_manual_pipeline_files( redcap_visit_id, xnat, xnat_eid, to_directory ):
     # Get XNAT experiment object
     experiment = xnat.select.experiments[ xnat_eid ]
 
     # Get list of resource files that match one of the physio file name patterns
     files = []
-    for resource in list(experiment.resources):
-        resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files' % ( xnat_eid, resource ) )
-        files += [ (resource, re.sub( '.*\/files\/', '', file['URI']) ) for file in resource_files if file['collection'] == 'pipeline' ]
+    resource_list=get_resource_list(redcap_visit_id,xnat,xnat_eid,experiment.resources)
+    for resource in resource_list:
+        files += [ (file['cat_ID'], re.sub( '.*\/files\/', '', file['URI']) ) for file in resource if file['collection'] == 'pipeline' ]
 
-    # No matching files - nothing to do
+        # No matching files - nothing to do
     if len( files ) == 0:
         return False
 
@@ -357,7 +377,6 @@ def copy_manual_pipeline_files( xnat, xnat_eid, to_directory ):
             if not os.path.exists( file_dir ):
                 os.makedirs( file_dir )
 
-            
             experiment.resources[resource].files[file_name].download(file_path, verbose=False)
  
             files_created = True
@@ -398,8 +417,8 @@ def export_to_workdir( redcap_visit_id, xnat, session_data, pipeline_workdir, re
 
         # Copy ADNI phantom XML file
         if 'NCANDA_E' in session_data['mri_adni_phantom_eid']:
-            new_files_created = copy_adni_phantom_xml( xnat, session_data['mri_adni_phantom_eid'], pipeline_workdir_structural_native ) or new_files_created
-            new_files_created = copy_adni_phantom_t1w( xnat, session_data['mri_adni_phantom_eid'], pipeline_workdir_structural_native ) or new_files_created
+            new_files_created = copy_adni_phantom_xml( redcap_visit_id, xnat, session_data['mri_adni_phantom_eid'], pipeline_workdir_structural_native ) or new_files_created
+            new_files_created = copy_adni_phantom_t1w( redcap_visit_id, xnat, session_data['mri_adni_phantom_eid'], pipeline_workdir_structural_native ) or new_files_created
 
     else :
         delete_workdir(pipeline_workdir_structural_main,redcap_visit_id,verbose)
@@ -433,7 +452,7 @@ def export_to_workdir( redcap_visit_id, xnat, session_data, pipeline_workdir, re
 
         new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_rsfmri'], os.path.join( pipeline_workdir_functional_native, 'rs-fMRI' ), 'bold-%n.nii', xnat_dir, verbose=verbose, timer_label = timerLabel ) or new_files_created
         # Copy rs-fMRI physio files
-        new_files_created = copy_rsfmri_physio_files( xnat, session_data['mri_series_rsfmri'], os.path.join( pipeline_workdir_functional_native, 'physio' ) ) or new_files_created
+        new_files_created = copy_rsfmri_physio_files( redcap_visit_id, xnat, session_data['mri_series_rsfmri'], os.path.join( pipeline_workdir_functional_native, 'physio' ) ) or new_files_created
 
         new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_rsfmri_fieldmap'], os.path.join( pipeline_workdir_functional_native, 'fieldmap' ), 'fieldmap-%T%N.nii', xnat_dir, verbose=verbose ) or new_files_created
 
@@ -458,7 +477,7 @@ def export_to_workdir( redcap_visit_id, xnat, session_data, pipeline_workdir, re
     #   First, extract "Experiment ID" part from each "EID/SCAN" string, unless empty, then make into set of unique IDs.
     all_sessions = set( [ eid for eid in [ re.sub( '/.*', '', session_data[series] ) for series in list(session_data.keys()) if 'mri_series_' in series ] if 'NCANDA_E' in eid ] )
     for session in all_sessions:
-        new_files_created = copy_manual_pipeline_files( xnat, session, pipeline_workdir ) or new_files_created
+        new_files_created = copy_manual_pipeline_files( redcap_visit_id, xnat, session, pipeline_workdir ) or new_files_created
 
     return new_files_created
 
