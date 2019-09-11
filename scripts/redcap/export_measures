@@ -217,6 +217,11 @@ if args.exclude:
     visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: False if subject_data['exclude'][key[0]] != 1 else True ) ]
     visit_log_redcap = visit_log_redcap[~visit_log_redcap.visit_date.isnull()]
 else:
+    # for key in visit_log_redcap.index:
+    #    print(key) 
+    #    print(subject_data['exclude'][key[0]])
+    # if the next line fails then mostly likely a subject was entered in an arm other than the main does not exist on the main arm  - lines above for debugging
+    # if this causes to be a major issues then create a proper check before that throws an error
     visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: False if subject_data['exclude'][key[0]] == 1 else True ) ]
 
 # Limit to selected events
