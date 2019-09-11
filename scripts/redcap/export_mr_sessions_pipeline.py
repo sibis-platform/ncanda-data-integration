@@ -245,8 +245,6 @@ def gzip_physio( physio_file_path ):
 
 def get_resource_list(redcap_visit_id,xnat,xnat_eid,exp_resources):
 
-    print("export_mr_sessions_pipeline:get_resource_list:Just to debug - remove test code after you are confident")
-
     resource_list=[]
     for resource in exp_resources.listing:
         uri='/data/experiments/%s/resources/%s/files' % ( xnat_eid, resource.id )
