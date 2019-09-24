@@ -37,7 +37,7 @@ def export_to_nifti(experiment, subject, session, session_label, scan, scantype,
     # if not xnat_log.exists():
     match = re.match('.*('+ xnat_dir + '/.*)scan_.*_catalog.xml.*',XNATSessionElementUtil(experiment.scans[scan]).xml,re.DOTALL)
     if not match:
-        error_msg.append("XNAT scan info fails to contain catalog.xml location! SID:""%s EID:%s Label: %s SCAN: %s" % (dicom_path, subject, session,session_label,scan))
+        error_msg.append("XNAT scan info fails to contain catalog.xml location! SID:""%s EID:%s Label: %s SCAN: %s" % (subject, session,session_label,scan))
         return error_msg,0
 
     dicom_path = match.group(1)
