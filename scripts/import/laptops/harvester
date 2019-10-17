@@ -18,6 +18,8 @@ from sibispy import sibislogger as slog
 from sibispy.svn_util import SibisSvnException, UpdateActionTypes
 import sibispy 
 
+from config_utils import flatten_path_dict
+
 import hashlib
 updated_files = []
 
@@ -139,11 +141,19 @@ if harvster_setting:
                   " %s; should be YYYY-MM-DD.").format(laptop,
                                                        infer_dag_since[laptop]))
             infer_dag_since[laptop] = None
+
+    # Load destination paths that are verboten
+    ignore_processed_tree = harvster_setting.get('ignore_processed_paths', {})
+    # Make tree into a list of paths
+    ignore_processed = flatten_path_dict(ignore_processed_tree, outdir)
+    # Normalize the paths so that string comparison can be used
+    ignore_processed = [os.path.normpath(item) for item in ignore_processed]
 else:
     # FIXME: Should condition on args.verbose?
     print("Warning: harvester specific settings not defined!")
     ignore_data = dict()
     infer_dag_since = dict()
+    ignore_processed = []
 
 def run_converter(site, subject_label, command, verbose, infer_dag=False):
     """
@@ -178,7 +188,10 @@ def run_converter(site, subject_label, command, verbose, infer_dag=False):
                               file=str(fi),
                               converter_cmd=" ".join(command), 
                               harvester_cmd=" ".join(sys.argv)) 
-                else : 
+                elif os.path.normpath(fi) in ignore_processed:
+                    if verbose:
+                        print("Destination {} is ignored per configuration.".format(fi))
+                else:
                     try:
                         if verbose:
                             print("Importing", fi, "into REDCap")

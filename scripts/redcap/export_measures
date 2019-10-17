@@ -25,13 +25,43 @@ from sibispy import redcap_to_casesdir
 from sibispy import utils as sutils
 from sibispy import redcap_locking_data
 
+#
+# Functions
+#
+# Function to get a subject's next visit - this is so we can exclude MRI collected after the next visit date, but still within N days
+def get_subject_next_visit_date( subject, after_visit_date ):
+    subject_visit_dates = visit_log_redcap.xs( subject, level=0 )['visit_date'].dropna()
+    subject_visit_dates = subject_visit_dates[ subject_visit_dates.index.map( lambda key: key != 'recovery_baseline_arm_2' ) ] # Exclude "Recovery" baseline from list - this will usually be the MR day of a normal visit
+    later_visits_this_subject = sorted( [ date for date in subject_visit_dates.tolist() if date > after_visit_date ] )
+    if len( later_visits_this_subject ) > 0:
+        return later_visits_this_subject[0]
+    else:
+        return None
+
+def get_subject_site_for_visit(redcap_subject,visit_code,export_measures_map):
+    # Handle mapping demographic info for subjects that changed site
+    if redcap_subject in iter(export_measures_map.keys()):
+         # Only set for visits in the past
+         _visit_case_id_map = export_measures_map.get(redcap_subject)
+         if visit_code in iter(_visit_case_id_map.keys()):
+             _case_id_map = _visit_case_id_map.get(visit_code)
+         else : 
+             _case_id_map = _visit_case_id_map.get('default')
+             
+         return _case_id_map.get('site')
+
+    return redcap_subject[0]
+#
+# Main 
+#
+
 # Setup command line parser
 parser = argparse.ArgumentParser( description="For all subjects and visits in the REDCap database, export demographics, clinical measures, NP test scores, and other configured information into the pipeline directory tree.", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
 parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
 parser.add_argument( "--locked_form_report", help="Output a report indicating locked forms ", action="store_true")
 parser.add_argument( "--site", help="Limit export by site (SRI, UCSD, OHSU, UPMC, DUKE). Multiple sites can be listed, separated by comma (',')", action="store", default=None )
 parser.add_argument( "--events", help="Limit export by event labels (e.g., 'baseline_visit_arm_1'). Multiple events can be listed, separated by comma (',')", action="store", default=None )
-parser.add_argument( "--subject", help="Limit export by subject site id (e.g., 'X-12345-X-9').", action="store", default=None )
+parser.add_argument( "--subject", help="Limit export by subject site id (e.g., 'X-12345-X-9') - multiple subjects seperated with ',' .", action="store", default=None )
 parser.add_argument( "--export", help="Limit export by output file (e.g., 'cddr'; do not include '.txt' suffix). Multiple exports can be listed, separated by comma (',')", action="store", default=None )
 parser.add_argument( "-e", "--exclude", help="Exports Meausres for excluded subjects", action="store_true" )
 parser.add_argument( "--datadict-dir", help="Provides a directory in which the script creates data dictionaries for all supported export files.", action="store", default=None )
@@ -66,10 +96,12 @@ if not os.path.isfile(special_cases_file) :
     sys.exit(1)
 
 # Get a map of subjects that changed sited
-# SB: Followed example in import_mr_sessions
 with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
-    site_change_map = yaml.load(fi).get('site_change')
+    special_cases_map=yaml.load(fi)
+    site_change_map = special_cases_map.get('site_change')
     export_measures_map = site_change_map.get('export_measures')
+
+    exceeds_criteria_baseline = special_cases_map.get('exceeds_criteria_baseline')
 
 redcap_project = session.connect_server('data_entry', True)
 if not redcap_project :
@@ -89,10 +121,6 @@ if not session.connect_server('redcap_mysql_db', True) :
 
     sys.exit(1)
 
-red_lock = redcap_locking_data.redcap_locking_data()
-red_lock.configure(session)
-
-forms = list(redcap_project.forms)
 
 # Organize REDCap metadata, e.g., filter all confidential fields out of export lists, and make code-to-label lookup dictionaries
 #red.organize_metadata( redcap_project.metadata )
@@ -120,6 +148,14 @@ if args.locked_form_report:
         print("Configured to output a report of locked forms...")
         print("Connected to REDCap MySQL: {0}".format(engine))
 
+    # if you do not sort it - the list arranges the form names every time differently - so you get different outputs when run seperately 
+    locked_forms_name = sorted(list(redcap_project.forms))
+
+    red_lock = redcap_locking_data.redcap_locking_data()
+    red_lock.configure(session)
+
+    locked_form_table=red_lock.report_locked_forms_all('ncanda_subject_visit_log')
+    
 
 # Open connection with XNAT server
 xnat = session.connect_server('xnat',True)
@@ -137,21 +173,17 @@ try:
 except:
     sys.exit( "ERROR: retrieving subject list from XNAT failed." )
 
-subject_project_dict = dict()
 subject_label_to_sid_dict = dict()
+# Always assign it to lowest subject number as this is the first - no need to look up 
 for ( subject_label, subject_id, projects ) in subject_project_list:
-    subject_project_dict[subject_label] = ( subject_id, projects )
-    subject_label_to_sid_dict[subject_label] = subject_id
-
-# Function to get a subject's next visit - this is so we can exclude MRI collected after the next visit date, but still within N days
-def get_subject_next_visit_date( subject, after_visit_date ):
-    subject_visit_dates = visit_log_redcap.xs( subject, level=0 )['visit_date'].dropna()
-    subject_visit_dates = subject_visit_dates[ subject_visit_dates.index.map( lambda key: key != 'recovery_baseline_arm_2' ) ] # Exclude "Recovery" baseline from list - this will usually be the MR day of a normal visit
-    later_visits_this_subject = sorted( [ date for date in subject_visit_dates.tolist() if date > after_visit_date ] )
-    if len( later_visits_this_subject ) > 0:
-        return later_visits_this_subject[0]
-    else:
-        return None
+    if subject_label not in list(subject_label_to_sid_dict.keys()):         
+        subject_label_to_sid_dict[subject_label] = subject_id
+    elif subject_id < subject_label_to_sid_dict[subject_label] :
+        if args.verbose :
+            print('INFO: Modified link for',subject_label,'from', subject_label_to_sid_dict[subject_label], 'to', subject_id, '!')
+        subject_label_to_sid_dict[subject_label] = subject_id
+    elif args.verbose :
+        print('INFO: Ignoring link',subject_label,'to',subject_id,'as already already linked to',subject_label_to_sid_dict[subject_label],'!')
 
 #
 # Main program loop
@@ -185,6 +217,11 @@ if args.exclude:
     visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: False if subject_data['exclude'][key[0]] != 1 else True ) ]
     visit_log_redcap = visit_log_redcap[~visit_log_redcap.visit_date.isnull()]
 else:
+    # for key in visit_log_redcap.index:
+    #    print(key) 
+    #    print(subject_data['exclude'][key[0]])
+    # if the next line fails then mostly likely a subject was entered in an arm other than the main does not exist on the main arm  - lines above for debugging
+    # if this causes to be a major issues then create a proper check before that throws an error
     visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: False if subject_data['exclude'][key[0]] == 1 else True ) ]
 
 # Limit to selected events
@@ -207,111 +244,114 @@ else:
     select_exports = None
 
 if args.subject:
-    visit_log_redcap = visit_log_redcap.loc[[args.subject]]
+    visit_log_redcap = visit_log_redcap.loc[args.subject.split( ',' )]
 
 if args.verbose:
     print("Exporting %d REDCap records." % len( visit_log_redcap ))
 
 # Iterate over all remaining rows
 for [key,row] in visit_log_redcap.iterrows():
-    if key[0] not in list(subject_label_to_sid_dict.keys()):
+    # map the redcap subject key to readable vars
+    redcap_subject, redcap_event = key
+    
+    #
+    # Check that visit should be exported 
+    #
+    if redcap_subject not in list(subject_label_to_sid_dict.keys()):
         if args.verbose:
             # there is no xnat id over entire study for this subject , thus no subhect id to write to casesdir, thus ignore  
-            print("Missing XNAT ID for subject",key[0])
+            print("Missing XNAT ID for subject",redcap_subject)
         continue
+ 
     # only do sessions that are not ignored
     if row['visit_ignore___yes'] :
         continue
 
-    subject_xnat_id = subject_label_to_sid_dict[key[0]]
     visit_date = str(row['visit_date'])
     if visit_date == 'nan':
         if args.verbose:
-            print("Missing '%s' visit date for subject %s" % ( key[1], key[0] ))
+            print("Missing '%s' visit date for subject %s" % ( redcap_event, redcap_subject ))
+        continue
+
+    this_subject_data = subject_data.ix[redcap_subject]
+    # If exclude flag is set, this will override the excludes value and export excluded subjects
+    if args.exclude:
+        excludes = 0.0
     else:
-            this_subject_data = subject_data.ix[key[0]]
-            subject_dob_str = str( this_subject_data['dob'] )
-            if not re.match( '[0-9]{4}-[0-9]{2}-[0-9]{2}', subject_dob_str ):
-                error = "Missing or invalid birthdate '%s' for subject %s" % ( subject_dob_str, key[0] )
-                slog.info(str(key[0]), error)
-            else:
-                visit_age = old_div(red2cas.days_between_dates( subject_dob_str, visit_date ), 365.242)
+        excludes = 1
+    
+    # Check if pipeline directory given and export imaging series there
+    if (this_subject_data['exclude'] == excludes):
+        continue
 
-                # If exclude flag is set, this will override the excludes value and export excluded subjects
-                if args.exclude:
-                    excludes = 0.0
-                else:
-                    excludes = 1
+    subject_dob_str = str( this_subject_data['dob'] )
+    if not re.match( '[0-9]{4}-[0-9]{2}-[0-9]{2}', subject_dob_str ):
+        error = "Missing or invalid birthdate '%s' for subject %s" % ( subject_dob_str, redcap_subject )
+        slog.info(str(redcap_subject), error)
+        continue 
 
-                # Check if pipeline directory given and export imaging series there
-                if (this_subject_data['exclude'] != excludes):
-                    (arm_code,visit_code,subject_datadir_rel) = (None, None, None)
-                    try:
-                        (arm_code,visit_code,subject_datadir_rel) = red2cas.translate_subject_and_event( subject_xnat_id, key[1] )
-                    except: 
-                        slog.info("export_measures-" + key[0], "ERROR: Event " + key[1] + " is not supported yet.",
-                                      info = "Add event to ncanda_operations/sibis-sys-config.yml")
-                        continue
+    visit_age = old_div(red2cas.days_between_dates( subject_dob_str, visit_date ), 365.242)
 
-                    if arm_code:
-                        subject_datadir = os.path.join(args.pipelinedir,
-                                                       subject_datadir_rel)
+    subject_pipeline_id = subject_label_to_sid_dict[redcap_subject]
 
-                        # map the redcap subject key to readable vars
-                        redcap_subject, redcap_event = key
-                        site = redcap_subject[0]
+    (arm_code,visit_code,subject_datadir_rel) = (None, None, None)
+    try:
+        (arm_code,visit_code,subject_datadir_rel) = red2cas.translate_subject_and_event( subject_pipeline_id, redcap_event )
+    except: 
+        slog.info("export_measures-" + redcap_subject, "ERROR: Event " + redcap_event + " is not supported yet.",
+                      info = "Add event to ncanda_operations/sibis-sys-config.yml")
+        continue
 
-                        # Handle mapping demographic info for subjects that
-                        # changed site
-                        if redcap_subject in iter(export_measures_map.keys()):
-                            # Only set for visits in the past
-                            visit_case_id_map = export_measures_map.get(redcap_subject)
-                            
-                            case_id_map = visit_case_id_map.get('default')
-                            subject_code = case_id_map.get('subject')
-                                
-                            if visit_code in iter(visit_case_id_map.keys()):
-                                case_id_map = visit_case_id_map.get(visit_code)
-                            
-                            site = case_id_map.get('site')
-                            
-                            # Make sure results goto the correct directory
-                            subject_datadir = subject_datadir.replace(
-                                subject_xnat_id, subject_code)
-                            subject_xnat_id = subject_code
+    if not arm_code:
+        continue
 
-                        uploads += 1
+    #
+    # export measures
+    #
+    uploads += 1
+    
+    subject_datadir = os.path.join(args.pipelinedir,subject_datadir_rel)
 
-                        # Export measures from RECap into the pipeline.
-                        red2cas.export_subject_all_forms(redcap_project,
-                                          site,
-                                          redcap_subject,
-                                          redcap_event,
-                                          this_subject_data,
-                                          visit_age,
-                                          row,
-                                          arm_code,
-                                          visit_code,
-                                          subject_xnat_id,
-                                          subject_datadir,
-                                          forms_by_event_dict[key[1]],
-                                          select_exports=select_exports,
-                                          verbose=args.verbose)
+    site = get_subject_site_for_visit(redcap_subject,visit_code,export_measures_map)
 
-                        # Write report of forms locked for this subject, arm,
-                        # visit
-                        if args.locked_form_report and arm_code == 'standard':
-                            # Link directory names with names in REDCap mysql
-                            if visit_code == 'baseline' :
-                                visit = "Baseline visit"
-                            else :
-                                visit = visit_code.split('_',1)[1] + " visit"
+    exceeds_criteria_subject = exceeds_criteria_baseline.get(subject_pipeline_id)
+    if exceeds_criteria_subject == None:
+          exceeds_criteria_subject_value=-1                             
+    else :
+          exceeds_criteria_subject_value=exceeds_criteria_subject
+    
+    # Export measures from RECap into the pipeline.
+    red2cas.export_subject_all_forms(redcap_project,
+                       site,
+                       redcap_subject,
+                       redcap_event,
+                       this_subject_data,
+                       visit_age,
+                       row,
+                       arm_code,
+                       visit_code,
+                       subject_pipeline_id,
+                       subject_datadir,
+                       forms_by_event_dict[redcap_event],
+                       exceeds_criteria_subject_value,
+                       select_exports=select_exports,
+                       verbose=args.verbose)
+    
+    # Write report of forms locked for this subject, arm,
+    # visit
+    if args.locked_form_report and arm_code == 'standard':
+         # Link directory names with names in REDCap mysql
+         if visit_code == 'baseline' :
+             visit = "Baseline visit"
+         else :
+             visit = visit_code.split('_',1)[1] + " visit"
+    
+         # Get a dataframe of the locked forms
+         arm = "{0} Protocol".format(arm_code.capitalize())
 
-                            # Get a dataframe of the locked forms
-                            arm = "{0} Protocol".format(arm_code.capitalize())
-
-                            locked_forms = red_lock.report_locked_forms(key[0], subject_xnat_id, forms, 'ncanda_subject_visit_log', arm, visit)
-                            filename = os.path.join(os.path.abspath(subject_datadir), 'measures', 'locked_forms.csv')
-                            sutils.safe_dataframe_to_csv(locked_forms, filename, verbose=args.verbose)
+         locked_forms = red_lock.report_locked_forms(redcap_subject, subject_pipeline_id, locked_forms_name, 'ncanda_subject_visit_log', arm, visit,locked_form_table)
+         
+         filename = os.path.join(os.path.abspath(subject_datadir), 'measures', 'locked_forms.csv')
+         sutils.safe_dataframe_to_csv(locked_forms, filename, verbose=args.verbose)
 
 slog.takeTimer1("script_time","{'records': " + str(len(visit_log_redcap)) + ", 'uploads': " +  str(uploads) + "}")

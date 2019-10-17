@@ -47,11 +47,14 @@ def main(args):
     with open(args.special_cases) as fi:
         export_measures_map = yaml.load(fi).get('site_change').get('export_measures')
         for sub in export_measures_map.keys():
-            sub_map = export_measures_map.get(sub).get('default')  
-            if sub_map.get('subject') in subject_list :
-                special_subject_list += [ sub_map.get('xnat_subject_id') ] 
-
-
+            sub_map = export_measures_map.get(sub)
+            
+            if sub_map.get('default').get('subject') in subject_list :
+                for visit in sub_map.keys():
+                    visit_map=sub_map.get(visit)
+                    if 'xnat_subject_id' in iter(visit_map.keys()):
+                        subject_id=visit_map.get('xnat_subject_id')
+                        special_subject_list += [ subject_id ]
 
     #
     # Setup REDCap Check  
@@ -211,17 +214,25 @@ def main(args):
                 # or for fieldmaps that the corresponding DTI /fmri scans are usuable - otherwise REDCap will not automatically be updated with scan info
                 cutoff_date=redcap_event_list[redcap_event_list['site_id'] == xnat_entry['site_id']]['Last_Allowed_Visit'].values[0]
                 if datetime.datetime.strptime(cutoff_date, date_format_ymd) >= datetime.datetime.strptime(xnat_entry['experiment_date'], date_format_ymd):
-                    if xnat_entry['scan_type'] != 'ncanda-grefieldmap-v1' :
-                        if xnat_entry['scan_type'][7:10] ==  'dti': 
-                            eid_entries = xnat_list_comply[xnat_list_comply['experiment_id'] == xnat_entry['experiment_id']]
-                            if ('ncanda-dti60b1000-v1' in eid_entries['scan_type']) and ('ncanda-dti6b500pepolar-v1' in eid_entries['scan_type']) :
-                                print(xnat_entry.values)  
-                        else :
-                            print(xnat_entry.values)  
-                    else :
+                    eid_entries = xnat_list_comply[xnat_list_comply['experiment_id'] == xnat_entry['experiment_id']]
+                    if xnat_entry['scan_type'] ==  'ncanda-t2fse-v1' or xnat_entry['scan_type'] ==  'ncanda-t1spgr-v1' : 
+                        if ('ncanda-t2fse-v1' in eid_entries['scan_type']) and ('ncanda-t1spgr-v1' in eid_entries['scan_type']) :
+                            print(xnat_entry.values)
+                            
+                    elif xnat_entry['scan_type'][7:10] ==  'dti': 
+                        if ('ncanda-dti60b1000-v1' in eid_entries['scan_type']) and ('ncanda-dti6b500pepolar-v1' in eid_entries['scan_type']) :
+                            print(xnat_entry.values)
+                            
+                    elif xnat_entry['scan_type'] == 'ncanda-grefieldmap-v1' :
+                        if ('ncanda-rsfmri-v1' in eid_entries['scan_type']) :
+                            print(xnat_entry.values)
+
+                    elif xnat_entry['scan_type'] == 'ncanda-rsfmri-v1' :
                         # only print out field maps if corresponding dti or resting state is usable otherwise not ported to redcap 
-                        eid_entries = xnat_list_comply[xnat_list_comply['experiment_id'] == xnat_entry['experiment_id']]
-                        if ('ncanda-dti60b1000-v1' in eid_entries['scan_type']) or ('ncanda-rsfmri-v1' in eid_entries['scan_type']) :
+                        if ('ncanda-grefieldmap-v1' in eid_entries['scan_type']) :
+                            print(xnat_entry.values)
+                            
+                    else :
                             print(xnat_entry.values)  
 
     #
