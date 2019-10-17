@@ -14,7 +14,7 @@
 bindir=$(cd "$(dirname $0)"; pwd)
 
 if [ $# -lt 2 ]; then
-  echo "Please provide source and destination directories."
+  echo "Please provide source (e.g. /fs/ncanda-share/cases) and destination directories (e.g. /fs/ncanda-share/summaries)."
   echo "Optional: if followed by "
   echo "0 or 1 = redcap summaries are created (1) or not (0) - default they are created" 
   echo "0 or 1 = structural summaries are created (1) or not (0) - default they are created" 
@@ -87,7 +87,7 @@ if [ "$structuralFlag" == "1" ]; then
   for subject in `ls -d --color=no NCANDA_S*`; do
       # only include those that have a baseline scan 
       if [ -d $subject/standard/baseline/structural/volumetry ]; then 
-	  sList=`ls -d1 --color=no $subject/standard/*/structural/volumetry | grep -e baseline -e followup_1y -e followup_2y -e followup_3y`   
+	  sList=`ls -d1 --color=no $subject/standard/*/structural/volumetry | grep -e baseline -e followup_1y -e followup_2y -e followup_3y -e followup_4y`   
 	  last=`echo ${sList} | rev | cut -d' ' -f1  | rev | cut -d'/' -f1-3`
 	  last_list="${last_list} $last"
       fi 
