@@ -235,7 +235,15 @@ for key, row in summary_records.iterrows():
 
             summary_records.at[key, 'cnp_summary_complete'] = summary_complete
         elif summary_records['cnp_summary_complete'][key] != '' and float( summary_records['cnp_summary_complete'][key] ) > 0 and ( summary_records['cnp_missing'][key] != 1 ):
-            print("WARNING: Previously assigned WebCNP data for subject",key[0],"event",key[1],"appears to have disappeared.")
+            error = ("WARNING: Previously assigned WebCNP data for subject {}, "
+                     "event {} appears to have disappeared.").format(key[0], key[1])
+            slog.info("MissingCNP-" + hashlib.sha1(error.encode()).hexdigest()[0:6],
+                      error,
+                      description=(
+                          "Either the data has been removed from Data Entry, "
+                          "or the CNP has not made it through the pipeline "
+                          "despite the site expecting it (and marking it "
+                          "not-missing."))
 
 # Drop all summary records for which there is no CNP data
 summary_records = summary_records[ summary_records['cnp_datasetid'] != '' ]
