@@ -208,6 +208,18 @@ visit_log_redcap = redcap_project.export_records(fields=visit_log_fields,
                                                  export_data_access_groups=True,
                                                  format='df')
 
+# check that all subjects listed in visit_log are also part of baseline
+visit_log_subject_list=visit_log_redcap.index.get_level_values(0).drop_duplicates()
+subject_data_list=subject_data.index.get_level_values(0).drop_duplicates()
+missing_baseline=visit_log_subject_list[(~visit_log_subject_list.isin(subject_data_list))]
+if len(missing_baseline) :
+    subject_arm_missing=visit_log_redcap.loc[missing_baseline,:].index.to_list()
+    slog.info("export_measures-" + hashlib.sha1(str(missing_baseline).encode()).hexdigest()[0:6], "ERROR: Subjects are in arms that are not part of baseline.",
+              entries = str(subject_arm_missing), 
+              info = "Please remove from redcap")
+
+    visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: False if key[0] in missing_baseline else True ) ]
+        
 if args.site:
     sites = args.site.lower().split( ',' )
     visit_log_redcap = visit_log_redcap[ visit_log_redcap['redcap_data_access_group'].map( lambda dag: dag in sites ) ]
@@ -217,11 +229,6 @@ if args.exclude:
     visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: False if subject_data['exclude'][key[0]] != 1 else True ) ]
     visit_log_redcap = visit_log_redcap[~visit_log_redcap.visit_date.isnull()]
 else:
-    # for key in visit_log_redcap.index:
-    #    print(key) 
-    #    print(subject_data['exclude'][key[0]])
-    # if the next line fails then mostly likely a subject was entered in an arm other than the main does not exist on the main arm  - lines above for debugging
-    # if this causes to be a major issues then create a proper check before that throws an error
     visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: False if subject_data['exclude'][key[0]] == 1 else True ) ]
 
 # Limit to selected events
