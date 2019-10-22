@@ -67,3 +67,8 @@ target/
 
 # IPython / Jupyter Notebooks
 .ipynb_checkpoints
+
+# Leftovers and backups
+*~
+*_
+scripts/import/webcnp/debug_script
