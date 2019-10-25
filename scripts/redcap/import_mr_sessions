@@ -734,11 +734,18 @@ if args.study_id:
     visit_log_redcap = visit_log_redcap.xs(args.study_id)
     visit_log_redcap.reset_index(inplace=True)
     visit_log_redcap['study_id'] = args.study_id
+    event="" 
     if args.event : 
-        visit_log_redcap =  visit_log_redcap[ visit_log_redcap['redcap_event_name'] == args.event ] 
-    visit_log_redcap.set_index(['study_id', 'redcap_event_name'],
-                               inplace=True)
+        visit_log_redcap =  visit_log_redcap[ visit_log_redcap['redcap_event_name'] == args.event ]
+        event="-"+args.event
 
+    if len(visit_log_redcap) == 0 : 
+        slog.info(args.study_id + event, "No data for this subject (and event)")
+        sys.exit(1)
+
+    visit_log_redcap.set_index(['study_id', 'redcap_event_name'],inplace=True)
+      
+        
 
 # Select only events that have the "MRI Session Report" form
 mri_events_list = form_event_mapping[form_event_mapping[form_key] == 'mr_session_report' ]['unique_event_name'].tolist()
