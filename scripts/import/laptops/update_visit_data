@@ -239,13 +239,21 @@ def MissingFormChecks(vdate, date_on_or_after , date_before ,subject_id,event_id
         if not import_complete_records[complete_label][session_id]:
             # the form exists but is incomplete 
             slog.info(session_id, "Error: The status of the form '%s' in the Import project is incomplete while it is unverified or complete in the Entry project!" % (form_name),
+                      explanation=(
+                        "The most common causes of this error: (1) the site "
+                        "shifted the visit date forward, which caused the form"
+                        " collected between the original visit date and the "
+                        "new visit date to dissociate, or (2) site manually "
+                        "edited `[form]_record_id` without reference to any "
+                        "actual Import record. **Before all else, check the "
+                        "history of the visit date field.**"),
                       entry_subject_id=subject_id,
                       form_name=form_name,
                       event_id=event_id,
                       import_visit_dates_of_not_incomplete_records=incomplete_records_list.to_string(),
                       target_visit_date=vdate,
                       date_range=str([date_on_or_after , date_before]),
-                      info="The experiment_site_id is the id of the form in the import project this error message referes to", 
+                      info="The experiment_site_id is the id of the form in the import project this error message refers to", 
                       cmd=" ".join(sys.argv))
             return 
 
