@@ -24,20 +24,23 @@ from sibispy import sibis_email, xnat_util
 # Functions
 #
 
+PHANTOM_DAY_LIMIT = 7
+
 # Find a phantom scan within 24h of the given experiment
 def find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified, phantom_id, edate, etime, scanner):
     # Compute the date before and after the experiment date
     this_date = datetime.datetime.strptime(edate, '%Y-%m-%d')
-    edate_tomorrow = (this_date + datetime.timedelta(1)).strftime('%Y-%m-%d')
-    edate_yesterday = (this_date - datetime.timedelta(1)).strftime('%Y-%m-%d')
+    edate_tomorrow = (this_date + datetime.timedelta(PHANTOM_DAY_LIMIT)).strftime('%Y-%m-%d')
+    edate_yesterday = (this_date - datetime.timedelta(PHANTOM_DAY_LIMIT)).strftime('%Y-%m-%d')
 
     # Search for all sessions on previous day after given time, or next day before given time (we already know there isn't a scan on the same date)
     constraints = [('xnat:mrSessionData/SUBJECT_ID','LIKE',phantom_id), 'AND',
                    [[('xnat:mrSessionData/DATE', '=', edate_yesterday), ('xnat:mrSessionData/TIME', '>=', etime), 'AND'],
                     [('xnat:mrSessionData/DATE', '=', edate_tomorrow), ('xnat:mrSessionData/TIME', '<=', etime), 'AND'], 'OR']]
     phantom_scans = list(ifc.search('xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID', 'xnat:mrSessionData/DATE', 'xnat:mrSessionData/TIME']).where(constraints).items())
+
     # Still haven't found anything - then there is no phantom scan
-    if len(phantom_scans) == 0:
+    if (len(phantom_scans) == 0) and (datetime.today() >= edate_tomorrow):
         if args.sendmail:
             email.add_admin_message("%s %s - no phantom scan for %s, last modified %s (scanner: %s)" % (prj, edate, experiment_label, experiment_last_modified, scanner))
         else:
@@ -49,15 +52,20 @@ def find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified,
     else:
         if args.warn_same_day_phantom:
             if args.sendmail:
-                email.add_admin_message("%s %s - no same-day phantom scan for %s, last modified %s (scanner: %s), but found one within 24h" % (prj, edate, experiment_label, experiment_last_modified, scanner))
+                email.add_admin_message("%s %s - no same-day phantom scan for %s, last modified %s (scanner: %s), but found one within %d days" % (
+                    prj, edate, experiment_label, experiment_last_modified, scanner, PHANTOM_DAY_LIMIT))
             else:
-                error = "ERROR: no same-day phantom scan for session acquired;But found one within 24h"
+                error = "ERROR: no same-day phantom scan for session acquired;But found one within %dd" % PHANTOM_DAY_LIMIT
                 slog.info(experiment_label, error,
                               project_id = prj,
                               experiment_date = edate,
                               experiment_last_modified = experiment_last_modified,
                               scanner = scanner)
 
+    # Sanity-check that we're detecting scans with pending phantoms
+    if (len(phantom_scans) == 0) and (datetime.today() < edate_tomorrow) and args.verbose:
+        print("{}: No phantom, but site has until {} to upload one."
+              .format(seid, edate_tomorrow))
 
 # Check one experiment for matching phantom scans
 def check_experiment(session, eid, experiment):
