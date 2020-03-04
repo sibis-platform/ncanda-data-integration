@@ -103,6 +103,7 @@ with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
 
     exceeds_criteria_baseline = special_cases_map.get('exceeds_criteria_baseline')
     siblings_enrolled_yn_correction = special_cases_map.get('siblings_enrolled_yn')
+    siblings_id_first_correction = special_cases_map.get('siblings_id_first')
 
 redcap_project = session.connect_server('data_entry', True)
 if not redcap_project :
@@ -350,9 +351,10 @@ for [key,row] in visit_log_redcap.iterrows():
 
     siblings_enrolled_yn_subject = siblings_enrolled_yn_correction.get(subject_pipeline_id)
     if siblings_enrolled_yn_subject == None:
-          siblings_enrolled_yn_subject=-1                             
+          siblings_enrolled_yn_subject=-1
 
-          
+    siblings_id_first_subject = siblings_id_first_correction.get(subject_pipeline_id)
+           
     # Export measures from RECap into the pipeline.
     red2cas.export_subject_all_forms(redcap_project,
                        site,
@@ -368,7 +370,7 @@ for [key,row] in visit_log_redcap.iterrows():
                        forms_by_event_dict[redcap_event],
                        exceeds_criteria_subject_value,
                        siblings_enrolled_yn_subject,
-                       -1,
+                       siblings_id_first_subject,
                        select_exports=select_exports,
                        verbose=args.verbose)
     
