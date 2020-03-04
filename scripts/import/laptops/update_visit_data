@@ -283,7 +283,7 @@ def MissingFormChecks(vdate, date_on_or_after , date_before ,subject_id,event_id
 
 
 # Setup command line parser
-parser = argparse.ArgumentParser(description="Update longitudinal project forms from data imported from the data capture laptops",
+parser = argparse.ArgumentParser(description="Update longitudinal project forms (i.e., data_entry) from the data capture laptops (i.e. import_labtops)",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-v", "--verbose",
                     help="Verbose operation",
@@ -309,9 +309,9 @@ parser.add_argument("-m", "--missing-only",
                          "will not propagate.",
                     action="store_true")
 parser.add_argument("-a", "--update-all",
-                    help="Update all summary records, regardless of current completion status "
-                         "(otherwise, only update records where incoming data completion status "
-                         "exceeds existing summary data status)",
+                    help="Update all forms in data entry, regardless of current completion status "
+                         "(otherwise, only update records where data completion status in import_labtops "
+                         "exceeds form status in data_entry)",
                     action="store_true")
 parser.add_argument("-x", "--no-excluded",
                     help="Do not process any subjects marked as 'excluded' in REDCap.",
