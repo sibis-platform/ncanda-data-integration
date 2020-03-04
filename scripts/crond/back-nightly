@@ -43,7 +43,8 @@ if [ `echo $?` == 0 ]; then
    num_scripts=`printf "$run_scripts\n" | wc -l`
    echo "${SCRIPT_LABEL}:Info: skipped update_visit_data as %num_scripts instance(s) of it are already running:"
    printf "$run_scripts"
-else 
+else
+   # Copy data from import_laptops to data_entry
    catch_output_email "${SCRIPT_LABEL}:Import Laptop: Data Import (update_visit_data)" ${SIBIS}/scripts/import/laptops/update_visit_data -p -t ${LOG_DIR} --max-days-after-visit 120 ${update_args}
 fi 
 
