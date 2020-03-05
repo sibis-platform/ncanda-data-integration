@@ -35,6 +35,10 @@ def parse_args(input_args: List = None) -> argparse.Namespace:
     parser.add_argument('-s', '--api',
                         help="Source Redcap API to use",
                         default="data_entry")
+    parser.add_argument('-d', '--include-dag',
+                        help="Include Redcap Data Access Group for each row",
+                        dest="include_dag",
+                        action="store_true")
     args = parser.parse_args(input_args)
     return args
 
@@ -51,7 +55,9 @@ def make_redcap_inventory(api: rc.Project,
     if forms is not None:
         all_forms = [form for form in all_forms if form in forms]
     
-    data = {form: chunked_form_export(api, forms=[form], events=events) for form in all_forms}
+    data = {form: chunked_form_export(api, forms=[form], events=events,
+                                      include_dag=include_dag)
+            for form in all_forms}
     # FIXME: Drop fully empty columns
     final_dfs = []
     for form in all_forms:
@@ -72,15 +78,29 @@ def get_flag_and_meta(row: pd.Series, verbose: bool = True) -> pd.Series:
     except Exception as e:
         # No columns in a Series
         columns = row.index.tolist()
-    
+
+    cols_dag = get_items_matching_regex('redcap_data_access_group', columns)
     cols_complete = get_items_matching_regex("_complete$", columns)
     cols_ignore = get_items_matching_regex("^visit_ignore___yes$|_exclude$", columns)
     cols_missing = get_items_matching_regex("_missing$", columns)
     cols_missing_explanation = get_items_matching_regex("_missing_why(_other)?$", columns)
     cols_checklists = get_items_matching_regex('___', columns)
-    
-    all_meta_cols = cols_complete + cols_ignore + cols_missing + cols_missing_explanation + cols_checklists
-    
+
+    cols_checklists_pure = (set(cols_checklists)
+                            - set(cols_ignore)
+                            - set(cols_missing))
+    # after a set operation, preserve order:
+    cols_checklists_pure = [c for c in cols_checklists
+                            if c in cols_checklists_pure]
+
+    all_meta_cols = (cols_complete + cols_ignore + cols_missing + cols_dag
+                     + cols_missing_explanation + cols_checklists)
+
+    # pdb.set_trace()
+    result = {}
+    if len(cols_dag) > 0:
+        result.update({'dag': row['redcap_data_access_group']})
+
     # NOTE: This will only work for a Series
     # NOTE: For a full Data Frame, use df.drop(drop_columns, axis=1).notnull().sum(axis=1)
     non_nan_count = row.drop(all_meta_cols).notnull().sum()
