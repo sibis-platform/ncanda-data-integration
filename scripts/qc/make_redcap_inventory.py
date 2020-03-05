@@ -81,13 +81,19 @@ def get_flag_and_meta(row: pd.Series, verbose: bool = True) -> pd.Series:
 
     cols_dag = get_items_matching_regex('redcap_data_access_group', columns)
     cols_complete = get_items_matching_regex("_complete$", columns)
-    cols_ignore = get_items_matching_regex("^visit_ignore___yes$|_exclude$", columns)
-    cols_missing = get_items_matching_regex("_missing$", columns)
-    cols_missing_explanation = get_items_matching_regex("_missing_why(_other)?$", columns)
+    cols_ignore = get_items_matching_regex(
+        "^visit_ignore___yes$|_exclude$", columns)
+    cols_missing = get_items_matching_regex(
+        # "^np_reyo_qc___completed$|^bio_mr_same_as_np_day___yes$|_missing$",
+        "^bio_mr_same_as_np___yes$|_missing$", columns)
+    cols_missing_explanation = get_items_matching_regex(
+        "_missing_why(_other)?$", columns)
     cols_checklists = get_items_matching_regex('___', columns)
 
+    # Only keep "normal" checklists that aren't a part of any other things
     cols_checklists_pure = (set(cols_checklists)
                             - set(cols_ignore)
+                            - set(cols_complete)
                             - set(cols_missing))
     # after a set operation, preserve order:
     cols_checklists_pure = [c for c in cols_checklists
@@ -96,7 +102,6 @@ def get_flag_and_meta(row: pd.Series, verbose: bool = True) -> pd.Series:
     all_meta_cols = (cols_complete + cols_ignore + cols_missing + cols_dag
                      + cols_missing_explanation + cols_checklists)
 
-    # pdb.set_trace()
     result = {}
     if len(cols_dag) > 0:
         result.update({'dag': row['redcap_data_access_group']})
@@ -104,8 +109,13 @@ def get_flag_and_meta(row: pd.Series, verbose: bool = True) -> pd.Series:
     # NOTE: This will only work for a Series
     # NOTE: For a full Data Frame, use df.drop(drop_columns, axis=1).notnull().sum(axis=1)
     non_nan_count = row.drop(all_meta_cols).notnull().sum()
-    
-    result = {'non_nan_count': non_nan_count}
+    result.update({'non_nan_count': non_nan_count})
+
+    # Count checklists properly
+    if cols_checklists_pure:
+        col_val1_count = (row[cols_checklists_pure].isin([1, '1'])).sum()
+        result.update({'non_nan_count': non_nan_count + col_val1_count})
+
     # always take last completeness status, on the assumption that that's the true one
     # (currently not implementing LSSAGA subparts)
     if len(cols_complete) > 0:
@@ -113,8 +123,8 @@ def get_flag_and_meta(row: pd.Series, verbose: bool = True) -> pd.Series:
     if cols_ignore:
         result.update({'exclude': row[cols_ignore[0]]})
     if cols_missing:
-        result.update({'missing': row[cols_missing[0]]})
-    
+        result.update({'missing': row[cols_missing].max()})
+
     return pd.Series(result)
 
 
