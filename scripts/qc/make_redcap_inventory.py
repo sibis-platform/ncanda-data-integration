@@ -3,16 +3,20 @@
 Given an API, load all the forms, count up their non-NA values, and mark their missing/complete status.
 """
 
-import argparse 
+import argparse
 import pandas as pd
+import pdb
+import redcap as rc
 import sys
 from load_utils import load_form_with_primary_key
 from qa_utils import chunked_form_export, get_items_matching_regex
 # TODO: chunked_export with configurable key to include on every form (think visit_ignore___yes)
 import sibispy
 from sibispy import sibislogger as slog
+from typing import List
 
-def parse_args(input_args=None):
+
+def parse_args(input_args: List = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("-v", "--verbose", help="Verbose operation",
                         action="store_true")
@@ -23,8 +27,6 @@ def parse_args(input_args=None):
                         action='store_true')
     parser.add_argument("-f", "--forms",
                         nargs='+')
-    #parser.add_argument("-x", "--exclude-forms",
-    #                    nargs='*')
     parser.add_argument("-e", "--events",
                         nargs='*')
     parser.add_argument('-o', '--output',
@@ -37,14 +39,17 @@ def parse_args(input_args=None):
     return args
 
 
-def make_redcap_inventory(api, forms, events=None, post_to_github=False, verbose=False):
+def make_redcap_inventory(api: rc.Project,
+                          forms: List,
+                          events: List = None,
+                          post_to_github: bool = False,
+                          include_dag: bool = False,
+                          verbose: bool = False) -> pd.DataFrame:
     # Determine scope
     meta = api.export_metadata(format='df')
     all_forms = meta['form_name'].unique().tolist()
     if forms is not None:
         all_forms = [form for form in all_forms if form in forms]
-    #if exclude_forms is not None:
-    #    all_forms = [form for form in all_forms if form not in exclude_forms]
     
     data = {form: chunked_form_export(api, forms=[form], events=events) for form in all_forms}
     # FIXME: Drop fully empty columns
@@ -56,14 +61,16 @@ def make_redcap_inventory(api, forms, events=None, post_to_github=False, verbose
             continue
         form_stats['form_name'] = form
         final_dfs.append(form_stats)
-    
-    return pd.concat(final_dfs)
+
+    return pd.concat(final_dfs, sort=False)
+
 
 # Apply to DF to get all empty records
-def get_flag_and_meta(row):
+def get_flag_and_meta(row: pd.Series, verbose: bool = True) -> pd.Series:
     try:
         columns = row.columns.tolist()
-    except:
+    except Exception as e:
+        # No columns in a Series
         columns = row.index.tolist()
     
     cols_complete = get_items_matching_regex("_complete$", columns)
@@ -80,6 +87,7 @@ def get_flag_and_meta(row):
     
     result = {'non_nan_count': non_nan_count}
     # always take last completeness status, on the assumption that that's the true one
+    # (currently not implementing LSSAGA subparts)
     if len(cols_complete) > 0:
         result.update({'complete': row[cols_complete[-1]]})
     if cols_ignore:
@@ -88,31 +96,38 @@ def get_flag_and_meta(row):
         result.update({'missing': row[cols_missing[0]]})
     
     return pd.Series(result)
-    
+
+
 if __name__ == '__main__':
     args = parse_args()
     session = sibispy.Session()
     if not session.configure():
         sys.exit()
 
-    slog.init_log(None, None, 
-                  'QC: Save the content stats for all forms', 
-                  'check_unuploaded_files', None)
-    
-    # Setting specific constants for this run of QC
-    api = session.connect_server(args.api, True)
+    slog.init_log(verbose=args.verbose,
+                  post_to_github=args.post_to_github,
+                  github_issue_title='QC: Save content stats by form',
+                  github_issue_label='inventory',
+                  timerDir=None)
 
     # Setting specific constants for this run of QC
+    api = session.connect_server(args.api, timeFlag=True)
+
     try:
         if args.all_forms:
             forms = None
         else:
             forms = args.forms
-        inventory = make_redcap_inventory(api, forms, args.events,
-                                          args.post_to_github, verbose=args.verbose)
+        inventory = make_redcap_inventory(api=api,
+                                          forms=forms,
+                                          events=args.events,
+                                          post_to_github=args.post_to_github,
+                                          include_dag=args.include_dag,
+                                          verbose=args.verbose)
         inventory.to_csv(args.output, float_format="%.0f")
         sys.exit(0)
     except Exception as e:
+        print(e)
         if args.verbose:
             print(sys.exc_info()[0])
         sys.exit(1)
