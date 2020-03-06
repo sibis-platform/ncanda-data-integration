@@ -18,7 +18,7 @@ from sibispy import utils as sutils
 
 def export_spiral_files(redcap_visit_id, xnat, redcap_key, resource_location, to_directory, stroop=(None, None, None), verbose=None):
     if verbose:
-        print("Exporting spiral files...")
+        print("Exporting spiral files " + resource_location + " to " + to_directory)
 
     result = False # Nothing updated or created yet
     # resource location contains results dict with path building elements
@@ -67,11 +67,13 @@ def do_export_spiral_files(redcap_visit_id,xnat, redcap_key, resource_location, 
     # (simplifies its removal regardless of exit taken)
     # print "do_export_spiral_files" , str(xnat), str(resource_location), str(to_directory), str(spiral_nifti_out), xnat_eid, str(resource_id), str(resource_file_bname)
     [xnat_eid, resource_id, resource_file_bname] = resource_location.split('/')
+    info_str="To find the file in XNAT go to 'Manage Files' -> Resources -> *spiral*"
+    
     try : 
         tmp_file_path = os.path.join(tmpdir, "pfiles.tar.gz")
         xnat.select.experiments[xnat_eid].resources[resource_id].files[resource_file_bname].download(tmp_file_path, verbose=False)
     except  Exception as err_msg:
-        slog.info(xnat_eid + "_" +  resource_id, "Error: failed to download from xnat " + resource_file_bname, err_msg = str(err_msg))
+        slog.info(xnat_eid + "_" +  resource_id, "Error: failed to download from xnat " + resource_file_bname, err_msg = str(err_msg), info=info_str)
         return False
 
     errcode, stdout, stderr = sutils.untar(tmp_file_path, tmpdir)
@@ -82,25 +84,28 @@ def do_export_spiral_files(redcap_visit_id,xnat, redcap_key, resource_location, 
                      xnat_eid=xnat_eid,
                      spiral_tar_file=resource_location,
                      err_msg = str(stderr),
-                     err_cod = str(errcode))
+                     err_cod = str(errcode),
+                     info=info_str)
         return False
 
     spiral_E_files = glob_for_files_recursive(tmpdir, pattern="E*P*.7")
     if len(spiral_E_files) > 1:
         error = "ERROR: more than one E file found"
         slog.info(redcap_visit_id, error,
-                      xnat_eid=xnat_eid,
-                      spiral_e_files = ', '.join(spiral_E_files))
+                  xnat_eid=xnat_eid,
+                  spiral_e_files = ', '.join(spiral_E_files),
+                  info=info_str)
         return False
 
     physio_files = glob_for_files_recursive(tmpdir, pattern="P*.physio")
     if len(physio_files) > 1:
         error = 'More than one physio file found in spiral tar file.'
         slog.info(redcap_visit_id,error,
-                      xnat_eid=xnat_eid,
-                      tmp_file_path=tmp_file_path,
-                      physio_files=physio_files,
-                      spiral_tar_file=resource_location)
+                  xnat_eid=xnat_eid,
+                  tmp_file_path=tmp_file_path,
+                  physio_files=physio_files,
+                  spiral_tar_file=resource_location,
+                  info=info_str)
         return False
 
     if len(spiral_E_files) == 1:
@@ -117,13 +122,15 @@ def do_export_spiral_files(redcap_visit_id,xnat, redcap_key, resource_location, 
                       spiral_file=spiral_E_files[0],
                       ecode = str(errcode),   
                       eout = str(stderr),
-                      sout = str(stdout))
+                      sout = str(stdout),
+                      info=info_str)
             return False
     else:
         error = "ERROR: no spiral data file found"
         slog.info(redcap_visit_id, error,
                   xnat_eid=xnat_eid,
-                  spiral_tar_file=resource_location)
+                  spiral_tar_file=resource_location,
+                  info=info_str)
         return False
 
     if len(physio_files) == 1:
