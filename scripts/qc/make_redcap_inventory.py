@@ -10,7 +10,6 @@ import redcap as rc
 import sys
 from load_utils import load_form_with_primary_key
 from qa_utils import chunked_form_export, get_items_matching_regex
-# TODO: chunked_export with configurable key to include on every form (think visit_ignore___yes)
 import sibispy
 from sibispy import sibislogger as slog
 from typing import List
@@ -55,10 +54,13 @@ def make_redcap_inventory(api: rc.Project,
     if forms is not None:
         all_forms = [form for form in all_forms if form in forms]
     
+    # always load visit_ignore___yes - if whole visit is ignored, then this
+    # form should be, too (very NCANDA-specific)
     data = {form: chunked_form_export(api, forms=[form], events=events,
-                                      include_dag=include_dag)
+                                      include_dag=include_dag,
+                                      fields=['visit_ignore'])
             for form in all_forms}
-    # FIXME: Drop fully empty columns
+
     final_dfs = []
     for form in all_forms:
         try:
@@ -120,10 +122,17 @@ def get_flag_and_meta(row: pd.Series, verbose: bool = True) -> pd.Series:
     # (currently not implementing LSSAGA subparts)
     if len(cols_complete) > 0:
         result.update({'complete': row[cols_complete[-1]]})
+
+    # There *can* be multiple sort-of exclusion/missingness columns (for one,
+    # we're including visit_ignore___yes on all forms, and some have their own
+    # `exclude` switches) - so we'll just assume that wherever there's at least
+    # one 1 flipped for exclusion, the form is excluded. Same with missingness.
+    #
+    # Taking the max of multiple columns is just a quick way to do that.
     if cols_ignore:
-        result.update({'exclude': row[cols_ignore[0]]})
+        result.update({'exclude': row[cols_ignore].max(skipna=True)})
     if cols_missing:
-        result.update({'missing': row[cols_missing].max()})
+        result.update({'missing': row[cols_missing].max(skipna=True)})
 
     return pd.Series(result)
 
