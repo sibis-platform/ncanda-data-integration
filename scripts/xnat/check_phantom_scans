@@ -29,6 +29,8 @@ PHANTOM_DAY_LIMIT = 7
 # Find a phantom scan within 24h of the given experiment
 def find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified, phantom_id, edate, etime, scanner):
     # Compute the date before and after the experiment date
+    today = datetime.datetime.today()
+    today_str = today.strftime('%Y-%m-%d')
     this_date = datetime.datetime.strptime(edate, '%Y-%m-%d')
     edate_tomorrow = (this_date + datetime.timedelta(PHANTOM_DAY_LIMIT)).strftime('%Y-%m-%d')
     edate_yesterday = (this_date - datetime.timedelta(PHANTOM_DAY_LIMIT)).strftime('%Y-%m-%d')
@@ -40,7 +42,7 @@ def find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified,
     phantom_scans = list(ifc.search('xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID', 'xnat:mrSessionData/DATE', 'xnat:mrSessionData/TIME']).where(constraints).items())
 
     # Still haven't found anything - then there is no phantom scan
-    if (len(phantom_scans) == 0) and (datetime.today() >= edate_tomorrow):
+    if (len(phantom_scans) == 0) and (today_str >= edate_tomorrow):
         if args.sendmail:
             email.add_admin_message("%s %s - no phantom scan for %s, last modified %s (scanner: %s)" % (prj, edate, experiment_label, experiment_last_modified, scanner))
         else:
@@ -63,7 +65,7 @@ def find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified,
                               scanner = scanner)
 
     # Sanity-check that we're detecting scans with pending phantoms
-    if (len(phantom_scans) == 0) and (datetime.today() < edate_tomorrow) and args.verbose:
+    if (len(phantom_scans) == 0) and (today_str < edate_tomorrow) and args.verbose:
         print("{}: No phantom, but site has until {} to upload one."
               .format(seid, edate_tomorrow))
 
