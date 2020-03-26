@@ -117,8 +117,7 @@ if __name__ == '__main__':
         result = get_filter_results(data, filter_function, verbose=args.verbose)
         if result is None:
             if args.verbose:
-                print("Filter {} failed on file {}".format(args.filter, filename))
-            sys.exit(1)
+                print("Filter {} failed on file {}; skipping".format(args.filter, filename))
         elif not result.empty:
             all_out.append(result)
 
