@@ -82,7 +82,8 @@ def get_flag_and_meta(row: pd.Series, verbose: bool = True) -> pd.Series:
         columns = row.index.tolist()
 
     cols_dag = get_items_matching_regex('redcap_data_access_group', columns)
-    cols_complete = get_items_matching_regex("_complete$", columns)
+    cols_complete = get_items_matching_regex(
+        "_complete$|^np_reyo_qc___completed$", columns)
     cols_ignore = get_items_matching_regex(
         "^visit_ignore___yes$|_exclude$", columns)
     cols_missing = get_items_matching_regex(
@@ -108,8 +109,6 @@ def get_flag_and_meta(row: pd.Series, verbose: bool = True) -> pd.Series:
     if len(cols_dag) > 0:
         result.update({'dag': row['redcap_data_access_group']})
 
-    # NOTE: This will only work for a Series
-    # NOTE: For a full Data Frame, use df.drop(drop_columns, axis=1).notnull().sum(axis=1)
     non_nan_count = row.drop(all_meta_cols).notnull().sum()
     result.update({'non_nan_count': non_nan_count})
 
@@ -117,11 +116,6 @@ def get_flag_and_meta(row: pd.Series, verbose: bool = True) -> pd.Series:
     if cols_checklists_pure:
         col_val1_count = (row[cols_checklists_pure].isin([1, '1'])).sum()
         result.update({'non_nan_count': non_nan_count + col_val1_count})
-
-    # always take last completeness status, on the assumption that that's the true one
-    # (currently not implementing LSSAGA subparts)
-    if len(cols_complete) > 0:
-        result.update({'complete': row[cols_complete[-1]]})
 
     # There *can* be multiple sort-of exclusion/missingness columns (for one,
     # we're including visit_ignore___yes on all forms, and some have their own
@@ -133,6 +127,16 @@ def get_flag_and_meta(row: pd.Series, verbose: bool = True) -> pd.Series:
         result.update({'exclude': row[cols_ignore].max(skipna=True)})
     if cols_missing:
         result.update({'missing': row[cols_missing].max(skipna=True)})
+    if len(cols_complete) > 0:
+        if 'np_reyo_qc___completed' in cols_complete:
+            # special case: for Reyo QC, the checklist is a completion status,
+            # so we should consider it, but the form should also be marked
+            # Complete
+            result.update({'complete': row[cols_complete].max(skipna=True)})
+        else:
+            # take the last completion status, on the assumption that it's the
+            # overall completion (currently not implementing LSSAGA subparts)
+            result.update({'complete': row[cols_complete[-1]]})
 
     return pd.Series(result)
 
