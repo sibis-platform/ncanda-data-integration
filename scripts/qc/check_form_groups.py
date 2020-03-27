@@ -26,7 +26,7 @@ FORM_GROUPS = {
         'np_wrat4_word_reading_and_math_computation',
         'np_grooved_pegboard',
         'np_reyosterrieth_complex_figure_files',
-        'np_reyosterrieth_complex_figure',
+        # 'np_reyosterrieth_complex_figure',
         'np_modified_greglygraybiel_test_of_ataxia',
         'np_waisiv_coding'
     ],
@@ -85,12 +85,23 @@ def process_form_group(forms, inventory_dir, form_group_name: str = 'Check?'):
             for form in forms}
     for form in forms:
         form_data = data[form]
-        idx_missing = form_data['missing'] == 1
-        idx_exclude = form_data['exclude'] == 1
-        idx_present = (form_data['non_nan_count'] > 0) & (form_data['exclude'] != 1)
-        idx_empty = (form_data['non_nan_count'] == 0) & (form_data['missing'] != 1)
 
-        data[form].loc[idx_missing, form] = 'MISSING'
+        try:
+            idx_missing = form_data['missing'] == 1
+            data[form].loc[idx_missing, form] = 'MISSING'
+        except KeyError:
+            pass
+
+        idx_exclude = form_data['exclude'] == 1
+        idx_present = ((form_data['non_nan_count'] > 0)
+                       & (form_data['exclude'] != 1))
+        idx_empty = form_data['non_nan_count'] == 0
+        if 'missing' in form_data:
+            # NOTE: This is failing for cases where Rey-O wasn't
+            # done, so Figure Scores are all hidden and couldn't
+            # be done either
+            idx_empty = idx_empty & (form_data['missing'] != 1)
+
         data[form].loc[idx_exclude, form] = 'EXCLUDED'
         data[form].loc[idx_present, form] = 'PRESENT'
         data[form].loc[idx_empty, form] = 'EMPTY'
