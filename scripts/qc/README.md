@@ -24,7 +24,7 @@ The plan is to make inventories nightly in `/fs/ncanda-share/log/make_all_invent
 ```bash
 INVENTORY_DIR=/fs/ncanda-share/log/make_all_inventories/inventory/
 REPORT_DIR=/fs/ncanda-share/log/make_all_inventories/reports/
-EVENT=4y_visit_arm_1
+EVENT=5y_visit_arm_1
 for filter in probably_not_missing_but_unmarked \
               probably_missing_but_marked_present \
               probably_missing_but_unmarked \
@@ -50,13 +50,13 @@ Some forms should co-occur. `check_form_groups.py` can be run on previously made
 You get a full classification of forms by default. If you supply `-x` / `--failures-only`, you'll receive only files with the problematic cases.
 
 ```bash
-INVENTORY_BY_SITE_ROOTDIR=/fs/ncanda-share/log/make_all_inventories/inventory_by_site
+INVENTORY_ROOTDIR=/fs/ncanda-share/log/make_all_inventories/
 EVENT=5y_visit_arm_1
 for site in sri duke ohsu upmc ucsd; do 
    for group in deldisc youth_report mri deldisc_stroop; do 
-      ./check_form_groups.py -x -g $group \
-         -o $INVENTORY_BY_SITE_ROOTDIR/$site/$EVENT/form_groups/${site}_${group}.csv \
-         $INVENTORY_BY_SITE_ROOTDIR/$site/$EVENT/ 
+      ./check_form_groups.py -x --form-group $group \
+         -o $INVENTORY_ROOTDIR/report_by_site/$site/$EVENT/form_groups/${site}_${group}.csv \
+         $INVENTORY_ROOTDIR/inventory_by_site/$site/$EVENT/ 
    done
 done
 ```
