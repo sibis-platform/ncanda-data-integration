@@ -3,7 +3,7 @@ import hashlib
 from sibispy import sibislogger as slog
 
 # have to post issues that way so that github is not overwhelmed with calls 
-def post_issue_and_exit(script, infile, verbose, post_to_github, issue_label, issue_title, **kwargs) : 
+def post_issue(script, infile, verbose, post_to_github, issue_label, issue_title, **kwargs):
     slog.init_log(verbose, post_to_github,'NCANDA Import-Laptop: ' + script + ' Message', script)
 
     if 'post_resolution_instructions' not in kwargs:
@@ -13,6 +13,10 @@ def post_issue_and_exit(script, infile, verbose, post_to_github, issue_label, is
         del kwargs['post_resolution_instructions']
     
     slog.info(issue_label + "-" + hashlib.sha1(infile.encode()).hexdigest()[0:6], issue_title, cmd = " ".join(sys.argv), post_resolution_instructions = infoTxt, **kwargs) 
-  
-    sys.exit(1)
 
+
+def post_issue_and_exit(script, infile, verbose, post_to_github, issue_label,
+                        issue_title, **kwargs):
+    post_issue(script, infile, verbose, post_to_github, issue_label,
+               issue_title, **kwargs)
+    sys.exit(1)

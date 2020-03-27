@@ -17,11 +17,14 @@ import math
 import argparse
 import hashlib
 import numpy as np
+from pathlib import Path
+
+from convert_util import post_issue
+
 
 def post_issue_and_exit(issue_label, issue_title, **kwargs):
     import convert_util
     convert_util.post_issue_and_exit('stroop2csv', args.infile, args.verbose, args.post_to_github, issue_label, issue_title, **kwargs)
-
 
 # Setup command line parser
 parser = argparse.ArgumentParser( description="Convert e-Prime Stroop log file to CSV score file" )
@@ -103,6 +106,25 @@ if os.path.exists(output_filename):
             errMsg = 0
 
         sys.exit(errMsg)
+
+# Check that the extracted ID hasn't changed from sites
+_upload_path = Path(args.infile).parent.name
+_upload_id = _upload_path[0:11]
+_upload_site = _upload_path[0]
+if subject_id[0] != _upload_site and (_upload_site in 'ABCDE'):
+    post_issue(script='stroop2csv',
+               infile=args.infile,
+               verbose=args.verbose,
+               post_to_github=args.post_to_github,
+               issue_label="StroopIDChange",
+               issue_title="Warning: stroop2csv file changed sites",
+               to_resolve="Instruct the site to review the Import record "
+                          "and, if appropriate, correct the subject ID.",
+               post_resolution_instructions="Close after notifying site.",
+               reopened="If this issue has reopened, the file is being "
+               "reprocessed. Add it to special_cases.yml::harvester::ignore.",
+               old_id=_upload_id,
+               new_id=subject_id)
 
 # convert response time to integer
 RT=[float(x) for x in RT]
