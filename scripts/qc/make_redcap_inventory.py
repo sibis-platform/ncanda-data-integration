@@ -84,8 +84,10 @@ def get_flag_and_meta(row: pd.Series, verbose: bool = True) -> pd.Series:
     cols_dag = get_items_matching_regex('redcap_data_access_group', columns)
     cols_complete = get_items_matching_regex(
         "_complete$|^np_reyo_qc___completed$", columns)
+    # np_gpeg_exclusion isn't exactly right - it's like a partial missingness
+    # reason?
     cols_ignore = get_items_matching_regex(
-        "^visit_ignore___yes$|_exclude$", columns)
+        "^visit_ignore___yes$|_exclude$|^np_gpeg_exclusion", columns)
     cols_missing = get_items_matching_regex(
         # "^np_reyo_qc___completed$|^bio_mr_same_as_np_day___yes$|_missing$",
         "^bio_mr_same_as_np___yes$|_missing$", columns)
