@@ -7,31 +7,27 @@ import pandas as pd
 import sys
 # import sibispy
 
+# Reports
 
-def probably_not_missing_but_unmarked(inventory):
-    # -> Site should confirm that hits can be automatically marked "not missing"
-    return (inventory['non_nan_count'] > 0) & (inventory['missing'].isnull())
+## 1. Reports that indicate mistakes (site check required)
 
-
-def probably_missing_but_marked_present(inventory):
+# empty_marked_present
+def empty_marked_present(inventory):
     # -> Site should investigate why the form was marked "not missing"
-    return (inventory['non_nan_count'] == 0) & (inventory['missing'] == 0)
+    return ((inventory['non_nan_count'] == 0)
+            & (inventory['missing'] == 0)
+            & (inventory['exclude'] != 1)
+            & (inventory['form_name'] != 'biological_mr'))  # false positives
 
 
-def probably_missing_but_unmarked(inventory):
-    # -> Site should confirm that hits can be automatically marked "missing"
-    return (inventory['non_nan_count'] == 0) & inventory['missing'].isnull()
+# content_marked_missing
+def content_marked_missing(inventory):
+    # -> Missingness likely applied by mistake, should be switched to present
+    return ((inventory['missing'] == 1) 
+            & (inventory['non_nan_count'] > 0)
+            & (inventory['exclude'] != 1))
 
-
-def content_not_marked_complete(inventory):
-    # -> Site should confirm that hits can be automatically marked "complete"
-    return (inventory['non_nan_count'] > 0) & (inventory['complete'] < 2)
-
-
-def missing_not_marked_complete(inventory):
-    # -> Site should confirm that hits can be automatically marked "complete"
-    return (inventory['missing'] == 1) & (inventory['complete'] < 2)
-
+## 2. Reports that contain possible omissions (site check recommended)
 
 def less_content_than_max(inventory):
     # -> Site should ensure that no content was omitted
@@ -39,20 +35,35 @@ def less_content_than_max(inventory):
     return ((inventory['non_nan_count'] > 0) &
             (inventory['non_nan_count'] < inventory['non_nan_count'].max()))
 
-
-def has_content_but_marked_missing(inventory):
-    # -> Missingness likely applied by mistake, should be switched to present
-    return ((inventory['missing'] == 1) & (inventory['non_nan_count'] > 0))
-
-
-def empty_and_not_complete(inventory):
-    # Useful only prior to data release - for marking all empties complete
-    return ((inventory['non_nan_count'] == 0) & (inventory['complete'] != 2))
+def empty_unmarked(inventory):
+    # -> Site should double-check that these cases are actually absent, and
+    #    mark missingness where appropriate
+    # (potentially better handled in check_form_groups)
+    return ((inventory['non_nan_count'] == 0)
+            & inventory['missing'].isnull()
+            & (inventory['exclude'] != 0))
 
 
-def empty_and_not_ignored(inventory):
-    # Cases that might just not have been filled in
-    return ((inventory['non_nan_count'] == 0) & (inventory['exclude'] != 1))
+## 3. Reports that indicate undermarking, and can be auto-marked (site consent requested)
+### 3a. Undermarking of non-missingness
+
+def content_unmarked(inventory):
+    # -> Site should confirm that hits can be automatically marked "not missing"
+    return (inventory['non_nan_count'] > 0) & (inventory['missing'].isnull())
+
+
+### 3b. Undermarking of completion
+def content_not_complete(inventory):
+    # -> Site should confirm that hits can be automatically marked "complete"
+    return (inventory['non_nan_count'] > 0) & (inventory['complete'] < 2)
+
+
+def missing_not_complete(inventory):
+    # -> Site should confirm that hits can be automatically marked "complete"
+    return (inventory['missing'] == 1) & (inventory['complete'] < 2)
+
+
+# Reports -- end
 
 
 def get_filter_results(inventorized_data, filter_function, verbose=False):
@@ -63,7 +74,7 @@ def get_filter_results(inventorized_data, filter_function, verbose=False):
         index = filter_function(inventorized_data)
     except KeyError as e:
         if verbose:
-            print(e)
+            print("Error in {}:".format(filter_function.__name__), str(e))
         return None
     else:
         return inventorized_data.loc[index]
@@ -94,18 +105,15 @@ if __name__ == '__main__':
     # TODO: There should be some way to auto-generate this - maybe embed the
     # filters in a file, import it, then get the names of all callables?
     FILTER_LIST = [
-            probably_not_missing_but_unmarked,
-            probably_missing_but_marked_present,
-            probably_missing_but_unmarked,
-            content_not_marked_complete,
-            missing_not_marked_complete,
-            less_content_than_max,
-            has_content_but_marked_missing,
-            empty_and_not_complete,
-            empty_and_not_ignored,
+        empty_marked_present,
+        content_marked_missing,
+        less_content_than_max,
+        empty_unmarked,
+        content_unmarked,
+        content_not_complete,
+        missing_not_complete,
     ]
     FILTERS = {x.__name__: x for x in FILTER_LIST}
-    
 
     args = parse_args(FILTERS.keys())
 
@@ -132,6 +140,7 @@ if __name__ == '__main__':
             if args.verbose:
                 print("Filter {} used on {} => no matches, skipping.".format(args.filter, filename))
         
-    (pd.concat(all_out, sort=False)
-     .to_csv(args.output, index=False, float_format="%.0f"))
+    if len(all_out) > 0:
+        (pd.concat(all_out, sort=False)
+         .to_csv(args.output, index=False, float_format="%.0f"))
     sys.exit(0)
