@@ -26,7 +26,11 @@ FORM_GROUPS = {
         'np_wrat4_word_reading_and_math_computation',
         'np_grooved_pegboard',
         'np_reyosterrieth_complex_figure_files',
+
+        # lacks "missing" -> classified as `EMPTY` if
+        # np_reyosterrieth_complex_figure_files is `MISSING`:
         # 'np_reyosterrieth_complex_figure',
+
         'np_modified_greglygraybiel_test_of_ataxia',
         'np_waisiv_coding'
     ],

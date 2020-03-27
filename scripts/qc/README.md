@@ -9,11 +9,9 @@ Almost all QC scripts in this directory check three form characteristics: missin
 Use `make_all_inventories.py` to create inventory files, both complete and split by Data Access Group. It will take care of any directory creation and, if you don't provide limiting forms and events, will make inventory for all forms and events available:
 
 ```bash
-./make_all_inventories.py -v --output-dir /tmp/inventories/all --split-by-dag-to /tmp/inventories/by_site
+./make_all_inventories.py -v --output-dir /fs/ncanda-share/log/make_all_inventories/inventory \
+   --split-by-dag-to /fs/ncanda-share/log/make_all_inventories/inventory_by_site
 ```
-
-The plan is to make inventories nightly in `/fs/ncanda-share/log/make_all_inventories`.
-
 
 (Under the hood, `make_all_inventories.py` is using the machinery in `make_redcap_inventory.py`, which can also be called via CLI if needed.)
 
@@ -25,14 +23,13 @@ The plan is to make inventories nightly in `/fs/ncanda-share/log/make_all_invent
 INVENTORY_DIR=/fs/ncanda-share/log/make_all_inventories/inventory/
 REPORT_DIR=/fs/ncanda-share/log/make_all_inventories/reports/
 EVENT=5y_visit_arm_1
-for filter in probably_not_missing_but_unmarked \
-              probably_missing_but_marked_present \
-              probably_missing_but_unmarked \
-              content_not_marked_complete \
-              missing_not_marked_complete \
-              has_content_but_marked_missing \
-              empty_and_not_complete \
-              less_content_than_max; do
+for filter in empty_marked_present \
+              content_marked_missing \
+              less_content_than_max \
+              empty_unmarked \
+              content_unmarked \
+              content_not_complete, \
+              missing_not_complete; do
    for file in ${INVENTORY_DIR}/${EVENT}/*.csv; do
         mkdir -p "${REPORT_DIR}/${EVENT}/${filter}";
         new_name=$(basename "$file");
@@ -40,8 +37,21 @@ for filter in probably_not_missing_but_unmarked \
    done; 
 done
 ```
+The filters can consume inventories that are split in arbitrary manner. This means, for example, that you can keep whatever filter/check you're running separated by DAG if you so desire. You can also concatenate the form checks in order to get a single filter file out:
 
-The inventories can be consumed by any scripts. This is advantageous in many ways; for example, you can keep whatever filter/check you're running separated by DAG if you so desire.
+```bash
+ROOT_DIR=/fs/ncanda-share/log/make_all_inventories/
+EVENT=5y_visit_arm_1
+FILTERS="empty_marked_present content_marked_missing"
+for filter in $FILTERS; do
+   for site in sri duke ohsu upmc ucsd; do
+      OUTDIR=$ROOT_DIR/report_by_site/$site/$EVENT
+      mkdir -p $OUTDIR
+      python filter_inventory.py -v -i $ROOT_DIR/inventory_by_site/$site/$EVENT/*.csv \
+         -o "${OUTDIR}/${filter}.csv" $filter
+   done
+done
+```
 
 ### Checking form groups
 
@@ -53,7 +63,7 @@ You get a full classification of forms by default. If you supply `-x` / `--failu
 INVENTORY_ROOTDIR=/fs/ncanda-share/log/make_all_inventories/
 EVENT=5y_visit_arm_1
 for site in sri duke ohsu upmc ucsd; do 
-   for group in deldisc youth_report mri deldisc_stroop; do 
+   for group in deldisc youth_report np mri deldisc_stroop; do 
       ./check_form_groups.py -x --form-group $group \
          -o $INVENTORY_ROOTDIR/report_by_site/$site/$EVENT/form_groups/${site}_${group}.csv \
          $INVENTORY_ROOTDIR/inventory_by_site/$site/$EVENT/ 
