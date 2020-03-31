@@ -1,0 +1,17 @@
+#!/bin/bash -l
+
+# Set the SIBIS environment variable to ncanda-data-integration location
+export SIBIS=`realpath $(dirname $0)/../../`
+export SCRIPT_LABEL="qc-weekly"
+
+[ -r $HOME/.bashrc ] && . $HOME/.bashrc
+
+# Import some useful functions
+. $(dirname $0)/crontools.sh
+
+LOG_DIR=${SIBIS_ANALYSIS_DIR}/log/qc
+INVENTORY_DIR=${SIBIS_ANALYSIS_DIR}/log/make_all_inventories
+
+catch_output_email "${SCRIPT_LABEL}:QC inventories (make_all_inventories)" \
+  $SIBIS/scripts/qc/make_all_inventories.py \
+    -o $INVENTORY_DIR/inventory -d $INVENTORY_DIR/inventory_by_site

@@ -1,4 +1,5 @@
 import pandas as pd
+import redcap as rc
 
 
 """
@@ -113,9 +114,9 @@ def form_has_content_and_is_not_missing(row):
 # and adapted to scope down to forms
 
 # FIXME: Possibly duplicates chunk edges? Need to check it out
-def chunked_form_export(project, forms, events=None, include_dag=False, chunk_size=100):
+def chunked_form_export(project, forms, events=None, include_dag=False, chunk_size=100, fields=[]):
     if isinstance(forms, str):
-        forms = [form]
+        forms = [forms]
     if isinstance(events, str):
         events = [events]
         
@@ -131,8 +132,8 @@ def chunked_form_export(project, forms, events=None, include_dag=False, chunk_si
         for record_chunk in chunks(records, chunk_size):
             record_count = record_count + chunk_size
             #print record_count
-            chunked_response = project.export_records(records=record_chunk, 
-                                                      fields=[project.def_field],
+            chunked_response = project.export_records(records=record_chunk,
+                                                      fields=[project.def_field] + fields,
                                                       forms=forms,
                                                       events=events,
                                                       export_data_access_groups=include_dag,
