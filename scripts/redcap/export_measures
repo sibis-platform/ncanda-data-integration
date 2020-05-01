@@ -18,6 +18,7 @@ import hashlib
 
 import yaml
 import pandas
+import tqdm
 
 import sibispy
 from sibispy import sibislogger as slog
@@ -71,6 +72,7 @@ parser.add_argument("-t", "--time-log-dir",
                     help="If set then time logs are written to that directory",
                     action="store",
                     default=None)
+parser.add_argument('--progress-bar', help="Show TQDM progress bar", action="store_true")
 args = parser.parse_args()
 
 slog.init_log(args.verbose, args.post_to_github, 'NCANDA ', 'export_measures',
@@ -279,7 +281,14 @@ if args.verbose:
     print("Exporting %d REDCap records." % len( visit_log_redcap ))
 
 # Iterate over all remaining rows
-for [key,row] in visit_log_redcap.iterrows():
+if args.progress_bar:
+    record_iterator = tqdm.tqdm(visit_log_redcap.iterrows(),
+                                total=visit_log_redcap.shape[0],
+                                unit="subjects")
+else:
+    record_iterator = visit_log_redcap.iterrows()
+
+for [key, row] in record_iterator:
     # map the redcap subject key to readable vars
     redcap_subject, redcap_event = key
     
