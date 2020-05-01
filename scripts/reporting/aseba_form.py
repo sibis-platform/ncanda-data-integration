@@ -17,6 +17,7 @@ from builtins import object
 import time
 from collections import OrderedDict
 
+
 # TODO: Might be cleaner for this to be a @staticmethod of FormASEBA?
 def get_aseba_form(form_type):
     """
@@ -30,6 +31,7 @@ def get_aseba_form(form_type):
         return FormCBC()
     else:
         raise NotImplementedError("Form type %s not implemented!" % form_type)
+
 
 class FormASEBA(object):
     """
@@ -88,6 +90,7 @@ class FormASEBA(object):
         *_output_reformat.py files is sufficient progress for now.
         """
         raise NotImplementedError("Must be defined by subclass!")
+
 
 class FormASR(FormASEBA):
     """
