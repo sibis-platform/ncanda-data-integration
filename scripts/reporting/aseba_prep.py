@@ -180,10 +180,11 @@ output_df = pd.merge(general_df, aseba_df_bpitems,
 # - maybe it would be more pythonic to just assign range(n) to the column.
 output_df = output_df.reset_index()
 
-# NOTE: Provisional, to compare with old output more easily
-output_df['redcap_event_name'] = (output_df['visit']
-                                  .str.replace('^followup_', '')
-                                  + '_visit_arm_1')
+# # NOTE: Provisional, to compare with old output more easily
+# output_df['redcap_event_name'] = (output_df['visit']
+#                                   .str.replace('^followup_', '')
+#                                   + '_visit_arm_1')
+output_df['redcap_event_name'] = output_df['visit']
 output_df.sort_values(by=['study_id', 'redcap_event_name'], inplace=True)
 output_df = output_df.reset_index(drop=True)
 
