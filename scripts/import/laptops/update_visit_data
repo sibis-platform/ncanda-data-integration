@@ -22,6 +22,7 @@ import pandas
 import redcap
 import requests
 import hashlib 
+from tqdm import tqdm
 
 import sibispy
 from sibispy import sibislogger as slog
@@ -331,6 +332,8 @@ parser.add_argument("-t","--time-log-dir",
                     action="store",
                     default=None)
 
+parser.add_argument('--progress-bar', help="Show TQDM progress bar", action="store_true")
+
 args = parser.parse_args()
 
 
@@ -567,7 +570,10 @@ for form_prefix, form_name in forms.items():
 
     # Go over all summary records (i.e., the visit log) from entry project and find corresponding imported records
     index = 0
-    for key, row in entry_form_data.iterrows():
+    for key, row in tqdm(entry_form_data.iterrows(),      # the actual iterator
+                         total=entry_form_data.shape[0],  # progress bar meta
+                         desc=form_prefix,
+                         disable=not args.progress_bar):
         if args.verbose :
             print("Processing", key)
         # Select imported records for this subject

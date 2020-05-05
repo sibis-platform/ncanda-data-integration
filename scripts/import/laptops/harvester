@@ -13,6 +13,7 @@ import argparse
 import subprocess
 
 import sys
+from tqdm import tqdm
 
 from sibispy import sibislogger as slog
 from sibispy.svn_util import SibisSvnException, UpdateActionTypes
@@ -93,6 +94,8 @@ parser.add_argument("--omit-svn-update",
                     help="Do not run svn update. It is set to true when script is called with --file-to-upload. Only explicitly set flag when debugging an issue",
                     action="store_true",
                     default=False)
+
+parser.add_argument('--progress-bar', help="Show TQDM progress bar", action="store_true")
 
 # NOTE: Although most of the harvester logic is abstracted into functions, note
 #       that most functions rely on the `args` variable to be available from
@@ -417,7 +420,8 @@ if args.verbose :
 # Append single file to upload
 
 # Process all updated or added files
-for file in updated_files:
+# Equivalent to for file in updated_files, but with optional progress bar
+for file in tqdm(updated_files, unit="files", disable=not args.progress_bar):
     # Test if excemption is set 
     if file.startswith(svndir):
         check_file = file[len(svndir):]
