@@ -10,7 +10,7 @@ import pandas as pd
 import csv
 import argparse
 
-from .datadict_utils import load_datadict, insert_rows_at
+from datadict_utils import load_datadict, insert_rows_at
 
 parser = argparse.ArgumentParser(
     description="Apply patches to the current data dictionary.",
@@ -18,15 +18,13 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument('-c', '--current',
                     help="CSV file with the current data dictionary",
-                    action="store", required=True,
-                    type=argparse.FileType('r'))
+                    action="store", required=True)
 parser.add_argument('-o', '--output',
                     help="CSV file to write output in.",
                     action="store",
                     default=sys.stdout)
 parser.add_argument('patch_files', help="CSV file(s) with patch for datadict",
                     nargs='+',
-                    type=argparse.FileType('r'),
                     action="store")
 parser.add_argument('-v', '--verbose',
                     help="Write to stdout what the script is doing",
