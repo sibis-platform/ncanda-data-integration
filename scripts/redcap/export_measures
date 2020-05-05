@@ -18,7 +18,7 @@ import hashlib
 
 import yaml
 import pandas
-import tqdm
+from tqdm import tqdm
 
 import sibispy
 from sibispy import sibislogger as slog
@@ -281,14 +281,10 @@ if args.verbose:
     print("Exporting %d REDCap records." % len( visit_log_redcap ))
 
 # Iterate over all remaining rows
-if args.progress_bar:
-    record_iterator = tqdm.tqdm(visit_log_redcap.iterrows(),
-                                total=visit_log_redcap.shape[0],
-                                unit="subjects")
-else:
-    record_iterator = visit_log_redcap.iterrows()
-
-for [key, row] in record_iterator:
+for [key, row] in tqdm(visit_log_redcap.iterrows(),  # the actual iterator
+                       total=visit_log_redcap.shape[0],
+                       unit="subjects",
+                       disable=not args.progress_bar):
     # map the redcap subject key to readable vars
     redcap_subject, redcap_event = key
     

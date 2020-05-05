@@ -13,7 +13,7 @@ import argparse
 import subprocess
 
 import sys
-import tqdm
+from tqdm import tqdm
 
 from sibispy import sibislogger as slog
 from sibispy.svn_util import SibisSvnException, UpdateActionTypes
@@ -419,12 +419,9 @@ if args.verbose :
  
 # Append single file to upload
 
-if args.progress_bar:
-    updated_file_iterator = tqdm.tqdm(updated_files, unit="files")
-else:
-    updated_file_iterator = updated_files
 # Process all updated or added files
-for file in updated_file_iterator:
+# Equivalent to for file in updated_files, but with optional progress bar
+for file in tqdm(updated_files, unit="files", disable=not args.progress_bar):
     # Test if excemption is set 
     if file.startswith(svndir):
         check_file = file[len(svndir):]
