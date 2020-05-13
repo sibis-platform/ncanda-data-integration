@@ -39,9 +39,10 @@ def empty_unmarked(inventory):
     # -> Site should double-check that these cases are actually absent, and
     #    mark missingness where appropriate
     # (potentially better handled in check_form_groups)
+    # (hits "grey" circles, but not just them)
     return ((inventory['non_nan_count'] == 0)
             & inventory['missing'].isnull()
-            & (inventory['exclude'] != 0))
+            & (inventory['exclude'] != 1))
 
 
 ## 3. Reports that indicate undermarking, and can be auto-marked (site consent requested)
@@ -55,7 +56,11 @@ def content_unmarked(inventory):
 ### 3b. Undermarking of completion
 def content_not_complete(inventory):
     # -> Site should confirm that hits can be automatically marked "complete"
-    return (inventory['non_nan_count'] > 0) & (inventory['complete'] < 2)
+    return ((inventory['non_nan_count'] > 0)
+            & (inventory['complete'] < 2)
+            # Computed forms that will be marked Complete once other forms are
+            & (inventory['form_name'] not in ['clinical', 'brief'])
+            )
 
 
 def missing_not_complete(inventory):
