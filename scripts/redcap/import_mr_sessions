@@ -756,8 +756,8 @@ columns = ['visit_date', 'visit_ignore___yes', 'mr_session_report_complete',
 mr_sessions_redcap = visit_log_redcap[events_filter][columns]
 
 forms_by_event_dict = dict()
-for event in redcap_project.events:
-    event_id = event['unique_event_name']
+for redcap_event in redcap_project.events:
+    event_id = redcap_event['unique_event_name']
     forms_by_event_dict[event_id] = set( form_event_mapping[form_event_mapping['unique_event_name'] == event_id ][form_key].tolist() )
 
 # Have pipeline feeder check for "excluded" subjects that might have previously entered the pipeline
@@ -795,6 +795,7 @@ foundFlag=False
 for [key, row] in mr_sessions_redcap.iterrows():
     index +=1 
     subject_label = key[0]
+    event = key[1]
 
     # just start where script stopped the last time 
     #if not foundFlag :
@@ -831,13 +832,13 @@ for [key, row] in mr_sessions_redcap.iterrows():
             # Update XNAT SID and PID for subjects that changed sites
             if subject_label in iter(export_measures_map.keys()):
                 sub_map = export_measures_map.get(subject_label)
-                event = key[1]
+                sub_event = key[1]
                 
                 id_map_def = sub_map.get('default')
                 sid = id_map_def.get('subject')
                 pipe_id = sid
 
-                [year,arm] = event.split('_',1)
+                [year,arm] = sub_event.split('_',1)
 
                 if year == 'baseline' :
                     id_map=sub_map.get('baseline')
@@ -904,8 +905,8 @@ for [key, row] in mr_sessions_redcap.iterrows():
                 # Make session data into dict for REDCap import
                 record = dict( row )
                 (record['study_id'], record['redcap_event_name']) = key
-                for (key,value) in xnat_data.items():
-                    record[key] = value
+                for (xnat_key, xnat_value) in xnat_data.items():
+                    record[xnat_key] = xnat_value
 
                 # only record the first upload - otherwise creating too many records
                 if records_uploaded :
