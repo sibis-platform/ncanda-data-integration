@@ -282,7 +282,7 @@ for eid in experiment_ids:
         continue
 
     # Do not change to True ! as xnat saves it as 'true' 
-    if 'phantommissingoverride' in experiment.fields and experiment.fields['phantommissingoverride'] != 'true':
+    if experiment.fields.get('phantommissingoverride') != 'true':
         count_phantom += 1
         check_experiment(session, eid, experiment)
 
