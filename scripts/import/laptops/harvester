@@ -186,14 +186,14 @@ def run_converter(site, subject_label, command, verbose, infer_dag=False):
 
         for fi in added_files.strip().split('\n'):
             if re.match('.*\.csv$', fi):
-                if os.path.basename(fi).split('-')[0] in ['NOID', 'nan']: 
+                if os.path.normpath(fi) in ignore_processed:
+                    if verbose:
+                        print("Destination {} is ignored per configuration.".format(fi))
+                elif os.path.basename(fi).split('-')[0] in ['NOID', 'nan']: 
                     slog.info(subject_label + "-" +  hashlib.sha1('harvester {}'.format(fi).encode()).hexdigest()[0:6], 'converter_cmd created file that does not contain subject ID and thus cannot be uploaded to redcap',
                               file=str(fi),
                               converter_cmd=" ".join(command), 
                               harvester_cmd=" ".join(sys.argv)) 
-                elif os.path.normpath(fi) in ignore_processed:
-                    if verbose:
-                        print("Destination {} is ignored per configuration.".format(fi))
                 else:
                     try:
                         if verbose:
