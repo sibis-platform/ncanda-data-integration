@@ -80,36 +80,14 @@ def parse_args(input_args: List = None) -> argparse.Namespace:
 
 
 def process_form_group(forms, inventory_dir, form_group_name: str = 'Check?'):
-    # 1. condense each form to "data present?" (marked missing => data present
-    #    for purposes of entry completeness checking) and name this column
-    #    after the form
+    # 1. Rename the `status` column (missing/present/absent/excluded) created
+    #    in the inventory to the name of form, and only keep that column
     # 2. Set index to id,event,form
     # 3. Join on index, get anyplace where row.any() and not row.all()
     data = {form: (pd.read_csv(inventory_dir / F"{form}.csv"))
             for form in forms}
     for form in forms:
-        form_data = data[form]
-
-        try:
-            idx_missing = form_data['missing'] == 1
-            data[form].loc[idx_missing, form] = 'MISSING'
-        except KeyError:
-            pass
-
-        idx_exclude = form_data['exclude'] == 1
-        idx_present = ((form_data['non_nan_count'] > 0)
-                       & (form_data['exclude'] != 1))
-        idx_empty = form_data['non_nan_count'] == 0
-        if 'missing' in form_data:
-            # NOTE: This is failing for cases where Rey-O wasn't
-            # done, so Figure Scores are all hidden and couldn't
-            # be done either
-            idx_empty = idx_empty & (form_data['missing'] != 1)
-
-        data[form].loc[idx_exclude, form] = 'EXCLUDED'
-        data[form].loc[idx_present, form] = 'PRESENT'
-        data[form].loc[idx_empty, form] = 'EMPTY'
-
+        data[form].rename(columns={'status': form}, inplace=True)
         data[form] = (data[form]
                       .set_index(['study_id', 'redcap_event_name'])
                       .loc[:, [form]])
@@ -128,9 +106,16 @@ def process_form_group(forms, inventory_dir, form_group_name: str = 'Check?'):
 if __name__ == '__main__':
     args = parse_args()
     forms_to_process = FORM_GROUPS.get(args.form_group)
-    report = process_form_group(forms=forms_to_process,
-                                inventory_dir=args.input_dir,
-                                form_group_name=args.form_group)
+    try:
+        report = process_form_group(forms=forms_to_process,
+                                    inventory_dir=args.input_dir,
+                                    form_group_name=args.form_group)
+    except FileNotFoundError:
+        if args.verbose:
+            print("Data for form group {} not found in {}"
+                  .format(args.form_group, args.input_dir))
+        sys.exit(1)
+
     if args.failures_only:
         failures_only_df = report.loc[~report[args.form_group]]
         if not failures_only_df.empty:

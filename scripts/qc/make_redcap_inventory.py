@@ -68,6 +68,7 @@ def make_redcap_inventory(api: rc.Project,
         except ValueError:
             continue
         form_stats['form_name'] = form
+        form_stats['status'] = make_classification(form_stats)
         final_dfs.append(form_stats)
 
     return pd.concat(final_dfs, sort=False)
@@ -141,6 +142,37 @@ def get_flag_and_meta(row: pd.Series, verbose: bool = True) -> pd.Series:
             result.update({'complete': row[cols_complete[-1]]})
 
     return pd.Series(result)
+
+
+def make_classification(form: pd.DataFrame) -> pd.Series:
+    """
+    Return an indexed series of content classifications (present, missing,
+    excluded, empty)
+    """
+    output = pd.Series(index=form.index)
+    try:
+        idx_missing = form['missing'] == 1
+        output.loc[idx_missing] = 'MISSING'
+    except KeyError:
+        pass
+
+    idx_exclude = form['exclude'] == 1
+    idx_present = ((form['non_nan_count'] > 0)
+                   & (form['exclude'] != 1))
+    idx_empty = form['non_nan_count'] == 0
+    if 'missing' in form:
+        # NOTE: This is failing for cases where Rey-O wasn't
+        # done, so Figure Scores are all hidden and couldn't
+        # be done either
+        idx_empty = idx_empty & (form['missing'] != 1)
+
+    output.loc[idx_exclude] = 'EXCLUDED'
+    # output.loc[idx_present & ~idx_missing] = 'PRESENT'
+    # overrides MISSING in cases that have content
+    output.loc[idx_present] = 'PRESENT'
+    output.loc[idx_empty] = 'EMPTY'
+
+    return output
 
 
 if __name__ == '__main__':
