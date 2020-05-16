@@ -35,10 +35,38 @@ def find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified,
     edate_tomorrow = (this_date + datetime.timedelta(PHANTOM_DAY_LIMIT)).strftime('%Y-%m-%d')
     edate_yesterday = (this_date - datetime.timedelta(PHANTOM_DAY_LIMIT)).strftime('%Y-%m-%d')
 
-    # Search for all sessions on previous day after given time, or next day before given time (we already know there isn't a scan on the same date)
-    constraints = [('xnat:mrSessionData/SUBJECT_ID','LIKE',phantom_id), 'AND',
-                   [[('xnat:mrSessionData/DATE', '=', edate_yesterday), ('xnat:mrSessionData/TIME', '>=', etime), 'AND'],
-                    [('xnat:mrSessionData/DATE', '=', edate_tomorrow), ('xnat:mrSessionData/TIME', '<=', etime), 'AND'], 'OR']]
+    # Simple approach: search only on dates (meaning we might accidentally pick
+    # something that's N days + M hours later):
+    # constraints = [('xnat:mrSessionData/SUBJECT_ID', 'LIKE', phantom_id), 'AND',
+    #                [('xnat:mrSessionData/DATE', '>=', edate_yesterday),
+    #                 ('xnat:mrSessionData/DATE', '<=', edate_tomorrow),
+    #                 'AND']]
+
+    # Full approach:
+    # eligible phantom happens *either*
+    # - ON the upper/lower bound dates, at which point time matters, OR
+    # - BETWEEN lower and upped bound dates, in which case we just need DATE to
+    #   be greater than lower bound and smaller than upper bound.
+    constraints = [('xnat:mrSessionData/SUBJECT_ID', 'LIKE', phantom_id),
+                   'AND',
+                   [
+                       [
+                           [('xnat:mrSessionData/DATE', '=', edate_yesterday),
+                            ('xnat:mrSessionData/TIME', '>=', etime),
+                            'AND'],
+                           [('xnat:mrSessionData/DATE', '=', edate_tomorrow),
+                            ('xnat:mrSessionData/TIME', '<=', etime),
+                            'AND'],
+                           'OR'
+                       ],
+                       [
+                           [('xnat:mrSessionData/DATE', '>', edate_yesterday),
+                            ('xnat:mrSessionData/DATE', '<', edate_tomorrow),
+                            'AND']
+                       ],
+                       'OR'
+                   ]]
+
     phantom_scans = list(ifc.search('xnat:mrSessionData', ['xnat:mrSessionData/SESSION_ID', 'xnat:mrSessionData/DATE', 'xnat:mrSessionData/TIME']).where(constraints).items())
 
     # Still haven't found anything - then there is no phantom scan
