@@ -1,0 +1,85 @@
+#!/usr/bin/env python
+
+##
+##  Copyright 2016 SRI International
+##  See COPYING file distributed along with the package for the copyright and license terms.
+##
+##  $HeadURL: https://www.nitrc.org/svn/ncanda-datacore/trunk/image_processing/utils/upload_pipeline_manual $
+##  $Revision: 2369 $
+##  $LastChangedDate: 2016-03-10 17:36:44 -0800 (Thu, 10 Mar 2016) $
+##  $LastChangedBy: dj0330 $
+##
+
+# Setup command line parser
+import argparse
+parser = argparse.ArgumentParser( description="Upload manual pipeline override files to XNAT." )
+parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument( "pipeline_path", help="Pipeline path to search for manual override files. This must contain one of the following: 'structural', 'diffusion', or 'restingstate'.", action="store")
+args = parser.parse_args()
+
+# Get XNAT EID and subject parent directory from given path.
+import re
+import os.path
+def get_path_eid_parent( path ):
+    if '/structural' in path:
+        parent = re.sub( '/structural(/.*|$)', '', path )
+        eid = open( os.path.join( parent, 'structural', 'native', 't1.eid' ) ).readline().split( ' ')[0]
+    elif '/diffusion' in path:
+        parent = re.sub( '/diffusion(/.*|$)', '', path )
+        eid = open( os.path.join( parent, 'diffusion', 'native', 'dti60b1000', 'eid' ) ).readline().split( ' ')[0]
+    elif '/restingstate' in path:
+        parent = re.sub( '/restingstate(/.*|$)', '', path )
+        eid = open( os.path.join( parent, 'restingstate', 'native', 'rs-fMRI', 'eid' ) ).readline().split( ' ')[0]
+    else:
+        parent = ''
+        eid = ''
+
+    return ( re.sub( '/.*', '', eid ),parent)
+
+# Check if input path is valid
+import sys
+(eid,parent) = get_path_eid_parent( args.pipeline_path )
+if eid == '' or parent == '':
+    sys.exit( "ERROR: could not determine whether path is structural, diffusion, or restingstate" )
+
+# Make list of manual files with paths relative to parent directory
+import os
+manual_files = []
+for root, dirs, files in os.walk( args.pipeline_path ):
+    if root.endswith( '/manual' ):
+        # Add everyting in a manual/ directory
+        for fname in files:	 
+            manual_files.append( os.path.join( root, fname ) )
+    else:
+        # Add README files also
+        for fname in files:
+            if re.match( 'README.*', fname.upper() ):
+                manual_files.append( os.path.join( root, fname ) )
+
+# Check whether there are any manual files; bail if not
+if len( manual_files ) == 0:
+    sys.exit( "No manual override files found." )
+
+# Make temporary ZIP file
+import tempfile
+(zip_file,zip_path) = tempfile.mkstemp()
+
+# Create ZIP archive
+import zipfile
+fzip = zipfile.ZipFile( zip_path, 'w' )
+for f in manual_files:
+    fzip.write( f, re.sub( parent, '', f )  )
+fzip.close()
+
+# Create interface using stored configuration
+import pyxnat
+ifc = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+
+# Upload ZIP file to experiment resource
+(project,subject) = ifc.select.experiment( eid ).attrs.mget( ['project','subject_ID'] )
+try:
+    ifc.select.project( project ).subject( subject ).experiment( eid ).resource('pipeline').put_zip( zip_path, overwrite=True, extract=True )
+except:
+    print("ERROR: unable to upload ZIP file",zip_path,"to experiment",eid)
+    sys.exit( 1 )
+
