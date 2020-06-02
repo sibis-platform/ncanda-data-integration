@@ -62,7 +62,7 @@ if len( manual_files ) == 0:
 
 # Make temporary ZIP file
 import tempfile
-(zip_file,zip_path) = tempfile.mkstemp()
+(zip_file,zip_path) = tempfile.mkstemp(suffix=".zip")
 
 # Create ZIP archive
 import zipfile
@@ -71,14 +71,24 @@ for f in manual_files:
     fzip.write( f, re.sub( parent, '', f )  )
 fzip.close()
 
-# Create interface using stored configuration
-import pyxnat
-ifc = pyxnat.Interface( config = os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg' ) )
+
+# Create sibispy session
+from sibispy import sibislogger as slog
+from sibispy.xnat_util import XNATResourceUtil
+import sibispy
+
+slog.init_log(False, False, 'upload_pipeline_manual', 'upload_pipeline_manual', '/tmp')
+session = sibispy.Session()
+session.configure()
+ifc = session.connect_server('xnat', True)
 
 # Upload ZIP file to experiment resource
-(project,subject) = ifc.select.experiment( eid ).attrs.mget( ['project','subject_ID'] )
+experiment = ifc.select.experiments[eid]
+
 try:
-    ifc.select.project( project ).subject( subject ).experiment( eid ).resource('pipeline').put_zip( zip_path, overwrite=True, extract=True )
+    resource = ifc.select.projects[ experiment.project ].subjects[ experiment.subject_id ].experiments[eid].resources['pipeline']
+    resource_util = XNATResourceUtil(resource)
+    resource_util.detailed_upload(zip_path, os.path.basename(zip_path), extract=True, overwrite=True)
 except:
     print("ERROR: unable to upload ZIP file",zip_path,"to experiment",eid)
     sys.exit( 1 )
