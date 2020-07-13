@@ -401,11 +401,13 @@ if not redcap_project :
 summary_field_names = [field['field_name'] for field in redcap_project.metadata]
 
 # Get list of all 0/1 encoded Yes/No fields (either radio or dropdown) - these need to be recoded when copied
-# NOTE: Regex altered to work with either order of Yes/No options
+# NOTE: Regex altered to work with either order of Yes/No options, and *only*
+#       when these are the only two options
+yesno_regex = r'^( *0, *No *\| *1, *Yes| *1, *Yes *\| *0, *No *)$'
 summary_fields_yn = [field['field_name'] for field in redcap_project.metadata
                      if ((field['field_type'] == "yesno") or
                          (field['field_type'] in ['radio', 'dropdown'] and
-                          re.match('([^0-9]*0, No[^0-9]*1, Yes.*|[^0-9]*1, Yes[^0-9]*0, No.*)',
+                          re.match(yesno_regex,
                                    field['select_choices_or_calculations'])))]
 
 # What forms are at what event?
