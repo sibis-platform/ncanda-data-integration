@@ -1192,16 +1192,34 @@ if len(scans_to_qc) > 1  and args.qc_csv :
     # Make it so everybody can read and write the file 
     os.chmod(qc_file,0o666)
 
+
 # Finally, update config stored on the server to have current date/time as the
 # time that this script was last run
+def update_xnat_config(xnat_api, config_uri: str, message: str) -> str:
+    """
+    Updates value held by XNAT at config_uri.
+
+    A side-effect of updating the value is that its `create_date` property is
+    updated to now. Note that this only happens when the value being uploaded
+    is different from the current value.
+    """
+    xnat_response = xnat_api._exec(uri=config_uri,
+                                   query={'inbody': 'true'},
+                                   method='PUT',
+                                   body=message,
+                                   headers={'content-type': 'text/plain'})
+    return xnat_response
+
+
 if not args.no_update:
     if args.verbose:
-        print("Flagging %d series for re-inspection during next script run" % \
-              len(experiments_for_next_run))
-    content = ifc._exec(uri=config_uri,
-                        query={'inbody':'true'},
-                        method='PUT',
-                        body=','.join(set(experiments_for_next_run)),
-                        headers={'content-type': 'text/plain'})
+        print("Flagging {} series for re-inspection during next script run"
+              .format(len(experiments_for_next_run)))
 
-slog.takeTimer1("script_time","{'NewSessions': " + str(len(new_session_links)) + "}")
+    # Ensure that the current value is different from whatever we're uploading
+    # so that create_date is always updated when we run an update
+    orig_content = update_xnat_config(ifc, config_uri, '~!BOGUS_VALUE!~')
+    new_content = update_xnat_config(ifc, config_uri,
+                                     ','.join(set(experiments_for_next_run)))
+
+slog.takeTimer1("script_time", "{'NewSessions': " + str(len(new_session_links)) + "}")
