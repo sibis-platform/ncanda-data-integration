@@ -400,10 +400,16 @@ if not redcap_project :
 # Get list of all field names in the summary project - this is to figure out which fields to copy
 summary_field_names = [field['field_name'] for field in redcap_project.metadata]
 
-# Get list of all 0/1 encoded Yes/No fields (either radio or dropdown) - these need to be recoded when copied
-# NOTE: Regex altered to work with either order of Yes/No options, and *only*
-#       when these are the only two options
-yesno_regex = r'^( *0, *No *\| *1, *Yes| *1, *Yes *\| *0, *No *)$'
+# Get list of all 0/1 encoded Yes/No fields (either radio or dropdown) - these
+# need to be recoded by map_yn_to_binary when copied.
+#
+# For legacy reasons, we're also recoding "2, Not sure" to 0, even though in
+# other non-responses (1717, ...) we're letting the value come through.
+#
+# NOTE: Regex altered to work with explicitly enumerated Yes/No/Not
+#       selected/Not Sure options; it will not work when other options are
+#       present, or when option text has a different phrasing.
+yesno_regex = r'^( *0, *No(t selected)? *\| *1, *Yes| *1, *Yes *\| *0, *No(t selected)? *)( *\| *2, *Not Sure *)?$'
 summary_fields_yn = [field['field_name'] for field in redcap_project.metadata
                      if ((field['field_type'] == "yesno") or
                          (field['field_type'] in ['radio', 'dropdown'] and
