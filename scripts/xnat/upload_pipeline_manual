@@ -87,9 +87,15 @@ experiment = ifc.select.experiments[eid]
 
 try:
     resource = ifc.select.projects[ experiment.project ].subjects[ experiment.subject_id ].experiments[eid].resources['pipeline']
+except KeyError as ke:
+    exp = ifc.select.projects[ experiment.project ].subjects[ experiment.subject_id ].experiments[eid]
+    resource = ifc.select.classes.ResourceCatalog(parent=exp, label='pipeline')
+
+try:
     resource_util = XNATResourceUtil(resource)
     resource_util.detailed_upload(zip_path, os.path.basename(zip_path), extract=True, overwrite=True)
-except:
+except Exception as ex:
     print("ERROR: unable to upload ZIP file",zip_path,"to experiment",eid)
+    print(ex)
     sys.exit( 1 )
 
