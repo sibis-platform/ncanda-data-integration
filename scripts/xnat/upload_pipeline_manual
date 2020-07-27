@@ -96,8 +96,9 @@ try:
     resource_util.detailed_upload(zip_path, os.path.basename(zip_path), extract=True, overwrite=True)
     file_list = "\n\t- ".join(manual_files)
     file_list = f"\t- {file_list}"
-    print(f"Uploaded files to XNAT:")
-    print(file_list)
+    if args.verbose:
+        print(f"Uploaded files to XNAT:")
+        print(file_list)
 except Exception as ex:
     print("ERROR: unable to upload ZIP file",zip_path,"to experiment",eid)
     print(ex)
