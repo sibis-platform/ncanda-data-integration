@@ -7,24 +7,33 @@
 
 # Setup command line parser
 import argparse
-parser = argparse.ArgumentParser( description="Retrieve CSV spreadsheet from WebCNP database at U Penn" )
-parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true" )
+from sibispy import config_file_parser as cfg_parser
+from typing import List
 
-period = parser.add_mutually_exclusive_group()
-period.add_argument( "--from-date", help="Retrieve only records from the specific date onwards. Give date as 'YYYY-MM-DD'.", action="store" )
-period.add_argument( "--on-date", help="Retrieve only records from the specific date. Give date as 'YYYY-MM-DD'.", action="store")
-period.add_argument( "--last-month", help="Retrieve only records of the last month.", action="store_true" )
-period.add_argument( "--last-3-months", help="Retrieve only records of the last 3 months.", action="store_true" )
-period.add_argument( "--last-year", help="Retrieve only records of the last year.", action="store_true" )
+def parse_args(input_args: List[str] = None):
+    parser = argparse.ArgumentParser( description="Retrieve CSV spreadsheet from WebCNP database at U Penn" )
+    parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true" )
 
-parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
-parser.add_argument("-t","--time-log-dir",
-                    help="If set then time logs are written to that directory",
-                    action="store",
-                    default=None)
-parser.add_argument( "out_dir", help="Directory for output files" )
+    period = parser.add_mutually_exclusive_group()
+    period.add_argument( "--from-date", help="Retrieve only records from the specific date onwards. Give date as 'YYYY-MM-DD'.", action="store" )
+    period.add_argument( "--on-date", help="Retrieve only records from the specific date. Give date as 'YYYY-MM-DD'.", action="store")
+    period.add_argument( "--last-month", help="Retrieve only records of the last month.", action="store_true" )
+    period.add_argument( "--last-3-months", help="Retrieve only records of the last 3 months.", action="store_true" )
+    period.add_argument( "--last-year", help="Retrieve only records of the last year.", action="store_true" )
 
-args = parser.parse_args()
+    parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+    parser.add_argument("-t","--time-log-dir",
+                        help="If set then time logs are written to that directory",
+                        action="store",
+                        default=None)
+    parser.add_argument( "out_dir", help="Directory for output files" )
+
+    args = parser.parse_args()
+    return args
+
+
+args = parse_args()
+
 # Import everything we need from Selenium
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -57,63 +66,71 @@ if not sibis_session.configure() :
     slog.info("get_results_selenium","Error: session configure file was not found")
     sys.exit()
 
-browser = sibis_session.connect_server('browser_penncnp', True)
-if not browser: 
-    slog.info("get_results_selenium","Error: could not connect to penncnp")
-    sys.exit()
+config_parser, err = sibis_session.get_config_sys_parser()
+cnp_config = config_parser.get_category('session').get('penncnp')
 
-# Wait for export form and fill appropriately
-wait = sibis_session.initialize_penncnp_wait()
-export = sibis_session.get_penncnp_export_report(wait)
-if not export:
-    sys.exit(1)
 
-browser.find_element_by_name("incomplete").click()
+with sibis_session.connect_server('browser_penncnp', True) as browser:
+    if not browser: 
+        slog.info("get_results_selenium","Error: could not connect to penncnp")
+        sys.exit()
 
-# If "from-date" or "on-date" was given, select date and comparison operator
-# If one of the default options was passed, select _that_
-# Otherwise, the "ALL" default is used
-if args.from_date:
-    browser.find_element_by_name("date_of_test").send_keys(">>")    # selects ">="
-    browser.find_element_by_name("date_of_test_date").send_keys(args.from_date)
-elif args.on_date:
-    browser.find_element_by_name("date_of_test").send_keys("=")     # selects "="
-    browser.find_element_by_name("date_of_test_date").send_keys(args.on_date)
-elif args.last_month:
-    browser.find_element_by_name("date_of_test").send_keys("ll")    # selects "Last Month"
-elif args.last_3_months:
-    browser.find_element_by_name("date_of_test").send_keys("lll")   # selects "Last 3 Months"
-elif args.last_year:
-    browser.find_element_by_name("date_of_test").send_keys("llll")  # selects "Last Year"
+    # BATTERY_NAME = '42:  EVIONI2_battery'
+    # BATTERY_NAME = "302:  NCANDA"
+    BATTERY_NAME = cnp_config['battery']
 
-# 2018-09-04: Need to select right report 
-# After redesign, we need to use the autocomplete input, which doesn't have a unique ID
-# XPATH: /html/body/center/table[2]/tbody/tr[2]/td/center/center/form/table[2]/tbody/tr[7]/td/ul/li[1]/input[2]
-# Better: //select[@id="report_name"]/following-sibling::input[1]
-report_autocomplete_input = browser.find_element_by_xpath('//select[@id="report_name"]/following-sibling::input[1]')
-report_autocomplete_input.click()  # erases the current value, sometimes
-report_autocomplete_input.send_keys(Keys.BACKSPACE * 50)  # ...but just to be sure
-report_autocomplete_input.send_keys('42:  EVIONI2_battery')
-sleep(2)  # The input field can take a bit to load the autocomplete value that we're down-arrowing to
-report_autocomplete_input.send_keys(Keys.DOWN)
-report_autocomplete_input.send_keys(Keys.RETURN)
-# This will set the browser.find_element_by_name('report_name') to the correct value.
+    # Wait for export form and fill appropriately
+    wait = sibis_session.initialize_penncnp_wait()
+    export = sibis_session.get_penncnp_export_report(wait)
+    if not export:
+        sys.exit(1)
 
-# Click "export" button now.
-export.click()
+    browser.find_element_by_name("incomplete").click()
 
-# Wait for "Download" link, start download
-download = wait.until(EC.element_to_be_clickable((By.NAME,'download_excel')))
-download.click()
-logout = wait.until(EC.element_to_be_clickable((By.LINK_TEXT,'Logout')))
+    # If "from-date" or "on-date" was given, select date and comparison operator
+    # If one of the default options was passed, select _that_
+    # Otherwise, the "ALL" default is used
+    if args.from_date:
+        browser.find_element_by_name("date_of_test").send_keys(">>")    # selects ">="
+        browser.find_element_by_name("date_of_test_date").send_keys(args.from_date)
+    elif args.on_date:
+        browser.find_element_by_name("date_of_test").send_keys("=")     # selects "="
+        browser.find_element_by_name("date_of_test_date").send_keys(args.on_date)
+    elif args.last_month:
+        browser.find_element_by_name("date_of_test").send_keys("ll")    # selects "Last Month"
+    elif args.last_3_months:
+        browser.find_element_by_name("date_of_test").send_keys("lll")   # selects "Last 3 Months"
+    elif args.last_year:
+        browser.find_element_by_name("date_of_test").send_keys("llll")  # selects "Last Year"
 
-# At this point, the file should download and save automatically. We need to wait for that to complete.
-while glob.glob( '*.csv.part' ):
-    pass
+    # 2018-09-04: Need to select right report 
+    # After redesign, we need to use the autocomplete input, which doesn't have a unique ID
+    # XPATH: /html/body/center/table[2]/tbody/tr[2]/td/center/center/form/table[2]/tbody/tr[7]/td/ul/li[1]/input[2]
+    # Better: //select[@id="report_name"]/following-sibling::input[1]
+    report_autocomplete_input = browser.find_element_by_xpath('//select[@id="report_name"]/following-sibling::input[1]')
+    report_autocomplete_input.click()  # erases the current value, sometimes
+    report_autocomplete_input.send_keys(Keys.BACKSPACE * 50)  # ...but just to be sure
+    report_autocomplete_input.send_keys(BATTERY_NAME)
+    sleep(2)  # The input field can take a bit to load the autocomplete value that we're down-arrowing to
+    report_autocomplete_input.send_keys(Keys.DOWN)
+    report_autocomplete_input.send_keys(Keys.RETURN)
+    # This will set the browser.find_element_by_name('report_name') to the correct value.
 
-# To clean up, log out of CNP system and quit browser
-logout.click()
-sibis_session.disconnect_penncnp()
+    # Click "export" button now.
+    export.click()
+
+    # Wait for "Download" link, start download
+    download = wait.until(EC.element_to_be_clickable((By.NAME,'download_excel')))
+    download.click()
+    logout = wait.until(EC.element_to_be_clickable((By.LINK_TEXT,'Logout')))
+
+    # At this point, the file should download and save automatically. We need to wait for that to complete.
+    while glob.glob( '*.csv.part' ):
+        pass
+
+    # To clean up, log out of CNP system and quit browser
+    logout.click()
+# sibis_session.disconnect_penncnp()
 
 # Change back to original working directory
 os.chdir( original_wd )
