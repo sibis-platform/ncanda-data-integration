@@ -1216,18 +1216,18 @@ SPCPTNL_SCPT_FRNR,SPCPTNL_SCPT_FRNR,SPCPTNL_SCPT_FRNR,NumLet CPT Final Run of No
 SVOLTD_A_ScorVers,SVOLTD_A_ScorVers,SVOLTD,Current Programming Version of the Scoring Code,Visual Object Learning Test - Delayed Short Version
 SVOLTD_A_status,SVOLTD_A_status,SVDELAY_status,Status Code Assigned to SVOLTD,Visual Object Learning Test - Delayed Short Version
 SVOLTD_A_valid_code,SVOLTD_A_valid_code,SVDELAY_valid_code,Valid Code Assigned to SVOLTD,Visual Object Learning Test - Delayed Short Version
-SVOLTD_A_SVT_LD,SVOLTD_A_SVT_LD,SVDELAY_SVT_LD,SVOLTD Total Correct,Visual Object Learning Test - Delayed Short Version
-SVOLTD_A_SVTLDRTC,SVOLTD_A_SVTLDRTC,SVDELAY_SVTLDRTC,Median Response Time for SVOLTD Correct Responses (ms),Visual Object Learning Test - Delayed Short Version
-SVOLTD_A_SVTLDRTER,SVOLTD_A_SVTLDRTER,SVDELAY_SVTLDRTER,Median Response Time for SVOLTD Incorrect Responses (ms),Visual Object Learning Test - Delayed Short Version
-SVOLTD_A_SVT_LDTP,SVOLTD_A_SVT_LDTP,SVDELAY_SVT_LDTP,SVOLTD True Positive Responses,Visual Object Learning Test - Delayed Short Version
-SVOLTD_A_SVT_LDTN,SVOLTD_A_SVT_LDTN,SVDELAY_SVT_LDTN,SVOLTD True Negative Responses,Visual Object Learning Test - Delayed Short Version
-SVOLTD_A_SVT_LDFP,SVOLTD_A_SVT_LDFP,SVDELAY_SVT_LDFP,SVOLTD False Positive Responses,Visual Object Learning Test - Delayed Short Version
-SVOLTD_A_SVT_LDFN,SVOLTD_A_SVT_LDFN,SVDELAY_SVT_LDFN,SVOLTD False Negative Responses,Visual Object Learning Test - Delayed Short Version
-SVOLTD_A_SVT_LDTPRT,SVOLTD_A_SVT_LDTPRT,SVDELAY_SVT_LDTPRT,SVOLTD True Positive Median Response Time (ms),Visual Object Learning Test - Delayed Short Version
-SVOLTD_A_SVT_LDTNRT,SVOLTD_A_SVT_LDTNRT,SVDELAY_SVT_LDTNRT,SVOLTD True Negative Median Response Time (ms),Visual Object Learning Test - Delayed Short Version
-SVOLTD_A_SVT_LDFPRT,SVOLTD_A_SVT_LDFPRT,SVDELAY_SVT_LDFPRT,SVOLTD False Positive Median Response Time (ms),Visual Object Learning Test - Delayed Short Version
-SVOLTD_A_SVT_LDFNRT,SVOLTD_A_SVT_LDFNRT,SVDELAY_SVT_LDFNRT,SVOLTD False Negative Median Response Time (ms),Visual Object Learning Test - Delayed Short Version
-SVOLTD_A_SVT_EFFD,SVOLTD_A_SVT_EFFD,SVDELAY_SVT_EFFD,Short VOLT Delay Efficiency,Visual Object Learning Test - Delayed Short Version
+SVOLTD_A_SVOLTD_CR,SVOLTD_A_SVT_LD,SVDELAY_SVT_LD,SVOLTD Total Correct,Visual Object Learning Test - Delayed Short Version
+SVOLTD_A_SVOLTD_RTCR,SVOLTD_A_SVTLDRTC,SVDELAY_SVTLDRTC,Median Response Time for SVOLTD Correct Responses (ms),Visual Object Learning Test - Delayed Short Version
+SVOLTD_A_SVOLTD_RTER,SVOLTD_A_SVTLDRTER,SVDELAY_SVTLDRTER,Median Response Time for SVOLTD Incorrect Responses (ms),Visual Object Learning Test - Delayed Short Version
+SVOLTD_A_SVOLTD_TP,SVOLTD_A_SVT_LDTP,SVDELAY_SVT_LDTP,SVOLTD True Positive Responses,Visual Object Learning Test - Delayed Short Version
+SVOLTD_A_SVOLTD_TN,SVOLTD_A_SVT_LDTN,SVDELAY_SVT_LDTN,SVOLTD True Negative Responses,Visual Object Learning Test - Delayed Short Version
+SVOLTD_A_SVOLTD_FP,SVOLTD_A_SVT_LDFP,SVDELAY_SVT_LDFP,SVOLTD False Positive Responses,Visual Object Learning Test - Delayed Short Version
+SVOLTD_A_SVOLTD_FN,SVOLTD_A_SVT_LDFN,SVDELAY_SVT_LDFN,SVOLTD False Negative Responses,Visual Object Learning Test - Delayed Short Version
+SVOLTD_A_SVOLTD_TPRT,SVOLTD_A_SVT_LDTPRT,SVDELAY_SVT_LDTPRT,SVOLTD True Positive Median Response Time (ms),Visual Object Learning Test - Delayed Short Version
+SVOLTD_A_SVOLTD_TNRT,SVOLTD_A_SVT_LDTNRT,SVDELAY_SVT_LDTNRT,SVOLTD True Negative Median Response Time (ms),Visual Object Learning Test - Delayed Short Version
+SVOLTD_A_SVOLTD_FPRT,SVOLTD_A_SVT_LDFPRT,SVDELAY_SVT_LDFPRT,SVOLTD False Positive Median Response Time (ms),Visual Object Learning Test - Delayed Short Version
+SVOLTD_A_SVOLTD_FNRT,SVOLTD_A_SVT_LDFNRT,SVDELAY_SVT_LDFNRT,SVOLTD False Negative Median Response Time (ms),Visual Object Learning Test - Delayed Short Version
+SVOLTD_A_SVOLTD_EFF,SVOLTD_A_SVT_EFFD,SVDELAY_SVT_EFFD,Short VOLT Delay Efficiency,Visual Object Learning Test - Delayed Short Version
 SFNB2_ScorVers,SFNB2_ScorVers,SFNB2,Current Programming Version of the Scoring Code,Short Fractal-N-Back- 2 Back Version
 SFNB2_status,SFNB2_status,SFNB2_status,SFNB2 completion status,Short Fractal-N-Back- 2 Back Version
 SFNB2_valid_code,SFNB2_valid_code,SFNB2_valid_code,SFNB2 valid code,Short Fractal-N-Back- 2 Back Version
