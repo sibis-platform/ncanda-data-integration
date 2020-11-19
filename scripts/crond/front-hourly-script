@@ -1,0 +1,78 @@
+#!/bin/bash -l
+
+##
+##  See COPYING file distributed along with the ncanda-data-integration package
+##  for the copyright and license terms
+##
+
+# if on instance is running then it is at least has a count of 2 !
+num_scripts=`ps -ef | grep [c]rond/front-hourly | grep /bin/bash`
+if [ `echo $?` == 0 ]; then
+    num_scripts=`printf "$run_scripts\n" | wc -l`
+    if [ $num_scripts -gt 2 ]; then 
+	echo "Info: Not running front-hourly as instance(s) of it are already running"
+	printf $run_scripts
+	exit 0
+    fi 
+else 
+   echo "${SCRIPT_LABEL}:Warning: No front-hourly running ! Something is wrong with querry"
+fi 
+
+# Set the SIBIS environment variable to the data integration repo
+export SIBIS=`realpath $(dirname $0)/../../`
+export SCRIPT_LABEL="front-hourly"
+
+
+XNAT_FLAG=1
+IMPORT_FLAG=1
+
+
+
+[ -r $HOME/.bashrc ] && . $HOME/.bashrc
+
+# Import some useful functions
+. $(dirname $0)/crontools.sh
+
+LOG_DIR=${SIBIS_ANALYSIS_DIR}/log/front-hourly
+
+hour=$(date +%H)
+
+# Run QA on fBIRN and ADNI phantom scans
+qa_args="-v -p"
+if [ ${hour} -eq 0 ]; then
+    qa_args+=" -t ${LOG_DIR}"
+fi  
+if [ ${XNAT_FLAG} == 1 ]; then
+   catch_output_email "${SCRIPT_LABEL}:XNAT: QA Phantoms (phantom_qa)" ${SIBIS}/scripts/xnat/phantom_qa  ${qa_args}
+else
+   if [ ${hour} -eq 0 ]; then
+      echo "${SCRIPT_LABEL}: Warning: XNAT updates are disabled !"
+   fi
+fi
+
+
+# Import data from the sites' data capture laptops into REDCap and reconcile imported with longitudinal data
+if [ ${IMPORT_FLAG} == 1 ]; then
+   lastWeek=""
+   # do that so that if the script was interrupted the svn update is performed again - otherwise would loose data 
+   if [ ${hour} -eq 20 ]; then
+	lastWeek="--last-week"
+   fi	
+   catch_output_email "${SCRIPT_LABEL}:Import Laptop: Data Stage 1 (harvester)" ${SIBIS}/scripts/import/laptops/harvester --only-converter-post-to-github ${qa_args} ${lastWeek}
+else
+   if [ ${hour} -eq 0 ]; then
+      echo "${SCRIPT_LABEL}: Warning: Import from laptops  disabled !"
+   fi
+fi
+
+#
+# Previouly front-nighlty
+#
+
+# REDCap updates
+update_args=""
+if [ ${hour} -eq 0 ]; then
+    update_args+="--update-all -v"
+fi
+catch_output_email "${SCRIPT_LABEL}:REDCap: Update Scores (redcap_update_summary_scores)" $SIBIS_PYTHON_PATH/sibispy/cmds/redcap_update_summary_scores.py ${update_args} ${qa_args}
+
