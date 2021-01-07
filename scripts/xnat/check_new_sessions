@@ -21,6 +21,7 @@ import yaml
 import hashlib
 import bisect 
 import pandas as pd 
+import pathlib
 import traceback
 
 import sibispy
@@ -671,12 +672,33 @@ with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
     more_of_type_map = complete_file.get('more_of_type')
     fi.close()
 
-
-# Upload new QC results 
-upload_visual_qc.upload_findings_to_xnat(sibis_session,os.path.join(log_dir,'scans_to_review.csv'),True) 
-
 # Date format for XNAT dates
 now_str = time.strftime(xnat_date_format)
+
+# Upload new QC results 
+qc_file = os.path.join(log_dir, 'scans_to_review.csv')
+# Check the file exists, since we're now moving it after the upload, not only
+# when there's more questionable scans to be written to it
+if os.path.exists(qc_file):
+    questionable_scans_str = upload_visual_qc.upload_findings_to_xnat(
+        sibis_session,
+        qc_file,
+        sendEmailFlag=True)
+
+    if len(questionable_scans_str) > 0:
+        # archive file
+        reviewed_path = os.path.join(log_dir, 'reviewed')
+        if not os.path.exists(reviewed_path):
+            pathlib.Path(reviewed_path).mkdir(parents=True, exist_ok=True)
+
+        # Create a name for the archived file
+        archive_base_name = os.path.join(reviewed_path,
+                                         'qc_reviewed_' + now_str[0:10] + "_")
+        index = 1
+        while os.path.exists(archive_base_name + str(index) + '.csv'):
+            index += 1
+
+        os.rename(qc_file, archive_base_name + str(index) + '.csv')
 
 # Experiments to check from last run - these should be the ones we flagged last
 # time and stored on the server for reconsideration
@@ -1165,23 +1187,6 @@ if len(scans_to_qc) > 1  and args.qc_csv :
         
     if os.path.exists(qc_file + ".lock"): 
         qc_file=qc_file + ".tmp"
-
-    elif os.path.exists(qc_file): 
-        # check if something was reviewed 
-        existing_review = pd.read_csv(qc_file)
-        if len(existing_review.decision.value_counts()) : 
-            # archive file         
-            reviewed_path = os.path.join(log_dir, 'reviewed')
-            if not os.path.exists(reviewed_path):
-                import pathlib
-                pathlib.Path(reviewed_path).mkdir(parents=True, exist_ok=True)
-            
-            archive_base_name=os.path.join(reviewed_path, 'qc_reviewed_' + now_str[0:10] + "_") 
-            index=1 
-            while os.path.exists(archive_base_name + str(index) + '.csv') :
-                index += 1 
-            
-            os.rename(qc_file,archive_base_name + str(index) + '.csv')  
 
     if os.path.exists(qc_file):
         os.remove(qc_file) 
