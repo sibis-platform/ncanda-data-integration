@@ -11,7 +11,11 @@ import sibispy
 from sibispy import sibislogger as slog
 import os
 
-def upload_findings_to_xnat(sibis_session,qc_csv_file, sendEmailFlag): 
+def upload_findings_to_xnat(
+    sibis_session: sibispy.Session,
+    qc_csv_file: str,
+    sendEmailFlag: bool
+) -> str:
     if not os.path.exists(qc_csv_file):
         raise IOError("Please ensure {} exists!".format(qc_csv_file))
 
@@ -40,9 +44,11 @@ def upload_findings_to_xnat(sibis_session,qc_csv_file, sendEmailFlag):
                 src='upload_findings_to_xnat')
             continue
 
-        try : 
-            # quality
-            if row['decision']==1:
+        try:
+            # quality - only change if the scan isn't already marked `unusable`
+            if scan.get('quality') == 'unusable':
+                pass  # prevent the elifs that set scan quality from executing
+            elif row['decision']==1:
                 scan.set('quality','usable')
             elif row['decision']==0:
                 scan.set('quality','questionable')
@@ -54,7 +60,7 @@ def upload_findings_to_xnat(sibis_session,qc_csv_file, sendEmailFlag):
             else:
                 scan.set('quality','unknown')
 
-            # comment
+            # comment - always upload
             if isinstance(row['scan_note'],str) and len(row['scan_note'])>0:
                 scan.set('note',row['scan_note'])
 
@@ -76,6 +82,8 @@ def upload_findings_to_xnat(sibis_session,qc_csv_file, sendEmailFlag):
                    email._admin_email,
                    str(questionable_scans),
                    False)    
+
+    return questionable_scans
 
 #============================================================
 # Main
