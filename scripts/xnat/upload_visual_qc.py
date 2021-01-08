@@ -45,8 +45,8 @@ def upload_findings_to_xnat(
             continue
 
         try:
-            # quality - only change if the scan isn't already marked `unusable`
-            if scan.get('quality') == 'unusable':
+            # quality - only change if the scan quality isn't determined yet
+            if scan.get('quality') in ['unusable', 'usable', 'usable-extra']:
                 pass  # prevent the elifs that set scan quality from executing
             elif row['decision']==1:
                 scan.set('quality','usable')
