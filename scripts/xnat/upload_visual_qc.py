@@ -15,7 +15,7 @@ def upload_findings_to_xnat(
     sibis_session: sibispy.Session,
     qc_csv_file: str,
     sendEmailFlag: bool
-) -> str:
+) -> int:
     if not os.path.exists(qc_csv_file):
         raise IOError("Please ensure {} exists!".format(qc_csv_file))
 
@@ -27,6 +27,7 @@ def upload_findings_to_xnat(
        raise IOError("Reading of File {} failed with the following error message: {}".format(qc_csv_file,str(err_msg)))
  
     questionable_scans="" 
+    uploaded_scan_count = 0
     for index,row in fData.iterrows():
 
         exp=sibis_session.xnat_get_experiment(row['xnat_experiment_id'])
@@ -49,9 +50,11 @@ def upload_findings_to_xnat(
             if scan.get('quality') in ['unusable', 'usable', 'usable-extra']:
                 pass  # prevent the elifs that set scan quality from executing
             elif row['decision']==1:
-                scan.set('quality','usable')
+                scan.set('quality', 'usable')
+                uploaded_scan_count += 1
             elif row['decision']==0:
-                scan.set('quality','questionable')
+                scan.set('quality', 'questionable')
+                uploaded_scan_count += 1
                 questionable_scans +=  row['xnat_experiment_id'] + " " + str(row['scan_id']);
                 if isinstance(row['scan_note'],str) and len(row['scan_note'])>0:
                         questionable_scans +=  " " + row['scan_note']
@@ -83,7 +86,7 @@ def upload_findings_to_xnat(
                    str(questionable_scans),
                    False)    
 
-    return questionable_scans
+    return uploaded_scan_count
 
 #============================================================
 # Main

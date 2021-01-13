@@ -680,12 +680,12 @@ qc_file = os.path.join(log_dir, 'scans_to_review.csv')
 # Check the file exists, since we're now moving it after the upload, not only
 # when there's more questionable scans to be written to it
 if os.path.exists(qc_file):
-    questionable_scans_str = upload_visual_qc.upload_findings_to_xnat(
+    uploaded_scan_count = upload_visual_qc.upload_findings_to_xnat(
         sibis_session,
         qc_file,
         sendEmailFlag=True)
 
-    if len(questionable_scans_str) > 0:
+    if uploaded_scan_count > 0:
         # archive file
         reviewed_path = os.path.join(log_dir, 'reviewed')
         if not os.path.exists(reviewed_path):
