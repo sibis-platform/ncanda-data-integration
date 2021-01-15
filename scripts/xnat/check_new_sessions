@@ -664,6 +664,10 @@ sibis_config = sibis_session.get_operations_dir()
 if not os.path.exists(os.path.join(sibis_config, 'special_cases.yml')): 
     raise IOError("Please ensure special_cases.yml file exists at: {}".format(sibis_config))
 
+# Create lock file
+lock_file_path = os.path.join(log_dir, 'check_new_sessions.lock')
+open(lock_file_path, 'a').close()
+
 # load exceptions for QC check 
 with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
     complete_file = yaml.load(fi)
@@ -1226,5 +1230,7 @@ if not args.no_update:
     orig_content = update_xnat_config(ifc, config_uri, '~!BOGUS_VALUE!~')
     new_content = update_xnat_config(ifc, config_uri,
                                      ','.join(set(experiments_for_next_run)))
+
+remove_file(lock_file_path)
 
 slog.takeTimer1("script_time", "{'NewSessions': " + str(len(new_session_links)) + "}")
