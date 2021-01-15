@@ -11,7 +11,11 @@ import sibispy
 from sibispy import sibislogger as slog
 import os
 
-def upload_findings_to_xnat(sibis_session,qc_csv_file, sendEmailFlag): 
+def upload_findings_to_xnat(
+    sibis_session: sibispy.Session,
+    qc_csv_file: str,
+    sendEmailFlag: bool
+) -> int:
     if not os.path.exists(qc_csv_file):
         raise IOError("Please ensure {} exists!".format(qc_csv_file))
 
@@ -23,6 +27,7 @@ def upload_findings_to_xnat(sibis_session,qc_csv_file, sendEmailFlag):
        raise IOError("Reading of File {} failed with the following error message: {}".format(qc_csv_file,str(err_msg)))
  
     questionable_scans="" 
+    uploaded_scan_count = 0
     for index,row in fData.iterrows():
 
         exp=sibis_session.xnat_get_experiment(row['xnat_experiment_id'])
@@ -40,12 +45,16 @@ def upload_findings_to_xnat(sibis_session,qc_csv_file, sendEmailFlag):
                 src='upload_findings_to_xnat')
             continue
 
-        try : 
-            # quality
-            if row['decision']==1:
-                scan.set('quality','usable')
+        try:
+            # quality - only change if the scan quality isn't determined yet
+            if scan.get('quality') in ['unusable', 'usable', 'usable-extra']:
+                pass  # prevent the elifs that set scan quality from executing
+            elif row['decision']==1:
+                scan.set('quality', 'usable')
+                uploaded_scan_count += 1
             elif row['decision']==0:
-                scan.set('quality','questionable')
+                scan.set('quality', 'questionable')
+                uploaded_scan_count += 1
                 questionable_scans +=  row['xnat_experiment_id'] + " " + str(row['scan_id']);
                 if isinstance(row['scan_note'],str) and len(row['scan_note'])>0:
                         questionable_scans +=  " " + row['scan_note']
@@ -54,7 +63,7 @@ def upload_findings_to_xnat(sibis_session,qc_csv_file, sendEmailFlag):
             else:
                 scan.set('quality','unknown')
 
-            # comment
+            # comment - always upload
             if isinstance(row['scan_note'],str) and len(row['scan_note'])>0:
                 scan.set('note',row['scan_note'])
 
@@ -76,6 +85,8 @@ def upload_findings_to_xnat(sibis_session,qc_csv_file, sendEmailFlag):
                    email._admin_email,
                    str(questionable_scans),
                    False)    
+
+    return uploaded_scan_count
 
 #============================================================
 # Main
