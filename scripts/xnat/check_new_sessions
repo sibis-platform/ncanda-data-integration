@@ -1235,6 +1235,6 @@ if not args.no_update:
     new_content = update_xnat_config(ifc, config_uri,
                                      ','.join(set(experiments_for_next_run)))
 
-remove_file(lock_file_path)
+remove_file("", lock_file_path)
 
 slog.takeTimer1("script_time", "{'NewSessions': " + str(len(new_session_links)) + "}")
