@@ -38,7 +38,7 @@ LOG_DIR=${SIBIS_ANALYSIS_DIR}/log/front-hourly
 hour=$(date +%H)
 
 # Run QA on fBIRN and ADNI phantom scans
-qa_args="-v -p"
+qa_args="-p"
 if [ ${hour} -eq 0 ]; then
     qa_args+=" -t ${LOG_DIR}"
 fi  
@@ -72,7 +72,7 @@ fi
 # REDCap updates
 update_args=""
 if [ ${hour} -eq 0 ]; then
-    update_args+="--update-all -v"
+    update_args+="--update-all"
 fi
 catch_output_email "${SCRIPT_LABEL}:REDCap: Update Scores (redcap_update_summary_scores)" $SIBIS_PYTHON_PATH/sibispy/cmds/redcap_update_summary_scores.py ${update_args} ${qa_args}
 

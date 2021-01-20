@@ -2,7 +2,7 @@
 n=0
 until [ "$n" -ge 3 ]
 do
-    timeout 5h ./front-hourly-script && break
+    timeout 5h /sibis-software/ncanda-data-integration/scripts/crond/front-hourly-script && break
     n=$((n+1)) 
     sleep 15s
 done
