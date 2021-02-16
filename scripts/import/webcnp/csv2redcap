@@ -12,7 +12,7 @@ import string
 import os
 import hashlib
 
-import pandas
+import pandas as pd
 import sys
 
 import cnp
@@ -63,13 +63,37 @@ if not redcap:
         print("ERROR:Could not connect to redcap server!")
     sys.exit(1)
 
-
 # Read input file
-data = pandas.io.parsers.read_csv( args.infile )
+data = pd.read_csv(args.infile)
 
 # Replace periods in column labels with underscores
-data.rename( columns = lambda s: s.replace( '.', '_' ).lower(), inplace=True )
+data.rename(columns=lambda s: s.replace('.', '_').lower(), inplace=True)
 
+## New Survey->Evioni renames
+# Store current varnames for reference
+_current_varnames = [x['field_name'] for x in redcap.metadata]
+
+renames = pd.read_csv('NCANDA_Survey_Codebook.csv')
+for _var in ['survey_var', 'evioni_var']:  # fit the previous data file rename
+    renames[_var] = renames[_var].str.lower()
+
+rename_dict = (renames.set_index('survey_var')['evioni_var']
+               .dropna()
+               .to_dict())
+untranslated_vars = (renames.loc[renames['evioni_var'].isnull(), 'survey_var']
+                     .tolist())  # variables without cross-definition
+
+orig_data = data.copy()
+# data = data[rename_dict.keys()]  # only keep defined vars
+data.drop(columns=untranslated_vars, inplace=True)
+data.rename(columns=rename_dict, inplace=True)
+
+# Debugging seciton
+_missing_redcap_varnames = [x for x in _current_varnames if x not in data.columns.tolist() ] 
+_variables_without_redcap = [x for x in data.columns.tolist() if x not in _current_varnames]
+assert len(_variables_without_redcap) == 0
+
+## Remaining processing
 # Remove all sessions before ID 22000 - these are junk
 data = data[data['test_sessions_datasetid'] >= 22000]
 
@@ -121,6 +145,8 @@ data = data.drop( ['test_sessions_subid', 'test_sessions_dotest'], axis=1 )
 
 # Bring original "siteid" column back to assign each record to the correct data access group
 data['redcap_data_access_group'] = data['test_sessions_siteid'].map(lambda s: s.lower());
+# In new version, all sites are prefixed with 'NCAN', so we must strip that
+data['redcap_data_access_group'] = data['redcap_data_access_group'].str.replace('ncan', '')
 
 # Make list of dicts for REDCap import
 uploaded = 0
