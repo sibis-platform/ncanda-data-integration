@@ -1,1 +1,2 @@
+MAILTO=jim.klo@sri.com
 0 21 * * *      /sibis-software/ncanda-data-integration/scripts/crond/back-nightly
