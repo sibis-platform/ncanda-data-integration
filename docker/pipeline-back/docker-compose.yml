@@ -13,7 +13,7 @@ services:
       # Secrets to mount into the container
       - ../secrets/.sibis:/root/.sibis
       - ../secrets/.sibis:/home/ncanda/.sibis
-      - ../secrets/.sibi/aws:/home/ncanda/.aws
+      - ../secrets/.sibis/aws:/home/ncanda/.aws
       - ../secrets/.sibis/aes:/root/aes
 
       # These are additional resource dirs to customize the container for ncanda
