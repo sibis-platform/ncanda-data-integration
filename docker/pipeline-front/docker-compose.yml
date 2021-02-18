@@ -2,9 +2,9 @@ version: "3.7"
 
 services:
   front:
-    image: pipeline-back:latest
+    image: pipeline-main:latest
     init: true
-    hostname: ${PLBACK_HOSTNAME}
+    hostname: ${PLFRONT_HOSTNAME}
     extra_hosts:
       - "localhost.localdomain:127.0.0.1"
       # - "node00:192.168.71.160"
@@ -35,15 +35,15 @@ services:
       - /data/xnat/xnat_archive.sqlite:/root/xnat_archive.sqlite
       - /sibis-software/ncanda-data-integration:/sibis-software/ncanda-data-integration
       - /sibis-software/python-packages:/sibis-software/python-packages
-      - /data:/fs/storage
-      - /data/xnat:/fs/ncanda-xnat
-      - /data/share:/fs/ncanda-share
-      - /opt/sge/default:/opt/sge/default
+      - /fs/storage:/fs/storage
+      - /fs/storage/xnat:/fs/ncanda-xnat
+      - /fs/storage/share:/fs/ncanda-share
+#      - /opt/sge/default:/opt/sge/default
       - /mnt/svn:/mnt/svn
     environment:
       # - SVC_CRON=1
       - SMTP_SERVER=${SMTP_SERVER:-127.0.0.1}
-      - DOCKER_CONTAINER_NAME=${PLBACK_DOCKER_CONTAINER_NAME}
+      - DOCKER_CONTAINER_NAME=${PLFRONT_DOCKER_CONTAINER_NAME}
     restart: unless-stopped
     networks:
       default-net:
