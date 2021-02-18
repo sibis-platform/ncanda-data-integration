@@ -2,7 +2,7 @@ version: "3.7"
 
 services:
   back:
-    image: pipeline-back:latest
+    image: pipeline-main:latest
     init: true
     hostname: ${PLBACK_HOSTNAME}
     extra_hosts:
