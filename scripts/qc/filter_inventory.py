@@ -59,7 +59,7 @@ def content_not_complete(inventory):
     return ((inventory['non_nan_count'] > 0)
             & (inventory['complete'] < 2)
             # Computed forms that will be marked Complete once other forms are
-            & (inventory['form_name'] not in ['clinical', 'brief'])
+            & (~inventory['form_name'].isin(['clinical', 'brief']))
             )
 
 

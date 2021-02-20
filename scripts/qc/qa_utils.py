@@ -132,13 +132,19 @@ def chunked_form_export(project, forms, events=None, include_dag=False, chunk_si
         for record_chunk in chunks(records, chunk_size):
             record_count = record_count + chunk_size
             #print record_count
-            chunked_response = project.export_records(records=record_chunk,
-                                                      fields=[project.def_field] + fields,
-                                                      forms=forms,
-                                                      events=events,
-                                                      export_data_access_groups=include_dag,
-                                                      format='df',
-                                                      df_kwargs={'low_memory': False})
+            try:
+                chunked_response = project.export_records(records=record_chunk,
+                                                          fields=[project.def_field] + fields,
+                                                          forms=forms,
+                                                          events=events,
+                                                          export_data_access_groups=include_dag,
+                                                          format='df',
+                                                          df_kwargs={'low_memory': False})
+            except pd.errors.EmptyDataError:
+                print("Empty DataFrame error for event {}, fields {}, forms {}"
+                        .format(events, fields, forms))
+                continue
+
             if response is not None:
                 response = pd.concat([response, chunked_response], axis=0)
             else:

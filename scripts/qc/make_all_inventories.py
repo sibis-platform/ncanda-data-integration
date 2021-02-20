@@ -129,6 +129,7 @@ def main(args):
                 # TODO: Should really extract this logic into a separate code,
                 # since it's an almost exact replica of the logic that's saving
                 # the full inventory above
+                dag = str(dag)
                 target_dag_dir = output_by_dag_dir / dag / event
                 target_dag_dir.mkdir(mode=0o775, parents=True, exist_ok=True)
 
