@@ -73,7 +73,7 @@ data.rename(columns=lambda s: s.replace('.', '_').lower(), inplace=True)
 # Store current varnames for reference
 _current_varnames = [x['field_name'] for x in redcap.metadata]
 
-renames = pd.read_csv('NCANDA_Survey_Codebook.csv')
+renames = pd.read_csv('/sibis-software/ncanda-data-integration/scripts/import/webcnp/NCANDA_Survey_Codebook.csv')
 for _var in ['survey_var', 'evioni_var']:  # fit the previous data file rename
     renames[_var] = renames[_var].str.lower()
 
@@ -83,7 +83,7 @@ rename_dict = (renames.set_index('survey_var')['evioni_var']
 untranslated_vars = (renames.loc[renames['evioni_var'].isnull(), 'survey_var']
                      .tolist())  # variables without cross-definition
 
-orig_data = data.copy()
+# orig_data = data.copy()
 # data = data[rename_dict.keys()]  # only keep defined vars
 data.drop(columns=untranslated_vars, inplace=True)
 data.rename(columns=rename_dict, inplace=True)
@@ -129,9 +129,13 @@ for sheet in list(cnp.instruments.keys()):
             sys.exit(1)
 
  
+# Copy originals into fields to preserve
+data['test_sessions_subid_orig'] = data['test_sessions_subid'].copy()
+data['test_sessions_dotest_orig'] = data['test_sessions_dotest'].copy()
 
 # Bring Subject ID into correct format and select appropriate prefix
 data['test_sessions_subid'] = data['test_sessions_subid'].map( lambda s: "%s????????" % str( s ) )
+data['test_sessions_subid'] = data['test_sessions_subid'].str.replace('-', '')
 data['test_sessions_subid'] = data['test_sessions_subid'].map( lambda s: '%s-%s-%s-%s' % (s[0],s[1:6],s[6],s[7]) )
 
 # Create column with record ID
