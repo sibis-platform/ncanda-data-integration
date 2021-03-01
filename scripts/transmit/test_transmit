@@ -42,7 +42,7 @@ if ! echo "$MSG" | grep -q "usage: aespipe"; then
    echo -e "$MSG" 
 fi 
 
-s3cmd --help > /dev/null
+s4cmd --help > /dev/null
 
 mysqldump --help > /dev/null
 

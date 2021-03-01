@@ -81,7 +81,7 @@ upload_db()
 {
     if [ -e ${DBFILE} ]; then
 	if [ "${DB_UPDATE_FLAG}" -gt 0 ]; then
-	    if ! s3cmd --server-side-encryption put ${DBFILE} s3://ncanda/db/xnat_archive.sqlite; then
+	    if ! s4cmd put ${DBFILE} s3://ncanda/db/xnat_archive.sqlite --API-ServerSideEncryption=AES256; then
 		echo "FAILURE: unable to upload SQLite database to S3"
 	    fi
 	fi
@@ -129,7 +129,7 @@ transmit_session()
     gtar -cf - ${ses} | xz -9 -c --threads 8 | aespipe -P ${HOME}/aes/keys -e aes256 > /var/tmp/${archive}
 
 	# Upload
-    cmd="s3cmd --server-side-encryption put /var/tmp/${archive} ${s3uri}"
+    cmd="s4cmd put /var/tmp/${archive} ${s3uri} --API-ServerSideEncryption=AES256"
     if ${cmd}; then
 	echo "SUCCESS: ${archive} ${s3uri}"
 	add_archive_to_db "${archive}" "${s3uri}" "${prj}" "${arc}" "${ses}" "${md5}" "${session_date}"

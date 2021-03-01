@@ -13,7 +13,7 @@ upload_to_s3()
     # Get last digit of day-of-year to rotate file names around and keep 10 copies
     local day=`date +%j | sed 's/^..//g'`
 
-    if ! s3cmd --server-side-encryption put ${1} s3://ncanda/db/${day}/${fname}; then
+    if ! s4cmd put ${1} s3://ncanda/db/${day}/${fname} --API-ServerSideEncryption=AES256; then
 	echo "FAILURE: unable to upload database archive ${1} to S3"
     else
 	rm ${1}
