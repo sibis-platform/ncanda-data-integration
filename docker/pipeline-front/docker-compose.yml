@@ -1,0 +1,54 @@
+version: "3.7"
+
+services:
+  front:
+    image: pipeline-main:latest
+    init: true
+    hostname: ${PLFRONT_HOSTNAME}
+    extra_hosts:
+      - "localhost.localdomain:127.0.0.1"
+      # - "node00:192.168.71.160"
+      - ${SGE_QUEUE_INFO:-node00:192.168.71.160}
+    volumes:
+      # Secrets to mount into the container
+      - ../secrets/.sibis:/root/.sibis
+      - ../secrets/.sibis:/home/ncanda/.sibis
+      - ../secrets/.sibis/aws:/home/ncanda/.aws
+      - ../secrets/.sibis/aes:/root/aes
+
+      # These are additional resource dirs to customize the container for ncanda
+      - ../frontend/sibis-init:/sibis-init
+      - ../frontend/sibis-resources:/sibis-resources
+
+      # These are crontabs
+      - ./crontabs:/var/spool/cron/crontabs
+
+      # - /sibis-software/hivalc-data-integration:/sibis-software/data-integration
+      # - /sibis-software/python-packages:/sibis-software/python-packages
+      # - /data1:/fs/storage
+      # - /data1/share/hivalc_data:/fs/import
+      # - /data1/share/hivalc:/fs/analysis
+      # - /data1/share/hivalc:/fs/share
+      # - /data1/share/hivalc/operations/.sibis-general-config.yml:/home/ncanda/.sibis-general-config.yml:ro
+      # - /mnt/svn:/mnt/svn
+
+      - /data/xnat/xnat_archive.sqlite:/root/xnat_archive.sqlite
+      - /sibis-software/ncanda-data-integration:/sibis-software/ncanda-data-integration
+      - /sibis-software/python-packages:/sibis-software/python-packages
+      - /fs/storage:/fs/storage
+      - /fs/storage/xnat:/fs/ncanda-xnat
+      - /fs/storage/share:/fs/ncanda-share
+#      - /opt/sge/default:/opt/sge/default
+      - /mnt/svn:/mnt/svn
+    environment:
+      # - SVC_CRON=1
+      - SMTP_SERVER=${SMTP_SERVER:-127.0.0.1}
+      - DOCKER_CONTAINER_NAME=${PLFRONT_DOCKER_CONTAINER_NAME}
+    restart: unless-stopped
+    networks:
+      default-net:
+        aliases: 
+          - pipeline-back
+
+networks:
+  default-net:
