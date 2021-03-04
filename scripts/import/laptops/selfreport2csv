@@ -1,0 +1,238 @@
+#!/usr/bin/env python
+
+# 1. Connect to the Self Report project server
+# 2. Export data
+# 3. Transform RPIR data
+#       - get specification
+# 4. Determine output folder from DAG
+# 5. Write CSV file into it
+# 6. Invoke csv2redcap on the file produced
+
+import argparse
+import csv
+from datetime import datetime, timedelta
+import pandas as pd
+from pathlib import Path
+import pdb
+from pprint import pprint as pp
+import redcap as rc
+import sibispy
+from sibispy import sibislogger as slog
+from sibispy import cli
+from typing import List
+import sys
+import re
+
+
+def _parse_args(input_args: List[str] = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        description="Export Self-Report surveys into CSV to be ingested by "
+        "Imported from Laptops"
+    )
+    p.add_argument('output_dir', type=Path,
+                   help="Root directory to save surveys to as "
+                   "{output_dir}/{dag}/self_report/{record_id}.csv")
+    p.add_argument('--overwrite', action='store_true',
+                   help="Write file even if it exists at destination already")
+
+    date_range = p.add_mutually_exclusive_group(required=False)
+    date_range.add_argument('--last-month',
+                            help="Load surveys from past month",
+                            action='store_true')
+    date_range.add_argument('--last-3-months',
+                            help="Load surveys from past three months",
+                            action='store_true')
+    # date_range.add_argument('--all', '-a',
+    #                         help="Load all surveys",
+    #                         action='store_true')
+
+    # cli.add_subject_param(p, dest="record_id")
+    cli.add_standard_params(p)  # -v, -p, -t
+
+    args = p.parse_args(input_args)
+
+    args.date_begin = None  # default - pull all
+    if args.last_month:
+        args.date_begin = datetime.now() - timedelta(days=30)
+    elif args.last_3_months:
+        args.date_begin = datetime.now() - timedelta(days=90)
+
+    return args
+
+
+def _setup(args: argparse.Namespace) -> rc.Project:
+    slog.init_log(args.verbose,
+                  args.post_to_github,
+                  'Self-report-to-Import',
+                  'selfreport2csv',
+                  args.time_log_dir)
+    session = sibispy.Session(opt_api={'self_report': None})
+    if not session.configure():
+        sys.exit(1)
+
+    self_report_project = session.connect_server('self_report')
+    import_project = session.connect_server('import_laptops')
+
+    return self_report_project, import_project
+
+
+def remap_rpir_question(
+    rpir_parent: str,
+    rpir_child1: str,
+    rpir_child2: str
+) -> str:
+    parent = ''
+    if rpir_parent == '1':
+        parent = 'L'
+    elif rpir_parent == '2':
+        parent = 'R'
+
+    child = ''
+    if pd.notnull(rpir_child1):
+        child = rpir_child1
+    elif pd.notnull(rpir_child2):
+        child = rpir_child2
+
+    response = parent + child
+    if len(response) < 2:
+        response = None
+
+    return response
+
+
+if __name__ == '__main__':
+    # 0. Set up and load files
+    args = _parse_args()
+    sr_api, import_api = _setup(args)
+    # TODO: Limit to a single subject?
+    try:
+        data = sr_api.export_records(
+            format='df',
+            export_data_access_groups=True,
+            export_survey_fields=True,
+            date_begin=args.date_begin,
+            df_kwargs=dict(dtype=str)
+        )
+    except TypeError:
+        if args.verbose:
+            print("redcap.export_records lacks a date_begin param, skipping")
+
+        data = sr_api.export_records(
+            format='df',
+            export_data_access_groups=True,
+            export_survey_fields=True,
+            df_kwargs=dict(dtype=str)
+        )
+
+
+    pdb.set_trace()
+    # 1. Address RPIR
+    rpir_quadruplets = [
+        (f'youthreport2_rpirsec1_rpir{x}',  # outcome var
+         f'youthreport2_rpirsec1_rpir{x}_',  # parent / fork var
+         f'youthreport2_rpirsec1_rpir{x}a',  # child 1
+         f'youthreport2_rpirsec1_rpir{x}b')  # child 2
+        for x in range(1, 6)
+    ] + [
+        (f'youthreport2_rpirsec2_rpir{x}',
+         f'youthreport2_rpirsec2_rpir{x}_',
+         f'youthreport2_rpirsec2_rpir{x}a',
+         f'youthreport2_rpirsec2_rpir{x}b')
+        for x in range(6, 11)
+    ]
+    for (outcome, parent, child1, child2) in rpir_quadruplets:
+        data[outcome] = data.apply(
+            lambda x: remap_rpir_question(x[parent], x[child1], x[child2]),
+            axis='columns')
+        data.drop(columns=[parent, child1, child2], inplace=True)
+
+    # 2. Transform checkbox names to "normal" name
+    data.rename(columns=lambda x: re.sub('___', '_', x), inplace=True)
+    data.rename(columns={
+        'youthreport2_sbq20_0': 'youthreport2_sbq20',
+        'youthreport2_sbq22_0': 'youthreport2_sbq22',
+        'youthreport2_measures_2': 'youthreport2_measures_all',
+        'youthreport2_measures_shq': 'youthreport2_measures_1',
+        'youthreport2_measures_aswhs': 'youthreport2_measures_2',
+        'youthreport2_measures_psqi': 'youthreport2_measures_3',
+        'youthreport2_measures_casq': 'youthreport2_measures_4',
+        'youthreport2_measures_scsm': 'youthreport2_measures_5',
+        # 'youthreport2_measures_': 'youthreport2_measures_6',
+        'youthreport2_measures_sise': 'youthreport2_measures_7',
+        'youthreport2_measures_upps': 'youthreport2_measures_8',
+        'youthreport2_measures_leaq': 'youthreport2_measures_9',
+        'youthreport2_measures_hss': 'youthreport2_measures_10',
+        'youthreport2_measures_ssq': 'youthreport2_measures_11',
+        'youthreport2_measures_pgd': 'youthreport2_measures_12',
+        'youthreport2_measures_prr': 'youthreport2_measures_13',
+        'youthreport2_measures_sbq': 'youthreport2_measures_14',
+        'youthreport2_measures_dtcq': 'youthreport2_measures_15',
+        'youthreport2_measures_aay': 'youthreport2_measures_16',
+        'youthreport2_measures_pwmkcr': 'youthreport2_measures_17',
+        'youthreport2_measures_pm': 'youthreport2_measures_18',
+        'youthreport2_measures_aeq': 'youthreport2_measures_19',
+        'youthreport2_measures_maaq': 'youthreport2_measures_20',
+        'youthreport2_measures_rsq': 'youthreport2_measures_21',
+        'youthreport2_measures_tipi': 'youthreport2_measures_22',
+        'youthreport2_measures_dhr': 'youthreport2_measures_23',
+        'youthreport2_measures_brief': 'youthreport2_measures_24',
+        'youthreport2_measures_ctq': 'youthreport2_measures_25',
+        'youthreport2_measures_yei2': 'youthreport2_measures_26',
+        'youthreport2_measures_sogi': 'youthreport2_measures_27',
+        'youthreport2_measures_pss': 'youthreport2_measures_28',
+        'youthreport2_measures_ypa': 'youthreport2_measures_29',
+        'youthreport2_measures_chks': 'youthreport2_measures_30',
+        'youthreport2_measures_ptm': 'youthreport2_measures_31',
+        'youthreport2_measures_ula': 'youthreport2_measures_32',
+        'youthreport2_measures_aces': 'youthreport2_measures_33',
+        'youthreport2_measures_pmi': 'youthreport2_measures_34',
+        'youthreport2_measures_rpir': 'youthreport2_measures_35',
+        'youthreport2_measures_aeas': 'youthreport2_measures_36',
+        'youthreport2_measures_acc': 'youthreport2_measures_37',
+        'redcap_survey_identifier': 'youthreport2_token',
+        'youth_report_2_timestamp': 'youthreport2_completed',
+    }, inplace=True)
+
+    # 3. Drop the auxiliary columns not available in Import records
+    origin_fields = set(data.columns.tolist())
+    target_fields = set(import_api.field_names + ['redcap_data_access_group'])
+    _absent_from_target = origin_fields.difference(target_fields)
+    _present_in_both = origin_fields.intersection(target_fields)
+
+    if args.verbose:
+        print("Dropping the following self-report fields, as they lack "
+              "counterpart in the Imported from Laptops project:")
+        pp(_absent_from_target)
+
+    # Sets lose ordering -> preserve for easier comparison / review
+    _present_in_both_ordered = [x for x in data.columns
+                                if x in _present_in_both]
+    upload = data[_present_in_both_ordered].set_index(import_api.def_field)
+
+    # 4. Set completion fields
+    completion_fields = ['youth_report_1b_complete', 'youth_report_2_complete']
+    for field in completion_fields:
+        upload[field] = '1'
+
+    # 5. Upload or write out
+    # import_api.import_records(upload)
+    written_files: List[Path] = []
+    for _, row in upload.reset_index().iterrows():
+        dag = row['redcap_data_access_group']
+        if pd.isnull(dag):
+            dag = 'none'
+        out_dir = args.output_dir / dag / 'self_report'
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f'{row["record_id"]}.csv'
+
+        if not out_path.exists() or args.overwrite:
+            out = pd.DataFrame(row).transpose()
+            out.to_csv(out_path, index=False, quoting=csv.QUOTE_ALL)
+            if args.verbose:
+                print(f"Written out: {out_path}")
+            written_files.append(out_path)
+
+    if args.verbose:
+        print(f"Wrote out {len(written_files)} files.")
+
+    pdb.set_trace()
