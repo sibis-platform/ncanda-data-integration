@@ -1,34 +1,28 @@
 #!/usr/bin/env python
-
-# 1. Connect to the Self Report project server
-# 2. Export data
-# 3. Transform RPIR data
-#       - get specification
-# 4. Determine output folder from DAG
-# 5. Write CSV file into it
-# 6. Invoke csv2redcap on the file produced
-
+"""
+Export Self-Report surveys to be ingested by "Imported from Laptops" project
+"""
 import argparse
 import csv
 from datetime import datetime, timedelta
 import pandas as pd
 from pathlib import Path
-import pdb
 from pprint import pprint as pp
 import redcap as rc
 import sibispy
 from sibispy import sibislogger as slog
 from sibispy import cli
-from typing import List
+import subprocess
+from typing import List, Tuple
 import sys
 import re
 
 
 def _parse_args(input_args: List[str] = None) -> argparse.Namespace:
-    p = argparse.ArgumentParser(
-        description="Export Self-Report surveys into CSV to be ingested by "
-        "Imported from Laptops"
-    )
+    """
+    Set up and process CLI arguments.
+    """
+    p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('output_dir', type=Path,
                    help="Root directory to save surveys to as "
                    "{output_dir}/{dag}/self_report/{record_id}.csv")
@@ -60,7 +54,10 @@ def _parse_args(input_args: List[str] = None) -> argparse.Namespace:
     return args
 
 
-def _setup(args: argparse.Namespace) -> rc.Project:
+def _setup(args: argparse.Namespace) -> Tuple[rc.Project]:
+    """
+    Obtain API handles for origin and target Redcap projects.
+    """
     slog.init_log(args.verbose,
                   args.post_to_github,
                   'Self-report-to-Import',
@@ -76,11 +73,45 @@ def _setup(args: argparse.Namespace) -> rc.Project:
     return self_report_project, import_project
 
 
-def remap_rpir_question(
+def load_data(api, date_begin=None, verbose=False):
+    """
+    Load data based on target start date
+
+    (and fail gracefully if library doesn't support it)
+    """
+    # TODO: Limit to a single subject?
+    try:
+        data = api.export_records(
+            format='df',
+            export_data_access_groups=True,
+            export_survey_fields=True,
+            date_begin=date_begin,
+            df_kwargs=dict(dtype=str)
+        )
+    except TypeError:
+        if verbose:
+            print("redcap.export_records lacks a date_begin param, skipping")
+
+        data = api.export_records(
+            format='df',
+            export_data_access_groups=True,
+            export_survey_fields=True,
+            df_kwargs=dict(dtype=str)
+        )
+
+    return data
+
+
+def _remap_rpir_question(
     rpir_parent: str,
     rpir_child1: str,
     rpir_child2: str
 ) -> str:
+    """
+    Given the RPIR value triplet, get the single response.
+
+    See coalesce_rpir_fields for background.
+    """
     parent = ''
     if rpir_parent == '1':
         parent = 'L'
@@ -100,33 +131,35 @@ def remap_rpir_question(
     return response
 
 
-if __name__ == '__main__':
-    # 0. Set up and load files
-    args = _parse_args()
-    sr_api, import_api = _setup(args)
-    # TODO: Limit to a single subject?
-    try:
-        data = sr_api.export_records(
-            format='df',
-            export_data_access_groups=True,
-            export_survey_fields=True,
-            date_begin=args.date_begin,
-            df_kwargs=dict(dtype=str)
-        )
-    except TypeError:
-        if args.verbose:
-            print("redcap.export_records lacks a date_begin param, skipping")
+def coalesce_rpir_fields(data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Convert all RPIR field triplets into a single outcome RPIR variable.
 
-        data = sr_api.export_records(
-            format='df',
-            export_data_access_groups=True,
-            export_survey_fields=True,
-            df_kwargs=dict(dtype=str)
-        )
+    Background:
 
+    RPIR is a questionnaire that's administered somewhat oddly. Each question
+    is of the form:
 
-    pdb.set_trace()
-    # 1. Address RPIR
+        Some people like to do X,       whereas other people do Y.
+
+        [L1] Somewhat describes me      [R1] Somewhat describes me
+        [L2] Mostly describes me        [R2] Mostly describes me
+
+    This was displayed in a single question in LimeSurvey, but had to be broken
+    down to three questions in Redcap - a "parent" one and two "child" ones.
+
+    In the "parent" question, the participant chooses whether they are more
+    likely to do X or Y.
+
+    The "child" question is then conditionally displayed - child 1 if
+    participant selected X, child 2 if participant selected Y - and the
+    participant chooses whether the question describes him "somewhat" or
+    "mostly".
+
+    This question rounds up each question triplet, applies the
+    _remap_rpir_question function above to get the [LR][12] response, assigns
+    it to the "outcome variable", and drops the auxiliary variables.
+    """
     rpir_quadruplets = [
         (f'youthreport2_rpirsec1_rpir{x}',  # outcome var
          f'youthreport2_rpirsec1_rpir{x}_',  # parent / fork var
@@ -142,11 +175,24 @@ if __name__ == '__main__':
     ]
     for (outcome, parent, child1, child2) in rpir_quadruplets:
         data[outcome] = data.apply(
-            lambda x: remap_rpir_question(x[parent], x[child1], x[child2]),
+            lambda x: _remap_rpir_question(x[parent], x[child1], x[child2]),
             axis='columns')
         data.drop(columns=[parent, child1, child2], inplace=True)
 
-    # 2. Transform checkbox names to "normal" name
+    return data
+
+
+def rename_columns(data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Translate Redcap-isms to stay consistent with previous LimeSurvey imports.
+
+    The primary culprit here is that Redcap and LimeSurvey does checkboxes
+    differently - and we've previously imported LimeSurvey checkboxes as if
+    they were single-shot truefalse fields.
+
+    Additionally, we rename the survey-specific Redcap fields to map onto
+    previously established LimeSurvey metadata.
+    """
     data.rename(columns=lambda x: re.sub('___', '_', x), inplace=True)
     data.rename(columns={
         'youthreport2_sbq20_0': 'youthreport2_sbq20',
@@ -193,13 +239,23 @@ if __name__ == '__main__':
         'youth_report_2_timestamp': 'youthreport2_completed',
     }, inplace=True)
 
-    # 3. Drop the auxiliary columns not available in Import records
+    return data
+
+
+def drop_columns_absent_from_target(
+    data: pd.DataFrame,
+    target_api: rc.Project,
+    verbose: bool
+) -> pd.DataFrame:
+    """
+    To prevent csv2redcap errors, only keep cols that exist in target project.
+    """
     origin_fields = set(data.columns.tolist())
-    target_fields = set(import_api.field_names + ['redcap_data_access_group'])
+    target_fields = set(target_api.field_names + ['redcap_data_access_group'])
     _absent_from_target = origin_fields.difference(target_fields)
     _present_in_both = origin_fields.intersection(target_fields)
 
-    if args.verbose:
+    if verbose:
         print("Dropping the following self-report fields, as they lack "
               "counterpart in the Imported from Laptops project:")
         pp(_absent_from_target)
@@ -207,32 +263,120 @@ if __name__ == '__main__':
     # Sets lose ordering -> preserve for easier comparison / review
     _present_in_both_ordered = [x for x in data.columns
                                 if x in _present_in_both]
-    upload = data[_present_in_both_ordered].set_index(import_api.def_field)
+    upload = data[_present_in_both_ordered].set_index(target_api.def_field)
+
+    return upload
+
+
+def write_records(
+    upload: pd.DataFrame,
+    output_dir: Path,
+    overwrite: bool,
+    verbose: bool
+) -> List[Path]:
+    """
+    Given a DataFrame of records, write out each row separately into a
+    DAG-based subdirectory of `output_dir` and return list of paths written to
+    """
+    written_files: List[Path] = []
+    for _, row in upload.reset_index().iterrows():
+        dag = row['redcap_data_access_group']
+        if pd.isnull(dag):
+            dag = 'none'
+        out_dir = output_dir / dag / 'self_report'
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f'{row["record_id"]}.csv'
+
+        if not out_path.exists() or overwrite:
+            out = pd.DataFrame(row).transpose()
+            out.to_csv(out_path, index=False, quoting=csv.QUOTE_ALL)
+            if verbose:
+                print(f"Written out: {out_path}")
+            written_files.append(out_path)
+
+    if verbose:
+        print(f"Wrote out {len(written_files)} files.")
+
+    return written_files
+
+
+def feed_to_csv2redcap(
+    files: List[Path],
+    verbose: bool,
+    post_to_github: bool
+) -> subprocess.CompletedProcess:
+    """
+    Invoke csv2redcap with the list of newly written files.
+    """
+    additional_args: List[str] = []
+    if verbose:
+        additional_args.append('-v')
+    if post_to_github:
+        additional_args.append('-p')
+    # TODO: Get based on relative position to current file
+    cmd_dir = "/sibis-software/ncanda-data-integration/scripts/import/laptops"
+    cmd = [
+        cmd_dir + "/csv2redcap",
+        "--project", "import_laptops",
+        "--use-file-dag"
+    ] + additional_args + written_files
+
+    process = subprocess.run(cmd,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE,
+                             universal_newlines=True)
+
+    return process
+
+
+if __name__ == '__main__':
+    # 0. Set up and load files
+    args = _parse_args()
+    sr_api, import_api = _setup(args)
+
+    data = load_data(sr_api, args.date_begin, args.verbose)
+
+    # 1. Address RPIR
+    data = coalesce_rpir_fields(data)
+
+    # 2. Transform checkbox names to "normal" name
+    data = rename_columns(data)
+
+    # 3. Drop the auxiliary columns not available in Import records
+    upload = drop_columns_absent_from_target(data, import_api, args.verbose)
 
     # 4. Set completion fields
     completion_fields = ['youth_report_1b_complete', 'youth_report_2_complete']
     for field in completion_fields:
         upload[field] = '1'
 
-    # 5. Upload or write out
-    # import_api.import_records(upload)
-    written_files: List[Path] = []
-    for _, row in upload.reset_index().iterrows():
-        dag = row['redcap_data_access_group']
-        if pd.isnull(dag):
-            dag = 'none'
-        out_dir = args.output_dir / dag / 'self_report'
-        out_dir.mkdir(parents=True, exist_ok=True)
-        out_path = out_dir / f'{row["record_id"]}.csv'
+    # 5. Write out data
+    written_files = write_records(upload,
+                                  args.output_dir,
+                                  args.overwrite,
+                                  args.verbose)
 
-        if not out_path.exists() or args.overwrite:
-            out = pd.DataFrame(row).transpose()
-            out.to_csv(out_path, index=False, quoting=csv.QUOTE_ALL)
-            if args.verbose:
-                print(f"Written out: {out_path}")
-            written_files.append(out_path)
-
+    # 6. Invoke csv2redcap on the result
+    #
+    # (because unlike lime2csv, this process isn't triggered by harvester, so
+    # the output isn't automatically collected and fed to csv2redcap)
+    process = feed_to_csv2redcap(written_files,
+                                 args.verbose,
+                                 args.post_to_github)
     if args.verbose:
-        print(f"Wrote out {len(written_files)} files.")
+        print(process)
 
-    pdb.set_trace()
+    # Alternatively, instead of steps 5 and 6, we could just import records
+    # directly, with a single line:
+    #
+    #   import_api.import_records(upload)
+    #
+    # This has the downside of not creating intermediate products, always
+    # uploading all records (rather than just those newly written), and not
+    # automatically respecting any completion field logic that csv2redcap is
+    # written to follow. For these reasons, we desist for now, but might
+    # resurrect the idea later.
+
+    # 7. Print out written files for any follow-up process that wants to act on
+    # them (e.g. by getting them piped)
+    print(written_files)
