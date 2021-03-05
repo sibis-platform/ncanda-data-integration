@@ -59,6 +59,9 @@ if [ ${IMPORT_FLAG} == 1 ]; then
 	lastWeek="--last-week"
    fi	
    catch_output_email "${SCRIPT_LABEL}:Import Laptop: Data Stage 1 (harvester)" ${SIBIS}/scripts/import/laptops/harvester --only-converter-post-to-github ${qa_args} ${lastWeek}
+
+   catch_output_email "${SCRIPT_LABEL}:Import Self-Report (selfreport2csv)" \
+      ${SIBIS}/scripts/import/laptops/selfreport2csv /fs/storage/laptops/imported --no-output ${qa_args}
 else
    if [ ${hour} -eq 0 ]; then
       echo "${SCRIPT_LABEL}: Warning: Import from laptops  disabled !"

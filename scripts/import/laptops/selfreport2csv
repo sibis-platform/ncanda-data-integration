@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 """
-Export Self-Report surveys to be ingested by "Imported from Laptops" project
+Export Self-Report surveys to be ingested by "Imported from Laptops" project.
+
+Outputs the newline-separated list of files written to the designated directory
+system.
 """
 import argparse
 import csv
@@ -28,6 +31,11 @@ def _parse_args(input_args: List[str] = None) -> argparse.Namespace:
                    "{output_dir}/{dag}/self_report/{record_id}.csv")
     p.add_argument('--overwrite', action='store_true',
                    help="Write file even if it exists at destination already")
+    p.add_argument('--no-output', action='store_true',
+                   help="Don't print end-result (e.g. to prevent cron mail). "
+                   "Doesn't prevent --verbose from printing debug info.")
+    p.add_argument('--no-upload', action='store_true',
+                   help="Don't invoke csv2redcap after writing to output_dir")
 
     date_range = p.add_mutually_exclusive_group(required=False)
     date_range.add_argument('--last-month',
@@ -36,9 +44,9 @@ def _parse_args(input_args: List[str] = None) -> argparse.Namespace:
     date_range.add_argument('--last-3-months',
                             help="Load surveys from past three months",
                             action='store_true')
-    # date_range.add_argument('--all', '-a',
-    #                         help="Load all surveys",
-    #                         action='store_true')
+    date_range.add_argument('--last-week',
+                            help="Load surveys from pasat week",
+                            action='store_true')
 
     # cli.add_subject_param(p, dest="record_id")
     cli.add_standard_params(p)  # -v, -p, -t
@@ -50,6 +58,8 @@ def _parse_args(input_args: List[str] = None) -> argparse.Namespace:
         args.date_begin = datetime.now() - timedelta(days=30)
     elif args.last_3_months:
         args.date_begin = datetime.now() - timedelta(days=90)
+    elif args.last_week:
+        args.date_begin = datetime.now() - timedelta(days=7)
 
     return args
 
@@ -73,7 +83,11 @@ def _setup(args: argparse.Namespace) -> Tuple[rc.Project]:
     return self_report_project, import_project
 
 
-def load_data(api, date_begin=None, verbose=False):
+def load_data(
+    api: rc.Project,
+    date_begin: datetime = None,
+    verbose: bool = False
+) -> pd.DataFrame:
     """
     Load data based on target start date
 
@@ -346,6 +360,8 @@ if __name__ == '__main__':
     upload = drop_columns_absent_from_target(data, import_api, args.verbose)
 
     # 4. Set completion fields
+    # TODO: Check if any Youth Report 1B fields are non-empty first, then
+    # decide whether to set completion status on it
     completion_fields = ['youth_report_1b_complete', 'youth_report_2_complete']
     for field in completion_fields:
         upload[field] = '1'
@@ -360,11 +376,12 @@ if __name__ == '__main__':
     #
     # (because unlike lime2csv, this process isn't triggered by harvester, so
     # the output isn't automatically collected and fed to csv2redcap)
-    process = feed_to_csv2redcap(written_files,
-                                 args.verbose,
-                                 args.post_to_github)
-    if args.verbose:
-        print(process)
+    if not args.no_upload:
+        process = feed_to_csv2redcap(written_files,
+                                     args.verbose,
+                                     args.post_to_github)
+        if args.verbose:
+            print(process)
 
     # Alternatively, instead of steps 5 and 6, we could just import records
     # directly, with a single line:
@@ -379,4 +396,5 @@ if __name__ == '__main__':
 
     # 7. Print out written files for any follow-up process that wants to act on
     # them (e.g. by getting them piped)
-    print(written_files)
+    if not args.no_output:
+        print("\n".join([str(x) for x in written_files]))
