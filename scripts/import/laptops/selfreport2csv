@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 """
-Export Self-Report surveys to be ingested by "Imported from Laptops" project.
+Export Self-Report surveys to be ingested by "Imported from Laptops" project
+and feed them to csv2redcap (unless upload is prevented with --no-upload).
 
 Outputs the newline-separated list of files written to the designated directory
-system.
+system (unless output is silenced with --no-output).
 """
 import argparse
 import csv
 from datetime import datetime, timedelta
+from functools import partial
 import pandas as pd
 from pathlib import Path
 from pprint import pprint as pp
@@ -19,6 +21,68 @@ import subprocess
 from typing import List, Tuple
 import sys
 import re
+
+
+def main():
+    """
+    Main logic - see in-function annotations.
+
+    Invoked in if __name__ == '__main__'; includable in setup.py.
+    """
+    # 0. Set up and load files
+    args = _parse_args()
+    self_report_api, import_api = _setup(args)
+
+    data = load_data(self_report_api, args.date_begin, args.verbose)
+
+    # 1. Address RPIR
+    data = coalesce_rpir_fields(data)
+
+    # 2. Transform checkbox names to "normal" name
+    data = rename_columns(data)
+
+    # 3. Drop the auxiliary columns not available in Import records
+    upload = drop_columns_absent_from_target(data, import_api, args.verbose)
+
+    # 4. Set completion fields
+    # TODO: Check if any Youth Report 1B fields are non-empty first, then
+    # decide whether to set completion status on it
+    completion_fields = ['youth_report_1b_complete', 'youth_report_2_complete']
+    for field in completion_fields:
+        upload[field] = '1'
+
+    # 5. Write out data
+    written_files = write_records(upload,
+                                  args.output_dir,
+                                  args.overwrite,
+                                  args.verbose)
+
+    # 6. Invoke csv2redcap on the result
+    #
+    # (because unlike lime2csv, this process isn't triggered by harvester, so
+    # the output isn't automatically collected and fed to csv2redcap)
+    if not args.no_upload:
+        process = feed_to_csv2redcap(written_files,
+                                     args.verbose,
+                                     args.post_to_github)
+        if args.verbose:
+            print(process)
+
+    # Alternatively, instead of steps 5 and 6, we could just import records
+    # directly, with a single line:
+    #
+    #   import_api.import_records(upload)
+    #
+    # This has the downside of not creating intermediate products, always
+    # uploading all records (rather than just those newly written), and not
+    # automatically respecting any completion field logic that csv2redcap is
+    # written to follow. For these reasons, we desist for now, but might
+    # resurrect the idea later.
+
+    # 7. Print out written files for any follow-up process that wants to act on
+    # them (e.g. by getting them piped)
+    if not args.no_output:
+        print("\n".join([str(x) for x in written_files]))
 
 
 def _parse_args(input_args: List[str] = None) -> argparse.Namespace:
@@ -66,11 +130,11 @@ def _parse_args(input_args: List[str] = None) -> argparse.Namespace:
 
 def _setup(args: argparse.Namespace) -> Tuple[rc.Project]:
     """
-    Obtain API handles for origin and target Redcap projects.
+    Init sibislogger and get API handles for origin + target Redcap projects.
     """
     slog.init_log(args.verbose,
                   args.post_to_github,
-                  'Self-report-to-Import',
+                  'Self-report to Import',
                   'selfreport2csv',
                   args.time_log_dir)
     session = sibispy.Session(opt_api={'self_report': None})
@@ -94,24 +158,18 @@ def load_data(
     (and fail gracefully if library doesn't support it)
     """
     # TODO: Limit to a single subject?
+    _load_data = partial(
+        api.export_records,
+        export_data_access_groups=True,
+        export_survey_fields=True,
+        df_kwargs=dict(dtype=str)
+    )
     try:
-        data = api.export_records(
-            format='df',
-            export_data_access_groups=True,
-            export_survey_fields=True,
-            date_begin=date_begin,
-            df_kwargs=dict(dtype=str)
-        )
+        data = _load_data(date_begin=date_begin)
     except TypeError:
         if verbose:
             print("redcap.export_records lacks a date_begin param, skipping")
-
-        data = api.export_records(
-            format='df',
-            export_data_access_groups=True,
-            export_survey_fields=True,
-            df_kwargs=dict(dtype=str)
-        )
+        data = _load_data()
 
     return data
 
@@ -333,7 +391,7 @@ def feed_to_csv2redcap(
         cmd_dir + "/csv2redcap",
         "--project", "import_laptops",
         "--use-file-dag"
-    ] + additional_args + written_files
+    ] + additional_args + files
 
     process = subprocess.run(cmd,
                              stdout=subprocess.PIPE,
@@ -344,57 +402,4 @@ def feed_to_csv2redcap(
 
 
 if __name__ == '__main__':
-    # 0. Set up and load files
-    args = _parse_args()
-    sr_api, import_api = _setup(args)
-
-    data = load_data(sr_api, args.date_begin, args.verbose)
-
-    # 1. Address RPIR
-    data = coalesce_rpir_fields(data)
-
-    # 2. Transform checkbox names to "normal" name
-    data = rename_columns(data)
-
-    # 3. Drop the auxiliary columns not available in Import records
-    upload = drop_columns_absent_from_target(data, import_api, args.verbose)
-
-    # 4. Set completion fields
-    # TODO: Check if any Youth Report 1B fields are non-empty first, then
-    # decide whether to set completion status on it
-    completion_fields = ['youth_report_1b_complete', 'youth_report_2_complete']
-    for field in completion_fields:
-        upload[field] = '1'
-
-    # 5. Write out data
-    written_files = write_records(upload,
-                                  args.output_dir,
-                                  args.overwrite,
-                                  args.verbose)
-
-    # 6. Invoke csv2redcap on the result
-    #
-    # (because unlike lime2csv, this process isn't triggered by harvester, so
-    # the output isn't automatically collected and fed to csv2redcap)
-    if not args.no_upload:
-        process = feed_to_csv2redcap(written_files,
-                                     args.verbose,
-                                     args.post_to_github)
-        if args.verbose:
-            print(process)
-
-    # Alternatively, instead of steps 5 and 6, we could just import records
-    # directly, with a single line:
-    #
-    #   import_api.import_records(upload)
-    #
-    # This has the downside of not creating intermediate products, always
-    # uploading all records (rather than just those newly written), and not
-    # automatically respecting any completion field logic that csv2redcap is
-    # written to follow. For these reasons, we desist for now, but might
-    # resurrect the idea later.
-
-    # 7. Print out written files for any follow-up process that wants to act on
-    # them (e.g. by getting them piped)
-    if not args.no_output:
-        print("\n".join([str(x) for x in written_files]))
+    main()
