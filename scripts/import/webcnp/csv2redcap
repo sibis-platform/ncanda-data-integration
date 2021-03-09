@@ -90,7 +90,7 @@ untranslated_vars = (renames.loc[renames['evioni_var'].isnull(), 'survey_var']
 
 # orig_data = data.copy()
 # data = data[rename_dict.keys()]  # only keep defined vars
-data.drop(columns=untranslated_vars, inplace=True)
+data.drop(columns=untranslated_vars, errors='ignore', inplace=True)
 data.rename(columns=rename_dict, inplace=True)
 
 # Debugging seciton
