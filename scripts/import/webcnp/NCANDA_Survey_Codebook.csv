@@ -1059,10 +1059,10 @@ PMAT24_A_PMAT24_A_QID000023_RESP,PMAT24_A_PMAT24_A_QID000023_RESP,PMAT24A_q23_re
 PMAT24_A_PMAT24_A_QID000023_TTR,PMAT24_A_PMAT24_A_QID000023_TTR,PMAT24A_q23_ttr,Time to respond (ms) for trial 23,Penn Matrix Analysis Test - Form A - 24 items
 PMAT24_A_PMAT24_A_QID000023_TRIAL,PMAT24_A_PMAT24_A_QID000023_TRIAL,,Trial Order of Stimuli Presented,Penn Matrix Analysis Test - Form A - 24 items
 PMAT24_A_PMAT24_A_QID000023_QID,PMAT24_A_PMAT24_A_QID000023_QID,,Question ID for Stimuli Presented,Penn Matrix Analysis Test - Form A - 24 items
-PMAT24_A_PMAT24_A_QID000023_CORR,PMAT24_A_PMAT24_A_QID000023_CORR,,Response correct for trial 23,Penn Matrix Analysis Test - Form A - 24 items
-PMAT24_A_PMAT24_A_QID000024_RESP,PMAT24_A_PMAT24_A_QID000024_RESP,PMAT24A_q23_corr,Response for trial 24,Penn Matrix Analysis Test - Form A - 24 items
-PMAT24_A_PMAT24_A_QID000024_TTR,PMAT24_A_PMAT24_A_QID000024_TTR,PMAT24A_q24_resp,Time to respond (ms) for trial 24,Penn Matrix Analysis Test - Form A - 24 items
-PMAT24_A_PMAT24_A_QID000024_TRIAL,PMAT24_A_PMAT24_A_QID000024_TRIAL,PMAT24A_q24_ttr,Trial Order of Stimuli Presented,Penn Matrix Analysis Test - Form A - 24 items
+PMAT24_A_PMAT24_A_QID000023_CORR,PMAT24_A_PMAT24_A_QID000023_CORR,PMAT24A_q23_corr,Response correct for trial 23,Penn Matrix Analysis Test - Form A - 24 items
+PMAT24_A_PMAT24_A_QID000024_RESP,PMAT24_A_PMAT24_A_QID000024_RESP,PMAT24A_q24_resp,Response for trial 24,Penn Matrix Analysis Test - Form A - 24 items
+PMAT24_A_PMAT24_A_QID000024_TTR,PMAT24_A_PMAT24_A_QID000024_TTR,PMAT24A_q24_ttr,Time to respond (ms) for trial 24,Penn Matrix Analysis Test - Form A - 24 items
+PMAT24_A_PMAT24_A_QID000024_TRIAL,PMAT24_A_PMAT24_A_QID000024_TRIAL,,Trial Order of Stimuli Presented,Penn Matrix Analysis Test - Form A - 24 items
 PMAT24_A_PMAT24_A_QID000024_QID,PMAT24_A_PMAT24_A_QID000024_QID,,Question ID for Stimuli Presented,Penn Matrix Analysis Test - Form A - 24 items
 PMAT24_A_PMAT24_A_QID000024_CORR,PMAT24_A_PMAT24_A_QID000024_CORR,PMAT24A_q24_corr,Response correct for trial 24,Penn Matrix Analysis Test - Form A - 24 items
 PVOC_ScorVers,PVOC_ScorVers,PVOC_Scorvers,Current Programming Version of the Scoring Code,Penn Vocabulary Test

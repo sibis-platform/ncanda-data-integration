@@ -73,7 +73,12 @@ data.rename(columns=lambda s: s.replace('.', '_').lower(), inplace=True)
 # Store current varnames for reference
 _current_varnames = [x['field_name'] for x in redcap.metadata]
 
+<<<<<<< Updated upstream
 renames = pd.read_csv('/sibis-software/ncanda-data-integration/scripts/import/webcnp/NCANDA_Survey_Codebook.csv')
+=======
+import pdb; pdb.set_trace()
+renames = pd.read_csv('NCANDA_Survey_Codebook.csv')
+>>>>>>> Stashed changes
 for _var in ['survey_var', 'evioni_var']:  # fit the previous data file rename
     renames[_var] = renames[_var].str.lower()
 
