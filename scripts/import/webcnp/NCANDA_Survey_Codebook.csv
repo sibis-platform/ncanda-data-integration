@@ -938,10 +938,11 @@ PCET_A_PCET_ACC2,PCET_A_PCET_ACC2,PCET_PCET_ACC2,PECT Accuracy2 = (PCET_CAT+1)*P
 PCET_A_PCET_RT,PCET_A_PCET_RT,,Median Response Time for All Responses (ms),Penn Conditional Exclusion Test - Form A
 PMAT24_A_ScorVers,PMAT24_A_ScorVers,PMAT,Current Programming Version of the Scoring Code,Penn Matrix Analysis Test - Form A - 24 items
 PMAT24_A_PMAT24_A_FORM,PMAT24_A_PMAT24_A_FORM,PMAT24A_PMAT24_FORM,Form of this administration,Penn Matrix Analysis Test - Form A - 24 items
-PMAT24_A_valid_code,PMAT24_A_valid_code,PMAT24A_status,Status Code Assigned to PMAT24,Penn Matrix Analysis Test - Form A - 24 items
-PMAT24_A_PMAT24_A_CR,PMAT24_A_PMAT24_A_CR,PMAT24A_valid_code,Valid Code Assigned to PMAT24,Penn Matrix Analysis Test - Form A - 24 items
-PMAT24_A_PMAT24_A_PC,PMAT24_A_PMAT24_A_PC,PMAT24A_PMAT24_A_CR,PMAT24 Correct Responses for Form A,Penn Matrix Analysis Test - Form A - 24 items
-PMAT24_A_PMAT24_A_SI,PMAT24_A_PMAT24_A_SI,PMAT24A_PMAT24_A_SI,PMAT24 Total Skipped Items (items not presented because maximum errors allowed reached) for Form A,Penn Matrix Analysis Test - Form A - 24 items
+PMAT24_A_valid_code,PMAT24_A_valid_code,PMAT24A_valid_code,Valid Code Assigned to PMAT24,Penn Matrix Analysis Test - Form A - 24 items
+PMAT24_A.status,PMAT24_A.status,PMAT24A_status,Status Code Assigned to PMAT24,Penn Matrix Analysis Test - Form A - 24 items
+PMAT24_A_PMAT24_A_CR,PMAT24_A_PMAT24_A_CR,PMAT24A_PMAT24_A_CR,PMAT24 Correct Responses for Form A,Penn Matrix Analysis Test - Form A - 24 items
+PMAT24_A_PMAT24_A_PC,PMAT24_A_PMAT24_A_PC,,,Penn Matrix Analysis Test - Form A - 24 items
+PMAT24_A_PMAT24_A_SI,PMAT24_A_PMAT24_A_SI,PMAT24A_PMAT24_A_SI,PMAT24 Total Skipped Items (items not presented because maximum errors allowed reached) for Form A,Penn Matrix Analysis Test - Form A - 24 items
 PMAT24_A_PMAT24_A_RTCR,PMAT24_A_PMAT24_A_RTCR,PMAT24A_PMAT24_A_RTCR,Median Response Time for Correct PMAT24 Responses (ms) for Form A,Penn Matrix Analysis Test - Form A - 24 items
 PMAT24_A_PMAT24_A_RTER,PMAT24_A_PMAT24_A_RTER,PMAT24A_PMAT24_A_RTER,Median Response Time for Incorrect PMAT24 Responses (ms) for Form A,Penn Matrix Analysis Test - Form A - 24 items
 PMAT24_A_PMAT24_A_RTTO,PMAT24_A_PMAT24_A_RTTO,PMAT24A_PMAT24_A_RTTO,Median Resposne Time for All PMAT24 Responses (ms) for Form A,Penn Matrix Analysis Test - Form A - 24 items
