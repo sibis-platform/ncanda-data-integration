@@ -582,6 +582,8 @@ parser.add_argument("-t","--time-log-dir",
 
 args = parser.parse_args()
 
+verbose = args.verbose
+
 if args.verbose:
     print(args)
 
