@@ -307,7 +307,7 @@ for [key, row] in tqdm(visit_log_redcap.iterrows(),  # the actual iterator
             print("Missing '%s' visit date for subject %s" % ( redcap_event, redcap_subject ))
         continue
 
-    this_subject_data = subject_data.ix[redcap_subject]
+    this_subject_data = subject_data.loc[redcap_subject]
     # If exclude flag is set, this will override the excludes value and export excluded subjects
     if args.exclude:
         excludes = 0.0

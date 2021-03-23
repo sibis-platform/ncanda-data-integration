@@ -197,7 +197,7 @@ for key, row in summary_records.iterrows():
                            records_this_visit = str(records_this_visit.index.tolist()))
 
             # Unique record - copy data from imported project to summary form
-            cnp_data = records_this_visit.ix[ len( records_this_visit ) - 1 ]
+            cnp_data = records_this_visit.iloc[len(records_this_visit) - 1]
             summary_records.at[key, 'cnp_datasetid'] = cnp_data.name
 
             date_of_birth = subject_dates_of_birth[key[0]]

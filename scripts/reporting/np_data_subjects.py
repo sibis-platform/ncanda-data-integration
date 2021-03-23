@@ -67,7 +67,7 @@ def main(args):
     project_df = data_entry_fields(forms,project_entry,visits)
 
     # Filter
-    filter_df = project_df.ix[subject_list]
+    filter_df = project_df.loc[subject_list]
     filter_df.to_csv(dir_csv)
 
 if __name__ == '__main__':
