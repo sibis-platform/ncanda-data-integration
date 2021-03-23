@@ -218,9 +218,9 @@ if len(subject_data[doubleEntryList]):
 subject_data['siblings_id1'] = subject_data['siblings_id1'].map( lambda x: subject_label_to_sid_dict[x] if x in list(subject_label_to_sid_dict.keys()) else '' )
 
 
-visit_log_fields = ['study_id', 'redcap_data_access_group', 'visit_date',
+visit_log_fields = ['study_id', 'visit_date',
                     'mri_qa_completed', 'mri_t1_age', 'mri_dti_age',
-                    'mri_rsfmri_age','mri_scanner', 'visit_ignore']
+                    'mri_rsfmri_age', 'mri_scanner', 'visit_ignore']
 visit_log_redcap = redcap_project.export_records(fields=visit_log_fields,
                                                  event_name='unique',
                                                  export_data_access_groups=True,
@@ -307,7 +307,7 @@ for [key, row] in tqdm(visit_log_redcap.iterrows(),  # the actual iterator
             print("Missing '%s' visit date for subject %s" % ( redcap_event, redcap_subject ))
         continue
 
-    this_subject_data = subject_data.ix[redcap_subject]
+    this_subject_data = subject_data.loc[redcap_subject]
     # If exclude flag is set, this will override the excludes value and export excluded subjects
     if args.exclude:
         excludes = 0.0
