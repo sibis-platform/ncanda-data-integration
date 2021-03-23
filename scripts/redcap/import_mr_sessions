@@ -710,7 +710,6 @@ subject_data['siblings_id1'] = subject_data['siblings_id1'].map(get_sibling_id1)
 
 visit_log_redcap = session.redcap_export_records("visit_log", 
                                                  fields=['study_id',
-                                                         'redcap_data_access_group',
                                                          'visit_date', 'visit_ignore',
                                                          'mr_session_report_complete',
                                                          'mri_xnat_sid',
