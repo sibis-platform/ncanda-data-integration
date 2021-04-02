@@ -64,7 +64,7 @@ if not redcap:
     sys.exit(1)
 
 # Read input file
-data = pd.read_csv(args.infile)
+data = pd.read_csv(args.infile, low_memory=False)
 
 # Replace periods in column labels with underscores
 data.rename(columns=lambda s: s.replace('.', '_').lower(), inplace=True)
