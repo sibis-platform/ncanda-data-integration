@@ -20,7 +20,9 @@ import argparse
 import pandas as pd
 import sys
 import sibispy
+from six import string_types
 from sibispy import sibislogger as slog
+import json
 
 def parse_args(arg_input=None):
     parser = argparse.ArgumentParser(
@@ -50,11 +52,10 @@ def parse_args(arg_input=None):
             help="Only process specific event(s)",
             nargs='+',
             action="store")
-    # TODO: Allow designation by arm, not (just) by event
-    # parser.add_argument(
-    #         '-r', '--arm',
-    #         help="Which arm to consider?",
-    #         default=1, type=int)
+    parser.add_argument(
+            '-r', '--arm',
+            help="Which arm to consider?",
+            default=1, type=int)
     parser.add_argument(
             "-n", "--dry-run",
             help="Check date validity but don't purge instruments",
@@ -75,13 +76,18 @@ def parse_args(arg_input=None):
 def get_events(api, events=None, arm=None):
     # Based on arguments that were passed, output Redcap-compatible event names
     # for further consumption
-    pass
+
+    # My Q: is event parser param = event_name or unique_event_name?
+    event_names = []
+    for event in api.events:
+        if (event["event_name"] in events or event["unique_event_name"] in events and event["arm_num"] == arm):
+            event_names.append(event["unique_event_name"])
+    return event_names
 
 def get_date_vars_for_arm(api, events, datevar_pattern=r'_date$'):
     # Given a list of events, retrieve a list of date variables
     fem = api.export_fem(format='df')
     available_forms = fem[fem['unique_event_name'].isin(events)]['form'].unique()
-
     meta = api.export_metadata(format='df')
     meta_subset = meta.loc[
             meta['form_name'].isin(available_forms) &
@@ -116,25 +122,31 @@ def mark_lagging_dates(data, comparison_var, days_duration):
     data_comp['purgable'] = data_comp['precedes'] | data_comp['exceeds']
     return data_comp
 
+def log_dataframe_by_row(errors_df: pd.DataFrame,
+                         uid_template: str = "{study_id}/{redcap_event_name}/{form}",
+                         **kwargs):
+    """
+    Convert each row of the DataFrame into a Sibislogger issue.
+    General idea: Each column in errors_df is reported, each additional keyword
+    argument is a template that gets populated with data from the columns.
+    """
 
-def prepare_blanks_for_form(meta, form_name):
-    # Fields to overwrite content with.
-    #
-    # BONUS: Blank out checkboxes
-    # BONUS: Omit calc fields
-    # Set form_complete = 0
-    pass
+    def log_row(row: pd.Series, **kwargs):
+        kwargs.update({
+            k: v.format(**row) for k, v in kwargs.items()
+            if isinstance(v, string_types)
+        })
+        slog.info(
+            **kwargs,
+            **row.dropna())
 
-
-def purge_form(api, subject, event, form):
-    # TODO: import_records with overwrite='overwrite'
-    pass
-
+    for _, row in errors_df.reset_index().iterrows():
+        log_row(row, uid=uid_template, **kwargs)
 
 def main(api, args):
     events = args.events
-    # TODO: Use get_events and args.arm to derive a list
-
+    arm = args.arm
+    events = get_events(api, events, arm)
     datevars = get_date_vars_for_arm(api, events)
     if args.comparison_date_var:
         comparison_date_var = args.comparison_date_var
@@ -152,8 +164,13 @@ def main(api, args):
 
     marks['form'] = marks['form_date_var'].map(lookup)
 
-    # TODO: Use the purge logic
-    # marks.apply(purge_form, api, ...
+    # Convert 'date' and 'visit_date' to strings to make them JSON serializable
+    marks['date'] = marks['date'].astype(str)
+    marks['visit_date'] = marks['visit_date'].astype(str)
+
+    # Log each dataframe by row
+    log_dataframe_by_row(marks, message="All entry forms that precede the visit date",
+        description="Listed are all entry forms that precede the visit date")
 
     return marks[marks['purgable']]
 
@@ -182,5 +199,5 @@ if __name__ == '__main__':
     if args.output:
         marks.to_csv(args.output)
     else:
-        with pd.option_context('display.max_rows', -1):
+        with pd.option_context('display.max_rows', 1):
             print(marks)
