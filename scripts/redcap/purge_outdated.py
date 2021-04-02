@@ -169,8 +169,8 @@ def main(api, args):
     marks['visit_date'] = marks['visit_date'].astype(str)
 
     # Log each dataframe by row
-    log_dataframe_by_row(marks, message="All entry forms that precede the visit date",
-        description="Listed are all entry forms that precede the visit date")
+    log_dataframe_by_row(marks[marks['purgable']], message="All entry forms that precede the visit date",
+        description="Listed are all entry forms that precede the visit date.")
 
     return marks[marks['purgable']]
 
