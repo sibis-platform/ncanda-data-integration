@@ -111,7 +111,6 @@ def retrieve_date_data(api, fields, events=None, records=None):
                               })
     return data
 
-
 def mark_lagging_dates(data, comparison_var, days_duration):
     comparisons = data.loc[:, [comparison_var]]
     df = data.drop(columns=[comparison_var]).copy()
