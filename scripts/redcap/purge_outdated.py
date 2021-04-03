@@ -24,6 +24,9 @@ from six import string_types
 from sibispy import sibislogger as slog
 import json
 
+# Changeable UID template for logging each dataframe by row
+UID_TEMPLATE = "Wrong date - {study_id}/{redcap_event_name}/{form}"
+
 def parse_args(arg_input=None):
     parser = argparse.ArgumentParser(
             description="Find and purge all Entry forms that precede the visit date",)
@@ -50,7 +53,7 @@ def parse_args(arg_input=None):
     parser.add_argument(
             '-e', "--events",
             help="Only process specific event(s)",
-            nargs='+',
+            nargs='*',
             action="store")
     parser.add_argument(
             '-r', '--arm',
@@ -72,16 +75,15 @@ def parse_args(arg_input=None):
     return parser.parse_args()
     # return parser.parse_args(arg_input)
 
-
 def get_events(api, events=None, arm=None):
     # Based on arguments that were passed, output Redcap-compatible event names
     # for further consumption
 
-    # My Q: is event parser param = event_name or unique_event_name?
-    event_names = []
+    event_names = []        
     for event in api.events:
-        if (event["event_name"] in events or event["unique_event_name"] in events and event["arm_num"] == arm):
-            event_names.append(event["unique_event_name"])
+        if (event["unique_event_name"] in events):
+            if (arm == -1 or event["arm_num"] == arm):
+                event_names.append(event["unique_event_name"])
     return event_names
 
 def get_date_vars_for_arm(api, events, datevar_pattern=r'_date$'):
@@ -144,8 +146,18 @@ def log_dataframe_by_row(errors_df: pd.DataFrame,
         log_row(row, uid=uid_template, **kwargs)
 
 def main(api, args):
-    events = args.events
+    events = []
     arm = args.arm
+
+    # Handling no events arg, so all events are chosen and arm doesn't matter
+    # Note: should it always pull from one arm when all forms or all arms?
+    if (args.events == None):
+        for event in api.events:
+            events.append(event["unique_event_name"])
+        arm = -1
+    else:
+        events = args.events
+
     events = get_events(api, events, arm)
     datevars = get_date_vars_for_arm(api, events)
     if args.comparison_date_var:
@@ -167,10 +179,6 @@ def main(api, args):
     # Convert 'date' and 'visit_date' to strings to make them JSON serializable
     marks['date'] = marks['date'].astype(str)
     marks['visit_date'] = marks['visit_date'].astype(str)
-
-    # Log each dataframe by row
-    log_dataframe_by_row(marks[marks['purgable']], message="All entry forms that precede the visit date",
-        description="Listed are all entry forms that precede the visit date.")
 
     return marks[marks['purgable']]
 
@@ -196,6 +204,13 @@ if __name__ == '__main__':
         sys.exit()
 
     marks = main(redcap_api, args)
+
+    # Log dataframe by row here, one for exceeds, and another for precedes
+    log_dataframe_by_row(marks[marks['exceeds']], uid_template=UID_TEMPLATE, message="Entry form exceeds visit date.",
+        description="Listed is an entry form that exceeds the visit date by 120 days.")
+    log_dataframe_by_row(marks[marks['precedes']], uid_template=UID_TEMPLATE, message="Entry forms precedes visit date.",
+        description="Listed is an entry form that precedes the visit date.")
+
     if args.output:
         marks.to_csv(args.output)
     else:
