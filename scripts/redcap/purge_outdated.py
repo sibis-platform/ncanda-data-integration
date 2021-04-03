@@ -118,7 +118,6 @@ def mark_lagging_dates(data, comparison_var, days_duration):
     data_long = df.stack().to_frame('date').reset_index(-1)
     data_comp = data_long.join(comparisons)
     # Maybe extract previous code into data prep?
-    print(data_comp)
     data_comp['precedes'] = data_comp['date'] < data_comp['visit_date']
     data_comp['exceeds']  = data_comp['date'] > data_comp['visit_date'] + pd.Timedelta(days=days_duration)
     data_comp['purgable'] = data_comp['precedes'] | data_comp['exceeds']
@@ -150,7 +149,7 @@ def log_dataframe_by_row(errors_df: pd.DataFrame,
 def main(api, args):
     events = []
     arm = args.arm
-    print(arm)
+
     # Handling no events arg, so all events are chosen
     # Note: should it always pull from one arm when all forms or all arms?
     if (args.events == None):
@@ -170,7 +169,6 @@ def main(api, args):
     lookup = get_form_lookup_for_vars(datevars, meta)
     data = retrieve_date_data(api, fields=datevars, events=events, 
                               records=args.subjects)
-
     marks = mark_lagging_dates(data, comparison_date_var, 
                                days_duration=args.max_days_after_visit)
 
