@@ -125,12 +125,14 @@ def mark_lagging_dates(data, comparison_var, days_duration):
     return data_comp
 
 def log_dataframe_by_row(errors_df: pd.DataFrame,
-                         uid_template: str = "{study_id}/{redcap_event_name}/{form}",
+                         uid_template: str = "{id}/{redcap_event_name}/{form}",
                          **kwargs):
     """
     Convert each row of the DataFrame into a Sibislogger issue.
     General idea: Each column in errors_df is reported, each additional keyword
     argument is a template that gets populated with data from the columns.
+
+    Note: imported from 'error_handling.py' within 'hivalc-data-integration'
     """
 
     def log_row(row: pd.Series, **kwargs):
