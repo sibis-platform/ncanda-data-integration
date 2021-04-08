@@ -24,9 +24,6 @@ from six import string_types
 from sibispy import sibislogger as slog
 import json
 
-# Changeable UID template for logging each dataframe by row
-UID_TEMPLATE = "Wrong date - {study_id}/{redcap_event_name}/{form}"
-
 def parse_args(arg_input=None):
     parser = argparse.ArgumentParser(
             description="Find and purge all Entry forms that precede the visit date",)
@@ -180,6 +177,8 @@ def main(api, args):
 
     return marks[marks['purgable']]
 
+# Changeable UID template for logging each dataframe by row
+UID_TEMPLATE = "WrongDate-{study_id}/{redcap_event_name}/{form}"
 
 if __name__ == '__main__':
     args = parse_args(sys.argv)
@@ -204,13 +203,13 @@ if __name__ == '__main__':
     marks = main(redcap_api, args)
 
     # Log dataframe by row here, one for exceeds, and another for precedes
-    log_dataframe_by_row(marks[marks['exceeds']], uid_template=UID_TEMPLATE, message="Entry form exceeds visit date.",
-        description="Listed is an entry form that exceeds the visit date by 120 days.")
-    log_dataframe_by_row(marks[marks['precedes']], uid_template=UID_TEMPLATE, message="Entry forms precedes visit date.",
-        description="Listed is an entry form that precedes the visit date.")
+    log_dataframe_by_row(marks[marks['exceeds']], uid_template=UID_TEMPLATE, message=f"Form exceeds visit date by {args.max_days_after_visit} days",
+        resolution="Contact site to determine if the date is incorrect and should be changed, if the form should be emptied, or if an exception should be set.")
+    log_dataframe_by_row(marks[marks['precedes']], uid_template=UID_TEMPLATE, message=f"Form precedes visit date by {args.max_days_after_visit} days",
+        resolution="Contact site to determine if the date is incorrect and should be changed, if the form should be emptied, or if an exception should be set.")
 
     if args.output:
         marks.to_csv(args.output)
     else:
-        with pd.option_context('display.max_rows', 1):
+        with pd.option_context('display.max_rows', None):
             print(marks)
