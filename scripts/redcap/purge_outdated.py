@@ -203,9 +203,11 @@ if __name__ == '__main__':
     marks = main(redcap_api, args)
 
     # Log dataframe by row here, one for exceeds, and another for precedes
-    log_dataframe_by_row(marks[marks['exceeds']], uid_template=UID_TEMPLATE, message=f"Form exceeds visit date by {args.max_days_after_visit} days",
+    log_dataframe_by_row(marks[marks['exceeds']], uid_template=UID_TEMPLATE, 
+        message=f"Form exceeds visit date by {args.max_days_after_visit} days",
         resolution="Contact site to determine if the date is incorrect and should be changed, if the form should be emptied, or if an exception should be set.")
-    log_dataframe_by_row(marks[marks['precedes']], uid_template=UID_TEMPLATE, message=f"Form precedes visit date by {args.max_days_after_visit} days",
+    log_dataframe_by_row(marks[marks['precedes']], uid_template=UID_TEMPLATE, 
+        message=f"Form precedes visit date by {args.max_days_after_visit} days",
         resolution="Contact site to determine if the date is incorrect and should be changed, if the form should be emptied, or if an exception should be set.")
 
     if args.output:
