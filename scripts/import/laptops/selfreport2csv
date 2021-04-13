@@ -162,6 +162,7 @@ def load_data(
         api.export_records,
         export_data_access_groups=True,
         export_survey_fields=True,
+        format='df',
         df_kwargs=dict(dtype=str)
     )
     try:
