@@ -207,7 +207,7 @@ if __name__ == '__main__':
         message=f"Form exceeds visit date by {args.max_days_after_visit} days",
         resolution="Contact site to determine if the date is incorrect and should be changed, if the form should be emptied, or if an exception should be set.")
     log_dataframe_by_row(marks[marks['precedes']], uid_template=UID_TEMPLATE, 
-        message=f"Form precedes visit date by a non-zero number of days: {args.max_days_after_visit} days",
+        message=f"Form precedes visit date by a non-zero number of days",
         resolution="Contact site to determine if the date is incorrect and should be changed, if the form should be emptied, or if an exception should be set.")
 
     if args.output:
