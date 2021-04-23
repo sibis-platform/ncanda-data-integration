@@ -20,7 +20,9 @@ import argparse
 import pandas as pd
 import sys
 import sibispy
+from six import string_types
 from sibispy import sibislogger as slog
+import json
 
 def parse_args(arg_input=None):
     parser = argparse.ArgumentParser(
@@ -48,13 +50,12 @@ def parse_args(arg_input=None):
     parser.add_argument(
             '-e', "--events",
             help="Only process specific event(s)",
-            nargs='+',
+            nargs='*',
             action="store")
-    # TODO: Allow designation by arm, not (just) by event
-    # parser.add_argument(
-    #         '-r', '--arm',
-    #         help="Which arm to consider?",
-    #         default=1, type=int)
+    parser.add_argument(
+            '-r', '--arm',
+            help="Which arm to consider?",
+            default=1, type=int)
     parser.add_argument(
             "-n", "--dry-run",
             help="Check date validity but don't purge instruments",
@@ -71,17 +72,21 @@ def parse_args(arg_input=None):
     return parser.parse_args()
     # return parser.parse_args(arg_input)
 
-
 def get_events(api, events=None, arm=None):
     # Based on arguments that were passed, output Redcap-compatible event names
     # for further consumption
-    pass
+
+    event_names = []        
+    for event in api.events:
+        if (event["unique_event_name"] in events):
+            if (event["arm_num"] == arm):
+                event_names.append(event["unique_event_name"])
+    return event_names
 
 def get_date_vars_for_arm(api, events, datevar_pattern=r'_date$'):
     # Given a list of events, retrieve a list of date variables
     fem = api.export_fem(format='df')
     available_forms = fem[fem['unique_event_name'].isin(events)]['form'].unique()
-
     meta = api.export_metadata(format='df')
     meta_subset = meta.loc[
             meta['form_name'].isin(available_forms) &
@@ -103,7 +108,6 @@ def retrieve_date_data(api, fields, events=None, records=None):
                               })
     return data
 
-
 def mark_lagging_dates(data, comparison_var, days_duration):
     comparisons = data.loc[:, [comparison_var]]
     df = data.drop(columns=[comparison_var]).copy()
@@ -116,25 +120,42 @@ def mark_lagging_dates(data, comparison_var, days_duration):
     data_comp['purgable'] = data_comp['precedes'] | data_comp['exceeds']
     return data_comp
 
+def log_dataframe_by_row(errors_df: pd.DataFrame,
+                         uid_template: str = "{id}/{redcap_event_name}/{form}",
+                         **kwargs):
+    """
+    Convert each row of the DataFrame into a Sibislogger issue.
+    General idea: Each column in errors_df is reported, each additional keyword
+    argument is a template that gets populated with data from the columns.
 
-def prepare_blanks_for_form(meta, form_name):
-    # Fields to overwrite content with.
-    #
-    # BONUS: Blank out checkboxes
-    # BONUS: Omit calc fields
-    # Set form_complete = 0
-    pass
+    Note: imported from 'error_handling.py' within 'hivalc-data-integration'
+    """
 
+    def log_row(row: pd.Series, **kwargs):
+        kwargs.update({
+            k: v.format(**row) for k, v in kwargs.items()
+            if isinstance(v, string_types)
+        })
+        slog.info(
+            **kwargs,
+            **row.dropna())
 
-def purge_form(api, subject, event, form):
-    # TODO: import_records with overwrite='overwrite'
-    pass
-
+    for _, row in errors_df.reset_index().iterrows():
+        log_row(row, uid=uid_template, **kwargs)
 
 def main(api, args):
-    events = args.events
-    # TODO: Use get_events and args.arm to derive a list
+    events = []
+    arm = args.arm
 
+    # Handling no events arg, so all events are chosen
+    # Note: should it always pull from one arm when all forms or all arms?
+    if (args.events == None):
+        for event in api.events:
+            events.append(event["unique_event_name"])
+    else:
+        events = args.events
+
+    events = get_events(api, events, arm)
     datevars = get_date_vars_for_arm(api, events)
     if args.comparison_date_var:
         comparison_date_var = args.comparison_date_var
@@ -143,20 +164,21 @@ def main(api, args):
 
     meta = api.export_metadata(format='df')
     lookup = get_form_lookup_for_vars(datevars, meta)
-
     data = retrieve_date_data(api, fields=datevars, events=events, 
                               records=args.subjects)
-
     marks = mark_lagging_dates(data, comparison_date_var, 
                                days_duration=args.max_days_after_visit)
 
     marks['form'] = marks['form_date_var'].map(lookup)
 
-    # TODO: Use the purge logic
-    # marks.apply(purge_form, api, ...
+    # Convert 'date' and 'visit_date' to strings to make them JSON serializable
+    marks['date'] = marks['date'].astype(str)
+    marks['visit_date'] = marks['visit_date'].astype(str)
 
     return marks[marks['purgable']]
 
+# Changeable UID template for logging each dataframe by row
+UID_TEMPLATE = "WrongDate-{study_id}/{redcap_event_name}/{form}"
 
 if __name__ == '__main__':
     args = parse_args(sys.argv)
@@ -179,8 +201,17 @@ if __name__ == '__main__':
         sys.exit()
 
     marks = main(redcap_api, args)
+
+    # Log dataframe by row here, one for exceeds, and another for precedes
+    log_dataframe_by_row(marks[marks['exceeds']], uid_template=UID_TEMPLATE, 
+        message=f"Form exceeds visit date by {args.max_days_after_visit} days",
+        resolution="Contact site to determine if the date is incorrect and should be changed, if the form should be emptied, or if an exception should be set.")
+    log_dataframe_by_row(marks[marks['precedes']], uid_template=UID_TEMPLATE, 
+        message=f"Form precedes visit date by a non-zero number of days",
+        resolution="Contact site to determine if the date is incorrect and should be changed, if the form should be emptied, or if an exception should be set.")
+
     if args.output:
         marks.to_csv(args.output)
     else:
-        with pd.option_context('display.max_rows', -1):
+        with pd.option_context('display.max_rows', None):
             print(marks)
