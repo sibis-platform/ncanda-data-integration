@@ -334,7 +334,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
         if today > visit_date_plusNd:
             # TODO: Check that today - date_of_birth doesn't fall into one of
             # the exceptions (if subject is 23, 25, or 26)
-            error = 'Missing MRI for Subject with visit date.'
+            error = f'Missing visit date for subject with visit data at {event}.'
             age = round(old_div(red2cas.days_between_dates(date_of_birth, visit_date), 365.242), 2)
             age_note = ("Participant age on visit date was %.2f. It is "
                         "possible that scan wasn't acquired because protocol "
