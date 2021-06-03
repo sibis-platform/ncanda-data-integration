@@ -17,11 +17,12 @@ services:
       - ../secrets/.sibis/aes:/root/aes
 
       # These are additional resource dirs to customize the container for ncanda
-      - ../frontend/sibis-init:/sibis-init
-      - ../frontend/sibis-resources:/sibis-resources
+      # - ../frontend/sibis-init:/sibis-init
+      # - ../frontend/sibis-resources:/sibis-resources
 
       # These are crontabs
-      - ./crontabs:/var/spool/cron/crontabs
+      #- ./crontabs:/var/spool/cron/crontabs
+      - ./crontabs:/sibis-crontabs
 
       # - /sibis-software/hivalc-data-integration:/sibis-software/data-integration
       # - /sibis-software/python-packages:/sibis-software/python-packages

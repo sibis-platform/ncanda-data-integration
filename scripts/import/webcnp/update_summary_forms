@@ -19,7 +19,6 @@ import sys
 import hashlib
 import numbers
 
-
 import sibispy
 from sibispy import sibislogger as slog
 
@@ -94,15 +93,8 @@ fields_summary+= [ 'cnp_%s' % v for v in cnp_copy_variables ]
 fields_summary+= [ 'cnp_%s_zscore' % v for v in list(cnp.mean_sdev_by_field_dict.keys()) ]
 baseline_events = ['baseline_visit_arm_1','baseline_visit_arm_4'] # these are the "baseline" events of the study arms that have them
 
-summary_records = rc_summary.export_records(
-    fields=fields_summary,
-    event_name='unique',
-    format='df',
-    df_kwargs=dict(
-        low_memory=False,  # read is now too large -> warning thrown otherwise
-        index_col=[rc_summary.def_field, 'redcap_event_name'],
-    )
-)
+summary_records = rc_summary.export_records( fields=fields_summary, event_name='unique', format='df', df_kwargs={'low_memory': False})
+summary_records = summary_records.set_index(['study_id', 'redcap_event_name'])
 # Drop all records that don't have "visit_date", i.e., all events from arms other than Arm 1 (Standard Protocol)
 summary_records = summary_records[ summary_records['visit_date'].map( lambda x: str(x) != 'nan' ) ]
 
@@ -205,7 +197,7 @@ for key, row in summary_records.iterrows():
                            records_this_visit = str(records_this_visit.index.tolist()))
 
             # Unique record - copy data from imported project to summary form
-            cnp_data = records_this_visit.ix[ len( records_this_visit ) - 1 ]
+            cnp_data = records_this_visit.iloc[len(records_this_visit) - 1]
             summary_records.at[key, 'cnp_datasetid'] = cnp_data.name
 
             date_of_birth = subject_dates_of_birth[key[0]]

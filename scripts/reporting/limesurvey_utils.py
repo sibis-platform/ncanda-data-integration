@@ -84,7 +84,7 @@ def get_within_file_info(fname, is_lssaga=False):
 
 def get_lssaga_type(df, raise_error=False):
     try:
-        typeinter = str(df['typeinter'].ix[0])
+        typeinter = str(df['typeinter'].iloc[0])
     except KeyError:
         if raise_error:
             raise

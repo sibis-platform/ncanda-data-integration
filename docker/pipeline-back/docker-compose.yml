@@ -21,7 +21,7 @@ services:
       - ../backend/sibis-resources:/sibis-resources
 
       # These are crontabs
-      - ./crontabs:/var/spool/cron/crontabs
+      - ./crontabs:/sibis-crontabs
 
       # - /sibis-software/hivalc-data-integration:/sibis-software/data-integration
       # - /sibis-software/python-packages:/sibis-software/python-packages

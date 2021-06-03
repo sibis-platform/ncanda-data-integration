@@ -424,7 +424,7 @@ form_key = session.get_redcap_form_key()
 
 # Get record IDs, visit labels, visit dates, and completion status for all laptop forms
 entry_data_fields = [('%s_complete' % form) for form in form_names] + [('%s_missing' % form) for form in form_prefixes] + [('%s_record_id' % form) for form in form_prefixes] + [('%s_date' % form) for form in form_prefixes]
-entry_data_fields += ['study_id', 'dob', 'redcap_event_name', 'visit_date', 'exclude'] 
+entry_data_fields += ['study_id', 'dob', 'visit_date', 'exclude'] 
 
 for form_id in forms_date_increments :
     if all_forms[form_id] in form_names :
@@ -609,7 +609,7 @@ for form_prefix, form_name in forms.items():
                     if args.verbose:
                         print(records_this_visit)
                 elif len(records_this_visit) == 1:
-                    total_uploaded += add_to_upload(session, form_prefix, form_name, key[0], key[1], records_this_visit.ix[0], subject_age, args.verbose)
+                    total_uploaded += add_to_upload(session, form_prefix, form_name, key[0], key[1], records_this_visit.iloc[0], subject_age, args.verbose)
                 elif (entry_form_data[complete_label][key] > 0) and (entry_form_data[missing_label][key] != 1):
                     errorMSG = "WARNING: Previously assigned form '" + form_name + "' seems to have disappered."
                     if form_target_date != entry_form_data[date_label][key] :
@@ -674,7 +674,7 @@ for form_prefix, form_name in forms.items():
                 # Sort records by date difference from visit date
                 records_this_visit['days_from_visit'] = records_this_visit[date_label].map( lambda d: abs( days_between_dates( visit_date, d ) ) )
                 records_this_visit.sort_values(by='days_from_visit', inplace=True)
-                records_this_visit_samedays= records_this_visit[records_this_visit['days_from_visit'] == records_this_visit.ix[0]['days_from_visit']]
+                records_this_visit_samedays= records_this_visit[records_this_visit['days_from_visit'] == records_this_visit.iloc[0]['days_from_visit']]
                 
                 if len(records_this_visit_samedays) > 1 : 
                     error ='ERROR: more than one closest record'
@@ -688,10 +688,10 @@ for form_prefix, form_name in forms.items():
                 else:
                     # Unique by proximity to visit_date - upload record that is closest
                     records_this_visit.drop( ['days_from_visit'], axis=1 )
-                    total_uploaded += add_to_upload( session,form_prefix, form_name, key[0], key[1], records_this_visit.ix[0], subject_age, args.verbose)
+                    total_uploaded += add_to_upload( session,form_prefix, form_name, key[0], key[1], records_this_visit.iloc[0], subject_age, args.verbose)
             # Upload record if we have EXACTLY one
             elif len( records_this_visit ) > 0:
-                total_uploaded += add_to_upload( session, form_prefix, form_name, key[0], key[1], records_this_visit.ix[0], subject_age, args.verbose)
+                total_uploaded += add_to_upload( session, form_prefix, form_name, key[0], key[1], records_this_visit.iloc[0], subject_age, args.verbose)
             # Treat cases where we found NO records in given window
             elif ('ssaga' in form_prefix) and ('parent' in form_prefix) and float( subject_age ) > 18:
                 # For over-18 subjects, we do not require Parent SSAGA
