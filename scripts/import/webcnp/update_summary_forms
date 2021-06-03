@@ -89,7 +89,7 @@ form_key = session.get_redcap_form_key()
 cnp_events_list = form_event_mapping[form_event_mapping[form_key] == 'cnp_summary' ]['unique_event_name'].tolist()
 
 # Retrieve subject IDs, events, exclusions, visit dates, and current CNP summary data
-fields_summary = ['study_id', 'redcap_event_name', 'dob', 'exclude', 'visit_date', 'cnp_summary_complete', 'cnp_missing', 'cnp_datasetid', 'cnp_age', 'cnp_instruments']
+fields_summary = ['study_id', 'dob', 'exclude', 'visit_date', 'cnp_summary_complete', 'cnp_missing', 'cnp_datasetid', 'cnp_age', 'cnp_instruments']
 fields_summary+= [ 'cnp_%s' % v for v in cnp_copy_variables ]
 fields_summary+= [ 'cnp_%s_zscore' % v for v in list(cnp.mean_sdev_by_field_dict.keys()) ]
 baseline_events = ['baseline_visit_arm_1','baseline_visit_arm_4'] # these are the "baseline" events of the study arms that have them
