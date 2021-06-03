@@ -13,6 +13,7 @@ import os
 import hashlib
 
 import pandas as pd
+from pathlib import Path
 import sys
 
 import cnp
@@ -73,25 +74,32 @@ data.rename(columns=lambda s: s.replace('.', '_').lower(), inplace=True)
 # Store current varnames for reference
 _current_varnames = [x['field_name'] for x in redcap.metadata]
 
-renames = pd.read_csv('/sibis-software/ncanda-data-integration/scripts/import/webcnp/NCANDA_Survey_Codebook.csv')
+this_dir = Path(__file__).parent.resolve()
+renames = pd.read_csv(this_dir / 'NCANDA_Survey_Codebook.csv')
 for _var in ['survey_var', 'evioni_var']:  # fit the previous data file rename
-    renames[_var] = renames[_var].str.lower()
+    renames[_var] = renames[_var].str.lower().str.replace(r'\.', '_')
 
 rename_dict = (renames.set_index('survey_var')['evioni_var']
                .dropna()
                .to_dict())
 untranslated_vars = (renames.loc[renames['evioni_var'].isnull(), 'survey_var']
                      .tolist())  # variables without cross-definition
+drop_vars = ['pvrt_a_scorvers', 'pvrt_a_status', 'pvrt_a_valid_code',
+             'pvrt_a_pvrtcr', 'pvrt_a_pvrt_pc', 'pvrt_a_pvrtrtto',
+             'pvrt_a_pvrtrtcr', 'pvrt_a_pvrtrter', 'pvrt_a_pvrt_eff']
+untranslated_vars += drop_vars
 
 # orig_data = data.copy()
 # data = data[rename_dict.keys()]  # only keep defined vars
-data.drop(columns=untranslated_vars, inplace=True)
+data.drop(columns=untranslated_vars, errors='ignore', inplace=True)
 data.rename(columns=rename_dict, inplace=True)
 
 # Debugging seciton
 _missing_redcap_varnames = [x for x in _current_varnames if x not in data.columns.tolist() ] 
 _variables_without_redcap = [x for x in data.columns.tolist() if x not in _current_varnames]
-assert len(_variables_without_redcap) == 0
+assert len(_variables_without_redcap) == 0, "Variables without Redcap: {}".format(
+    _variables_without_redcap
+)
 
 ## Remaining processing
 # Remove all sessions before ID 22000 - these are junk
