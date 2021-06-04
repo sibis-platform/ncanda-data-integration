@@ -49,6 +49,8 @@ fi
 
 catch_output_email "${SCRIPT_LABEL}:REDCap: Update Form Status (update_bulk_forms)" ${SIBIS}/scripts/redcap/update_bulk_forms -p -t ${LOG_DIR}
 
+catch_output_email "${SCRIPT_LABEL}:REDCap: Date-event associations (wrong_date_association)" ${SIBIS}/scripts/redcap/wrong_date_associations.py -p -q -t ${LOG_DIR}
+
 #
 # Previouly front-nighlty
 #
