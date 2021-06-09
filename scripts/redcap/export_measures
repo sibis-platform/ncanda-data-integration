@@ -391,7 +391,15 @@ for [key, row] in tqdm(visit_log_redcap.iterrows(),  # the actual iterator
          # Get a dataframe of the locked forms
          arm = "{0} Protocol".format(arm_code.capitalize())
 
-         locked_forms = red_lock.report_locked_forms(redcap_subject, subject_pipeline_id, locked_forms_name, 'ncanda_subject_visit_log', arm, visit,locked_form_table)
+         # locked_forms = red_lock.report_locked_forms(redcap_subject, subject_pipeline_id, locked_forms_name, 'ncanda_subject_visit_log', arm, visit,locked_form_table)
+         locked_forms = red_lock.report_locked_forms_from_enriched_lock_table(
+             subject_id=redcap_subject,
+             xnat_id=subject_pipeline_id,
+             forms=locked_forms_name,
+             project_name='ncanda_subject_visit_log',
+             redcap_event_name=redcap_event,
+             enriched_table=locked_form_table,
+         )
          
          filename = os.path.join(os.path.abspath(subject_datadir), 'measures', 'locked_forms.csv')
          sutils.safe_dataframe_to_csv(locked_forms, filename, verbose=args.verbose)
