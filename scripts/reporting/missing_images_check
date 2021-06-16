@@ -108,7 +108,7 @@ def main(args):
            # Only print out if entire modality is missing as otherwise not ported to pipeline: 
            # e.g. T1 exists but not T2 then T1 is also not ported to pipeline  
            pipe_entry_tmp = pipe_entry.copy(True);
-           pipe_entry_tmp.type = modality_compatible[pipe_entry.type]
+           pipe_entry_tmp.type = modality_compatible.get(pipe_entry.type)
            if not in_dataframe(pipe_entry_tmp,redcap_missing_list):
                print(redcap_list_base[redcap_list_base['mri_xnat_sid'] == pipe_entry.case]['study_id'].values[0], pipe_entry.values)
 
