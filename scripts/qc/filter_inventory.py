@@ -96,9 +96,9 @@ def parse_args(filter_choices, input_args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("-v", "--verbose", help="Verbose operation",
                         action="store_true")
-    parser.add_argument("-p", "--post-to-github",
-                        help="Post all issues to GitHub instead of stdout.",
-                        action="store_true")
+    # parser.add_argument("-p", "--post-to-github",
+    #                     help="Post all issues to GitHub instead of stdout.",
+    #                     action="store_true")
     parser.add_argument("-i", "--input",
                         help="Inventory file to operate on",
                         nargs='+',
@@ -106,9 +106,10 @@ def parse_args(filter_choices, input_args=None):
     parser.add_argument('-o', '--output',
                         help="File to save filtered inventory to",
                         default=sys.stdout)
-    # Reference to `choices` in `help` courtesy of https://stackoverflow.com/a/20335589
+    # `choices` in `help` courtesy of https://stackoverflow.com/a/20335589
     parser.add_argument('filter', metavar='FILTER', choices=filter_choices,
-            help="Filter function to apply, one of following: {%(choices)s}")
+                        help="Filter function to apply, one of following: "
+                        "{%(choices)s}")
     args = parser.parse_args(input_args)
     return args
 
@@ -135,10 +136,12 @@ if __name__ == '__main__':
     for filename in args.input:
         data = pd.read_csv(filename)
         filter_function = FILTERS[args.filter]
-        result = get_filter_results(data, filter_function, verbose=args.verbose)
+        result = get_filter_results(data, filter_function,
+                                    verbose=args.verbose)
         if result is None:
             if args.verbose:
-                print("Filter {} failed on file {}; skipping".format(args.filter, filename))
+                print("Filter {} failed on file {}; skipping"
+                      .format(args.filter, filename))
         elif not result.empty:
             all_out.append(result)
 
@@ -148,11 +151,13 @@ if __name__ == '__main__':
                 else:
                     output_display_name = args.output
 
-                print("Filter {} used on {} => {}".format(args.filter, filename, output_display_name))
+                print("Filter {} used on {} => {}"
+                      .format(args.filter, filename, output_display_name))
         else:
             if args.verbose:
-                print("Filter {} used on {} => no matches, skipping.".format(args.filter, filename))
-        
+                print("Filter {} used on {} => no matches, skipping."
+                      .format(args.filter, filename))
+
     if len(all_out) > 0:
         (pd.concat(all_out, sort=False)
          .to_csv(args.output, index=False, float_format="%.0f"))
