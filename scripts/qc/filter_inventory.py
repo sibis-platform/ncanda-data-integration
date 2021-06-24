@@ -68,6 +68,13 @@ def missing_not_complete(inventory):
     return (inventory['missing'] == 1) & (inventory['complete'] < 2)
 
 
+### 4. Excluded forms with content on them
+def excluded_with_content(inventory):
+    # -> Site should either unmark exclusion, or have the content deleted
+    return ((inventory['exclude'] == 1)
+            & (inventory['non_nan_count'] > 0)
+            & (~inventory['form_name'].isin(['visit_date', 'clinical'])))
+
 # Reports -- end
 
 
@@ -117,6 +124,7 @@ if __name__ == '__main__':
         content_unmarked,
         content_not_complete,
         missing_not_complete,
+        excluded_with_content,
     ]
     FILTERS = {x.__name__: x for x in FILTER_LIST}
 
