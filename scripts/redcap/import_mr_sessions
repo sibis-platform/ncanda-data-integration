@@ -820,7 +820,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
 
     if visit_date == 'nan':
         if float(row['visit_ignore___yes']) != 1:
-            error = 'Missing visit date for subject with visit data.'
+            error = f'Missing visit date for subject with visit data at {event}.'
             slog.info(key[0], error,
                           visit_id=key[1])
     else:
