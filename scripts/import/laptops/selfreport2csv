@@ -33,7 +33,7 @@ def main():
     args = _parse_args()
     self_report_api, import_api = _setup(args)
 
-    data = load_data(self_report_api, args.date_begin, args.verbose)
+    data = load_data(self_report_api, args.date_begin, args.all, args.verbose)
 
     # 1. Address RPIR
     data = coalesce_rpir_fields(data)
@@ -100,6 +100,8 @@ def _parse_args(input_args: List[str] = None) -> argparse.Namespace:
                    "Doesn't prevent --verbose from printing debug info.")
     p.add_argument('--no-upload', action='store_true',
                    help="Don't invoke csv2redcap after writing to output_dir")
+    p.add_argument('--all', action='store_true',
+                    help='Return all data regardlesss of completeness')
 
     date_range = p.add_mutually_exclusive_group(required=False)
     date_range.add_argument('--last-month',
@@ -150,6 +152,7 @@ def _setup(args: argparse.Namespace) -> Tuple[rc.Project]:
 def load_data(
     api: rc.Project,
     date_begin: datetime = None,
+    all: bool = False,
     verbose: bool = False
 ) -> pd.DataFrame:
     """
@@ -173,11 +176,13 @@ def load_data(
             print("redcap.export_records lacks a date_begin param, skipping")
         data = _load_data()
     
-    # Grabbing all reports
-    data['youth_report_2_timestamp'] = pd.to_datetime(data['youth_report_2_timestamp'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
-    days_since_start = (datetime.now() - data['youth_report_2_timestamp']).astype('timedelta64[D]')
-    selected_idx = (data['youth_report_2_complete'] == '2') | (days_since_start > 30)
-    return data.loc[selected_idx]
+    # Grabbing necessary reports by default; return all if parser argument indicates
+    if (all == False):
+        data['youth_report_2_timestamp'] = pd.to_datetime(data['youth_report_2_timestamp'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
+        days_since_start = (datetime.now() - data['youth_report_2_timestamp']).astype('timedelta64[D]')
+        selected_idx = (data['youth_report_2_complete'] == '2') | (days_since_start > 30)
+        return data.loc[selected_idx]
+    return data
 
 
 def _remap_rpir_question(
