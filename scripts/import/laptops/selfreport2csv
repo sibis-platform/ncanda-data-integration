@@ -173,14 +173,11 @@ def load_data(
             print("redcap.export_records lacks a date_begin param, skipping")
         data = _load_data()
     
-    # Turning time data into correct date-time
+    # Grabbing all reports
     data['youth_report_2_timestamp'] = pd.to_datetime(data['youth_report_2_timestamp'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
-    for i in range(0, data.shape[0]):
-        status = int(data['youth_report_2_complete'][i])
-        days_since_start = (datetime.now() - data['youth_report_2_timestamp'][i]).days
-        if (status == 2 or days_since_start > 30):
-            print("Check for data here.")
-    return data
+    days_since_start = (datetime.now() - data['youth_report_2_timestamp']).astype('timedelta64[D]')
+    selected_idx = (data['youth_report_2_complete'] == '2') | (days_since_start > 30)
+    return data.loc[selected_idx]
 
 
 def _remap_rpir_question(
