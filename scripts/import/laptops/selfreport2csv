@@ -165,7 +165,7 @@ def load_data(
         api.export_records,
         export_data_access_groups=True,
         export_survey_fields=True,
-        forms=['youth_report_2'],
+        forms=['pre_youth_report_2', 'youth_report_2'],
         format='df',
         df_kwargs=dict(dtype=str)
     )
@@ -175,7 +175,7 @@ def load_data(
         if verbose:
             print("redcap.export_records lacks a date_begin param, skipping")
         data = _load_data()
-    
+
     # Grabbing necessary reports by default; return all if parser argument indicates
     if (all == False):
         data['youth_report_2_timestamp'] = pd.to_datetime(data['youth_report_2_timestamp'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
