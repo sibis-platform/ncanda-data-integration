@@ -178,8 +178,8 @@ def load_data(
 
     # Grabbing necessary reports by default; return all if parser argument indicates
     if (all == False):
-        data['youth_report_2_timestamp'] = pd.to_datetime(data['youth_report_2_timestamp'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
-        days_since_start = (datetime.now() - data['youth_report_2_timestamp']).astype('timedelta64[D]')
+        data['youthreport2_date_interview'] = pd.to_datetime(data['youthreport2_date_interview'], format='%m/%d/%Y', errors='coerce')
+        days_since_start = (datetime.now() - data['youthreport2_date_interview']).astype('timedelta64[D]')
         selected_idx = (data['youth_report_2_complete'] == '2') | (days_since_start > 30)
         return data.loc[selected_idx]
     return data
