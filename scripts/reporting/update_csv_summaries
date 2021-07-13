@@ -61,6 +61,8 @@ pushd ${srcdir} > /dev/null
 
 [ -d ${dstdir} ] || mkdir -p ${dstdir}
 
+PATTERN=NCANDA_S0
+
 concat_csv() {
    OUTPUT_FILE=$1
    shift
@@ -133,7 +135,6 @@ if [ "$structuralFlag" == "1" ]; then
   # echo "Run Structural Reports" 
 
   # make last visit list 'last_list
-  PATTERN=NCANDA_S0*
   LONGITUDINAL_FLAG=true
   last_list=
     
@@ -284,10 +285,22 @@ fi
 diffusionReport()
 {
   local filePrefix=$1
-  local filePostfix=$2
+  shift
+  local filePostfix=$1
+  shift 
+  local dir_list="$*" 
   for MOD in fa l1 lt md; do 
     FILE="${filePrefix}_${MOD}${filePostfix}"
-    concat_csv ${dstdir}/diffusion_/${FILE} */*/*/diffusion/pepolar/measures/${FILE}
+    file_list= 
+    for DIR in $dir_list; do
+	if [ -e $DIR/${FILE} ]; then 
+	    file_list="${file_list}$DIR/${FILE} "
+	fi
+    done
+    # just cross-sectional - not as stable 
+    # concat_csv ${dstdir}/diffusion_/${FILE} */*/*/diffusion/pepolar/measures/${FILE}
+    # longitudinal results - lower intra-rater variability - should be used 
+    concat_csv ${dstdir}/diffusion_/${FILE} $file_list 
   done
 }
 
@@ -296,11 +309,23 @@ if [ "$diffusionFlag" == "1" ]; then
   [ -d ${dstdir}/diffusion_ ] && rm -rf ${dstdir}/diffusion_ 
   mkdir -p ${dstdir}/diffusion_
 
-  diffusionReport mori_ncanda_baseline_meet_criteria _skeleton.csv
-  diffusionReport mori_ncanda_baseline_meet_criteria _corrected_global_skeleton.csv
-  diffusionReport mori_ncanda_baseline_meet_criteria _corrected_global_add_skeleton.csv
-  diffusionReport mori_ncanda_baseline_meet_criteria _corrected_local_mul_skeleton.csv
-  diffusionReport mori_ncanda_baseline_meet_criteria _corrected_local_add_skeleton.csv
+  csv_list=
+  for subject in `ls -d --color=no $PATTERN*/standard`; do 
+      for VISIT in $subject/baseline `ls -d --color=no $subject/followup_*y 2> /dev/null`; do 
+	  if [ -d $VISIT/diffusion/pepolar/longitudinal/measures ]; then 
+	      csv_list="${csv_list}$VISIT/diffusion/pepolar/longitudinal/measures "
+	  elif [ -d $VISIT/diffusion/pepolar/measures ]; then 
+	      csv_list="${csv_list}$VISIT/diffusion/pepolar/measures "
+	  fi 
+      done
+  done
+
+  diffusionReport mori_ncanda_baseline_meet_criteria _skeleton.csv $csv_list
+  diffusionReport mori_ncanda_baseline_meet_criteria _corrected_global_skeleton.csv $csv_list
+  # those are not used 
+  # diffusionReport mori_ncanda_baseline_meet_criteria _corrected_global_add_skeleton.csv $csv_list
+  # diffusionReport mori_ncanda_baseline_meet_criteria _corrected_local_mul_skeleton.csv
+  # diffusionReport mori_ncanda_baseline_meet_criteria _corrected_local_add_skeleton.csv
 
   [ -d ${dstdir}/diffusion ] && rm -rf ${dstdir}/diffusion 
   mv ${dstdir}/diffusion_ ${dstdir}/diffusion
@@ -311,8 +336,10 @@ if [ "$restingstateFlag" == "1" ]; then
   [ -d ${dstdir}/restingstate_ ] && rm -rf ${dstdir}/restingstate_ 
   mkdir -p ${dstdir}/restingstate_ 
 
-  concat_csv ${dstdir}/restingstate_/rs_qa.csv */*/*/restingstate/measures/rs_qa.csv 
-  concat_csv ${dstdir}/restingstate_/rs_roi2roi_corr.csv  */*/*/restingstate/measures/sri24/rs_roi2roi_corr.csv
+  concat_csv ${dstdir}/restingstate_/rs_qa.csv ${PATTERN}*/*/*/restingstate/measures/rs_qa.csv 
+  concat_csv ${dstdir}/restingstate_/sri24_parc116_gm_roi2roi_correlations.csv  ${PATTERN}*/*/*/restingstate/measures/sri24_epi/sri24_parc116_gm_roi2roi_correlations.csv
+  concat_csv ${dstdir}/restingstate_/sri24_parc116_gm_roi2roi_partial_correlations.csv  ${PATTERN}*/*/*/restingstate/measures/sri24_epi/sri24_parc116_gm_roi2roi_partial_correlations.csv
+
   [ -d ${dstdir}/restingstate ] && rm -rf ${dstdir}/restingstate 
   mv ${dstdir}/restingstate_ ${dstdir}/restingstate
 fi 
