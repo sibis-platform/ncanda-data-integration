@@ -150,17 +150,17 @@ def log_dataframe_by_row(errors_df: pd.DataFrame,
     for _, row in errors_df.reset_index().iterrows():
         log_row(row, uid=uid_template, **kwargs)
 
-def get_special_cases(marks, session):
+def subtract_special_cases_from_marks(marks, session):
     """
     Looks at special_cases.yml file, finds the special cases under the file name section,
     and then excludes any cases that match the special cases list.
 
-    Note (for Chris use):
-    - 'redcap_event_name' is arm name
+    Note -- fields used within Pandas dataframe:
+    - 'event_name' is REDCap event and arm name
     - 'study_id' inclues up to letter and number
-    - 'visit_date' is looking at date --> not correct!
+    - 'form_date_var' is comparison date variable
 
-    Each row in the dataframe has:
+    If using DataFram.iterrows(), then Each row in the dataframe is a pd.Series which has:
     row.name -> [0] is the subject ID, [1] is the arm name
     """
 
@@ -174,7 +174,7 @@ def get_special_cases(marks, session):
     # Get a list of the specific cases that should be inspected
     with open(special_cases_file) as fi:
         special_cases = yaml.load(fi)
-        exceptions_data = special_cases.get('wrong_date_associations', {})
+        exceptions_data = special_cases.get('wrong_date_associations', [])
 
     # Loop through each exception and drop the corresponding row
     for exception in exceptions_data:
@@ -182,6 +182,8 @@ def get_special_cases(marks, session):
             # Find matching subject and drop
             if (exception['subject'] == row.name[0] and exception['event'] == row.name[1] and exception['dates'] == row['form_date_var']):
                 marks = marks.drop(index)
+            else:
+                slog.info("wrong_date_associations", "Error: there is no mark that matches this special case with subject " + row.name[0] + " and event " + row.name[1])
 
     return marks
     
@@ -242,7 +244,7 @@ if __name__ == '__main__':
         sys.exit()
 
     marks = main(redcap_api, args)
-    marks = get_special_cases(marks, session)
+    marks = subtract_special_cases_from_marks(marks, session)
     
     # Changeable UID template for logging each dataframe by row
     UID_TEMPLATE = "WrongDate-{study_id}/{redcap_event_name}/{form}"
