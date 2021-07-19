@@ -13,12 +13,14 @@ TODO: Reflect exceptions set in special_cases.yml::outside_visit_window and
 """
 
 import argparse
+import os
 import pandas as pd
 import sys
 import sibispy
 from six import string_types
 from sibispy import sibislogger as slog
 import json
+import yaml
 
 
 def parse_args(arg_input=None):
@@ -148,7 +150,41 @@ def log_dataframe_by_row(errors_df: pd.DataFrame,
     for _, row in errors_df.reset_index().iterrows():
         log_row(row, uid=uid_template, **kwargs)
 
+def get_special_cases(marks, session):
+    """
+    Looks at special_cases.yml file, finds the special cases under the file name section,
+    and then excludes any cases that match the special cases list.
 
+    Note (for Chris use):
+    - 'redcap_event_name' is arm name
+    - 'study_id' inclues up to letter and number
+    - 'visit_date' is looking at date --> not correct!
+
+    Each row in the dataframe has:
+    row.name -> [0] is the subject ID, [1] is the arm name
+    """
+
+    # Connect to the special_cases.yml file
+    sibis_config = session.get_operations_dir()
+    special_cases_file = os.path.join(sibis_config, 'special_cases.yml')
+    if not os.path.isfile(special_cases_file):
+        slog.info("wrong_date_associations","Error: The following file does not exist : " + special_cases_file)
+        sys.exit(1)
+
+    # Get a list of the specific cases that should be inspected
+    with open(special_cases_file) as fi:
+        special_cases = yaml.load(fi)
+        exceptions_data = special_cases.get('wrong_date_associations', {})
+
+    # Loop through each exception and drop the corresponding row
+    for exception in exceptions_data:
+        for index, row in marks.iterrows():
+            # Find matching subject and drop
+            if (exception['subject'] == row.name[0] and exception['event'] == row.name[1] and exception['dates'] == row['form_date_var']):
+                marks = marks.drop(index)
+
+    return marks
+    
 def main(api, args):
     events = []
     arm = args.arm
@@ -206,7 +242,8 @@ if __name__ == '__main__':
         sys.exit()
 
     marks = main(redcap_api, args)
-
+    marks = get_special_cases(marks, session)
+    
     # Changeable UID template for logging each dataframe by row
     UID_TEMPLATE = "WrongDate-{study_id}/{redcap_event_name}/{form}"
     RESOLUTION = ("Contact site to determine if the date is incorrect and "
