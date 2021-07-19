@@ -154,8 +154,15 @@ def subtract_special_cases_from_marks(marks, session):
     """
     Looks at special_cases.yml file, finds the special cases under the file name section,
     and then excludes any cases that match the special cases list.
+    
+    Format of Special Case:
+     - subject: A-00022-F-1
+       event: 1y_visit_arm_1
+       dates: bio_np_date
 
-    Note -- fields used within Pandas dataframe:
+    Notes:
+
+    For fields used within Pandas dataframe:
     - 'event_name' is REDCap event and arm name
     - 'study_id' inclues up to letter and number
     - 'form_date_var' is comparison date variable
