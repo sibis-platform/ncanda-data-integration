@@ -201,6 +201,7 @@ if __name__ == '__main__':
                                           post_to_github=args.post_to_github,
                                           include_dag=args.include_dag,
                                           verbose=args.verbose)
+        inventory.drop_duplicates(inplace=True)
         inventory.to_csv(args.output, float_format="%.0f")
         sys.exit(0)
     except Exception as e:
