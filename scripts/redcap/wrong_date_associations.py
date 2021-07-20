@@ -175,7 +175,7 @@ def subtract_special_cases_from_marks(marks, session):
     sibis_config = session.get_operations_dir()
     special_cases_file = os.path.join(sibis_config, 'special_cases.yml')
     if not os.path.isfile(special_cases_file):
-        slog.info("wrong_date_associations","Error: The following file does not exist : " + special_cases_file)
+        slog.info("Special cases file does not exit","Error: The following file does not exist : " + special_cases_file)
         sys.exit(1)
 
     # Get a list of the specific cases that should be inspected
@@ -190,7 +190,7 @@ def subtract_special_cases_from_marks(marks, session):
             if (exception['subject'] == row.name[0] and exception['event'] == row.name[1] and exception['dates'] == row['form_date_var']):
                 marks = marks.drop(index)
             else:
-                slog.info("wrong_date_associations", "Error: there is no mark that matches this special case with subject " + row.name[0] + " and event " + row.name[1])
+                slog.info("Special case doesn't exist within marks", "Error: there is no mark that matches this special case with subject " + row.name[0] + " and event " + row.name[1])
 
     return marks
     
