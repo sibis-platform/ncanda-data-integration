@@ -13,7 +13,7 @@ Constants -- paths for reports, default save names, SLA, columns, and sites
 TO-DO: Change SLA_DAYS to a parser arg?
 '''
 REPORTS_DIR = '/fs/storage/laptops/ncanda'
-DEFAULT_CSV = '/tmp/chris/import_reports/'
+DEFAULT_CSV = '/fs/ncanda-share/log/status_reports/'
 SLA_DAYS = 30
 DATA_COLUMNS = ['laptop', 'date_updated', 'time_diff', 'sla', 'sla_percentage']
 SITES = ['duke', 'sri', 'ohsu', 'upmc', 'ucsd']
