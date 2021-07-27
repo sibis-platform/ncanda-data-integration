@@ -13,7 +13,7 @@ Constants -- paths for reports, default save names, SLA, columns, and sites
 TO-DO: Change SLA_DAYS to a parser arg?
 '''
 REPORTS_DIR = '/fs/storage/laptops/ncanda'
-DEFAULT_CSV = '/tmp/chris/import_reports/reports.csv'
+DEFAULT_CSV = '/tmp/chris/import_reports/'
 SLA_DAYS = 30
 DATA_COLUMNS = ['laptop', 'date_updated', 'time_diff', 'sla', 'sla_percentage']
 SITES = ['duke', 'sri', 'ohsu', 'upmc', 'ucsd']
@@ -32,16 +32,7 @@ def parse_args(arg_input=None):
     
     return parser.parse_args(arg_input)
 
-def setup_csv(path=None):
-    '''
-    Sets up the proper csv file and returns the writer and file object
-    '''
-    csv_file = open(path, mode='w')
-    writer = csv.DictWriter(csv_file, fieldnames=DATA_COLUMNS)
-    writer.writeheader()
-    return writer
-
-def write_to_csv(writer):
+def create_dataframe():
     '''
     Writes the names of each laptop and the date they were updated to a .csv file
     '''
@@ -67,17 +58,27 @@ def write_to_csv(writer):
                 }
             df = df.append(new_row, ignore_index=True)
 
-    # Sort by descending SLA percentage and save to a .csv file
+    # Sort by descending SLA percentage
     df = df.sort_values(by=['sla_percentage'], ascending=False)
-    df.to_csv(DEFAULT_CSV, index=False)
+    return df
 
+def write_to_csv(df, path=None):
+    '''
+    Save data into a dataframe and save for each individual site
+    '''
+    df.to_csv(path + 'reports.csv', index=False)
+    for site in SITES:
+        site_df = df.loc[df['laptop'].str.contains(site, case=False)]
+        site_df.to_csv(path + site + '.csv', index=False)
+        
+    
 def main():
     '''
-    Creates the writer to the csv file and then calls to write to the csv
+    Grabs necessary SVN data from folders and then calls to write to the csv
     '''
     args = parse_args()
-    writer = setup_csv(args.file)
-    write_to_csv(writer)
+    df = create_dataframe()
+    write_to_csv(df, args.file)
 
 if __name__ == "__main__":
     main()
