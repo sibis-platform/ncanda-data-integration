@@ -52,6 +52,9 @@ def upload_findings_to_xnat(
             elif row['decision']==1:
                 scan.set('quality', 'usable')
                 uploaded_scan_count += 1
+            elif row['decision'] == 2:
+                scan.set('quality', 'usable-extra')
+                uploaded_scan_count += 1
             elif row['decision']==0:
                 scan.set('quality', 'questionable')
                 uploaded_scan_count += 1
