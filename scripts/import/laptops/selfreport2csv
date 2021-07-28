@@ -176,11 +176,32 @@ def load_data(
             print("redcap.export_records lacks a date_begin param, skipping")
         data = _load_data()
 
-    # Grabbing necessary reports by default; return all if parser argument indicates
-    if (all == False):
-        data['youthreport2_date_interview'] = pd.to_datetime(data['youthreport2_date_interview'], format='%m/%d/%Y', errors='coerce')
-        days_since_start = (datetime.now() - data['youthreport2_date_interview']).astype('timedelta64[D]')
-        selected_idx = (data['youth_report_2_complete'] == '2') | (days_since_start > 30)
+    # Grabbing necessary reports by default, but return all if --all was passed
+    if all is False:
+        dates = data['record_id'].str.extract(r'(?P<date>\d{4}-\d{2}-\d{2})$')
+        dates = pd.to_datetime(dates['date'], errors='coerce')
+        failed_conversions = data.loc[pd.isnull(dates), 'record_id'].tolist()
+        if verbose:
+            print("The following records have failed date conversion:")
+            print("\n".join([f" - {x}" for x in failed_conversions]))
+        for record in failed_conversions:
+            slog.info(
+                uid=record,
+                message="Invalid date in Self-Report record_id",
+                explanation="The date could not be converted. Unless the form "
+                "is marked Complete in Self-Report project, the record won't "
+                "be transmitted until ./selfreport2csv --all is run.",
+                correction="Have the site correct the record ID in the "
+                "Self-Report Project and/or have them set a date for each "
+                "imported form in the Imported from Laptops project."
+            )
+        days_since_start = (datetime.now() - dates).dt.days
+        selected_idx = ((data['youth_report_2_complete'] == '2') |
+                        (days_since_start > 30))
+        skipped_ids = data.loc[~selected_idx, 'record_id'].tolist()
+        if verbose:
+            print("Skipping incomplete and younger-than-month records:")
+            print("\n".join([f" - {x}" for x in skipped_ids]))
         return data.loc[selected_idx]
     return data
 
