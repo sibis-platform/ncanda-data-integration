@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 '''
 This file creates a .csv file containing the name of each laptop and its last changed date
 '''
@@ -7,6 +9,11 @@ from datetime import datetime, timezone
 import os
 import svn.local
 import pandas as pd
+from yaml import load, dump
+try:
+    from yaml import CLoader as Loader, CDumper as Dumper
+except ImportError:
+    from yaml import Loader, Dumper
 
 '''
 Constants -- paths for reports, default save names, SLA, columns, and sites
@@ -31,6 +38,14 @@ def parse_args(arg_input=None):
         default=DEFAULT_CSV)
     
     return parser.parse_args(arg_input)
+
+def load_default_sla(path=None):
+    '''
+    Loads default SLA from YAML file
+    '''
+    with open(path) as f:
+        data = load(f, Loader=Loader)
+        return data['default_sla']
 
 def create_dataframe():
     '''
@@ -77,6 +92,7 @@ def main():
     Grabs necessary SVN data from folders and then calls to write to the csv
     '''
     args = parse_args()
+    default_sla = load_default_sla('svn_report_config.yml')
     df = create_dataframe()
     write_to_csv(df, args.file)
 
