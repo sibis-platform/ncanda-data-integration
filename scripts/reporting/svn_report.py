@@ -24,6 +24,7 @@ DEFAULT_CSV = '/fs/ncanda-share/log/status_reports/'
 SLA_DAYS = 30
 DATA_COLUMNS = ['laptop', 'date_updated', 'time_diff', 'sla', 'sla_percentage']
 SITES = ['duke', 'sri', 'ohsu', 'upmc', 'ucsd']
+CONFIG_FILE = 'svn_report_config.yml'
 
 def parse_args(arg_input=None):
     '''
@@ -47,7 +48,7 @@ def load_default_sla(path=None):
         data = load(f, Loader=Loader)
         return data['default_sla']
 
-def create_dataframe():
+def create_dataframe(default_sla=None):
     '''
     Writes the names of each laptop and the date they were updated to a .csv file
     '''
@@ -64,11 +65,17 @@ def create_dataframe():
             mod_time = info['commit/date']
             time_diff = datetime.now(timezone.utc) - mod_time
             sla_percentage = time_diff.total_seconds() / (SLA_DAYS * 24 * 60 * 60)
+            laptop_sla = SLA_DAYS
+
+            # Parsing through default SLA cases
+            if directory in default_sla.keys():
+                laptop_sla = default_sla[directory]
+            
             new_row = {
                 'laptop': directory,
                 'date_updated': mod_time,
                 'time_diff': time_diff,
-                'sla': SLA_DAYS,
+                'sla': laptop_sla,
                 'sla_percentage': sla_percentage
                 }
             df = df.append(new_row, ignore_index=True)
@@ -92,8 +99,8 @@ def main():
     Grabs necessary SVN data from folders and then calls to write to the csv
     '''
     args = parse_args()
-    default_sla = load_default_sla('svn_report_config.yml')
-    df = create_dataframe()
+    default_sla = load_default_sla(CONFIG_FILE)
+    df = create_dataframe(default_sla)
     write_to_csv(df, args.file)
 
 if __name__ == "__main__":
