@@ -188,16 +188,18 @@ def load_data(
             slog.info(
                 uid=record,
                 message="Invalid date in Self-Report record_id",
-                explanation="The date could not be converted. Unless the form "
-                "is marked Complete in Self-Report project, the record won't "
-                "be transmitted until ./selfreport2csv --all is run.",
+                explanation="The date could not be converted. the record "
+                "won't be transmitted unless it is corrected or "
+                "`./selfreport2csv --all` is run.",
                 correction="Have the site correct the record ID in the "
-                "Self-Report Project and/or have them set a date for each "
-                "imported form in the Imported from Laptops project."
+                "Self-Report Project, and have them exclude each imported "
+                "form in the Imported from Laptops project if already "
+                "transmitted."
             )
         days_since_start = (datetime.now() - dates).dt.days
-        selected_idx = ((data['youth_report_2_complete'] == '2') |
-                        (days_since_start > 30))
+        selected_idx = (((data['youth_report_2_complete'] == '2') |
+                         (days_since_start > 30)) &
+                        ~data['record_id'].isin(failed_conversions))
         skipped_ids = data.loc[~selected_idx, 'record_id'].tolist()
         if verbose:
             print("Skipping incomplete and younger-than-month records:")
