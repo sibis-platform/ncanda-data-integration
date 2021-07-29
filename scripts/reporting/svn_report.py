@@ -46,7 +46,7 @@ def load_default_sla(path=None):
     '''
     with open(path) as f:
         data = load(f, Loader=Loader)
-        return data['default_sla']
+        return data['laptop_sla']
 
 def create_dataframe(default_sla=None):
     '''
