@@ -21,7 +21,7 @@ from six import string_types
 from sibispy import sibislogger as slog
 import json
 import yaml
-
+from typing import Sequence, List, Dict, Tuple
 
 def parse_args(arg_input=None):
     parser = argparse.ArgumentParser(
@@ -150,6 +150,23 @@ def log_dataframe_by_row(errors_df: pd.DataFrame,
     for _, row in errors_df.reset_index().iterrows():
         log_row(row, uid=uid_template, **kwargs)
 
+def create_special_cases_triplets(exceptions_data: List[Dict]) -> List[Tuple[str]]:
+    '''
+    Given exceptions data from special cases file, produce appropriate triplets
+    to easily remove data from marks
+    '''
+    cases = []
+    for case in exceptions_data:
+        if isinstance(case['dates'], Sequence) and not isinstance(case['dates'], str):
+            cases.extend([(case['subject'], case['event'], x) for x in case['dates']])
+        elif isinstance(case['dates'], str):
+            cases.append((case['subject'], case['event'], case['dates']))
+        else:
+            # log error?
+            pass
+
+    return cases
+        
 def subtract_special_cases_from_marks(marks, session):
     """
     Looks at special_cases.yml file, finds the special cases under the file name section,
@@ -182,7 +199,7 @@ def subtract_special_cases_from_marks(marks, session):
     with open(special_cases_file) as fi:
         special_cases = yaml.load(fi)
         exceptions_data = special_cases.get('wrong_date_associations', [])
-
+        
     # Loop through each exception and drop the corresponding row
     for exception in exceptions_data:
         for index, row in marks.iterrows():
