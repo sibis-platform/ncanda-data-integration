@@ -199,16 +199,16 @@ def subtract_special_cases_from_marks(marks, session):
     with open(special_cases_file) as fi:
         special_cases = yaml.load(fi)
         exceptions_data = special_cases.get('wrong_date_associations', [])
-        
-    # Loop through each exception and drop the corresponding row
-    for exception in exceptions_data:
-        for index, row in marks.iterrows():
-            # Find matching subject and drop
-            if (exception['subject'] == row.name[0] and exception['event'] == row.name[1] and exception['dates'] == row['form_date_var']):
-                marks = marks.drop(index)
-            else:
-                slog.info("Special case doesn't exist within marks", "Error: there is no mark that matches this special case with subject " + row.name[0] + " and event " + row.name[1])
 
+    # Reshape exceptions_data to create triplets
+    exceptions_data = create_special_cases_triplets(exceptions_data)
+
+    # Drop each exception from the marks dataframe
+    marks.set_index('form_date_var', append=True, inplace=True)
+    invalid_marks_idx = marks.index.isin(exceptions_data)
+    invalid_marks = marks.loc[invalid_marks_idx]
+    marks = marks.loc[~invalid_marks_idx]
+        
     return marks
     
 def main(api, args):
