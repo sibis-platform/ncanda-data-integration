@@ -197,7 +197,7 @@ def subtract_special_cases_from_marks(marks, session):
 
     # Get a list of the specific cases that should be inspected
     with open(special_cases_file) as fi:
-        special_cases = yaml.load(fi)
+        special_cases = yaml.safe_load(fi)
         exceptions_data = special_cases.get('wrong_date_associations', [])
 
     # Reshape exceptions_data to create triplets
