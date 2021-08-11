@@ -73,7 +73,7 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, \
         slog.info(str(redcap_key[0]) + "-" +  str(redcap_key[1]), details, error_obj={ 'message': str(e), 'errno': e.errno, 'filename': e.filename, 'strerror': e.strerror })
         return
     # Convert downloaded Stroop file to CSV scores file
-    cmd = str(os.path.join( import_bindir, "stroop2csv" )) +  ' --mr-session --record ' +  redcap_key[0] + ' --event ' + redcap_key[1] + " " + str(stroop_file_path) + ' ' + str(tempdir) 
+    cmd = str(os.path.join(import_bindir, "stroop2csv")) + f' --mr-session --record "{redcap_key[0]}" --event "{redcap_key[1]}" "{str(stroop_file_path)}" "{str(tempdir)}"'
     (ecode,sout, serr) = sutils.call_shell_program(cmd)
     if ecode: 
         slog.info(str(redcap_key[0]) + "-" +  str(redcap_key[1]), "Error: import_stroop_to_redcap: failed to run stroop2csv!", cmd = str(cmd), stderr = str(serr), stdout = str(sout))
@@ -103,7 +103,7 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, \
             if post_to_github: 
                 cmd += " -p" 
 
-            cmd += ' --project data_entry --record ' + str(redcap_key[0]) + ' --event ' + str(redcap_key[1]) + ' ' + str(stroop_file_path) +  ' mri_stroop_log_file' 
+            cmd += f' --project data_entry --record {redcap_key[0]} --event {redcap_key[1]} "{str(stroop_file_path)}" mri_stroop_log_file'
                 
             if verbose:
                 print("Uploading ePrime Stroop file",stroop_file_path)
