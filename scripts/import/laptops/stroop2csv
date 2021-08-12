@@ -17,6 +17,7 @@ import math
 import argparse
 import hashlib
 import numpy as np
+import pandas as pd
 from pathlib import Path
 
 from convert_util import post_issue
@@ -276,9 +277,6 @@ zs[7]=0.5*(z[2]+z[3])
 
 if not os.path.exists(args.outdir):
     os.makedirs(args.outdir)
-output_file = open( output_filename, 'w' )
-
-wr = csv.writer( output_file, quoting=csv.QUOTE_ALL)
 
 if args.mr_session:
     record_id_variable = "study_id"
@@ -301,6 +299,7 @@ result=[record_id,1,mean[8],std[8],median[8],z[8],error[8],
         miss[0],miss[1],miss[2],miss[3],miss[4],miss[5], miss[6],miss[7],Diff[0],
         Diff[1],Diff[2],Diff[3],Diff[4],Diff[5],Diff[6],Diff[7],zs[0],zs[1],zs[2],zs[3],zs[4],zs[5],zs[6],zs[7]]
 
+
 title.append( 'stroop_timeofday' )
 result.append( time_of_day )
 
@@ -319,9 +318,30 @@ if args.event:
     title.append( 'redcap_event_name' )
     result.append( args.event )
 
-wr.writerow(title)
-wr.writerow(result)
-
-output_file.close()
+result_dict = dict(zip(title, result))
+# Drop useless z-scores which are apparently non-representative
+useless_cols = [
+    "stroop_conm_rr_z",
+    "stroop_conm_rs_z",
+    "stroop_connm_rr_z",
+    "stroop_connm_rs_z",
+    "stroop_incm_rr_z",
+    "stroop_incm_rs_z",
+    "stroop_incnm_rr_z",
+    "stroop_incnm_rs_z",
+    "stroop_stroopm_rr_z",
+    "stroop_stroopnm_rr_z",
+    "stroop_stroopm_rs_z",
+    "stroop_stroopnm_rs_z",
+    "stroop_stroopm_z",
+    "stroop_stroopnm_z",
+    "stroop_rr_z",
+    "stroop_rs_z"
+]
+result_dict = {key: [val] for key, val in result_dict.items()
+               if key not in useless_cols}
+result_df = pd.DataFrame(result_dict)
+result_df.to_csv(output_filename, index=False, na_rep='',
+                 quoting=csv.QUOTE_ALL)
 
 print(output_filename)
