@@ -70,7 +70,7 @@ def create_dataframe(three_sla, dead_sla):
             if directory in three_sla:
                 laptop_sla = 3
             elif directory in dead_sla:
-                laptop_sla = 300
+                laptop_sla = 3000
             sla_percentage = time_diff.total_seconds() / (laptop_sla * 24 * 60 * 60)
                 
             new_row = {
