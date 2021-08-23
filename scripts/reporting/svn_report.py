@@ -46,9 +46,9 @@ def load_default_sla(path=None):
     '''
     with open(path) as f:
         data = load(f, Loader=Loader)
-        return data['laptop_sla']
+        return data['three'], data['dead']
 
-def create_dataframe(default_sla=None):
+def create_dataframe(three_sla, dead_sla):
     '''
     Writes the names of each laptop and the date they were updated to a .csv file
     '''
@@ -64,13 +64,15 @@ def create_dataframe(default_sla=None):
             info = r.info(directory)
             mod_time = info['commit/date']
             time_diff = datetime.now(timezone.utc) - mod_time
-            sla_percentage = time_diff.total_seconds() / (SLA_DAYS * 24 * 60 * 60)
             laptop_sla = SLA_DAYS
 
             # Parsing through default SLA cases
-            if directory in default_sla.keys():
-                laptop_sla = default_sla[directory]
-            
+            if directory in three_sla:
+                laptop_sla = 3
+            elif directory in dead_sla:
+                laptop_sla = 300
+            sla_percentage = time_diff.total_seconds() / (laptop_sla * 24 * 60 * 60)
+                
             new_row = {
                 'laptop': directory,
                 'date_updated': mod_time,
@@ -99,8 +101,8 @@ def main():
     Grabs necessary SVN data from folders and then calls to write to the csv
     '''
     args = parse_args()
-    default_sla = load_default_sla(CONFIG_FILE)
-    df = create_dataframe(default_sla)
+    three_sla, dead_sla = load_default_sla(CONFIG_FILE)
+    df = create_dataframe(three_sla, dead_sla)
     write_to_csv(df, args.file)
 
 if __name__ == "__main__":
