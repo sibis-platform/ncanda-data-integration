@@ -1,0 +1,8 @@
+[
+    {
+        "date_updated": "Date Updated",
+        "time_diff": "Time Difference",
+        "sla":"SLA",
+        "sla_percentage":"SLA %"
+    }
+]
