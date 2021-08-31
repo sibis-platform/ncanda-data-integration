@@ -93,7 +93,12 @@ fields_summary+= [ 'cnp_%s' % v for v in cnp_copy_variables ]
 fields_summary+= [ 'cnp_%s_zscore' % v for v in list(cnp.mean_sdev_by_field_dict.keys()) ]
 baseline_events = ['baseline_visit_arm_1','baseline_visit_arm_4'] # these are the "baseline" events of the study arms that have them
 
-summary_records = rc_summary.export_records( fields=fields_summary, event_name='unique', format='df', df_kwargs={'low_memory': False})
+summary_records = rc_summary.export_records(
+    fields=fields_summary,
+    event_name='unique',
+    format='df',
+    export_data_access_groups=True,
+    df_kwargs={'low_memory': False})
 summary_records = summary_records.set_index(['study_id', 'redcap_event_name'])
 # Drop all records that don't have "visit_date", i.e., all events from arms other than Arm 1 (Standard Protocol)
 summary_records = summary_records[ summary_records['visit_date'].map( lambda x: str(x) != 'nan' ) ]
@@ -193,8 +198,12 @@ for key, row in summary_records.iterrows():
             if len( records_this_visit ) > 1:
                 # Not unique - warning
                 error = 'WARNING: More than one CNP record found for subject %s, event %s, visit date %s - selecting the latest record' % (key[0],key[1],visit_date)
-                slog.info( "DuplicateRecords-" + hashlib.sha1(error.encode()).hexdigest()[0:6], error,
-                           records_this_visit = str(records_this_visit.index.tolist()))
+                slog.info("DuplicateRecords-" + hashlib.sha1(error.encode()).hexdigest()[0:6], error,
+                          records_this_visit = str(records_this_visit.index.tolist()),
+                          site_forward=row.get('redcap_data_access_group'),
+                          site_resolve="Determine which record should be "
+                          "passed on to Data Entry project and mark the other "
+                          "one excluded in the Imported from PennCNP project. ")
 
             # Unique record - copy data from imported project to summary form
             cnp_data = records_this_visit.iloc[len(records_this_visit) - 1]
