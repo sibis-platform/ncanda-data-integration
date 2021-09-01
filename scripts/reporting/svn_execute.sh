@@ -2,10 +2,10 @@
 # Script to programmatically execute all of the SVN Reports using Bash!
 
 # Directories for: SVN script, directory for dashboards, and directory for csvs
-DASHBOARDS_DIR='/fs/ncanda-share/beta/chris/ncanda-data-integration/scripts/dashboards/SVNReports.ipynb'
-SCRIPT_DIR=/fs/ncanda-share/beta/chris/ncanda-data-integration/scripts/reporting
-SAVE_DIR=/fs/ncanda-share/log/status_reports/sla_dashboards
-STATUS_DIR=/fs/ncanda-share/log/status_reports/sla_files
+DASHBOARD_FILE=${1:-/sibis-software/ncanda-data-integration/scripts/dashboards/SVNReports.ipynb}
+SCRIPT_DIR=${2:-/fs/ncanda-share/beta/chris/ncanda-data-integration/scripts/reporting}
+SAVE_DIR=${3:-/fs/ncanda-share/log/status_reports/sla_dashboards}
+STATUS_DIR=${4:-/fs/ncanda-share/log/status_reports/sla_files}
 sites=()
 
 # First, execute python script

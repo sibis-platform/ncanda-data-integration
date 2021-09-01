@@ -1,9 +1,9 @@
 #!/bin/bash -i
 # Script to programmatically run REDCap One Line Per Form Dashboard
 
-# Hard-coded constants -> Dashboard File and save directory
-DASHBOARD_FILE='/fs/ncanda-share/beta/chris/ncanda-data-integration/scripts/dashboards/OneLinePerForm.ipynb'
-SAVE_DIR="/fs/ncanda-share/log/status_reports/one_line.ipynb"
+# Positional arguments with default values -> dashboard file and save directory
+SAVE_DIR=${1:-/fs/ncanda-share/log/status_reports/one_line.ipynb}
+DASHBOARD_FILE=${2:-/sibis-software/ncanda-data-integration/scripts/dashboards/OneLinePerForm.ipynb}
 
 # Changeable/iterable (future) -> site, arm, form
 site="duke"
