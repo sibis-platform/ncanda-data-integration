@@ -9,6 +9,8 @@ All arms necessary for getting all the dates
 '''
 arms = ['18month_followup_arm_1', '4y_visit_arm_1', '78month_followup_arm_1', '1y_visit_arm_1', '54month_followup_arm_1', '7y_visit_arm_1', '2y_visit_arm_1', '5y_visit_arm_1', '8y_visit_arm_1', '30month_followup_arm_1', '66month_followup_arm_1', '90month_followup_arm_1', '3y_visit_arm_1', '6month_followup_arm_1', 'baseline_visit_arm_1', '42month_followup_arm_1', '6y_visit_arm_1']
 
+#arms=['7y_visit_arm_1']
+
 PATH='/fs/ncanda-share/log/status_reports/inventory_dates/'
 
 def main():
@@ -23,5 +25,6 @@ def main():
     for arm in arms:
         print(arm)
         data_entry = api.export_records(format='df', fields=['visit_date'], events=[arm])
+        data_entry = data_entry.replace('', "2001-10-15", regex=True)
         data_entry.to_csv(PATH + arm + '.csv')
 main()

@@ -149,7 +149,7 @@ def make_classification(form: pd.DataFrame) -> pd.Series:
     Return an indexed series of content classifications (present, missing,
     excluded, empty)
     """
-    output = pd.Series(index=form.index)
+    output = pd.Series(index=form.index, dtype=object)
     try:
         idx_missing = form['missing'] == 1
         output.loc[idx_missing] = 'MISSING'
@@ -201,7 +201,12 @@ if __name__ == '__main__':
                                           post_to_github=args.post_to_github,
                                           include_dag=args.include_dag,
                                           verbose=args.verbose)
+<<<<<<< HEAD
         
+=======
+        inventory = inventory.loc[~inventory.index.duplicated(keep=False) |
+                                  inventory.index.duplicated(keep='first')]
+>>>>>>> 268952e44b1151021b74892cb3398eec549ed04e
         inventory.to_csv(args.output, float_format="%.0f")
         sys.exit(0)
     except Exception as e:

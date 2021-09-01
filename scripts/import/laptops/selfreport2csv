@@ -33,7 +33,7 @@ def main():
     args = _parse_args()
     self_report_api, import_api = _setup(args)
 
-    data = load_data(self_report_api, args.date_begin, args.verbose)
+    data = load_data(self_report_api, args.date_begin, args.all, args.verbose)
 
     # 1. Address RPIR
     data = coalesce_rpir_fields(data)
@@ -100,6 +100,8 @@ def _parse_args(input_args: List[str] = None) -> argparse.Namespace:
                    "Doesn't prevent --verbose from printing debug info.")
     p.add_argument('--no-upload', action='store_true',
                    help="Don't invoke csv2redcap after writing to output_dir")
+    p.add_argument('--all', action='store_true',
+                    help='Return all data regardlesss of completeness')
 
     date_range = p.add_mutually_exclusive_group(required=False)
     date_range.add_argument('--last-month',
@@ -150,6 +152,7 @@ def _setup(args: argparse.Namespace) -> Tuple[rc.Project]:
 def load_data(
     api: rc.Project,
     date_begin: datetime = None,
+    all: bool = False,
     verbose: bool = False
 ) -> pd.DataFrame:
     """
@@ -162,6 +165,7 @@ def load_data(
         api.export_records,
         export_data_access_groups=True,
         export_survey_fields=True,
+        forms=['pre_youth_report_2', 'youth_report_2'],
         format='df',
         df_kwargs=dict(dtype=str)
     )
@@ -172,6 +176,35 @@ def load_data(
             print("redcap.export_records lacks a date_begin param, skipping")
         data = _load_data()
 
+    # Grabbing necessary reports by default, but return all if --all was passed
+    if all is False:
+        dates = data['record_id'].str.extract(r'(?P<date>\d{4}-\d{2}-\d{2})$')
+        dates = pd.to_datetime(dates['date'], errors='coerce')
+        failed_conversions = data.loc[pd.isnull(dates), 'record_id'].tolist()
+        if verbose:
+            print("The following records have failed date conversion:")
+            print("\n".join([f" - {x}" for x in failed_conversions]))
+        for record in failed_conversions:
+            slog.info(
+                uid=record,
+                message="Invalid date in Self-Report record_id",
+                explanation="The date could not be converted. the record "
+                "won't be transmitted unless it is corrected or "
+                "`./selfreport2csv --all` is run.",
+                correction="Have the site correct the record ID in the "
+                "Self-Report Project, and have them exclude each imported "
+                "form in the Imported from Laptops project if already "
+                "transmitted."
+            )
+        days_since_start = (datetime.now() - dates).dt.days
+        selected_idx = (((data['youth_report_2_complete'] == '2') |
+                         (days_since_start > 30)) &
+                        ~data['record_id'].isin(failed_conversions))
+        skipped_ids = data.loc[~selected_idx, 'record_id'].tolist()
+        if verbose:
+            print("Skipping incomplete and younger-than-month records:")
+            print("\n".join([f" - {x}" for x in skipped_ids]))
+        return data.loc[selected_idx]
     return data
 
 
