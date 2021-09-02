@@ -201,12 +201,8 @@ if __name__ == '__main__':
                                           post_to_github=args.post_to_github,
                                           include_dag=args.include_dag,
                                           verbose=args.verbose)
-<<<<<<< HEAD
-        
-=======
         inventory = inventory.loc[~inventory.index.duplicated(keep=False) |
                                   inventory.index.duplicated(keep='first')]
->>>>>>> 268952e44b1151021b74892cb3398eec549ed04e
         inventory.to_csv(args.output, float_format="%.0f")
         sys.exit(0)
     except Exception as e:
