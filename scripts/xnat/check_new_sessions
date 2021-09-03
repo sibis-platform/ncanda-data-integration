@@ -315,11 +315,20 @@ def incomplete_scan_check(experiment,manufacturer, session_label, eid, scan_type
         if siemens_gradient_flag :
             err_msg += " Note, Siemens scans require two 'ncanda-grefieldmap-v1'" 
 
+        try:
+            dag = experiment.project.replace('_incoming', '')
+        except Exception:  # if for some reason <site>_incoming cannot be retrieved?!
+            dag = None
+
         slog.info(session_label,
                   err_msg,
                   manufacturer=manufacturer,
                   missing_scans=', '.join(missing_scans),
-                  eid = eid)  
+                  eid=eid,
+                  site_forward=dag,
+                  site_resolution="If the scans exist, please upload them to "
+                  "XNAT. If they do not exist, please inform the Datacore so "
+                  "that they can set an exception.")
         return True
 
 def voxelres_get(experiment, scan):
@@ -509,10 +518,23 @@ def mri_quality_check(experiment, session_dir, manufacturer, session_label, eid,
             errors.append(e)
 
     if errors:
-        slog.info(session_label,
-                  'ERROR: scans in session failed to match standard setting',
-                  violations=str(errors),
-                  eid = eid)
+        try:
+            dag = experiment.project.replace('_incoming', '')
+        except Exception:  # if for some reason <site>_incoming cannot be retrieved?!
+            dag = None
+        slog.info(
+          session_label,
+          'ERROR: scans in session failed to match standard setting',
+          violations=str(errors),
+          eid=eid,
+          site_forward=dag,
+          site_resolution="If the scan is expected to be wrong, please let "
+          "the Datacore know so that they can set an exception. If the scan "
+          "wasn't expected to be wrong and you believe this error may be due "
+          "to an upload failure, please re-upload. If the re-uploaded scan "
+          "continues to exhibit the problematic features, please inquire with "
+          "the Datacore to check whether a re-scan should be scheduled.")
+
         return False
 
     return True

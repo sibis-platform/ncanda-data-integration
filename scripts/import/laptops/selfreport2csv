@@ -188,11 +188,13 @@ def load_data(
             slog.info(
                 uid=record,
                 message="Invalid date in Self-Report record_id",
-                explanation="The date could not be converted. the record "
+                site_forward=data.loc[data['record_id'] == record,
+                                      'redcap_data_access_group'].values[0],
+                explanation="The date could not be converted. The record "
                 "won't be transmitted unless it is corrected or "
                 "`./selfreport2csv --all` is run.",
-                correction="Have the site correct the record ID in the "
-                "Self-Report Project, and have them exclude each imported "
+                site_resolution="The site should correct the record ID in the "
+                "Self-Report Project, and exclude each imported "
                 "form in the Imported from Laptops project if already "
                 "transmitted."
             )

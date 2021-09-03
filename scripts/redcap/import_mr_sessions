@@ -340,13 +340,25 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
                         "possible that scan wasn't acquired because protocol "
                         "states that scans be skipped at ages 23, 25, and 26."
                         % age)
+            try:
+                dag = xnat_pid.replace('_incoming', '')
+            except AttributeError:
+                dag = None
+
             slog.info(redcap_visit_id,
                       error,
                       xnat_project_id=xnat_pid,
                       xnat_subject_id=xnat_sid,
                       visit_id=event,
                       visit_date=visit_date,
-                      age_note=age_note)
+                      age_note=age_note,
+                      site_forward=dag,
+                      site_resolution="If you believe the scan exists, please "
+                      "upload it to XNAT. If the scan wasn't acquired, please "
+                      "mark the MR Session Report as permanently missing and "
+                      "state the reason. If the scan was acquired outside of "
+                      "the 120-day visit window, please contact the Datacore "
+                      "to set an exception.")
         return [None,True]
 
 
@@ -753,7 +765,8 @@ mri_events_list = form_event_mapping[form_event_mapping[form_key] == 'mr_session
 get_events = lambda x: x[1] in mri_events_list
 events_filter = visit_log_redcap.index.map(get_events)
 columns = ['visit_date', 'visit_ignore___yes', 'mr_session_report_complete',
-           'mri_xnat_sid', 'mri_inspection___completed', 'mri_missing']
+           'mri_xnat_sid', 'mri_inspection___completed', 'mri_missing',
+           'redcap_data_access_group']
 mr_sessions_redcap = visit_log_redcap[events_filter][columns]
 
 forms_by_event_dict = dict()
@@ -821,8 +834,15 @@ for [key, row] in mr_sessions_redcap.iterrows():
     if visit_date == 'nan':
         if float(row['visit_ignore___yes']) != 1:
             error = f'Missing visit date for subject with visit data at {key[1]}.'
-            slog.info(key[0], error,
-                          visit_id=key[1])
+            slog.info(
+                key[0], error, visit_id=key[1],
+                site_forward=row.get('redcap_data_access_group'),
+                site_resolution="The visit was most likely mistakenly created "
+                "ahead of time. If that is the case, please set the visit to "
+                "be ignored in Visit Notes, with the reason 'Temporary "
+                "exclusion of a visit created ahead of time'. If the visit "
+                "was not created accidentally, please set the visit date to "
+                "the earliest data collection timepoint for this visit.")
     else:
         redcap_visit_id=subject_label+"-"+visit_date
 

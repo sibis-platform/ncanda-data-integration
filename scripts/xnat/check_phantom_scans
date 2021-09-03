@@ -75,10 +75,22 @@ def find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified,
             email.add_admin_message("%s %s - no phantom scan for %s, last modified %s (scanner: %s)" % (prj, edate, experiment_label, experiment_last_modified, scanner))
         else:
             error = 'No phantom scan.'
-            slog.info(experiment_label,error,
-                         project_id=prj,
-                         experiment_id=seid,
-                         experiment_date=edate)
+            try:
+                dag = prj.replace('_incoming', '')
+            except AttributeError:
+                dag = None
+
+            slog.info(experiment_label,
+                      error,
+                      project_id=prj,
+                      experiment_id=seid,
+                      experiment_date=edate,
+                      site_forward=dag,
+                      site_resolution="If a phantom exists within the "
+                      f"{PHANTOM_DAY_LIMIT}-day limit, please upload it to "
+                      "XNAT. If a phantom does not exist within this limit, "
+                      "please inform the Datacore so that they can set the "
+                      "respective XNAT flag.")
     else:
         if args.warn_same_day_phantom:
             if args.sendmail:
