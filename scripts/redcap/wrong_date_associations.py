@@ -104,6 +104,7 @@ def get_form_lookup_for_vars(varnames, metadata):
 def retrieve_date_data(api, fields, events=None, records=None):
     # output should have pandas.Datetime dtype
     data = api.export_records(fields=fields, events=events, records=records,
+                              export_data_access_groups=True,
                               format='df',
                               df_kwargs={
                                   'index_col': [api.def_field, 'redcap_event_name'],
@@ -114,15 +115,15 @@ def retrieve_date_data(api, fields, events=None, records=None):
 
 
 def mark_lagging_dates(data, comparison_var, days_duration):
-    comparisons = data.loc[:, [comparison_var]]
-    df = data.drop(columns=[comparison_var]).copy()
+    comparisons = data.loc[:, [comparison_var, 'redcap_data_access_group']]
+    df = data.drop(columns=[comparison_var, 'redcap_data_access_group']).copy()
     df.columns.name = 'form_date_var'  # so that stacking index has a name
     data_long = df.stack().to_frame('date').reset_index(-1)
     data_comp = data_long.join(comparisons)
     # Maybe extract previous code into data prep?
-    data_comp['precedes'] = data_comp['date'] < data_comp['visit_date']
+    data_comp['precedes'] = data_comp['date'] < data_comp[comparison_var]
     data_comp['exceeds'] = data_comp['date'] > (
-        data_comp['visit_date'] + pd.Timedelta(days=days_duration))
+        data_comp[comparison_var] + pd.Timedelta(days=days_duration))
     data_comp['purgable'] = data_comp['precedes'] | data_comp['exceeds']
     return data_comp
 
@@ -166,12 +167,13 @@ def create_special_cases_triplets(exceptions_data: List[Dict]) -> List[Tuple[str
             pass
 
     return cases
-        
+
+
 def subtract_special_cases_from_marks(marks, session):
     """
     Looks at special_cases.yml file, finds the special cases under the file name section,
     and then excludes any cases that match the special cases list.
-    
+
     Format of Special Case:
      - subject: A-00022-F-1
        event: 1y_visit_arm_1
@@ -184,15 +186,16 @@ def subtract_special_cases_from_marks(marks, session):
     - 'study_id' inclues up to letter and number
     - 'form_date_var' is comparison date variable
 
-    If using DataFram.iterrows(), then Each row in the dataframe is a pd.Series which has:
-    row.name -> [0] is the subject ID, [1] is the arm name
+    If using DataFram.iterrows(), then Each row in the dataframe is a pd.Series
+    which has: row.name -> [0] is the subject ID, [1] is the arm name
     """
 
     # Connect to the special_cases.yml file
     sibis_config = session.get_operations_dir()
     special_cases_file = os.path.join(sibis_config, 'special_cases.yml')
     if not os.path.isfile(special_cases_file):
-        slog.info("Special cases file does not exit","Error: The following file does not exist : " + special_cases_file)
+        slog.info("Special cases file does not exit",
+                  f"Error: {special_cases_file} not found")
         sys.exit(1)
 
     # Get a list of the specific cases that should be inspected
@@ -208,9 +211,10 @@ def subtract_special_cases_from_marks(marks, session):
     invalid_marks_idx = marks.index.isin(exceptions_data)
     invalid_marks = marks.loc[invalid_marks_idx]
     marks = marks.loc[~invalid_marks_idx]
-        
+
     return marks
-    
+
+
 def main(api, args):
     events = []
     arm = args.arm
@@ -241,9 +245,9 @@ def main(api, args):
 
     # Convert 'date' and 'visit_date' to strings to make them JSON serializable
     marks['date'] = marks['date'].astype(str)
-    marks['visit_date'] = marks['visit_date'].astype(str)
+    marks[comparison_date_var] = marks[comparison_date_var].astype(str)
 
-    return marks[marks['purgable']]
+    return marks[marks['purgable']].drop(columns=['purgable'])
 
 
 if __name__ == '__main__':
@@ -269,24 +273,44 @@ if __name__ == '__main__':
 
     marks = main(redcap_api, args)
     marks = subtract_special_cases_from_marks(marks, session)
-    
-    # Changeable UID template for logging each dataframe by row
-    UID_TEMPLATE = "WrongDate-{study_id}/{redcap_event_name}/{form}"
-    RESOLUTION = ("Contact site to determine if the date is incorrect and "
-                  "should be changed, if the form should be emptied, or if an "
-                  "exception should be set.")
+    marks.rename(columns={'redcap_data_access_group': 'site_forward'},
+                 inplace=True)
 
-    # Log dataframe by row here, one for exceeds, and another for precedes
-    log_dataframe_by_row(
-        marks[marks['exceeds']],
-        uid_template=UID_TEMPLATE,
-        message=f"Form exceeds visit date by {args.max_days_after_visit} days",
-        resolution=RESOLUTION)
+    # Changeable UID template for logging each dataframe by row
+    UID_TEMPLATE = "WrongDate-{study_id}/{redcap_event_name}/{form_date_var}"
+    UID_TEMPLATE_PRECEDES = UID_TEMPLATE.replace('WrongDate', 'DatePrecedes')
+    UID_TEMPLATE_EXCEEDS = UID_TEMPLATE.replace('WrongDate', 'DateExceeds')
+    RESOLUTIONS = {
+        'site_resolution': "Resolve the issue with one of the options:",
+        'site_resolution_option1': (
+            "Determine that **the date was entered wrongly and replace** the "
+            "form date with the correct one"),
+        'site_resolution_option2': (
+            "Decide that the data does not belong on the associated visit and "
+            "contact Datacore to have us **purge the data** from the visit"),
+        'site_resolution_option3': (
+            "**Determine that the date was entered correctly** but an "
+            "exception should be made to associate it with the visit anyway."),
+        'site_resolution_option4': (
+            "**Move the visit date back** to accord with the actual first "
+            "data collection (e.g. when blood collection precedes visit date "
+            "by less than 10 days, and no other forms would be placed out of "
+            "the 120-day collection period),"),
+    }
+
+    # Log dataframe by row here, one for precedes, and another for exceeds
     log_dataframe_by_row(
         marks[marks['precedes']],
-        uid_template=UID_TEMPLATE,
-        message=f"Form precedes visit date by a non-zero number of days",
-        resolution=RESOLUTION)
+        uid_template=UID_TEMPLATE_PRECEDES,
+        message=f"Date precedes visit date by a non-zero number of days",
+        **RESOLUTIONS)
+
+    del RESOLUTIONS['site_resolution_option4']  # doesn't apply for exceeds
+    log_dataframe_by_row(
+        marks[marks['exceeds']],
+        uid_template=UID_TEMPLATE_EXCEEDS,
+        message=f"Date exceeds visit date by {args.max_days_after_visit} days",
+        **RESOLUTIONS)
 
     if args.output:
         marks.to_csv(args.output)
