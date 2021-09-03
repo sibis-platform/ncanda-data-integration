@@ -15,3 +15,9 @@ INVENTORY_DIR=${SIBIS_ANALYSIS_DIR}/log/make_all_inventories
 catch_output_email "${SCRIPT_LABEL}:QC inventories (make_all_inventories)" \
   $SIBIS/scripts/qc/make_all_inventories.py \
     -o $INVENTORY_DIR/inventory -d $INVENTORY_DIR/inventory_by_site
+
+catch_output_email "${SCRIPT_LABEL}:All REDCap Form Dashboards (all_redcap)" \
+  $SIBIS/scripts/dashboards/all_redcap.sh
+
+catch_output_email "${SCRIPT_LABEL}:One Line Per Form (one_line_redcap)" \
+  $SIBIS/scripts/dashboards/one_line_redcap.sh

@@ -104,6 +104,9 @@ catch_output_email "${SCRIPT_LABEL}:REDCap: Subject ID Checks (check_subject_ids
 # Check (and update, if necessary) drinking exception status
 catch_output_email "${SCRIPT_LABEL}:REDCap: Undeclared Drinking Exceptions (check_exceptions)" ${SIBIS}/scripts/redcap/check_exceptions -p -t ${LOG_DIR} --update-fn
 
+# Generate SVN Reports
+catch_output_email "${SCRIPT_LABEL}:REDCap: SVN Reports Dashboards (svn_execute)" ${SIBIS}/scripts/dashboards/svn_execute.sh
+
 #
 # Original back-nightly
 #
