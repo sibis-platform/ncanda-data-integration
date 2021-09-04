@@ -9,6 +9,7 @@ from __future__ import print_function
 from builtins import filter
 from builtins import map
 from builtins import str
+from collections import defaultdict
 import os
 import re
 import csv
@@ -984,9 +985,6 @@ for (eid, project, subject, insert_date,
         scantype_and_quality = [
             [scan] + XNATSessionElementUtil(experiment.scans[scan]).mget(['type','quality'])
             for scan in list(experiment.scans)]
-        all_scans = [
-            scantype for (scan, scantype, quality) in scantype_and_quality
-            if scantype in list(required_series.keys())]
         final = [
             scantype for (scan, scantype, quality) in scantype_and_quality
             if scantype in list(required_series.keys()) and quality in ['usable', 'unusable']]
@@ -997,8 +995,12 @@ for (eid, project, subject, insert_date,
             scantype for (scan, scantype, quality) in scantype_and_quality
             if scantype in list(required_series.keys()) and quality == 'questionable']
         unseen_scans = [
-            [scan,scantype] for (scan, scantype, quality) in scantype_and_quality
+            [scan, scantype] for (scan, scantype, quality) in scantype_and_quality
             if scantype in list(required_series.keys()) and quality in ['unset','unknown']]
+        all_scans = [
+            [scan, scantype, quality] for (scan, scantype, quality)
+            in scantype_and_quality
+            if scantype in list(required_series.keys())]
         dti_scans = [
             (scan, scantype) for (scan, scantype, quality) in scantype_and_quality
             if re.match('^ncanda-dti.*-v1$', scantype) and quality != 'unusable']
@@ -1162,12 +1164,18 @@ for (eid, project, subject, insert_date,
     if len(questionable):
         exp_note = experiment.get('note') or ''
         exp_note = sanitize_string_for_csv(exp_note)
-        for scan, scan_type in all_scans:
+        for scan, scan_type,quality in all_scans:
              # intentionally not iterating through `questionable`, as one
              # questionable scan -> entire session should be reviewed
              scan_note = experiment.scans[scan].get('note') or ''
              scan_note = sanitize_string_for_csv(scan_note)
-             row = f'{eid},{session_dir},{scan},{scan_type},"{exp_note}",,"{scan_note}"\n'
+             quality_translation = defaultdict(lambda: '')
+             quality_translation['usable'] = '1'
+             quality_translation['usable-extra'] = '2'
+             quality_translation['questionable'] = '0'
+             decision = quality_translation[quality]
+             row = (f'{eid},{session_dir},{scan},{scan_type},"{exp_note}",'
+                    f'{decision},"{scan_note}"\n')
              scans_to_question.append(row)
 
         htmlq.append(''.join([session_html_link,
