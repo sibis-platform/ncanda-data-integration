@@ -980,10 +980,13 @@ for (eid, project, subject, insert_date,
             required_series = required_siemens
 
     # Get quality rating for each scan type
-    try :
+    try:
         scantype_and_quality = [
             [scan] + XNATSessionElementUtil(experiment.scans[scan]).mget(['type','quality'])
             for scan in list(experiment.scans)]
+        all_scans = [
+            scantype for (scan, scantype, quality) in scantype_and_quality
+            if scantype in list(required_series.keys())]
         final = [
             scantype for (scan, scantype, quality) in scantype_and_quality
             if scantype in list(required_series.keys()) and quality in ['usable', 'unusable']]
@@ -1138,7 +1141,7 @@ for (eid, project, subject, insert_date,
              unseen_scans_type.append(scan_type)
              scan_note = experiment.scans[scan].get('note') or ''
              scan_note = sanitize_string_for_csv(scan_note)
-             row = eid + "," + session_dir + "," + scan + "," + scan_type + ',"' + exp_note + '",,"' + scan_note + '"\n'
+             row = f'{eid},{session_dir},{scan},{scan_type},"{exp_note}",,"{scan_note}"\n'
              scans_to_qc.append(row)
 
 
@@ -1159,17 +1162,17 @@ for (eid, project, subject, insert_date,
     if len(questionable):
         exp_note = experiment.get('note') or ''
         exp_note = sanitize_string_for_csv(exp_note)
-        for scan, scan_type in questionable:
+        for scan, scan_type in all_scans:
+             # intentionally not iterating through `questionable`, as one
+             # questionable scan -> entire session should be reviewed
              scan_note = experiment.scans[scan].get('note') or ''
              scan_note = sanitize_string_for_csv(scan_note)
-             # row = eid + "," + session_dir + "," + scan + "," + scan_type + ',"' + exp_note + '",,"'+ scan_note + '"\n' 
              row = f'{eid},{session_dir},{scan},{scan_type},"{exp_note}",,"{scan_note}"\n'
              scans_to_question.append(row)
 
         htmlq.append(''.join([session_html_link,
                               session_dir_link,
                               ', '.join(questionable)]))
-
     if (errorFlag + len(questionable) + len(unseen_scans) + len(dupl) + len(failed_dti)) \
             or (not physio_ok) or (not nifti_export_ok):
         experiments_for_next_run.append(eid)
