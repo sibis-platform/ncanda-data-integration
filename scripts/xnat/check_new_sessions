@@ -9,6 +9,7 @@ from __future__ import print_function
 from builtins import filter
 from builtins import map
 from builtins import str
+from collections import defaultdict
 import os
 import re
 import csv
@@ -23,6 +24,7 @@ import bisect
 import pandas as pd 
 import pathlib
 import traceback
+from typing import List, NoReturn
 
 import sibispy
 from sibispy import sibislogger as slog
@@ -44,7 +46,9 @@ htmlq = []
 htmldt = []
 htmlphys = []
 # used to create a csv of scans to qc
-scans_to_qc = ['xnat_experiment_id,nifti_folder,scan_id,scan_type,experiment_note,decision,scan_note\n']  
+QC_HEADER = 'xnat_experiment_id,nifti_folder,scan_id,scan_type,experiment_note,decision,scan_note\n'
+scans_to_qc = [QC_HEADER]
+scans_to_question = [QC_HEADER]
 
 experiments_for_next_run = []
 
@@ -601,6 +605,37 @@ def get_custom_variable(experiment, field_name):
         return None
 
 
+def sanitize_string_for_csv(string: str) -> str:
+    return string.replace('\r', '').replace('\n', ' ') .replace(',', ' -')
+
+
+def write_scans_to_file(
+  scans_with_header: List,
+  filename: str,
+  verbose: bool = False
+) -> NoReturn:
+    if len(scans_with_header) > 1:
+        target_file = os.path.join(log_dir, filename)
+
+        if os.path.exists(target_file + ".lock"):
+            target_file = target_file + ".tmp"
+
+        if os.path.exists(target_file):
+            os.remove(target_file)
+
+        with open(target_file, 'w') as fi:
+            fi.writelines(scans_with_header)
+
+        # Make it so everybody can read and write the file
+        os.chmod(target_file, 0o666)
+
+        if verbose:
+            print(f"Created {target_file} with {len(scans_with_header)} lines")
+    else:
+        if verbose:
+            print(f"Skipping creation of {filename}: no scans to write!")
+
+
 #============================================================
 # Main
 #============================================================
@@ -658,14 +693,14 @@ slog.startTimer1()
 
 sibis_session = sibispy.Session()
 if not sibis_session.configure() :
-    if verbose:
+    if args.verbose:
         print("Error: session configure file was not found")
  
     sys.exit()
 
 ifc = sibis_session.connect_server('xnat', True)
 if not ifc : 
-    if verbose:
+    if args.verbose:
         print("Error: Could not connect to XNAT") 
 
     sys.exit()
@@ -674,7 +709,7 @@ server_address = str(sibis_session.get_xnat_server_address())
 
 dti_checker = chk_dti.check_dti_gradients()
 if not dti_checker.configure(sibis_session,check_decimals=2):
-    if verbose:
+    if args.verbose:
         print("Error: Could not initialize dti_checker") 
     sys.exit()
 
@@ -946,7 +981,7 @@ for (eid, project, subject, insert_date,
             required_series = required_siemens
 
     # Get quality rating for each scan type
-    try :
+    try:
         scantype_and_quality = [
             [scan] + XNATSessionElementUtil(experiment.scans[scan]).mget(['type','quality'])
             for scan in list(experiment.scans)]
@@ -960,8 +995,12 @@ for (eid, project, subject, insert_date,
             scantype for (scan, scantype, quality) in scantype_and_quality
             if scantype in list(required_series.keys()) and quality == 'questionable']
         unseen_scans = [
-            [scan,scantype] for (scan, scantype, quality) in scantype_and_quality
+            [scan, scantype] for (scan, scantype, quality) in scantype_and_quality
             if scantype in list(required_series.keys()) and quality in ['unset','unknown']]
+        all_scans = [
+            [scan, scantype, quality] for (scan, scantype, quality)
+            in scantype_and_quality
+            if scantype in list(required_series.keys())]
         dti_scans = [
             (scan, scantype) for (scan, scantype, quality) in scantype_and_quality
             if re.match('^ncanda-dti.*-v1$', scantype) and quality != 'unusable']
@@ -1096,15 +1135,15 @@ for (eid, project, subject, insert_date,
 
     # "unset" (i.e., uninspected) mandatory scantypes
     if len(unseen_scans):
-        unseen_scans_type = [] 
+        unseen_scans_type = []
 
         exp_note = experiment.get('note') or ''
-        exp_note = exp_note.replace('\r','').replace('\n',' ') .replace(',',' -')
-        for scan,scan_type in unseen_scans:
+        exp_note = sanitize_string_for_csv(exp_note)
+        for scan, scan_type in unseen_scans:
              unseen_scans_type.append(scan_type)
-             scan_note=experiment.scans[scan].get('note') or ''
-             scan_note=scan_note.replace('\r','').replace('\n',' ') .replace(',',' -') 
-             row =  eid + "," + session_dir + "," +  scan + "," + scan_type + ',"' + exp_note + '",,"'+ scan_note + '"\n' 
+             scan_note = experiment.scans[scan].get('note') or ''
+             scan_note = sanitize_string_for_csv(scan_note)
+             row = f'{eid},{session_dir},{scan},{scan_type},"{exp_note}",,"{scan_note}"\n'
              scans_to_qc.append(row)
 
 
@@ -1123,10 +1162,25 @@ for (eid, project, subject, insert_date,
 
     # questionable scantypes
     if len(questionable):
+        exp_note = experiment.get('note') or ''
+        exp_note = sanitize_string_for_csv(exp_note)
+        for scan, scan_type,quality in all_scans:
+             # intentionally not iterating through `questionable`, as one
+             # questionable scan -> entire session should be reviewed
+             scan_note = experiment.scans[scan].get('note') or ''
+             scan_note = sanitize_string_for_csv(scan_note)
+             quality_translation = defaultdict(lambda: '')
+             quality_translation['usable'] = '1'
+             quality_translation['usable-extra'] = '2'
+             quality_translation['questionable'] = '0'
+             decision = quality_translation[quality]
+             row = (f'{eid},{session_dir},{scan},{scan_type},"{exp_note}",'
+                    f'{decision},"{scan_note}"\n')
+             scans_to_question.append(row)
+
         htmlq.append(''.join([session_html_link,
                               session_dir_link,
                               ', '.join(questionable)]))
-
     if (errorFlag + len(questionable) + len(unseen_scans) + len(dupl) + len(failed_dti)) \
             or (not physio_ok) or (not nifti_export_ok):
         experiments_for_next_run.append(eid)
@@ -1211,21 +1265,12 @@ if args.send_mail_to:
 elif args.verbose:
     print(html)
 
+
 # Write the scans to QC csv file.
-if len(scans_to_qc) > 1  and args.qc_csv :
-    qc_file = os.path.join(log_dir,'scans_to_review.csv')
-        
-    if os.path.exists(qc_file + ".lock"): 
-        qc_file=qc_file + ".tmp"
-
-    if os.path.exists(qc_file):
-        os.remove(qc_file) 
-
-    with open(qc_file, 'w') as fi:
-        fi.writelines(scans_to_qc)
-
-    # Make it so everybody can read and write the file 
-    os.chmod(qc_file,0o666)
+if args.qc_csv:
+    write_scans_to_file(scans_to_qc, 'scans_to_review.csv', args.verbose)
+    write_scans_to_file(scans_to_question, 'scans_to_question.csv',
+                        args.verbose)
 
 
 # Finally, update config stored on the server to have current date/time as the
