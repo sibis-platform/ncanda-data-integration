@@ -1,4 +1,4 @@
-#!/bin/bash -i
+#!/bin/bash -l
 # Script to programmatically generate All REDCap Forms Dashboards
 
 # Paths for: Dashboard, Save Directory, and Inventory Data
@@ -11,17 +11,17 @@ TIMESTAMPS_FILE="/fs/ncanda-share/beta/chris/ncanda-data-integration/scripts/rep
 python3 $TIMESTAMPS_FILE
 
 # Loop through sites
-pushd $DATA_DIR
+pushd $DATA_DIR > /dev/null
 for site in *; do
-    mkdir $SAVE_DIR/$site
-    pushd $site
+    mkdir -p $SAVE_DIR/$site
+    pushd $site > /dev/null
     # And then through events...
     for event in *; do
-	papermill $DASHBOARD_FILE $SAVE_DIR/$site/$event.ipynb -p site $site -p arm $event
-	jupyter nbconvert --to html $SAVE_DIR/$site/$event.ipynb --TagRemovePreprocessor.remove_cell_tags='{"remove_cell"}'
+	papermill --no-progress-bar $DASHBOARD_FILE $SAVE_DIR/$site/$event.ipynb -p site $site -p arm $event
+	jupyter nbconvert --log-level ERROR --to html $SAVE_DIR/$site/$event.ipynb --TagRemovePreprocessor.enabled=True --TagRemovePreprocessor.remove_cell_tags remove_cell
 	#echo $SAVE_DIR/$site/$event.ipynb
     done
-    popd
+    popd > /dev/null
 done
-popd
+popd > /dev/null
 
