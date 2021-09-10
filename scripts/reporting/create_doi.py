@@ -4,8 +4,6 @@ Programmatically create DOI for a Synapse project
 import json
 import os
 import requests
-import synapseclient
-from synapseclient import Project, Folder, File
 import yaml
 
 ''' Constants '''
@@ -13,39 +11,90 @@ OBJECT_ID = 'syn25191261'
 
 def synapse_login():
     '''
-    Log-in to Synapse using shared SIBIS credentials
+    Get Oauth2 Access Token for Synapse
     '''
-    syn = synapseclient.Synapse()
+    # Get shared log-in credentials
     config = yaml.load(open(os.path.join(os.path.expanduser("~"),
                                          ".sibis-general-config.yml")))
-    syn.login(email=config.get('synapse').get('user'),
-              password=config.get('synapse').get('password'))
-    return syn
 
-def get_entity_properties(syn, object_id):
+    # Necessary request info - URL, payload, and headers
+    login_url = "https://repo-prod.prod.sagebase.org/auth/v1/login2"
+    payload = json.dumps({
+        "username": config.get('synapse').get('user'),
+        "password": config.get('synapse').get('password')
+    })
+    headers = {
+        'Content-Type': 'application/json',
+        'Cookie': 'sessionID=b4dd1b39-d689-4239-b037-10ed0fcd0292'
+    }
+    
+    # Create and return response
+    response = requests.request("POST", login_url, headers=headers, data=payload)
+    return response.json()['accessToken']
+
+def get_entity_properties(object_id):
     '''
     Get properties of current Synapse object, given current Synapse ID
     '''
-    entity = syn.get(object_id)
-    return entity.properties
+    # Necessary request info - URL and headers (no payload)
+    doi_data_url = 'https://repo-prod.prod.sagebase.org/repo/v1/doi?id=' + str(object_id) + '&type=ENTITY'
+    headers = {
+        'Cookie': 'sessionID=60b2a367-66a1-4d3a-853a-a703c8081865'
+    }
 
-def create_doi(syn_client, file_path):
+    # Create and return response
+    response = requests.request("GET", doi_data_url, headers=headers)
+    return response.json()['etag']
+
+def create_doi(object_id, access_token, etag, file_path):
     '''
     Read in JSON from file and generate DOI programmatically
     '''
+    # create_url = "https://repo-prod.prod.sagebase.org/repo/v1/doi/async/start"
+    # Get data from JSON file and update with proper object ID and etag
     f = open(file_path, 'r')
-    test_send_body = json.load(f)
-    send_body = json.dumps(test_send_body)
-    response = syn_client.restPOST('https://repo-prod.prod.sagebase.org/repo/v1/doi/async/start', send_body)
-    return response
+    send_body = json.load(f)
+    send_body['doi']['objectId'] = object_id
+    send_body['doi']['etag'] = etag
+
+    # Necessary request info - URL, payload, and headers
+    create_url = "https://repo-prod.prod.sagebase.org/repo/v1/doi/async/start"
+    payload = json.dumps(send_body)
+    headers = {
+        'Authorization': 'Bearer ' + str(access_token),
+        'Content-Type': 'application/json',
+        'Cookie': 'sessionID=60b2a367-66a1-4d3a-853a-a703c8081865'
+    }
+
+    # Create and return response
+    response = requests.request("POST", create_url, headers=headers, data=payload)
+    return response.json()['token']
+
+def get_creation_info(access_token, token_number):
+    '''
+    Get callback info from POST request from token number
+    '''
+    # Neceessary request info - URL and headers (no payload)
+    get_data_url = "https://repo-prod.prod.sagebase.org/repo/v1/doi/async/get/" + str(token_number)
+    headers = {
+        'Authorization': 'Bearer ' + str(access_token),
+        'Content-Type': 'application/json',
+        'Cookie': 'sessionID=60b2a367-66a1-4d3a-853a-a703c8081865'
+    }
+
+    # Create and return response
+    response = requests.request("GET", get_data_url, headers=headers)
+    return response.json()
 
 def main():
     '''
     Set up synapse client, connect to correct info, etc.
     '''
-    syn_client = synapse_login()
-    initial_props = get_entity_properties(syn_client, OBJECT_ID)
-    token_number = create_doi(syn_client, 'test_doi.json')
+    access_token = synapse_login()
+    etag = get_entity_properties(OBJECT_ID)
+    token_number = create_doi(OBJECT_ID, access_token, etag, 'test_doi.json')
+    entity_data = get_creation_info(access_token, token_number)
+    print(entity_data)
 
 if __name__ == '__main__':
     main()
