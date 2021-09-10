@@ -1,13 +1,27 @@
 '''
 Programmatically create DOI for a Synapse project
 '''
+import argparse
 import json
 import os
 import requests
 import yaml
 
-''' Constants '''
-OBJECT_ID = 'syn25191261'
+def parse_args(arg_input=None):
+    '''
+    Set up parser arguments
+    '''
+    parser = argparse.ArgumentParser(
+        description="Programmatically generate DOI for given synapse ID and JSON file")
+    parser.add_argument(
+        "--id",
+        help="Synapse ID to change",
+        action="store")
+    parser.add_argument(
+        "--file",
+        help="JSON file with DOI info",
+        action="store")
+    return parser.parse_args(arg_input)
 
 def synapse_login():
     '''
@@ -90,9 +104,10 @@ def main():
     '''
     Set up synapse client, connect to correct info, etc.
     '''
+    args = parse_args()
     access_token = synapse_login()
-    etag = get_entity_properties(OBJECT_ID)
-    token_number = create_doi(OBJECT_ID, access_token, etag, 'test_doi.json')
+    etag = get_entity_properties(args.id)
+    token_number = create_doi(args.id, access_token, etag, args.file)
     entity_data = get_creation_info(access_token, token_number)
     print(entity_data)
 
