@@ -1,0 +1,21 @@
+{
+    "doi": {
+        "objectId": "syn25191261",
+        "objectType": "ENTITY",
+        "etag": "c0701b75-9b33-4981-861f-8c426458ced5",
+        "publicationYear": 2021,
+        "creators": [
+            {
+                "creatorName": "Other, Name"
+            }
+        ],
+        "resourceType": {
+            "resourceTypeGeneral": "Collection"
+        },
+        "titles": [
+            {
+                "title": "NCANDA_TEST"
+            }
+        ]
+    }
+}
