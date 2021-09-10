@@ -7,6 +7,7 @@ import os
 import requests
 import yaml
 
+
 def parse_args(arg_input=None):
     '''
     Set up parser arguments
@@ -22,6 +23,7 @@ def parse_args(arg_input=None):
         help="JSON file with DOI info",
         action="store")
     return parser.parse_args(arg_input)
+
 
 def synapse_login():
     '''
@@ -45,7 +47,8 @@ def synapse_login():
     response = requests.request("POST", login_url, headers=headers, data=payload)
     return response.json()['accessToken']
 
-def get_entity_properties(object_id):
+
+def get_entity_etag(object_id):
     '''
     Get properties of current Synapse object, given current Synapse ID
     '''
@@ -55,6 +58,7 @@ def get_entity_properties(object_id):
     # Create and return response
     response = requests.request("GET", doi_data_url)
     return response.json()['etag']
+
 
 def create_doi(object_id, access_token, etag, file_path):
     '''
@@ -78,6 +82,7 @@ def create_doi(object_id, access_token, etag, file_path):
     response = requests.request("POST", create_url, headers=headers, data=payload)
     return response.json()['token']
 
+
 def get_creation_info(access_token, token_number):
     '''
     Get callback info from POST request from token number
@@ -93,16 +98,19 @@ def get_creation_info(access_token, token_number):
     response = requests.request("GET", get_data_url, headers=headers)
     return response.json()
 
+
 def main():
     '''
     Set up synapse client, connect to correct info, etc.
     '''
     args = parse_args()
     access_token = synapse_login()
-    etag = get_entity_properties(args.id)
+    etag = get_entity_etag(args.id)
     token_number = create_doi(args.id, access_token, etag, args.file)
     entity_data = get_creation_info(access_token, token_number)
     print(entity_data)
 
+    
 if __name__ == '__main__':
     main()
+
