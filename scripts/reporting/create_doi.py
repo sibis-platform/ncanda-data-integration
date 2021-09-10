@@ -39,7 +39,6 @@ def synapse_login():
     })
     headers = {
         'Content-Type': 'application/json',
-        'Cookie': 'sessionID=b4dd1b39-d689-4239-b037-10ed0fcd0292'
     }
     
     # Create and return response
@@ -52,19 +51,15 @@ def get_entity_properties(object_id):
     '''
     # Necessary request info - URL and headers (no payload)
     doi_data_url = 'https://repo-prod.prod.sagebase.org/repo/v1/doi?id=' + str(object_id) + '&type=ENTITY'
-    headers = {
-        'Cookie': 'sessionID=60b2a367-66a1-4d3a-853a-a703c8081865'
-    }
 
     # Create and return response
-    response = requests.request("GET", doi_data_url, headers=headers)
+    response = requests.request("GET", doi_data_url)
     return response.json()['etag']
 
 def create_doi(object_id, access_token, etag, file_path):
     '''
     Read in JSON from file and generate DOI programmatically
     '''
-    # create_url = "https://repo-prod.prod.sagebase.org/repo/v1/doi/async/start"
     # Get data from JSON file and update with proper object ID and etag
     f = open(file_path, 'r')
     send_body = json.load(f)
@@ -77,7 +72,6 @@ def create_doi(object_id, access_token, etag, file_path):
     headers = {
         'Authorization': 'Bearer ' + str(access_token),
         'Content-Type': 'application/json',
-        'Cookie': 'sessionID=60b2a367-66a1-4d3a-853a-a703c8081865'
     }
 
     # Create and return response
@@ -93,7 +87,6 @@ def get_creation_info(access_token, token_number):
     headers = {
         'Authorization': 'Bearer ' + str(access_token),
         'Content-Type': 'application/json',
-        'Cookie': 'sessionID=60b2a367-66a1-4d3a-853a-a703c8081865'
     }
 
     # Create and return response
