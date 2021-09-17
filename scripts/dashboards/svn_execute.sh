@@ -23,6 +23,6 @@ popd > /dev/null
 
 # For each site -- generate papermill notebook, then convert to HTML
 for site in ${sites[@]}; do
-    papermill --log-level ERROR --no-progress-bar $DASHBOARD_FILE $SAVE_DIR/$site.ipynb -p site $site
+    papermill --log-level ERROR --no-progress-bar $DASHBOARD_FILE $SAVE_DIR/$site.ipynb -p site $site --stdout-file /dev/null --stderr-file $SAVE_DIR/$site.err.log #> /dev/null
     jupyter nbconvert --log-level ERROR --to html $SAVE_DIR/$site.ipynb --TagRemovePreprocessor.enabled=True --TagRemovePreprocessor.remove_cell_tags remove_cell
 done

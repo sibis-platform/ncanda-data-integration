@@ -21,7 +21,7 @@ for site in *; do
             if [[ -f $form ]]; then
                 # Generate Notebook + HTML
                 form_name=${form%.csv}
-                papermill --log-level ERROR --no-progress-bar $DASHBOARD_FILE $SAVE_DIR$site/$event/$form_name.ipynb -p site $site -p arm $event -p form $form_name
+                papermill --log-level ERROR --no-progress-bar $DASHBOARD_FILE $SAVE_DIR/$site/$event/$form_name.ipynb -p site $site -p arm $event -p form $form_name --stdout-file /dev/null --stderr-file $SAVE_DIR/$site/$event/$form_name.err.log #> /dev/null
                 jupyter nbconvert --log-level ERROR --to html $SAVE_DIR$site/$event/$form_name.ipynb --TagRemovePreprocessor.enabled=True --TagRemovePreprocessor.remove_cell_tags remove_cell
             fi
         done

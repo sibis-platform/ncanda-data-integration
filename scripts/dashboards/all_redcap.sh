@@ -17,9 +17,11 @@ for site in *; do
     pushd $site > /dev/null
     # And then through events...
     for event in *; do
-	papermill --no-progress-bar $DASHBOARD_FILE $SAVE_DIR/$site/$event.ipynb -p site $site -p arm $event
-	jupyter nbconvert --log-level ERROR --to html $SAVE_DIR/$site/$event.ipynb --TagRemovePreprocessor.enabled=True --TagRemovePreprocessor.remove_cell_tags remove_cell
-	#echo $SAVE_DIR/$site/$event.ipynb
+      papermill --no-progress-bar $DASHBOARD_FILE $SAVE_DIR/$site/$event.ipynb -p site $site -p arm $event --stdout-file /dev/null --stderr-file $SAVE_DIR/$site/$event.err.log #> /dev/null
+      if [ -f "$SAVE_DIR/$site/$event.ipynb" ]; then
+        jupyter nbconvert --log-level ERROR --to html $SAVE_DIR/$site/$event.ipynb --TagRemovePreprocessor.enabled=True --TagRemovePreprocessor.remove_cell_tags remove_cell
+      fi
+      #echo $SAVE_DIR/$site/$event.ipynb
     done
     popd > /dev/null
 done
