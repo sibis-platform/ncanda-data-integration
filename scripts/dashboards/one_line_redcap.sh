@@ -21,7 +21,11 @@ for site in *; do
             if [[ -f $form ]]; then
                 # Generate Notebook + HTML
                 form_name=${form%.csv}
-                papermill --log-level ERROR --no-progress-bar $DASHBOARD_FILE $SAVE_DIR$site/$event/$form_name.ipynb -p site $site -p arm $event -p form $form_name
+                log_file=$SAVE_DIR/$site/$event/$form_name.log
+                papermill --log-level ERROR --no-progress-bar $DASHBOARD_FILE $SAVE_DIR/$site/$event/$form_name.ipynb -p site $site -p arm $event -p form $form_name --stdout-file $log_file --stderr-file $log_file
+                if egrep -q "Traceback|Exception" "$log_file"; then
+                    echo "Error occurred while executing $site/$form: See $log_file for details."
+                fi
                 jupyter nbconvert --log-level ERROR --to html $SAVE_DIR$site/$event/$form_name.ipynb --TagRemovePreprocessor.enabled=True --TagRemovePreprocessor.remove_cell_tags remove_cell
             fi
         done

@@ -23,6 +23,10 @@ popd > /dev/null
 
 # For each site -- generate papermill notebook, then convert to HTML
 for site in ${sites[@]}; do
-    papermill --log-level ERROR --no-progress-bar $DASHBOARD_FILE $SAVE_DIR/$site.ipynb -p site $site
+    log_file=$SAVE_DIR/$site.log
+    papermill --log-level ERROR --no-progress-bar $DASHBOARD_FILE $SAVE_DIR/$site.ipynb -p site $site --stdout-file $log_file --stderr-file $log_file > /dev/null
+    if egrep -q "Traceback|Exception" "$log_file"; then
+        echo "Error occurred while executing $site: See $log_file for details."
+    fi
     jupyter nbconvert --log-level ERROR --to html $SAVE_DIR/$site.ipynb --TagRemovePreprocessor.enabled=True --TagRemovePreprocessor.remove_cell_tags remove_cell
 done
