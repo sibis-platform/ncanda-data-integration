@@ -739,6 +739,7 @@ parser.add_argument("--no-update",
                          "sessions).",
                     action="store_true")
 parser.add_argument("--qc-csv",help="Write scans to qc to a csv file.",action="store_true")
+parser.add_argument("--qc-csv-v2",help="Write scans to qc to a csv file in the new format.",action="store_true")
 parser.add_argument("-f", "--force-qc-check",
                     help="Always perform quality check regardless if it was done before.",
                     action="store_true")
@@ -1332,10 +1333,14 @@ elif args.verbose:
 
 
 # Write the scans to QC csv file.
-if args.qc_csv:
+if args.qc_csv or args.qc_csv_v2:
     write_scans_to_file(scans_to_qc, 'scans_to_review.csv', args.verbose)
     write_scans_to_file(scans_to_question, 'scans_to_question.csv',
                         args.verbose)
+
+if args.qc_csv_v2:
+    convert_qc_csv('scans_to_review.csv', 'scans_to_review_v2.csv', args.verbose)
+    convert_qc_csv('scans_to_question.csv', 'scans_to_question_v2.csv', args.verbose)
 
 
 # Finally, update config stored on the server to have current date/time as the
