@@ -635,6 +635,71 @@ def write_scans_to_file(
         if verbose:
             print(f"Skipping creation of {filename}: no scans to write!")
 
+def convert_qc_csv(filename: str, new_filename: str, verbose: bool = False):
+    source_file = os.path.join(log_dir, filename)
+    target_file = os.path.join(log_dir, new_filename)
+    if not pathlib.Path(source_file).exists():
+        if verbose:
+            print(f"{source_file} does not exist.")
+        return
+    if not source_file.endswith(".csv"):
+        if verbose:
+            print(f"{source_file} is not a CSV file.")
+        return
+    df = pd.read_csv(source_file)
+    expected_columns = [
+        "xnat_experiment_id",
+        "nifti_folder",
+        "scan_id",
+        "scan_type",
+        "experiment_note",
+        "decision",
+        "scan_note",
+    ]
+    if len(df.columns) != len(expected_columns) or any(df.columns != expected_columns):
+        if verbose:
+            print(
+                f"{source_file} is not congruent with the old"
+                f" MIQA import format. Expected columns {str(expected_columns)} but recieved {str(df.columns)}."
+            )
+        return
+
+    # TODO the project_name column is required, but unused.
+    # For now, just omit it.
+    project_name = ''
+    new_rows = []
+    for _index, row in df.iterrows():
+        new_rows.append(
+            [
+                project_name,
+                row["xnat_experiment_id"],
+                f"{row['xnat_experiment_id']}_{row['scan_type']}",
+                row["scan_type"],
+                row["scan_id"],
+                str(
+                    pathlib.Path(
+                        row["nifti_folder"],
+                        f"{row['scan_id']}_{row['scan_type']}",
+                        "image.nii.gz",
+                    )
+                ),
+            ]
+        )
+    new_df = pd.DataFrame(
+        new_rows,
+        columns=[
+            "project_name",
+            "experiment_name",
+            "scan_name",
+            "scan_type",
+            "frame_number",
+            "file_location",
+        ],
+    )
+    new_df.to_csv(target_file, index=False)
+    if verbose:
+        print(f"Wrote converted CSV to {target_file}.")
+
 
 #============================================================
 # Main
