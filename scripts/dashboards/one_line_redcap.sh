@@ -22,7 +22,7 @@ for site in *; do
                 # Generate Notebook + HTML
                 form_name=${form%.csv}
                 log_file=$SAVE_DIR/$site/$event/$form_name.log
-                papermill --log-level ERROR --no-progress-bar $DASHBOARD_FILE $SAVE_DIR/$site/$event/$form_name.ipynb -p site $site -p arm $event -p form $form_name --stdout-file $log_file --stderr-file $log_file
+                papermill --log-level ERROR --no-progress-bar $DASHBOARD_FILE $SAVE_DIR/$site/$event/$form_name.ipynb -p site $site -p arm $event -p form $form_name --stdout-file $log_file --stderr-file $log_file &> /dev/null
                 if egrep -q "Traceback|Exception" "$log_file"; then
                     echo "Error occurred while executing $site/$form: See $log_file for details."
                 fi
