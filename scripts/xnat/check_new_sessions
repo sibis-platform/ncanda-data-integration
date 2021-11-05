@@ -613,9 +613,9 @@ def write_scans_to_file(
   scans_with_header: List,
   filename: str,
   verbose: bool = False
-) -> NoReturn:
+) -> bool:
+    target_file = os.path.join(log_dir, filename)
     if len(scans_with_header) > 1:
-        target_file = os.path.join(log_dir, filename)
 
         if os.path.exists(target_file + ".lock"):
             target_file = target_file + ".tmp"
@@ -626,14 +626,25 @@ def write_scans_to_file(
         with open(target_file, 'w') as fi:
             fi.writelines(scans_with_header)
 
-        # Make it so everybody can read and write the file
-        os.chmod(target_file, 0o666)
-
         if verbose:
             print(f"Created {target_file} with {len(scans_with_header)} lines")
+    elif len(scans_with_header) == 0:
+        if os.path.exists(target_file):
+            if verbose:
+                print(f"Skipping creation of {filename}: no scans to write "
+                      "and the file already exists!")
+        else:
+            with open(target_file, 'w') as fi:
+                fi.writelines(scans_with_header)
+                if verbose:
+                    print("Created {target_file} with header only")
     else:
-        if verbose:
-            print(f"Skipping creation of {filename}: no scans to write!")
+        return False
+
+    # Make it so everybody can read and write the file
+    os.chmod(target_file, 0o666)
+    return True
+
 
 def convert_qc_csv(filename: str, new_filename: str, verbose: bool = False):
     source_file = os.path.join(log_dir, filename)
