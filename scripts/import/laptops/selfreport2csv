@@ -200,7 +200,8 @@ def load_data(
             )
         days_since_start = (datetime.now() - dates).dt.days
         selected_idx = (((data['youth_report_2_complete'] == '2') |
-                         (days_since_start > 30)) &
+                         ((data['youth_report_2_complete'] == '1')
+                          & (days_since_start > 30))) &
                         ~data['record_id'].isin(failed_conversions))
         skipped_ids = data.loc[~selected_idx, 'record_id'].tolist()
         if verbose:
