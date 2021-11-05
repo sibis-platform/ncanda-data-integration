@@ -628,7 +628,7 @@ def write_scans_to_file(
 
         if verbose:
             print(f"Created {target_file} with {len(scans_with_header)} lines")
-    elif len(scans_with_header) == 0:
+    elif len(scans_with_header) == 1:
         if os.path.exists(target_file):
             if verbose:
                 print(f"Skipping creation of {filename}: no scans to write "
