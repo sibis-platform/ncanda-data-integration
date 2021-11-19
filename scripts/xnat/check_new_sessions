@@ -1130,7 +1130,7 @@ for (eid, project, subject, insert_date,
                     # Remove qc_file as session has to be checked again 
                     remove_file(session_label,qc_file_tmp)
 
-                    if len(error_msg) :
+                    if len(error_msg) and quality != "unusable":
                         nifti_export_ok = False
                         htmln.append(''.join([session_html_link,
                                               session_dir_link,
