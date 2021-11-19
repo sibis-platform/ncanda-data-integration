@@ -151,18 +151,29 @@ def log_dataframe_by_row(errors_df: pd.DataFrame,
     for _, row in errors_df.reset_index().iterrows():
         log_row(row, uid=uid_template, **kwargs)
 
-def create_special_cases_triplets(exceptions_data: List[Dict]) -> List[Tuple[str]]:
+
+def create_special_cases_triplets(
+    exceptions_data: List[Dict]
+) -> List[Tuple[str]]:
     '''
     Given exceptions data from special cases file, produce appropriate triplets
     to easily remove data from marks
     '''
     cases = []
     for case in exceptions_data:
-        if isinstance(case['dates'], Sequence) and not isinstance(case['dates'], str):
-            cases.extend([(case['subject'], case['event'], x) for x in case['dates']])
-        elif isinstance(case['dates'], str):
-            cases.append((case['subject'], case['event'], case['dates']))
-        else:
+        try:
+            if 'date' in case:  # understandable typo in special_cases.yml
+                case['dates'] = case['date']
+            if (isinstance(case['dates'], Sequence)
+                    and not isinstance(case['dates'], str)):
+                cases.extend([(case['subject'], case['event'], x)
+                              for x in case['dates']])
+            elif isinstance(case['dates'], str):
+                cases.append((case['subject'], case['event'], case['dates']))
+            else:
+                # log error?
+                pass
+        except KeyError:
             # log error?
             pass
 
@@ -171,8 +182,9 @@ def create_special_cases_triplets(exceptions_data: List[Dict]) -> List[Tuple[str
 
 def subtract_special_cases_from_marks(marks, session):
     """
-    Looks at special_cases.yml file, finds the special cases under the file name section,
-    and then excludes any cases that match the special cases list.
+    Looks at special_cases.yml file, finds the special cases under the file
+    name section, and then excludes any cases that match the special cases
+    list.
 
     Format of Special Case:
      - subject: A-00022-F-1
