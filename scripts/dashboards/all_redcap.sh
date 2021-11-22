@@ -18,7 +18,7 @@ for site in *; do
     # And then through events...
     for event in *; do
       log_file=$SAVE_DIR/$site/$event.log
-      if [ ! -f "$log_file"]; then
+      if [ ! -f "$log_file" ]; then
 	  touch $log_file
       fi
       papermill --no-progress-bar $DASHBOARD_FILE $SAVE_DIR/$site/$event.ipynb -p site $site -p arm $event --stdout-file "$log_file" --stderr-file "$log_file" &> /dev/null
