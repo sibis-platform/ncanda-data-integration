@@ -340,6 +340,10 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
                         "possible that scan wasn't acquired because protocol "
                         "states that scans be skipped at ages 23, 25, and 26."
                         % age)
+            replication_cmd = f"{os.path.realpath(__file__)} -f --pipeline-root-dir {args.pipeline_root_dir} --run-pipeline-script {args.run_pipeline_script} --study-id {redcap_visit_id}"
+
+
+
             try:
                 dag = xnat_pid.replace('_incoming', '')
             except AttributeError:
@@ -353,6 +357,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
                       visit_date=visit_date,
                       age_note=age_note,
                       site_forward=dag,
+                      replication_cmd=replication_cmd,
                       site_resolution="If you believe the scan exists, please "
                       "upload it to XNAT. If the scan wasn't acquired, please "
                       "mark the MR Session Report as permanently missing and "
