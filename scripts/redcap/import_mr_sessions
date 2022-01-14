@@ -363,7 +363,6 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
                       age_note=age_note,
                       replication_cmd=replication_cmd,
                       site_forward=dag,
-                      replication_cmd=replication_cmd,
                       site_resolution="If you believe the scan exists, please "
                       "upload it to XNAT. If the scan wasn't acquired, please "
                       "mark the MR Session Report as permanently missing and "
