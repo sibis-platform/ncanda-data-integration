@@ -340,6 +340,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
                         "possible that scan wasn't acquired because protocol "
                         "states that scans be skipped at ages 23, 25, and 26."
                         % age)
+
             replication_cmd = f"{os.path.realpath(__file__)} -f --study-id {redcap_visit_id[:11]}"
             if args.pipeline_root_dir:
                 replication_cmd += f" --pipeline-root-dir {args.pipeline_root_dir}"
@@ -362,6 +363,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
                       age_note=age_note,
                       replication_cmd=replication_cmd,
                       site_forward=dag,
+                      replication_cmd=replication_cmd,
                       site_resolution="If you believe the scan exists, please "
                       "upload it to XNAT. If the scan wasn't acquired, please "
                       "mark the MR Session Report as permanently missing and "
