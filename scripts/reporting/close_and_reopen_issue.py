@@ -19,7 +19,7 @@ import github
 
 def main():
     """
-    Closes and reopens github issues with "site_forward" fields and without "waiting_for_site" labels
+    Closes and reopens github issues with "site_forward" fields and without "waiting-on-site" labels
     """
     args = _parse_args()
     session = _initialize(args)
@@ -31,18 +31,19 @@ def main():
         print("Looping through issues with site_forward in body:")
     for issue in issues:
         if 'site_forward' in issue.body:
-            print(f"\n#{issue.number}")
-            waiting_for_site = False
+            waiting_on_site = False
             for label in issue.get_labels():
-                if 'waiting_for_site' == label.name:
-                    print("Waiting for site")
-                    waiting_for_site = True
-            if not waiting_for_site:
-                print("Not waiting for site:")
+                if 'waiting-on-site' == label.name:
+                    waiting_on_site = True
+            if not waiting_on_site:
+                if args.verbose:
+                    print(f"\n#{issue.number} missing waiting-on-site label")
                 issue.edit(state="closed")
-                print("Closed")
+                if args.verbose:
+                    print("Closing")
                 issue.edit(state="open")
-                print("Reopened")
+                if args.verbose:
+                    print("Reopening")
 
 
 
@@ -53,7 +54,7 @@ def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
     """
     parser = argparse.ArgumentParser(
         prog="restart_issue",
-        description="Closes and reopens github issues with \"site_forward\" fields and without \"waiting_for_site\" labels",
+        description="Closes and reopens github issues with \"site_forward\" fields and without \"waiting-on-site\" labels",
     )
     sibispy.cli.add_standard_params(parser)
     return parser.parse_args(input_args)
