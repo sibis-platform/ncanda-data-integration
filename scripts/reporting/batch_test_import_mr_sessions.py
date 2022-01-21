@@ -25,12 +25,11 @@ def run_batch(verbose):
     issues = ncanda_operations.get_issues(state="open")
     scraped_tuples = []
     for issue in issues:
-        if "Missing MRI for Subject" in issue.title:
-            for label in issue.get_labels():
-                if 'import_mr_sessions' == label.name:
-                    subject_id = utils.rehydrate_issue_body(issue.body)['experiment_site_id'][:11]
-                    scraped_tuples.append((subject_id, issue))
-                    break
+        for label in issue.get_labels():
+            if 'import_mr_sessions' == label.name:
+                subject_id = utils.rehydrate_issue_body(issue.body)['experiment_site_id'][:11]
+                scraped_tuples.append((subject_id, issue))
+                break
                 
     print(f"\nFound the following subject ids:\n{[x for x,y in scraped_tuples]}")
     if not utils.prompt_y_n("Are subject id's valid? Command will run with these ids. (y/n)"):
@@ -38,14 +37,13 @@ def run_batch(verbose):
 
     for subject_id, issue in scraped_tuples:
         if verbose:
-            print(issue)
             print(f"\nTesting issue #{issue.number}, id {subject_id}")
         command = ['python'] + base_command + [subject_id]
         completed_process = utils.run_command(command, verbose)
         if (completed_process.stdout or completed_process.stderr):
             if verbose:
                 print("Error still produced, commenting on issue")
-            issue.create_comment(f"Error still produced when batch_test_import_mr_sessions runs script:\nstdout:\n{completed_process.stdout}\nstderr:\n{completed_process.stderr}")
+            issue.create_comment(f"Error still produced when batch_test_import_mr_sessions runs script:\nstdout:\n{completed_process.stdout}stderr:\n{completed_process.stderr}")
         else:
             if verbose:
                 print("Error no longer produced, closing issue")
