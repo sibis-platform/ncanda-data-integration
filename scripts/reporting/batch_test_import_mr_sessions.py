@@ -18,7 +18,7 @@ import github
 
 import batch_script_utils as utils
 
-def run_batch(args):
+def run_batch(verbose):
     base_command = ["/sibis-software/ncanda-data-integration/scripts/redcap/import_mr_sessions", "-f", "--pipeline-root-dir", "/fs/ncanda-share/cases", "--run-pipeline-script", "/fs/ncanda-share/scripts/bin/ncanda_all_pipelines", "--study-id"]
     
     ncanda_operations = slog.log.postGithubRepo
@@ -37,17 +37,17 @@ def run_batch(args):
         return
 
     for subject_id, issue in scraped_tuples:
-        if args.verbose:
+        if verbose:
             print(issue)
             print(f"\nTesting issue #{issue.number}, id {subject_id}")
         command = ['python'] + base_command + [subject_id]
-        completed_process = utils.run_command(command, args.verbose)
+        completed_process = utils.run_command(command, verbose)
         if (completed_process.stdout or completed_process.stderr):
-            if args.verbose:
+            if verbose:
                 print("Error still produced, commenting on issue")
-            issue.create_comment(f"Error still produced by batch_test_import_mr_sessions:\nstdout:\n{complete_process.stdout}\nstderr:\n{completed_process.stderr}")
+            issue.create_comment(f"Error still produced when batch_test_import_mr_sessions runs script:\nstdout:\n{completed_process.stdout}\nstderr:\n{completed_process.stderr}")
         else:
-            if args.verbose:
+            if verbose:
                 print("Error no longer produced, closing issue")
             issue.create_comment(f"Error no longer produced, batch_test_import_mr_sessions closing now.")
             issue.edit(state="closed")
@@ -61,7 +61,7 @@ def main():
     session = _initialize(args)
     config = _get_config(session)
 
-    run_batch(args)
+    run_batch(args.verbose)
     
 def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
     """

@@ -17,7 +17,7 @@ def prompt_y_n(prompt: str) -> bool:
 
 def run_command(command: list, verbose: bool):
     if verbose:
-        print(f"\nRunning command:\n{' '.join(command)}")
+        print(' '.join(command)})
     completed_process = run(command, capture_output=True)
     if verbose:
         print(f"stdout:\n{completed_process.stdout}")
