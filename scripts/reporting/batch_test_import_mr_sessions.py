@@ -15,36 +15,42 @@ from typing import Sequence, List, Dict, Mapping, Union
 import yaml
 
 import github
-from subprocess import run
-import batch_script_utils
 
-def run_batch():
-    base_command = ["/sibis-software/ncanda-data-integration/scripts/redcap/import_mr_sessions", "-f", "--pipeline-root-dir", "/fs/ncanda-share/cases", "--run-pipeline-script", "/fs/ncanda-share/scripts/bin/ncanda_all_pipelines", "--study-id "]
+import batch_script_utils as utils
+
+def run_batch(args):
+    base_command = ["/sibis-software/ncanda-data-integration/scripts/redcap/import_mr_sessions", "-f", "--pipeline-root-dir", "/fs/ncanda-share/cases", "--run-pipeline-script", "/fs/ncanda-share/scripts/bin/ncanda_all_pipelines", "--study-id"]
     
     ncanda_operations = slog.log.postGithubRepo
     issues = ncanda_operations.get_issues(state="open")
+    scraped_tuples = []
     for issue in issues:
-        for label in issue.get_labels():
-            if 'import_mr_sessions' == label.name:
-                subject_id = rehydrate_issue_body(issue.body)['experiment_site_id'][:11]
+        if "Missing MRI for Subject" in issue.title:
+            for label in issue.get_labels():
+                if 'import_mr_sessions' == label.name:
+                    subject_id = utils.rehydrate_issue_body(issue.body)['experiment_site_id'][:11]
+                    scraped_tuples.append((subject_id, issue))
+                    break
+                
+    print(f"\nFound the following subject ids:\n{[x for x,y in scraped_tuples]}")
+    if not utils.prompt_y_n("Are subject id's valid? Command will run with these ids. (y/n)"):
+        return
 
-                print(f"\nFound the following subject id in #{issue.number}:\n{subject_id}")
-                if not prompt_y_n("Is subject id valid? Command will run with this id. (y/n)"):
-                    return
-
-                command = ['python'] + base_command + subject_id
-                completed_process = run_command(command, args.verbose)
-                if not (completed_process.stdout or completed_process.stderr):
-                    if args.verbose:
-                        print("Error no longer produced, closing issue")
-                    issue.create_comment("Error no longer produced, batch_test_import_mr_sessions closing now.")
-                    issue.edit(state="closed")
-                else:
-                    if args.verbose:
-                        print("Error still produced, commenting on issue")
-                    issue.create_comment("Error still produced by batch_test_import_mr_sessions:\nstdout:\n{complete_process.stdout}\nstderr:\n{completed_process.stderr}")
-                break
-
+    for subject_id, issue in scraped_tuples:
+        if args.verbose:
+            print(issue)
+            print(f"\nTesting issue #{issue.number}, id {subject_id}")
+        command = ['python'] + base_command + [subject_id]
+        completed_process = utils.run_command(command, args.verbose)
+        if (completed_process.stdout or completed_process.stderr):
+            if args.verbose:
+                print("Error still produced, commenting on issue")
+            issue.create_comment(f"Error still produced by batch_test_import_mr_sessions:\nstdout:\n{complete_process.stdout}\nstderr:\n{completed_process.stderr}")
+        else:
+            if args.verbose:
+                print("Error no longer produced, closing issue")
+            issue.create_comment(f"Error no longer produced, batch_test_import_mr_sessions closing now.")
+            issue.edit(state="closed")
 
 
 def main():
@@ -55,7 +61,7 @@ def main():
     session = _initialize(args)
     config = _get_config(session)
 
-    run_batch()
+    run_batch(args)
     
 def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
     """
