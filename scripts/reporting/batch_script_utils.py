@@ -1,8 +1,7 @@
 from subprocess import run
-import re
 
 def rehydrate_issue_body(body: str) -> dict:
-    return {x.split(':', 1)[0].lstrip(): x.split(':', 1)[1] for x in body.split("\n-")[1:]}
+    return {x.split(':', 1)[0].lstrip(): x.split(':', 1)[1].lstrip() for x in body.split("\n-")[1:]}
 
 def extract_unique_subject_ids(text: str) -> list:
     subject_id_regex = "\w-\d{5}-\w-\d"
@@ -14,12 +13,13 @@ def prompt_y_n(prompt: str) -> bool:
         confirm = input(prompt+"\n")
         if confirm in ['n', 'y']:
             return confirm == 'y'
+        print("Invalid input")
 
 def run_command(command: list, verbose: bool):
-    if args.verbose:
-        print(f"\nRunning command:\n{command.join(" ")}")
+    if verbose:
+        print(' '.join(command))
     completed_process = run(command, capture_output=True)
-    if args.verbose:
+    if verbose:
         print(f"stdout:\n{completed_process.stdout}")
         print(f"\nstderr:\n{completed_process.stderr}")
     return completed_process
