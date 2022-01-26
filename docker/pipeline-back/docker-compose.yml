@@ -2,7 +2,7 @@ version: "3.7"
 
 services:
   back:
-    image: pipeline-main:latest
+    image: pipeline-main:packagified
     init: true
     hostname: ${PLBACK_HOSTNAME}
     extra_hosts:
@@ -34,7 +34,7 @@ services:
 
       - /data/xnat/xnat_archive.sqlite:/root/xnat_archive.sqlite
       - /sibis-software/ncanda-data-integration:/sibis-software/ncanda-data-integration
-      - /sibis-software/python-packages:/sibis-software/python-packages
+        #      - /sibis-software/python-packages:/sibis-software/python-packages
       - /data:/fs/storage
       - /data/xnat:/fs/ncanda-xnat
       - /data/share:/fs/ncanda-share

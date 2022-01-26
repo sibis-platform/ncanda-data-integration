@@ -2,7 +2,7 @@ version: "3.7"
 
 services:
   front:
-    image: pipeline-main:latest
+    image: pipeline-main:package-dev1
     init: true
     hostname: ${PLFRONT_HOSTNAME}
     extra_hosts:
