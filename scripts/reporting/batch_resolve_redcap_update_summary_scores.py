@@ -17,7 +17,9 @@ import yaml
 import github
 import pdb
 
-def run_batch():
+import batch_script_utils as utils
+
+def run_batch(verbose):
     script_path = Path("/sibis-software/python-packages/sibispy/cmds/")
     events = ["Baseline", "1y", "2y", "3y", "4y", "5y", "6y"]
     updates_scores_base_command = [script_path / "redcap_update_summary_scores", "-a", "-s"]
@@ -26,28 +28,44 @@ def run_batch():
     title_string = 'redcap_import_record:Failed to import into REDCap'
     ncanda_operations = slog.log.postGithubRepo
     issues = ncanda_operations.get_issues(state="open")
-    for issue in issues:
+    scraped_tuples = []
+    for issue in issues[:200]:
         if title_string in issue.title:
             for label in issue.get_labels():
                 if 'redcap_update_summary_scores' == label.name:
-                    request_error = rehydrate_issue_body(issue.body)['requestError']
-                    subject_ids = extract_unique_subject_ids(request_error)
-
-                    print(f"\nFound the following subject id's in #{issue.number}:\n{subject_ids}")
-                    if not prompt_y_n("Are all subject id's valid? (y/n)"):
-                        return
-
-                    unlock_command = ['python'] + locking_data_base_command + subject_ids + ["--unlock"]
-                    completed_unlock_process = run_command(command, args.verbose)
-
-                    recalculate_command = ['python'] + update_scores_base_command + subject_ids
-                    completed_recalculate_process = run_command(command, args.verbose)
-
-                    lock_command = ['python'] + locking_data_base_command + subject_ids + ["--lock"]
-                    completed_lock_process = run_command(command, args.verbose)
-
-                    prompt_close_or_comment(issue, "Summary scores recalculated, batch_resolve_redcap_update_summary_scores closing now.")
+                    pdb.set_trace()
+                    request_error = utils.rehydrate_issue_body(issue.body)['requestError']
+                    subject_ids = utils.extract_unique_subject_ids(request_error)
+                    scraped_tuples.append((subject_ids, issue))
+                    if verbose:
+                        print(f"\nFound the following subject id's in #{issue.number}:\n{subject_ids}")
                     break
+
+    print(f"\nFound the following subject id's:\n{', '.join([subject_ids for subject_ids,_ in scraped_tuples])}")
+    if not utils.prompt_y_n("Are all subject id's valid? (y/n)"):
+        print("Aborting")
+        return
+
+    for subject_ids, issue in scraped_tuples:
+        if verbose:
+            print(f"\nResolving issue #{issue.number} with the following id's:\n{subject_ids}")
+
+        if verbose:
+            print("Unlocking...")
+        unlock_command = ['python'] + locking_data_base_command + subject_ids + ["--unlock"]
+        completed_unlock_process = utils.run_command(command, verbose)
+
+        if verbose:
+            print("Recalculating...")
+        recalculate_command = ['python'] + update_scores_base_command + subject_ids
+        completed_recalculate_process = utils.run_command(command, verbose)
+
+        if verbose:
+            print("ReLocking...")
+        lock_command = ['python'] + locking_data_base_command + subject_ids + ["--lock"]
+        completed_lock_process = utils.run_command(command, verbose)
+
+        utils.prompt_close_or_comment(issue, "Summary scores recalculated, batch_resolve_redcap_update_summary_scores closing now.")
 
 
 def main():
@@ -57,7 +75,7 @@ def main():
     args = _parse_args()
     session = _initialize(args)
     config = _get_config(session)
-    run_batch()
+    run_batch(args.verbose)
 
 def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
     """
