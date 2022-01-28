@@ -27,7 +27,7 @@ def run_batch(verbose, label):
     ncanda_operations = slog.log.postGithubRepo
     issues = ncanda_operations.get_issues(state="open")
     scraped_tuples = []
-    for issue in issues[:200]:
+    for issue in issues:
         for issue_label in issue.get_labels():
             if issue_label.name == label:
                 subject_id = utils.rehydrate_issue_body(issue.body)[
