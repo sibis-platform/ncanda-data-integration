@@ -18,15 +18,15 @@ import github
 
 import batch_script_utils as utils
 
-def run_batch(verbose):
-    base_command = ["/sibis-software/ncanda-data-integration/scripts/redcap/import_mr_sessions", "-f", "--pipeline-root-dir", "/fs/ncanda-share/cases", "--run-pipeline-script", "/fs/ncanda-share/scripts/bin/ncanda_all_pipelines", "--study-id"]
+def run_batch(verbose, label):
+    base_command = get_base_command(label)
     
     ncanda_operations = slog.log.postGithubRepo
     issues = ncanda_operations.get_issues(state="open")
     scraped_tuples = []
     for issue in issues:
-        for label in issue.get_labels():
-            if 'import_mr_sessions' == label.name:
+        for issue_label in issue.get_labels():
+            if issue_label.name == label
                 subject_id = utils.rehydrate_issue_body(issue.body)['experiment_site_id'][:11]
                 scraped_tuples.append((subject_id, issue))
                 break
@@ -43,11 +43,11 @@ def run_batch(verbose):
         if (completed_process.stdout or completed_process.stderr):
             if verbose:
                 print("Error still produced, commenting on issue")
-            issue.create_comment(f"Error still produced when batch_test_import_mr_sessions runs script:\nstdout:\n{completed_process.stdout}stderr:\n{completed_process.stderr}")
+            issue.create_comment(f"Error still produced when {__file__} runs script:\nstdout:\n{completed_process.stdout}stderr:\n{completed_process.stderr}")
         else:
             if verbose:
                 print("Error no longer produced, closing issue")
-            issue.create_comment(f"Error no longer produced, batch_test_import_mr_sessions closing now.")
+            issue.create_comment(f"Error no longer produced, {__file__} closing now.")
             issue.edit(state="closed")
 
 
@@ -59,7 +59,8 @@ def main():
     session = _initialize(args)
     config = _get_config(session)
 
-    run_batch(args.verbose)
+    for label in args.labels:
+        run_batch(args.verbose, label)
     
 def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
     """
@@ -67,8 +68,14 @@ def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
     """
     parser = argparse.ArgumentParser(
         prog="batch_test_import_mr_sessions",
-        description="Scrapes subject id's from all import_mr_sessions-labeled issues. Retests them and closes the corresponding issue if nothing printed to stdout. Otherwise comments on the issue with the contents of stdout"
+        description="Scrapes subject id's from all issues which take study_id's as input. Retests them and closes the corresponding issue if nothing printed to stdout. Otherwise comments on the issue with the contents of stdout"
     )
+    parser.add_argument("--labels",
+                        help="Which labels to scrape issues for (options: import_mr_sessions, check_new_sessions, update_visit_data). Separated by spaces.",
+                    nargs='+',
+                    action="store",
+                    default=None)
+
     sibispy.cli.add_standard_params(parser)
     return parser.parse_args(input_args)
 

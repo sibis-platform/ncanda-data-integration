@@ -31,3 +31,11 @@ def prompt_close_or_comment(issue, close_comment: str):
     elif prompt_y_n("Comment on issue? (y/n)"):
         comment = input("Enter comment:\n")
         issue.create_comment(comment)
+
+def get_base_command(label):
+    if label == "import_mr_sessions":
+        return ["/sibis-software/ncanda-data-integration/scripts/redcap/import_mr_sessions", "-f", "--pipeline-root-dir", "/fs/ncanda-share/cases", "--run-pipeline-script", "/fs/ncanda-share/scripts/bin/ncanda_all_pipelines", "--study-id"]
+    elif label == "check_new_sessions":
+        return ["/sibis-software/ncanda-data-integration/scripts/xnat/check_new_sessions", "-a", "-e"]
+    elif label == "update_visit_data":
+        return ["/sibis-software/ncanda-data-integration/scripts/import/update_visit_data", "-a", "--study-id"]
