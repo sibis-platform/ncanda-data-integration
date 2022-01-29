@@ -3,7 +3,7 @@ from subprocess import run
 
 def rehydrate_issue_body(body: str) -> dict:
     return {
-        x.split(":", 1)[0].lstrip(): x.split(":", 1)[1].lstrip()
+        x.split(":", 1)[0].strip(): x.split(":", 1)[1].strip()
         for x in body.split("\n-")[1:]
     }
 
@@ -64,3 +64,22 @@ def get_base_command(label):
             "-a",
             "--study-id",
         ]
+
+def get_id_type(label):
+    if label in ["import_mr_sessions"]:
+        return "subject_id"
+    elif label in ["check_new_sessions"]:
+        return "eid"
+
+def get_id(id_type, issue_dict):
+    if id_type == "subject_id":
+        scraped_id = issue_dict[
+            "experiment_site_id"
+        ][:11]
+    elif id_type == "eid":
+        scraped_id = issue_dict[
+            "eid"
+        ]
+    return scraped_id
+
+
