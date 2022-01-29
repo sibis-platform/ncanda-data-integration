@@ -65,21 +65,17 @@ def get_base_command(label):
             "--study-id",
         ]
 
+
 def get_id_type(label):
     if label in ["import_mr_sessions"]:
         return "subject_id"
     elif label in ["check_new_sessions"]:
         return "eid"
 
+
 def get_id(id_type, issue_dict):
     if id_type == "subject_id":
-        scraped_id = issue_dict[
-            "experiment_site_id"
-        ][:11]
+        scraped_id = issue_dict["experiment_site_id"][:11]
     elif id_type == "eid":
-        scraped_id = issue_dict[
-            "eid"
-        ]
+        scraped_id = issue_dict["eid"]
     return scraped_id
-
-
