@@ -1,4 +1,5 @@
 from subprocess import run
+import re
 
 def rehydrate_issue_body(body: str) -> dict:
     return {x.split(':', 1)[0].lstrip(): x.split(':', 1)[1].lstrip() for x in body.split("\n-")[1:]}
