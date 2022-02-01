@@ -20,76 +20,128 @@ from collections import defaultdict
 
 import batch_script_utils as utils
 
-def run_batch(verbose):
-    script_path = "/sibis-software/python-packages/sibispy/cmds/"
-    events = ["Baseline", "1y", "2y", "3y", "4y", "5y", "6y"]
-    update_scores_base_command = [script_path+"redcap_update_summary_scores.py", "-a", "-s"]
-    locking_data_base_command = [script_path+"exec_redcap_locking_data.py", "-e"] + events + ["-f", "Clinical", "-s"]
 
-    title_string = 'redcap_import_record:Failed to import into REDCap'
+def run_batch(verbose, metadata):
+    script_path = "/sibis-software/python-packages/sibispy/cmds/"
+    events = ["Baseline", "1y", "2y", "3y", "4y", "5y", "6y", "7y", "8y", "9y"]
+    update_scores_base_command = [
+        script_path + "redcap_update_summary_scores.py",
+        "-a",
+        "-s",
+    ]
+    locking_data_base_command = [
+        script_path + "exec_redcap_locking_data.py",
+        "-e",
+    ] + events
+
+    title_string = "redcap_import_record:Failed to import into REDCap"
     ncanda_operations = slog.log.postGithubRepo
     issues = ncanda_operations.get_issues(state="open")
     scraped_tuples = []
-    for issue in issues[:200]:
+    for issue in issues:
         if title_string in issue.title:
             for label in issue.get_labels():
-                if 'redcap_update_summary_scores' == label.name:
-                    request_error = utils.rehydrate_issue_body(issue.body)['requestError']
+                if "redcap_update_summary_scores" == label.name:
+                    request_error = utils.rehydrate_issue_body(issue.body)[
+                        "requestError"
+                    ]
                     subject_ids = utils.extract_unique_subject_ids(request_error)
-                    scraped_tuples.append((subject_ids, issue))
+                    first_field = request_error.split('","')[1]
+                    form = metadata[metadata["field_name"] == first_field][
+                        "form_name"
+                    ].item()
+                    pdb.set_trace()
+                    scraped_tuples.append((subject_ids, issue, form))
                     if verbose:
-                        print(f"\nFound the following subject id's in #{issue.number}:\n{subject_ids}")
+                        print(
+                            f"\nFound the following subject id's in #{issue.number}:\n{subject_ids}"
+                        )
                     break
 
-    print(f"\nFound the following subject id's:\n{', '.join([', '.join(subject_ids) for subject_ids,_ in scraped_tuples])}")
+    print(
+        f"\nFound the following subject id's:\n{', '.join([', '.join(subject_ids) for subject_ids,_,_ in scraped_tuples])}"
+    )
     if not utils.prompt_y_n("Are all subject id's valid? (y/n)"):
         print("Aborting")
         return
 
-    for subject_ids, issue in scraped_tuples[:1]:
+    for subject_ids, issue, form in scraped_tuples:
         if verbose:
-            print(f"\nResolving issue #{issue.number} with the following id's:\n{subject_ids}\n")
+            print(
+                f"\n\n\n\n\n\n\n\n\nResolving issue #{issue.number} with the following id's:\n{subject_ids}\n"
+            )
 
-        #Loop through subject id's mentioned in issue since redcap_update_summary_scores.py only recalculates one at a time
-        for subject_id in subject_ids[:1]:
+        # Loop through subject id's mentioned in issue since redcap_update_summary_scores.py only recalculates one at a time
+        for subject_id in subject_ids:
             if verbose:
-                print(f"Unlocking {subject_id}...")
-            unlock_command = ['python'] + locking_data_base_command + [subject_id] + ["--unlock"]
+                print(f"\nUnlocking {subject_id}...")
+            unlock_command = (
+                ["python"]
+                + locking_data_base_command
+                + ["-f"]
+                + [form]
+                + ["-s"]
+                + [subject_id]
+                + ["--unlock"]
+            )
             completed_unlock_process = utils.run_command(unlock_command, verbose)
 
             if verbose:
-                print(f"Recalculating {subject_id}...")
-            recalculate_command = ['python'] + update_scores_base_command + [subject_id]
-            completed_recalculate_process = utils.run_command(recalculate_command, verbose)
+                print(f"\nRecalculating {subject_id}...")
+            recalculate_command = (
+                ["python"] + update_scores_base_command + [subject_id] + ["-i"] + [form]
+            )
+            completed_recalculate_process = utils.run_command(
+                recalculate_command, verbose
+            )
 
             if verbose:
-                print(f"ReLocking {subject_id}...")
-            lock_command = ['python'] + locking_data_base_command + [subject_id] + ["--lock"]
+                print(f"\nRelocking {subject_id}...")
+            lock_command = (
+                ["python"]
+                + locking_data_base_command
+                + ["-f"]
+                + [form]
+                + ["-s"]
+                + [subject_id]
+                + ["--lock"]
+            )
             completed_lock_process = utils.run_command(lock_command, verbose)
 
-        utils.prompt_close_or_comment(issue, "Summary scores recalculated, batch_resolve_redcap_update_summary_scores closing now.")
+        utils.prompt_close_or_comment(
+            issue,
+            "Summary scores recalculated, batch_resolve_redcap_update_summary_scores closing now.",
+        )
 
 
 def main():
     """
-    Scrapes subject id's from all redcap_update_summary_scores "Failed to import into redcap"-labeled issues. Unlocks all clinical forms for each subject id, recalculates the summary scores, and relocks them. Retests them and closes the corresponding issue if nothing printed to stdout. Otherwise comments on the issue with the contents of stdout.
+    Scrapes subject id's from all redcap_update_summary_scores "Failed to import into redcap"-labeled
+    issues. Unlocks all clinical forms for each subject id, recalculates the summary scores, and
+    relocks them. Retests them and closes the corresponding issue if nothing printed to stdout.
+    Otherwise comments on the issue with the contents of stdout.
     """
     args = _parse_args()
     session = _initialize(args)
 
-    session.api.update({'data_entry': None})
+    session.api.update({"data_entry": None})
     try:
-        redcap_api = session.connect_server('data_entry')
+        redcap_api = session.connect_server("data_entry")
     except Exception as e:
         print(e.message)
-    field_to_form_map = defaultdict(list)
-    for field in redcap_api.export_metadata():
-        field_name = field['field_name']
-        form_name = field['form_name']
-        field_to_form_map[field_name].append(form_name)
+
+    metadata = redcap_api.export_metadata(format="df").reset_index()[
+        ["form_name", "field_name"]
+    ]
+    forms = list(metadata["form_name"].unique())
+    complete_fields = pd.DataFrame(
+        {"field_name": [f"{form}_complete" for form in forms], "form_name": forms}
+    )
+    metadata = metadata.append(complete_fields)
 
     config = _get_config(session)
-    run_batch(args.verbose)
+    run_batch(args.verbose, metadata)
+
 
 def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
     """
@@ -97,7 +149,9 @@ def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
     """
     parser = argparse.ArgumentParser(
         prog="batch_test_import_mr_sessions",
-        description="Scrapes subject id's from all import_mr_sessions-labeled issues. Retests them and closes the corresponding issue if nothing printed to stdout. Otherwise comments on the issue with the contents of stdout"
+        description="""Scrapes subject id's from all import_mr_sessions-labeled issues. 
+        Retests them and closes the corresponding issue if nothing printed to stdout.
+        Otherwise comments on the issue with the contents of stdout""",
     )
     sibispy.cli.add_standard_params(parser)
     return parser.parse_args(input_args)
@@ -122,6 +176,7 @@ def _initialize(args: argparse.Namespace) -> sibispy.Session:
 
     return session
 
+
 def _get_config(session):
     """
     Get the handle for sibis_sys_config.yml.
@@ -131,5 +186,5 @@ def _get_config(session):
     return parser
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
