@@ -73,7 +73,9 @@ def run_batch(verbose, label):
 
 def main():
     """
-    Scrapes id's from all issues of the passed label. Retests them and closes the corresponding issue if nothing printed to stdout. Otherwise comments on the issue with the contents of stdout
+    Scrapes id's from all issues of the passed label. Retests them and closes the
+    corresponding issue if nothing printed to stdout. Otherwise comments on the
+    issue with the contents of stdout.
     """
     args = _parse_args()
     session = _initialize(args)
@@ -89,7 +91,9 @@ def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
     """
     parser = argparse.ArgumentParser(
         prog="batch_test_import_mr_sessions",
-        description="Scrapes id's from all issues of the passed label. Retests them and closes the corresponding issue if nothing printed to stdout. Otherwise comments on the issue with the contents of stdout",
+        description="""Scrapes id's from all issues of the passed label. Retests 
+        them and closes the corresponding issue if nothing printed to stdout. 
+        Otherwise comments on the issue with the contents of stdout""",
     )
     parser.add_argument(
         "--labels",
