@@ -2,14 +2,18 @@ from subprocess import run
 
 
 def rehydrate_issue_body(body: str) -> dict:
-    return {
-        x.split(":", 1)[0].strip(): x.split(":", 1)[1].strip()
-        for x in body.split("\n-")[1:]
-    }
+    rehydrated_body = {}
+    bulletpoints = body.split("\n-")[1:]
+    for bulletpoint in bulletpoints:
+        key, value = bulletpoint.split(":", 1)
+        key = key.strip()
+        value = value.strip()
+        rehydrated_body[key] = value
+    return rehydrated_body
 
 
 def extract_unique_subject_ids(text: str) -> list:
-    subject_id_regex = "\w-\d{5}-\w-\d"
+    subject_id_regex = "[A-EX]-\d{5}-[FMTX]-\d"
     subject_ids = list(set(re.findall(subject_id_regex, text)))
     return subject_ids
 
