@@ -6,7 +6,7 @@ def rehydrate_issue_body(body: str) -> dict:
 
 def extract_unique_subject_ids(text: str) -> list:
     subject_id_regex = "\w-\d{5}-\w-\d"
-    subject_ids = list(set(re.findall(subject_id_regex, text)))
+    subject_ids = sorted(list(set(re.findall(subject_id_regex, text))))
     return subject_ids
 
 def prompt_y_n(prompt: str) -> bool:

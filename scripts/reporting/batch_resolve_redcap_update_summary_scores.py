@@ -16,6 +16,7 @@ import yaml
 
 import github
 import pdb
+from collections import defaultdict
 
 import batch_script_utils as utils
 
@@ -45,12 +46,12 @@ def run_batch(verbose):
         print("Aborting")
         return
 
-    for subject_ids, issue in scraped_tuples:
+    for subject_ids, issue in scraped_tuples[:1]:
         if verbose:
             print(f"\nResolving issue #{issue.number} with the following id's:\n{subject_ids}\n")
 
         #Loop through subject id's mentioned in issue since redcap_update_summary_scores.py only recalculates one at a time
-        for subject_id in subject_ids:
+        for subject_id in subject_ids[:1]:
             if verbose:
                 print(f"Unlocking {subject_id}...")
             unlock_command = ['python'] + locking_data_base_command + [subject_id] + ["--unlock"]
@@ -75,6 +76,18 @@ def main():
     """
     args = _parse_args()
     session = _initialize(args)
+
+    session.api.update({'data_entry': None})
+    try:
+        redcap_api = session.connect_server('data_entry')
+    except Exception as e:
+        print(e.message)
+    field_to_form_map = defaultdict(list)
+    for field in redcap_api.export_metadata():
+        field_name = field['field_name']
+        form_name = field['form_name']
+        field_to_form_map[field_name].append(form_name)
+
     config = _get_config(session)
     run_batch(args.verbose)
 
