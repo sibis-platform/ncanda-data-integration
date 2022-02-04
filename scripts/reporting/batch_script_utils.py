@@ -36,11 +36,16 @@ def run_command(command: list, verbose: bool):
         print(f"\nstderr:\n{completed_process.stderr}")
     return completed_process
 
+def close_and_comment(issue, close_comment: str):
+    issue.create_comment(close_comment)
+    issue.edit(state="closed")
 
+    
 def prompt_close_or_comment(issue, close_comment: str):
     if prompt_y_n("Close issue? (y/n)"):
-        issue.create_comment(close_comment)
-        issue.edit(state="closed")
+        close_and_comment(issue, close_comment)
     elif prompt_y_n("Comment on issue? (y/n)"):
         comment = input("Enter comment:\n")
         issue.create_comment(comment)
+
+        

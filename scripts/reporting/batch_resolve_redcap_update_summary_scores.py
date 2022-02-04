@@ -23,7 +23,7 @@ import batch_script_utils as utils
 
 def run_batch(verbose, metadata):
     script_path = "/sibis-software/python-packages/sibispy/cmds/"
-    events = ["Baseline", "1y", "2y", "3y", "4y", "5y", "6y", "7y", "8y", "9y"]
+    events = ["Baseline", "1y", "2y", "3y", "4y", "5y", "6y", "7y"]
     update_scores_base_command = [
         script_path + "redcap_update_summary_scores.py",
         "-a",
@@ -50,7 +50,7 @@ def run_batch(verbose, metadata):
                     form = metadata[metadata["field_name"] == first_field][
                         "form_name"
                     ].item()
-                    pdb.set_trace()
+
                     scraped_tuples.append((subject_ids, issue, form))
                     if verbose:
                         print(
@@ -58,20 +58,22 @@ def run_batch(verbose, metadata):
                         )
                     break
 
-    print(
-        f"\nFound the following subject id's:\n{', '.join([', '.join(subject_ids) for subject_ids,_,_ in scraped_tuples])}"
+    all_found_subject_ids = "\n".join(
+        ["\n".join(subject_ids) for subject_ids, _, _ in scraped_tuples]
     )
+    print(f"\nFound the following subject id's:\n{all_found_subject_ids}")
     if not utils.prompt_y_n("Are all subject id's valid? (y/n)"):
         print("Aborting")
         return
 
     for subject_ids, issue, form in scraped_tuples:
-        if verbose:
-            print(
-                f"\n\n\n\n\n\n\n\n\nResolving issue #{issue.number} with the following id's:\n{subject_ids}\n"
-            )
+        print(
+            f"\n\n\n\n\n\n\n\n\nResolving issue #{issue.number} with the following id's:\n{subject_ids}\n"
+        )
 
         # Loop through subject id's mentioned in issue since redcap_update_summary_scores.py only recalculates one at a time
+        errors_recalculating = []
+        errors_relocking = []
         for subject_id in subject_ids:
             if verbose:
                 print(f"\nUnlocking {subject_id}...")
@@ -94,6 +96,10 @@ def run_batch(verbose, metadata):
             completed_recalculate_process = utils.run_command(
                 recalculate_command, verbose
             )
+            out = completed_recalculate_process.stdout
+            err = completed_recalculate_process.stderr
+            if out or err:
+                errors_recalculating.append([(subject_id, out, err)])
 
             if verbose:
                 print(f"\nRelocking {subject_id}...")
@@ -107,11 +113,24 @@ def run_batch(verbose, metadata):
                 + ["--lock"]
             )
             completed_lock_process = utils.run_command(lock_command, verbose)
+            out = completed_lock_process.stdout
+            err = completed_lock_process.stderr
+            if out or err:
+                errors_relocking.append([(subject_id, out, err)])
 
-        utils.prompt_close_or_comment(
-            issue,
-            "Summary scores recalculated, batch_resolve_redcap_update_summary_scores closing now.",
-        )
+        if errors_recalculating or error_relocking:
+            print(f"Recalculating errors:\n{errors_recalculating}")
+            print(f"Relocking errors:\n{errors_relocking}")
+            utils.prompt_close_or_comment(
+                issue,
+                "Summary scores recalculated, batch_resolve_redcap_update_summary_scores closing now.",
+            )
+        else:
+            utils.close_and_comment(
+                issue,
+                "Summary scores recalculated, batch_resolve_redcap_update_summary_scores closing now.",
+            )
+            print(f"No errors recalculating or relocking form. Closed #{issue.number}")
 
 
 def main():
@@ -125,6 +144,7 @@ def main():
     session = _initialize(args)
 
     session.api.update({"data_entry": None})
+    redcap_api = None
     try:
         redcap_api = session.connect_server("data_entry")
     except Exception as e:
