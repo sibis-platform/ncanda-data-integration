@@ -327,7 +327,7 @@ def incomplete_scan_check(experiment,manufacturer, session_label, eid, scan_type
         slog.info(session_label,
                   err_msg,
                   manufacturer=manufacturer,
-                  missing_scans=', '.join(missing_scans),
+                  missing_scans=','.join(missing_scans),
                   eid=eid,
                   site_forward=dag,
                   site_resolution="If the scans exist, please upload them to "
