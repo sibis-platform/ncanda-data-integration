@@ -831,6 +831,11 @@ for form_prefix, form_name in forms.items():
                 # Make sure there is only one, unique record
                 if len(records_this_visit) > 1:
                     # Not unique - bail
+                    site_forward = entry_data.loc[key, "redcap_data_access_group"]
+                    site_resolution = """Please label one of the two colliding records 
+                    as 'Excluded' in the 'Imported' project.  The remaining record will 
+                    then be assigned when the script runs the next time. 
+                    """
                     error = "More than one record found for subject on event with same visit date"
                     slog.info(
                         "{}-{}".format(key[0], form_target_date),
@@ -839,6 +844,8 @@ for form_prefix, form_name in forms.items():
                         form_name=form_name,
                         event_id=key[1],
                         visit_date=form_target_date,
+                        site_forward=site_forward,
+                        site_resolution=site_resolution,
                     )
                     if args.verbose:
                         print(records_this_visit)
