@@ -832,10 +832,12 @@ for form_prefix, form_name in forms.items():
                 if len(records_this_visit) > 1:
                     # Not unique - bail
                     site_forward = entry_data.loc[key, "redcap_data_access_group"]
-                    site_resolution = """Please label one of the two colliding records 
-                    as 'Excluded' in the 'Imported' project.  The remaining record will 
-                    then be assigned when the script runs the next time. 
-                    """
+                    site_resolution = (
+                        "Please label one of the two colliding "
+                        "records as 'Excluded' in the 'Imported' "
+                        "project.  The remaining record will then "
+                        "be assigned when the script runs the next time."
+                    )
                     error = "More than one record found for subject on event with same visit date"
                     slog.info(
                         "{}-{}".format(key[0], form_target_date),
@@ -961,10 +963,12 @@ for form_prefix, form_name in forms.items():
                 if len(records_this_visit_samedays) > 1:
                     error = "ERROR: more than one closest record"
                     site_forward = entry_data.loc[key, "redcap_data_access_group"]
-                    site_resolution = """Please label one of the two colliding records 
-                    as 'Excluded' in the 'Imported' project.  The remaining record will 
-                    then be assigned when the script runs the next time. 
-                    """
+                    site_resolution = (
+                        "Please label one of the two colliding records "
+                        "as 'Excluded' in the 'Imported' project.  The "
+                        "remaining record will then be assigned when the "
+                        "script runs the next time."
+                    )
                     slog.info(
                         "{}-{}".format(key[0], visit_date),
                         error,
