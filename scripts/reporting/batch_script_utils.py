@@ -59,7 +59,7 @@ def get_base_command(label):
     elif label == "check_new_sessions":
         return [
             "/sibis-software/ncanda-data-integration/scripts/xnat/check_new_sessions",
-            "-a",
+            "-f",
             "-e",
         ]
     elif label == "update_visit_data":

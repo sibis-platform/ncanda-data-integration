@@ -39,7 +39,8 @@ def run_batch(verbose, label):
                     scraped_tuples.append((scraped_id, issue))
                 break
 
-    print(f"\nFound the following {id_type}s:\n{[x for x,y in scraped_tuples]}")
+    all_ids = '\n'.join([x for x,y in scraped_tuples])
+    print(f"\nFound the following {id_type}s:\n{all_ids}")
     if not utils.prompt_y_n(
         f"Are {id_type}'s valid? Command will run with these. (y/n)"
     ):
