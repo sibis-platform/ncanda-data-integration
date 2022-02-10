@@ -118,7 +118,7 @@ def run_batch(verbose, metadata):
             if out or err:
                 errors_relocking.append([(subject_id, out, err)])
 
-        if errors_recalculating or error_relocking:
+        if errors_recalculating or errors_relocking:
             print(f"Recalculating errors:\n{errors_recalculating}")
             print(f"Relocking errors:\n{errors_relocking}")
             utils.prompt_close_or_comment(
