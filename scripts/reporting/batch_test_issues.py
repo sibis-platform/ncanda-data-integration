@@ -33,9 +33,10 @@ def run_batch(verbose, label):
             if issue_label.name == label:
                 rehydrated_dict = utils.rehydrate_issue_body(issue.body)
                 scraped_id = utils.get_id(id_type, rehydrated_dict)
-                if verbose:
-                    print(f"Found {scraped_id} in issue #{issue.number}")
-                scraped_tuples.append((scraped_id, issue))
+                if scraped_id:
+                    if verbose:
+                        print(f"Found {scraped_id} in issue #{issue.number}")
+                    scraped_tuples.append((scraped_id, issue))
                 break
 
     print(f"\nFound the following {id_type}s:\n{[x for x,y in scraped_tuples]}")

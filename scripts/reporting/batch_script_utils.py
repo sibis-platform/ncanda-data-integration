@@ -78,8 +78,11 @@ def get_id_type(label):
 
 
 def get_id(id_type, issue_dict):
+    scraped_id = None
     if id_type == "subject_id":
-        scraped_id = issue_dict["experiment_site_id"][:11]
+        if "experiment_site_id" in issue_dict:
+            scraped_id = issue_dict["experiment_site_id"][:11]
     elif id_type == "eid":
-        scraped_id = issue_dict["eid"]
+        if "eid" in issue_dict:
+            scraped_id = issue_dict["eid"]
     return scraped_id
