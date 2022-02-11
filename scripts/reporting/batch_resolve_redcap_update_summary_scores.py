@@ -90,8 +90,9 @@ def run_batch(verbose, metadata):
 
             if verbose:
                 print(f"\nRecalculating {subject_id}...")
+            instrument = form[1]
             recalculate_command = (
-                ["python"] + update_scores_base_command + [subject_id] + ["-i"] + [form]
+                ["python"] + update_scores_base_command + [subject_id] + ["-i"] + [instrument]
             )
             completed_recalculate_process = utils.run_command(
                 recalculate_command, verbose
@@ -99,7 +100,7 @@ def run_batch(verbose, metadata):
             out = completed_recalculate_process.stdout
             err = completed_recalculate_process.stderr
             if out or err:
-                errors_recalculating.append([(subject_id, out, err)])
+                errors_recalculating.append((subject_id, out, err))
 
             if verbose:
                 print(f"\nRelocking {subject_id}...")
@@ -116,11 +117,16 @@ def run_batch(verbose, metadata):
             out = completed_lock_process.stdout
             err = completed_lock_process.stderr
             if out or err:
-                errors_relocking.append([(subject_id, out, err)])
+                errors_relocking.append((subject_id, out, err))
 
         if errors_recalculating or errors_relocking:
-            print(f"Recalculating errors:\n{errors_recalculating}")
-            print(f"Relocking errors:\n{errors_relocking}")
+            print("Recalculating errors:\n")
+            for error in errors_recalculating:
+                print(f"{error[0]}:\nstdout:{error[1]}\nstderr:\n{error[2]}")
+            print("Relocking errors:\n")
+            for error in errors_relocking:
+                print(f"{error[0]}:\nstdout:{error[1]}\nstderr:\n{error[2]}")
+
             utils.prompt_close_or_comment(
                 issue,
                 "Summary scores recalculated, batch_resolve_redcap_update_summary_scores closing now.",
@@ -158,7 +164,7 @@ def main():
         {"field_name": [f"{form}_complete" for form in forms], "form_name": forms}
     )
     metadata = metadata.append(complete_fields)
-
+    import pdb; pdb.set_trace()
     config = _get_config(session)
     run_batch(args.verbose, metadata)
 
@@ -208,3 +214,4 @@ def _get_config(session):
 
 if __name__ == "__main__":
     main()
+
