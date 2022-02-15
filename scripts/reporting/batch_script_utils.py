@@ -48,4 +48,19 @@ def prompt_close_or_comment(issue, close_comment: str):
         comment = input("Enter comment:\n")
         issue.create_comment(comment)
 
+def get_open_issues(slog):
+    ncanda_operations = slog.log.postGithubRepo
+    issues = ncanda_operations.get_issues(state="open")
+    return issues
         
+def scrape_matching_issues(slog, title_string, target_label, scrape_tuple_from_issue):
+    issues = get_open_issues(slog)
+    scraped_tuples = []
+    for issue in issues:
+        if title_string in issue.title:
+            for label in issue.get_labels():
+                if target_label == label.name:
+                    scraped_tuple = scrape_tuple_from_issue(issue)
+                    scraped_tuples.append(scraped_tuple)
+                    break
+    return scraped_tuples
