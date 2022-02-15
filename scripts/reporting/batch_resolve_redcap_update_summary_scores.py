@@ -17,6 +17,7 @@ import yaml
 import github
 import pdb
 from collections import defaultdict
+import numpy as np
 
 import batch_script_utils as utils
 
@@ -47,11 +48,15 @@ def run_batch(verbose, metadata):
                     ]
                     subject_ids = utils.extract_unique_subject_ids(request_error)
                     first_field = request_error.split('","')[1]
-                    form = metadata[metadata["field_name"] == first_field][
+                    field_row = metadata[metadata["field_name"] == first_field]
+                    form = field_row[
                         "form_name"
                     ].item()
-
-                    scraped_tuples.append((subject_ids, issue, form))
+                    instrument = field_row[
+                        "instrument"
+                    ].item()
+                    
+                    scraped_tuples.append((issue, subject_ids, form, instrument))
                     if verbose:
                         print(
                             f"\nFound the following subject id's in #{issue.number}:\n{subject_ids}"
@@ -59,22 +64,22 @@ def run_batch(verbose, metadata):
                     break
 
     all_found_subject_ids = "\n".join(
-        ["\n".join(subject_ids) for subject_ids, _, _ in scraped_tuples]
+        ["\n".join(subject_ids) for _, subject_ids, _, _ in scraped_tuples]
     )
     print(f"\nFound the following subject id's:\n{all_found_subject_ids}")
     if not utils.prompt_y_n("Are all subject id's valid? (y/n)"):
         print("Aborting")
         return
 
-    for subject_ids, issue, form in scraped_tuples:
+    for issue, subject_ids, form, instrument in scraped_tuples:
         print(
-            f"\n\n\n\n\n\n\n\n\nResolving issue #{issue.number} with the following id's:\n{subject_ids}\n"
+            f"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nResolving issue #{issue.number} with the following id's:\n{subject_ids}\n"
         )
 
         # Loop through subject id's mentioned in issue since redcap_update_summary_scores.py only recalculates one at a time
         errors_recalculating = []
         errors_relocking = []
-        for subject_id in subject_ids:
+        for subject_id in subject_ids[:5]:
             if verbose:
                 print(f"\nUnlocking {subject_id}...")
             unlock_command = (
@@ -90,7 +95,6 @@ def run_batch(verbose, metadata):
 
             if verbose:
                 print(f"\nRecalculating {subject_id}...")
-            instrument = form[1]
             recalculate_command = (
                 ["python"] + update_scores_base_command + [subject_id] + ["-i"] + [instrument]
             )
@@ -120,10 +124,10 @@ def run_batch(verbose, metadata):
                 errors_relocking.append((subject_id, out, err))
 
         if errors_recalculating or errors_relocking:
-            print("Recalculating errors:\n")
+            print("\n\nRecalculating errors:\n")
             for error in errors_recalculating:
                 print(f"{error[0]}:\nstdout:{error[1]}\nstderr:\n{error[2]}")
-            print("Relocking errors:\n")
+            print("\n\nRelocking errors:\n")
             for error in errors_relocking:
                 print(f"{error[0]}:\nstdout:{error[1]}\nstderr:\n{error[2]}")
 
@@ -159,12 +163,17 @@ def main():
     metadata = redcap_api.export_metadata(format="df").reset_index()[
         ["form_name", "field_name"]
     ]
+
+    clinical_instruments = metadata['field_name'].str.split('_complete').str[0]
+    metadata['instrument'] = np.where(metadata['form_name'] == 'clinical', clinical_instruments, metadata['form_name'])
+
     forms = list(metadata["form_name"].unique())
     complete_fields = pd.DataFrame(
-        {"field_name": [f"{form}_complete" for form in forms], "form_name": forms}
+        {"field_name": [f"{form}_complete" for form in forms], "form_name": forms, "instrument": forms}
     )
+
     metadata = metadata.append(complete_fields)
-    import pdb; pdb.set_trace()
+
     config = _get_config(session)
     run_batch(args.verbose, metadata)
 
