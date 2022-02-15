@@ -25,19 +25,14 @@ import batch_script_utils as utils
 def run_batch(verbose, metadata):
     title_string = "redcap_import_record:Failed to import into REDCap"
     target_label = "redcap_update_summary_scores"
+
     def scrape_tuple_from_issue(issue):
-        request_error = utils.rehydrate_issue_body(issue.body)[
-            "requestError"
-        ]
+        request_error = utils.rehydrate_issue_body(issue.body)["requestError"]
         subject_ids = utils.extract_unique_subject_ids(request_error)
         first_field = request_error.split('","')[1]
         field_row = metadata[metadata["field_name"] == first_field]
-        form = field_row[
-            "form_name"
-        ].item()
-        instrument = field_row[
-            "instrument"
-        ].item()
+        form = field_row["form_name"].item()
+        instrument = field_row["instrument"].item()
 
         scraped_tuple = (issue, subject_ids, form, instrument)
         if verbose:
@@ -46,8 +41,10 @@ def run_batch(verbose, metadata):
             )
         return scraped_tuple
 
-    scraped_tuples = utils.scrape_matching_issues(slog, title_string, target_label, scrape_tuple_from_issue)
-                
+    scraped_tuples = utils.scrape_matching_issues(
+        slog, title_string, target_label, scrape_tuple_from_issue
+    )
+
     all_found_subject_ids = "\n".join(
         ["\n".join(subject_ids) for _, subject_ids, _, _ in scraped_tuples]
     )
@@ -55,7 +52,6 @@ def run_batch(verbose, metadata):
     if not utils.prompt_y_n("Are all subject id's valid? (y/n)"):
         print("Aborting")
         return
-
 
     script_path = "/sibis-software/python-packages/sibispy/cmds/"
     events = ["Baseline", "1y", "2y", "3y", "4y", "5y", "6y", "7y"]
@@ -94,7 +90,11 @@ def run_batch(verbose, metadata):
             if verbose:
                 print(f"\nRecalculating {subject_id}...")
             recalculate_command = (
-                ["python"] + update_scores_base_command + [subject_id] + ["-i"] + [instrument]
+                ["python"]
+                + update_scores_base_command
+                + [subject_id]
+                + ["-i"]
+                + [instrument]
             )
             completed_recalculate_process = utils.run_command(
                 recalculate_command, verbose
@@ -164,13 +164,19 @@ def main():
 
     # Assume the form name is the instrument name, except for _complete fields, e.g. fh_alc_complete,
     # for which we assume e.g. fh_alc is the instrument name
-    clinical_instruments = metadata['field_name'].str.split('_complete').str[0]
-    metadata['instrument'] = np.where(metadata['form_name'] == 'clinical', clinical_instruments, metadata['form_name'])
+    clinical_instruments = metadata["field_name"].str.split("_complete").str[0]
+    metadata["instrument"] = np.where(
+        metadata["form_name"] == "clinical", clinical_instruments, metadata["form_name"]
+    )
 
-    # Add form_complete field for each form 
+    # Add form_complete field for each form
     forms = list(metadata["form_name"].unique())
     complete_fields = pd.DataFrame(
-        {"field_name": [f"{form}_complete" for form in forms], "form_name": forms, "instrument": forms}
+        {
+            "field_name": [f"{form}_complete" for form in forms],
+            "form_name": forms,
+            "instrument": forms,
+        }
     )
 
     metadata = metadata.append(complete_fields)
@@ -224,4 +230,3 @@ def _get_config(session):
 
 if __name__ == "__main__":
     main()
-
