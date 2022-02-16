@@ -21,12 +21,10 @@ import numpy as np
 
 import batch_script_utils as utils
 
+
 def main():
     """
-    Scrapes subject id's from all redcap_update_summary_scores "Failed to import into redcap"-labeled
-    issues. Unlocks all clinical forms for each subject id, recalculates the summary scores, and
-    relocks them. Retests them and closes the corresponding issue if nothing printed to stdout.
-    Otherwise comments on the issue with the contents of stdout.
+    Prints the form associated with the passed field in RedCap.
     """
     args = _parse_args()
     session = _initialize(args)
@@ -42,7 +40,7 @@ def main():
         ["form_name", "field_name"]
     ]
 
-    # Add form_complete field for each form 
+    # Add form_complete field for each form
     forms = list(metadata["form_name"].unique())
     complete_fields = pd.DataFrame(
         {"field_name": [f"{form}_complete" for form in forms], "form_name": forms}
@@ -51,7 +49,7 @@ def main():
     metadata = metadata.append(complete_fields)
 
     config = _get_config(session)
-    print(metadata[metadata['field_name'] == args.field_name]['form_name'].item())
+    print(metadata[metadata["field_name"] == args.field_name]["form_name"].item())
 
 
 def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
@@ -59,10 +57,8 @@ def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
     Parse CLI arguments.
     """
     parser = argparse.ArgumentParser(
-        prog="batch_test_import_mr_sessions",
-        description="""Scrapes subject id's from all import_mr_sessions-labeled issues. 
-        Retests them and closes the corresponding issue if nothing printed to stdout.
-        Otherwise comments on the issue with the contents of stdout""",
+        prog="find_form_from_field",
+        description="Prints the form associated with the passed field in RedCap.",
     )
     sibispy.cli.add_standard_params(parser)
     parser.add_argument(
@@ -82,7 +78,7 @@ def _initialize(args: argparse.Namespace) -> sibispy.Session:
     slog.init_log(
         verbose=args.verbose,
         post_to_github=True,
-        github_issue_title="import_mr_sessions batch run",
+        github_issue_title="NA",
         github_issue_label="bug",
         timerDir=None,
     )
@@ -106,4 +102,3 @@ def _get_config(session):
 
 if __name__ == "__main__":
     main()
-
