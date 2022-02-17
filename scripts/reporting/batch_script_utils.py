@@ -77,12 +77,15 @@ def get_base_command(label):
 
 
 def get_id_type(label):
+    id_type = None
     if label in ["import_mr_sessions"]:
-        return "subject_id"
+        id_type = "subject_id"
     elif label in ["check_new_sessions"]:
-        return "eid"
+        id_type = "eid"
     elif label in ["check_phantom_scans"]:
-        return "experiment_id"
+        id_type = "experiment_id"
+    assert id_type is not None
+    return id_type
 
 
 def get_id(id_type, issue_dict):
