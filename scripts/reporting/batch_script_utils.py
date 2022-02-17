@@ -96,5 +96,4 @@ def get_id(id_type, issue_dict):
     elif id_type == "experiment_id":
         if "experiment_id" in issue_dict:
             scraped_id = issue_dict["experiment_id"]
-    assert scraped_id is not None
     return scraped_id
