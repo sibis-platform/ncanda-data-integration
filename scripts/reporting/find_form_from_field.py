@@ -3,6 +3,9 @@
 ##  See COPYING file distributed along with the ncanda-data-integration package
 ##  for the copyright and license terms
 ##
+## Prints the form associated with the passed field in RedCap.
+##
+## Example usage: python find_form_from_field.py parentreport_pei12
 
 import argparse
 import pandas as pd
