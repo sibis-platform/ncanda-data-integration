@@ -131,12 +131,12 @@ def run_batch(verbose, metadata):
 
             utils.prompt_close_or_comment(
                 issue,
-                "Summary scores recalculated, batch_resolve_redcap_update_summary_scores closing now.",
+                f"Summary scores recalculated, {__file__} closing now.",
             )
         else:
             utils.close_and_comment(
                 issue,
-                "Summary scores recalculated, batch_resolve_redcap_update_summary_scores closing now.",
+                f"Summary scores recalculated, {__file__} closing now.",
             )
             print(f"No errors recalculating or relocking form. Closed #{issue.number}")
 
