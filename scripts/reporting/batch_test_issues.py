@@ -3,6 +3,13 @@
 ##  See COPYING file distributed along with the ncanda-data-integration package
 ##  for the copyright and license terms
 ##
+##
+## Scrapes id's from all issues of the passed label. Retests them and closes the
+##  corresponding issue if nothing printed to stdout. Otherwise comments on the
+##  issue with the contents of stdout.
+##
+## Example usage: python batch_test_issues.py --labels check_phantom_scans -v
+##
 
 import argparse
 import pandas as pd
