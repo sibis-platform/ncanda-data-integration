@@ -99,7 +99,7 @@ def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--labels",
-        help="Which labels to scrape issues for (options: import_mr_sessions, check_new_sessions, update_visit_data). Separated by spaces.",
+        help="Which labels to scrape issues for (options: import_mr_sessions, check_new_sessions, update_visit_data, check_phantom_scans). Separated by spaces.",
         nargs="+",
         action="store",
         default=None,
