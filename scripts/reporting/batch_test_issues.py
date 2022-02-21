@@ -3,6 +3,13 @@
 ##  See COPYING file distributed along with the ncanda-data-integration package
 ##  for the copyright and license terms
 ##
+##
+## Scrapes id's from all issues of the passed label. Retests them and closes the
+##  corresponding issue if nothing printed to stdout. Otherwise comments on the
+##  issue with the contents of stdout.
+##
+## Example usage: python batch_test_issues.py --labels check_phantom_scans -v
+##
 
 import argparse
 import pandas as pd
@@ -39,7 +46,7 @@ def run_batch(verbose, label):
                     scraped_tuples.append((scraped_id, issue))
                 break
 
-    all_ids = '\n'.join([x for x,y in scraped_tuples])
+    all_ids = "\n".join([x for x, y in scraped_tuples])
     print(f"\nFound the following {id_type}s:\n{all_ids}")
     if not utils.prompt_y_n(
         f"Are {id_type}'s valid? Command will run with these. (y/n)"
@@ -99,7 +106,7 @@ def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--labels",
-        help="Which labels to scrape issues for (options: import_mr_sessions, check_new_sessions, update_visit_data). Separated by spaces.",
+        help="Which labels to scrape issues for (options: import_mr_sessions, check_new_sessions, update_visit_data, check_phantom_scans). Separated by spaces.",
         nargs="+",
         action="store",
         default=None,

@@ -68,13 +68,24 @@ def get_base_command(label):
             "-a",
             "--study-id",
         ]
+    elif label == "check_phantom_scans":
+        return [
+            "/sibis-software/ncanda-data-integration/scripts/xnat/check_phantom_scans",
+            "-a",
+            "-e",
+        ]
 
 
 def get_id_type(label):
+    id_type = None
     if label in ["import_mr_sessions"]:
-        return "subject_id"
+        id_type = "subject_id"
     elif label in ["check_new_sessions"]:
-        return "eid"
+        id_type = "eid"
+    elif label in ["check_phantom_scans"]:
+        id_type = "experiment_id"
+    assert id_type is not None
+    return id_type
 
 
 def get_id(id_type, issue_dict):
@@ -85,4 +96,7 @@ def get_id(id_type, issue_dict):
     elif id_type == "eid":
         if "eid" in issue_dict:
             scraped_id = issue_dict["eid"]
+    elif id_type == "experiment_id":
+        if "experiment_id" in issue_dict:
+            scraped_id = issue_dict["experiment_id"]
     return scraped_id
