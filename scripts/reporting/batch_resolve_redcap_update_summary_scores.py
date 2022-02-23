@@ -134,7 +134,7 @@ def run_batch(verbose, metadata):
                 f"Summary scores recalculated, {__file__} closing now.",
             )
         else:
-            utils.close_and_comment(
+            utils.comment_and_close(
                 issue,
                 f"Summary scores recalculated, {__file__} closing now.",
             )
