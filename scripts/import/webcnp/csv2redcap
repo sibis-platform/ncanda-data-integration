@@ -22,18 +22,35 @@ import sibispy
 from sibispy import sibislogger as slog
 
 # Setup command line parser
-parser = argparse.ArgumentParser( description="Import WebCNP CSV file into REDCap database" )
-parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_true")
-parser.add_argument( "-a", "--import-all", help="Import all records from Penn server, overwriting any data already in REDCap", action="store_true")
-parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
-parser.add_argument("-t","--time-log-dir",
-                    help="If set then time logs are written to that directory",
-                    action="store",
-                    default=None)
+parser = argparse.ArgumentParser(
+    description="Import WebCNP CSV file into REDCap database"
+)
+parser.add_argument("-v", "--verbose", help="Verbose operation", action="store_true")
+parser.add_argument(
+    "-a",
+    "--import-all",
+    help="Import all records from Penn server, overwriting any data already in REDCap",
+    action="store_true",
+)
+parser.add_argument(
+    "-p",
+    "--post-to-github",
+    help="Post all issues to GitHub instead of std out.",
+    action="store_true",
+)
+parser.add_argument(
+    "-t",
+    "--time-log-dir",
+    help="If set then time logs are written to that directory",
+    action="store",
+    default=None,
+)
 parser.add_argument("infile", help="Input file in CSV format.")
 args = parser.parse_args()
 
-slog.init_log(args.verbose, args.post_to_github,'NCANDA Import', 'csv2redcap', args.time_log_dir)
+slog.init_log(
+    args.verbose, args.post_to_github, "NCANDA Import", "csv2redcap", args.time_log_dir
+)
 slog.startTimer1()
 
 session = sibispy.Session()
@@ -45,21 +62,27 @@ if not session.configure():
 
 # Open connection with REDCap server
 try:
-    redcap = session.connect_server('import_webcnp', True)
+    redcap = session.connect_server("import_webcnp", True)
 except KeyError as e:
     error = "ERROR: failed creating the metadata for Project"
-    slog.info(hashlib.sha1(b'csv2redcap').hexdigest()[0:6], error,
-                  script='csv2redcap',
-                  msg=str(e))
+    slog.info(
+        hashlib.sha1(b"csv2redcap").hexdigest()[0:6],
+        error,
+        script="csv2redcap",
+        msg=str(e),
+    )
     sys.exit(1)
 except Exception as e:
     error = "ERROR: failed creating Project object"
-    slog.info(hashlib.sha1(b'csv2redcap').hexdigest()[0:6], error,
-                  script='csv2redcap',
-                  msg=str(e))
+    slog.info(
+        hashlib.sha1(b"csv2redcap").hexdigest()[0:6],
+        error,
+        script="csv2redcap",
+        msg=str(e),
+    )
     sys.exit(1)
 
-if not redcap: 
+if not redcap:
     if args.verbose:
         print("ERROR:Could not connect to redcap server!")
     sys.exit(1)
@@ -68,130 +91,201 @@ if not redcap:
 data = pd.read_csv(args.infile, low_memory=False)
 
 # Replace periods in column labels with underscores
-data.rename(columns=lambda s: s.replace('.', '_').lower(), inplace=True)
+data.rename(columns=lambda s: s.replace(".", "_").lower(), inplace=True)
 
 ## New Survey->Evioni renames
 # Store current varnames for reference
-_current_varnames = [x['field_name'] for x in redcap.metadata]
+_current_varnames = [x["field_name"] for x in redcap.metadata]
 
 this_dir = Path(__file__).parent.resolve()
-renames = pd.read_csv(this_dir / 'NCANDA_Survey_Codebook.csv')
-for _var in ['survey_var', 'evioni_var']:  # fit the previous data file rename
-    renames[_var] = renames[_var].str.lower().str.replace(r'\.', '_')
+renames = pd.read_csv(this_dir / "NCANDA_Survey_Codebook.csv")
+for _var in ["survey_var", "evioni_var"]:  # fit the previous data file rename
+    renames[_var] = renames[_var].str.lower().str.replace(r"\.", "_")
 
-rename_dict = (renames.set_index('survey_var')['evioni_var']
-               .dropna()
-               .to_dict())
-untranslated_vars = (renames.loc[renames['evioni_var'].isnull(), 'survey_var']
-                     .tolist())  # variables without cross-definition
-drop_vars = ['pvrt_a_scorvers', 'pvrt_a_status', 'pvrt_a_valid_code',
-             'pvrt_a_pvrtcr', 'pvrt_a_pvrt_pc', 'pvrt_a_pvrtrtto',
-             'pvrt_a_pvrtrtcr', 'pvrt_a_pvrtrter', 'pvrt_a_pvrt_eff']
+rename_dict = renames.set_index("survey_var")["evioni_var"].dropna().to_dict()
+untranslated_vars = renames.loc[
+    renames["evioni_var"].isnull(), "survey_var"
+].tolist()  # variables without cross-definition
+drop_vars = [
+    "pvrt_a_scorvers",
+    "pvrt_a_status",
+    "pvrt_a_valid_code",
+    "pvrt_a_pvrtcr",
+    "pvrt_a_pvrt_pc",
+    "pvrt_a_pvrtrtto",
+    "pvrt_a_pvrtrtcr",
+    "pvrt_a_pvrtrter",
+    "pvrt_a_pvrt_eff",
+]
 untranslated_vars += drop_vars
 
 # orig_data = data.copy()
 # data = data[rename_dict.keys()]  # only keep defined vars
-data.drop(columns=untranslated_vars, errors='ignore', inplace=True)
+data.drop(columns=untranslated_vars, errors="ignore", inplace=True)
 data.rename(columns=rename_dict, inplace=True)
 
 # Debugging seciton
-_missing_redcap_varnames = [x for x in _current_varnames if x not in data.columns.tolist() ] 
-_variables_without_redcap = [x for x in data.columns.tolist() if x not in _current_varnames]
+_missing_redcap_varnames = [
+    x for x in _current_varnames if x not in data.columns.tolist()
+]
+_variables_without_redcap = [
+    x for x in data.columns.tolist() if x not in _current_varnames
+]
 assert len(_variables_without_redcap) == 0, "Variables without Redcap: {}".format(
     _variables_without_redcap
 )
 
 ## Remaining processing
 # Remove all sessions before ID 22000 - these are junk
-data = data[data['test_sessions_datasetid'] >= 22000]
+data = data[data["test_sessions_datasetid"] >= 22000]
 
-records_in_redcap = redcap.export_records( fields=['record_id', 'test_sessions_datasetid','test_sessions_complete'], format='df')
+records_in_redcap = redcap.export_records(
+    fields=["record_id", "test_sessions_datasetid", "test_sessions_complete"],
+    format="df",
+)
 # See what's already on the server
-existing = records_in_redcap['test_sessions_datasetid'].tolist()
+existing = records_in_redcap["test_sessions_datasetid"].tolist()
 
 if not args.import_all:
     # Remove all records that are already in REDCap
     # Filter out existing records
-    data = data[ data['test_sessions_datasetid'].map( lambda x: x not in existing ) ]
-else : 
-    # ignore data sets that are set to complete (status = 2) 
-    data = data[data['test_sessions_datasetid'].map( lambda x: x not in existing or records_in_redcap.loc[records_in_redcap['test_sessions_datasetid'] == x,'test_sessions_complete'].values[0] != 2 ) ]
+    data = data[data["test_sessions_datasetid"].map(lambda x: x not in existing)]
+else:
+    # ignore data sets that are set to complete (status = 2)
+    data = data[
+        data["test_sessions_datasetid"].map(
+            lambda x: x not in existing
+            or records_in_redcap.loc[
+                records_in_redcap["test_sessions_datasetid"] == x,
+                "test_sessions_complete",
+            ].values[0]
+            != 2
+        )
+    ]
 
 # Anything left?
-if not len( data ) and args.verbose:
+if not len(data) and args.verbose:
     print("No new records to import.")
     exit(0)
 
 # Set "Completeness" as "Unverified"
-data['test_sessions_complete'] = 1
+data["test_sessions_complete"] = 1
 
 for sheet in list(cnp.instruments.keys()):
-    if not sheet == 'test_sessions':
-        col_name='%s_valid_code' % sheet
-        if col_name in data :
-            data['%s_complete' % cnp.instruments[sheet]] = data[col_name].map( lambda s: 1 if str(s) != '' else 0 )
-        else : 
-            error = "Webcnp form does not comply with expected format - column '" + sheet+ ".valid_code' does not exist!"
-            slog.info(hashlib.sha1(error.encode()).hexdigest()[0:6], error,
-                      cmd=" ".join(sys.argv))
+    if not sheet == "test_sessions":
+        col_name = "%s_valid_code" % sheet
+        if col_name in data:
+            data["%s_complete" % cnp.instruments[sheet]] = data[col_name].map(
+                lambda s: 1 if str(s) != "" else 0
+            )
+        else:
+            error = (
+                "Webcnp form does not comply with expected format - column '"
+                + sheet
+                + ".valid_code' does not exist!"
+            )
+            slog.info(
+                hashlib.sha1(error.encode()).hexdigest()[0:6],
+                error,
+                cmd=" ".join(sys.argv),
+            )
             sys.exit(1)
 
- 
+
 # Copy originals into fields to preserve
-data['test_sessions_subid_orig'] = data['test_sessions_subid'].copy()
-data['test_sessions_dotest_orig'] = data['test_sessions_dotest'].copy()
+data["test_sessions_subid_orig"] = data["test_sessions_subid"].copy()
+data["test_sessions_dotest_orig"] = data["test_sessions_dotest"].copy()
+
+# Replace old default ("C") with new default ("C1")
+status_variables = [
+    "mpract_status",
+    "cpf_status",
+    "cpw_status",
+    "spcptnl_status",
+    "sfnb2_status",
+    "pmat24a_status",
+    "cpfd_status",
+    "cpwd_status",
+    "shortvolt_status",
+    "er40d_status",
+    "pcet_status",
+    "medf36_status",
+    "pvoc_status",
+    "pvrt_status",
+    "svdelay_status",
+]
+old_default = "^C$"
+new_default = "C1"
+data[status_variables] = data[status_variables].apply(
+    lambda x: x.str.replace(old_default, new_default, regex = True)
+)
+
 
 # Bring Subject ID into correct format and select appropriate prefix
-data['test_sessions_subid'] = data['test_sessions_subid'].map( lambda s: "%s????????" % str( s ) )
-data['test_sessions_subid'] = data['test_sessions_subid'].str.replace('-', '')
-data['test_sessions_subid'] = data['test_sessions_subid'].map( lambda s: '%s-%s-%s-%s' % (s[0],s[1:6],s[6],s[7]) )
+data["test_sessions_subid"] = data["test_sessions_subid"].map(
+    lambda s: "%s????????" % str(s)
+)
+data["test_sessions_subid"] = data["test_sessions_subid"].str.replace("-", "")
+data["test_sessions_subid"] = data["test_sessions_subid"].map(
+    lambda s: "%s-%s-%s-%s" % (s[0], s[1:6], s[6], s[7])
+)
 
 # Create column with record ID
-data['record_id'] = data['test_sessions_subid']
-for [ index, row ] in data.iterrows():
-    new_value = "%s-%s-%d" % (row['test_sessions_subid'], row['test_sessions_dotest'][0:10], row['test_sessions_datasetid'] )
-    data.at[index, 'record_id'] = new_value
+data["record_id"] = data["test_sessions_subid"]
+for [index, row] in data.iterrows():
+    new_value = "%s-%s-%d" % (
+        row["test_sessions_subid"],
+        row["test_sessions_dotest"][0:10],
+        row["test_sessions_datasetid"],
+    )
+    data.at[index, "record_id"] = new_value
 
 # Drop the separate subject ID and test date columns so as to not overwrite corrected ones.
-data = data.drop( ['test_sessions_subid', 'test_sessions_dotest'], axis=1 )
+data = data.drop(["test_sessions_subid", "test_sessions_dotest"], axis=1)
 
 # Bring original "siteid" column back to assign each record to the correct data access group
-data['redcap_data_access_group'] = data['test_sessions_siteid'].map(lambda s: s.lower());
+data["redcap_data_access_group"] = data["test_sessions_siteid"].map(lambda s: s.lower())
 # In new version, all sites are prefixed with 'NCAN', so we must strip that
-data['redcap_data_access_group'] = data['redcap_data_access_group'].str.replace('ncan', '')
+data["redcap_data_access_group"] = data["redcap_data_access_group"].str.replace(
+    "ncan", ""
+)
 
 # Make list of dicts for REDCap import
 uploaded = 0
-for [key,row] in data.iterrows():
+for [key, row] in data.iterrows():
     record = dict(row.dropna())
 
     # Upload new data to REDCap
-    import_response = session.redcap_import_record_to_api([record], None, 'cvs2redcap-import')
-    if not import_response : 
-        print("WARNING: failed to upload record",record['record_id'])
-        continue 
+    import_response = session.redcap_import_record_to_api(
+        [record], None, "cvs2redcap-import"
+    )
+    if not import_response:
+        print("WARNING: failed to upload record", record["record_id"])
+        continue
 
     # If there were any errors, try to print them as well as possible
-    if 'error' in list(import_response.keys()):
-        error = "UPLOAD ERROR: {}".format(import_response['error'])
+    if "error" in list(import_response.keys()):
+        error = "UPLOAD ERROR: {}".format(import_response["error"])
         slog.info(hashlib.sha1(error.encode()).hexdigest()[0:6], error)
 
-    if 'fields' in list(import_response.keys()):
-        for field in import_response['fields']:
+    if "fields" in list(import_response.keys()):
+        for field in import_response["fields"]:
             print("\t", field)
 
-    if 'records' in list(import_response.keys()):
-        for record in import_response['records']:
+    if "records" in list(import_response.keys()):
+        for record in import_response["records"]:
             print("\t", record)
 
-    if 'count' in list(import_response.keys()):
-        uploaded += int( import_response['count'] )
+    if "count" in list(import_response.keys()):
+        uploaded += int(import_response["count"])
     else:
-        print("WARNING: failed to upload record",record['record_id'])
+        print("WARNING: failed to upload record", record["record_id"])
 
 # Finally, print upload status if so desired
 if args.verbose:
-    print("Successfully uploaded %d/%d records to REDCap." % ( uploaded, len( data ) ))
+    print("Successfully uploaded %d/%d records to REDCap." % (uploaded, len(data)))
 
-slog.takeTimer1("script_time","{'records': " + str(len(data)) + ", 'uploads': " + str(uploaded) + "}")
-
+slog.takeTimer1(
+    "script_time",
+    "{'records': " + str(len(data)) + ", 'uploads': " + str(uploaded) + "}",
+)

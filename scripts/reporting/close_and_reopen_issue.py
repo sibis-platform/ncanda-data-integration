@@ -15,29 +15,35 @@ from typing import Sequence, List, Dict, Mapping, Union
 import yaml
 
 import github
-import pdb
 
 
 def main():
     """
-    Closes and reopens github issues with "site_forward" fields and without "waiting_for_site" labels
+    Closes and reopens github issues with "site_forward" fields and without "waiting-on-site" labels
     """
     args = _parse_args()
     session = _initialize(args)
     config = _get_config(session)
-    special_cases = _get_special_cases(session)
 
     ncanda_operations = slog.log.postGithubRepo
     issues = ncanda_operations.get_issues(state="open")
+    if args.verbose:
+        print("Looping through issues with site_forward in body:")
     for issue in issues:
         if 'site_forward' in issue.body:
-            waiting_for_site = False
+            waiting_on_site = False
             for label in issue.get_labels():
-                if 'waiting_for_site' == label.name:
-                    waiting_for_site = True
-            if not waiting_for_site:
+                if 'waiting-on-site' == label.name:
+                    waiting_on_site = True
+            if not waiting_on_site:
+                if args.verbose:
+                    print(f"\n#{issue.number} missing waiting-on-site label")
                 issue.edit(state="closed")
+                if args.verbose:
+                    print("Closing")
                 issue.edit(state="open")
+                if args.verbose:
+                    print("Reopening")
 
 
 
@@ -48,7 +54,7 @@ def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
     """
     parser = argparse.ArgumentParser(
         prog="restart_issue",
-        description="Closes and reopens github issues with \"site_forward\" fields and without \"waiting_for_site\" labels",
+        description="Closes and reopens github issues with \"site_forward\" fields and without \"waiting-on-site\" labels",
     )
     sibispy.cli.add_standard_params(parser)
     return parser.parse_args(input_args)
@@ -82,21 +88,6 @@ def _get_config(session):
     parser, error = session.get_config_sys_parser()  # from here, .get_category
     return parser
 
-
-def _get_special_cases(session) -> Union[Sequence, Mapping]:
-    """
-    Get the section of the special_cases.yml specific to this script.
-    """
-    operations_dir = session.get_operations_dir()
-    special_cases_file = Path(operations_dir) / 'special_cases.yml'
-    if not special_cases_file.exists():
-        return
-
-    with open(special_cases_file, 'r') as f:
-        all_cases = yaml.safe_load(f)
-        file_cases = all_cases.get("restart_issue", {})
-
-    return file_cases
 
 
 if __name__ == '__main__':

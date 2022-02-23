@@ -260,6 +260,12 @@ summary_records = summary_records[ summary_records['cnp_datasetid'] != '' ]
 # Drop all (logically) read-only columns from the summary data - these are the ones that are neither index-related (subject, event), nor part of the data imported from WebCNP
 summary_records = summary_records.drop( [ 'dob', 'exclude', 'visit_date' ], axis=1 )
 
+
+# Since redcap expects int values for this field
+summary_records['cnp_exam_location'] = pandas.to_numeric(summary_records['cnp_exam_location']).astype('Int64')
+summary_records['cnp_input_device'] = pandas.to_numeric(summary_records['cnp_input_device']).astype('Int64')
+
+
 uploaded_count = 0
 
 # round up age and z-scores as records as otherwise creates problems when writing to redcap 

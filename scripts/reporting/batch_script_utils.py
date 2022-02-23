@@ -36,14 +36,13 @@ def run_command(command: list, verbose: bool):
         print(f"\nstderr:\n{completed_process.stderr}")
     return completed_process
 
-def close_and_comment(issue, close_comment: str):
+def comment_and_close(issue, close_comment: str):
     issue.create_comment(close_comment)
     issue.edit(state="closed")
-
     
 def prompt_close_or_comment(issue, close_comment: str):
     if prompt_y_n("Close issue? (y/n)"):
-        close_and_comment(issue, close_comment)
+        comment_and_close(issue, close_comment)
     elif prompt_y_n("Comment on issue? (y/n)"):
         comment = input("Enter comment:\n")
         issue.create_comment(comment)
@@ -64,3 +63,59 @@ def scrape_matching_issues(slog, title_string, target_label, scrape_tuple_from_i
                     scraped_tuples.append(scraped_tuple)
                     break
     return scraped_tuples
+
+def get_base_command(label):
+    if label == "import_mr_sessions":
+        return [
+            "/sibis-software/ncanda-data-integration/scripts/redcap/import_mr_sessions",
+            "-f",
+            "--pipeline-root-dir",
+            "/fs/ncanda-share/cases",
+            "--run-pipeline-script",
+            "/fs/ncanda-share/scripts/bin/ncanda_all_pipelines",
+            "--study-id",
+        ]
+    elif label == "check_new_sessions":
+        return [
+            "/sibis-software/ncanda-data-integration/scripts/xnat/check_new_sessions",
+            "-f",
+            "-e",
+        ]
+    elif label == "update_visit_data":
+        return [
+            "/sibis-software/ncanda-data-integration/scripts/import/laptops/update_visit_data",
+            "-a",
+            "--study-id",
+        ]
+    elif label == "check_phantom_scans":
+        return [
+            "/sibis-software/ncanda-data-integration/scripts/xnat/check_phantom_scans",
+            "-a",
+            "-e",
+        ]
+
+
+def get_id_type(label):
+    id_type = None
+    if label in ["import_mr_sessions"]:
+        id_type = "subject_id"
+    elif label in ["check_new_sessions"]:
+        id_type = "eid"
+    elif label in ["check_phantom_scans"]:
+        id_type = "experiment_id"
+    assert id_type is not None
+    return id_type
+
+
+def get_id(id_type, issue_dict):
+    scraped_id = None
+    if id_type == "subject_id":
+        if "experiment_site_id" in issue_dict:
+            scraped_id = issue_dict["experiment_site_id"][:11]
+    elif id_type == "eid":
+        if "eid" in issue_dict:
+            scraped_id = issue_dict["eid"]
+    elif id_type == "experiment_id":
+        if "experiment_id" in issue_dict:
+            scraped_id = issue_dict["experiment_id"]
+    return scraped_id
