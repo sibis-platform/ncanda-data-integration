@@ -24,14 +24,7 @@ import numpy as np
 
 import batch_script_utils as utils
 
-
-def main():
-    """
-    Prints the form associated with the passed field in RedCap.
-    """
-    args = _parse_args()
-    session = _initialize(args)
-
+def get_form_from_field(session, field_name):
     session.api.update({"data_entry": None})
     redcap_api = None
     try:
@@ -50,9 +43,17 @@ def main():
     )
 
     metadata = metadata.append(complete_fields)
+    return metadata[metadata["field_name"] == field_name]["form_name"].item()
+
+def main():
+    """
+    Prints the form associated with the passed field in RedCap.
+    """
+    args = _parse_args()
+    session = _initialize(args)
 
     config = _get_config(session)
-    print(metadata[metadata["field_name"] == args.field_name]["form_name"].item())
+    print(get_form_from_field(session, args.field_name))
 
 
 def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
