@@ -328,7 +328,7 @@ def incomplete_scan_check(experiment,manufacturer, session_label, eid, scan_type
                   err_msg,
                   manufacturer=manufacturer,
                   missing_scans=','.join(missing_scans),
-                  eid=eid,
+                  xnat_experiment_id=eid,
                   site_forward=dag,
                   site_resolution="If the scans exist, please upload them to "
                   "XNAT. If they do not exist, please inform the Datacore so "
@@ -486,10 +486,10 @@ def mri_quality_check(experiment, session_dir, manufacturer, session_label, eid,
     # manufacturer_u = manufacturer.split(' ',1)[0].upper()
 
     if not manufacturer in list(expected_images.keys()):
-        slog.info(session_label, "Error: Manufacturer '" + manufacturer + "' unkwnown", 
+        slog.info(session_label, "Error: Manufacturer '" + manufacturer + "' unknown", 
                   manufacturer=str(manufacturer), 
                   defined=str(list(expected_images.keys())),
-                  eid =eid)
+                  xnat_experiment_id=eid)
 
         return False
 
@@ -530,7 +530,7 @@ def mri_quality_check(experiment, session_dir, manufacturer, session_label, eid,
           session_label,
           'ERROR: scans in session failed to match standard setting',
           violations=str(errors),
-          eid=eid,
+          xnat_experiment_id=eid,
           site_forward=dag,
           site_resolution="If the scan is expected to be wrong, please let "
           "the Datacore know so that they can set an exception. If the scan "
@@ -1020,7 +1020,7 @@ for (eid, project, subject, insert_date,
         info = sys.exc_info()
         slog.info(session_label,'ERROR: Could not retrieve experiment specific parameters from xnat - skipping session',
                   project = project,
-                  eid = eid,
+                  xnat_experiment_id = eid,
                   info = "Most likely network problem or another app is trying to access xnat at the same time",
                   err_msg=str(err_msg),
                   detail=traceback.format_exception(info[0], info[1], info[2]))
@@ -1089,7 +1089,7 @@ for (eid, project, subject, insert_date,
         exc_type, exc_value, exc_traceback = sys.exc_info()
         slog.info(session_label + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],'ERROR: Could not retrieve scan specific parameters from xnat - skipping session',
                   project = project,
-                  eid = eid,
+                  xnat_experiment_id = eid,
                   info = "Most likely network problem",
                   err_msg=str(err_msg),
                   detail=traceback.format_exception(exc_type, exc_value, exc_traceback))
@@ -1118,7 +1118,7 @@ for (eid, project, subject, insert_date,
                 except Exception as err_msg: 
                     info = sys.exc_info()
                     slog.info(session_label + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],'ERROR: Could not generate nifti files - skipping session',
-                          eid = eid,
+                          xnat_experiment_id = eid,
                           project = project,
                           err_msg=str(err_msg),
                           detail=traceback.format_exception(*info))
@@ -1185,7 +1185,7 @@ for (eid, project, subject, insert_date,
                         slog.info(session_label + "-" + hashlib.sha1(str(err).encode()).hexdigest()[0:6],'WARNING: File not found',
                             project = project,
                             file = qc_file,
-                            eid = eid,
+                            xnat_experiment_id = eid,
                             error=str(err)
                         )
 
@@ -1194,7 +1194,7 @@ for (eid, project, subject, insert_date,
             slog.info(session_label + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],'ERROR: Could not check quality of session',
                       project = project,
                       info = "Most likely network problem",
-                      eid = eid,
+                      xnat_experiment_id = eid,
                       error=str(err_msg),
                       detail=traceback.format_exception(*info))
             experiments_for_next_run.append(eid)

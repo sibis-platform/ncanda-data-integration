@@ -83,7 +83,7 @@ def find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified,
             slog.info(experiment_label,
                       error,
                       project_id=prj,
-                      experiment_id=seid,
+                      xnat_experiment_id=seid,
                       experiment_date=edate,
                       site_forward=dag,
                       site_resolution="If a phantom exists within the "
@@ -168,7 +168,7 @@ def check_experiment(session, eid, experiment):
                 err = "Error: {0} - scanner mismatch for session {1} (scanner: {2}) and phantom {3} (scanner: {4}).".format(prj, experiment_label, scanner, eids, phantom_scanners)
                 slog.info(experiment_label,err,
                               phantom_experiment_id = eids,
-                              experiment_xnat_id=seid,
+                              xnat_experiment_id=seid,
                               project = prj)
             elif len(phantom_scans) == 0:
                 find_phantom_scan_24h(prj, experiment_label, seid, experiment_last_modified, phantom_id, edate, etime, scanner)
@@ -178,7 +178,7 @@ def check_experiment(session, eid, experiment):
                           site_id=sid,
                           project=prj,
                           changed_sites_phantom = str(changed_sites_phantom),
-                          subject_experiment_id=seid,
+                          xnat_experiment_id=seid,
                           info = "Most likely entry missing for this visit in section 'check_phantom_scans' of file 'special_cases.yml'",  
                           error_msg = str(e) )
 

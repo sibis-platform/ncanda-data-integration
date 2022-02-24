@@ -148,7 +148,7 @@ def get_usable_scans_list( session, xnat_eid_list, redcap_visit_id, xnat_sid):
                           info="Most likely due to internet connection! Please rerun script for subject and visit", 
                           redcap_visit_id = redcap_visit_id,
                           xnat_sid = xnat_sid,
-                          xnat_eid = xnat_eid, 
+                          xnat_experiment_id = xnat_eid, 
                           scan = scan,
                           err_msg = str(err_msg))
 
@@ -198,20 +198,20 @@ def get_fieldmap_scans( usable_scans_list, for_scan, scannerMfg,redcap_visit_id,
         if len(matched_fieldmaps) > 2 : 
             slog.info(redcap_visit_id,"Error: More than two usable grefieldmaps!",
                       number_of_scans = str(len(matched_fieldmaps)),
-                      xnat_visit_id = for_scan[0], 
+                      xnat_experiment_id = for_scan[0], 
                       scanner_mfg = scannerMfg)
 
     elif scannerMfg == "GE":
         if len(matched_fieldmaps) > 1 : 
             slog.info(redcap_visit_id,"Error: More than one usable grefieldmaps!",
                       number_of_scans = str(len(matched_fieldmaps)),
-                      xnat_visit_id = for_scan[0], 
+                      xnat_experiment_id = for_scan[0], 
                       scanner_mfg = scannerMfg)
 
     elif len(matched_fieldmaps) > 0 : 
             slog.info(redcap_visit_id,"Error: Scanner manufacturer not known even though usable grefieldmap exists!",
                       number_of_scans = str(len(matched_fieldmaps)),
-                      xnat_visit_id = for_scan[0], 
+                      xnat_experiment_id = for_scan[0], 
                       scanner_mfg = scannerMfg)
             return []
         
@@ -341,7 +341,8 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
                         "states that scans be skipped at ages 23, 25, and 26."
                         % age)
 
-            replication_cmd = f"{os.path.realpath(__file__)} -f --study-id {redcap_visit_id[:11]}"
+            study_id = redcap_visit_id[:11]
+            replication_cmd = f"{os.path.realpath(__file__)} -f --study-id {study_id}"
             if args.pipeline_root_dir:
                 replication_cmd += f" --pipeline-root-dir {args.pipeline_root_dir}"
             if args.run_pipeline_script:
@@ -355,6 +356,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
                 dag = None
 
             slog.info(redcap_visit_id,
+                      study_id=study_id,
                       error,
                       xnat_project_id=xnat_pid,
                       xnat_subject_id=xnat_sid,
@@ -844,8 +846,9 @@ for [key, row] in mr_sessions_redcap.iterrows():
     if visit_date == 'nan':
         if float(row['visit_ignore___yes']) != 1:
             error = f'Missing visit date for subject with visit data at {key[1]}.'
+            study_id = key[0]
             slog.info(
-                key[0], error, visit_id=key[1],
+                study_id=study_id, error, visit_id=key[1],
                 site_forward=row.get('redcap_data_access_group'),
                 site_resolution="The visit was most likely mistakenly created "
                 "ahead of time. If that is the case, please set the visit to "

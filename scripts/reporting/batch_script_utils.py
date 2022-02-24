@@ -13,10 +13,10 @@ def rehydrate_issue_body(body: str) -> dict:
     return rehydrated_body
 
 
-def extract_unique_subject_ids(text: str) -> list:
-    subject_id_regex = "[A-EX]-\d{5}-[FMTX]-\d"
-    subject_ids = sorted(list(set(re.findall(subject_id_regex, text))))
-    return subject_ids
+def extract_unique_study_ids(text: str) -> list:
+    study_id_regex = "[A-EX]-\d{5}-[FMTX]-\d"
+    study_ids = sorted(list(set(re.findall(study_id_regex, text))))
+    return study_ids
 
 
 def prompt_y_n(prompt: str) -> bool:
@@ -98,24 +98,19 @@ def get_base_command(label):
 def get_id_type(label):
     id_type = None
     if label in ["import_mr_sessions"]:
-        id_type = "subject_id"
-    elif label in ["check_new_sessions"]:
-        id_type = "eid"
-    elif label in ["check_phantom_scans"]:
-        id_type = "experiment_id"
+        id_type = "study_id"
+    elif label in ["check_new_sessions", "check_phantom_scans"]:
+        id_type = "xnat_experiment_id"
     assert id_type is not None
     return id_type
 
 
 def get_id(id_type, issue_dict):
     scraped_id = None
-    if id_type == "subject_id":
-        if "experiment_site_id" in issue_dict:
-            scraped_id = issue_dict["experiment_site_id"][:11]
-    elif id_type == "eid":
-        if "eid" in issue_dict:
-            scraped_id = issue_dict["eid"]
-    elif id_type == "experiment_id":
-        if "experiment_id" in issue_dict:
-            scraped_id = issue_dict["experiment_id"]
+    if id_type == "study_id":
+        if "study_id" in issue_dict:
+            scraped_id = issue_dict["study_id"]
+    elif id_type == "xnat_experiment_id":
+        if "xnat_experiment_id" in issue_dict:
+            scraped_id = issue_dict["xnat_experiment_id"]
     return scraped_id

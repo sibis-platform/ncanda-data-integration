@@ -98,7 +98,7 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
                 error = 'QA metric fails to meet threshhold.'
                 slog.info(session,error,
                               project_id = project,
-                              experiment_site_id = label,
+                              xnat_experiment_id = label,
                               metric_name=metric._name,
                               metric_key=match.group(1),
                               metric_value=value,
