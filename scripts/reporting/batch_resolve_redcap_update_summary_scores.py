@@ -141,6 +141,43 @@ def run_batch(verbose, metadata):
             print(f"No errors recalculating or relocking form. Closed #{issue.number}")
 
 
+def add_instruments_to_metadata(metadata):
+    # Get the instrument name for the fields on the clinical form
+
+    # All instrument names without hyphens
+    clinical_instruments = metadata["field_name"].str.split("_").str[0]
+
+    # fh_alc, fh_drug
+    fh_alc_drug_re = "(fh_alc|fh_drug).*"
+    fh_alc_drug_mask = metadata["field_name"].str.contains(fh_alc_drug_re, regex=True)
+    fh_alc_drug_instruments = metadata["field_name"].str.extract(fh_alc_drug_re)[0]
+    clinical_instruments = np.where(
+        fh_alc_drug_mask, fh_alc_drug_instruments, clinical_instruments
+    )
+
+    #ssaga_dsm4, ssaga_dsm5
+    lssaga_re = "l?(ssaga_dsm(?:4|5)).*"
+    lssaga_mask = metadata["field_name"].str.contains(lssaga_re, regex=True)
+    lssaga_instruments = metadata["field_name"].str.extract(lssaga_re)[0]
+    clinical_instruments = np.where(
+        lssaga_mask, lssaga_instruments, clinical_instruments
+    )
+    
+    #cnp_eff
+    cnp_re = "cnp.*"
+    cnp_mask = metadata["field_name"].str.contains(cnp_re, regex=True)
+    cnp_instruments = "cnp_eff"
+    clinical_instruments = np.where(
+        cnp_mask, cnp_instruments, clinical_instruments
+    )
+
+    # Assume the form name is the instrument name, except for fields on the clinical form    
+    metadata["instrument"] = np.where(
+        metadata["form_name"] == "clinical", clinical_instruments, metadata["form_name"]
+    )
+
+    return metadata
+            
 def main():
     """
     Scrapes subject id's from all redcap_update_summary_scores "Failed to import into redcap"-labeled
@@ -161,14 +198,8 @@ def main():
     metadata = redcap_api.export_metadata(format="df").reset_index()[
         ["form_name", "field_name"]
     ]
-
-    # Assume the form name is the instrument name, except for _complete fields, e.g. fh_alc_complete,
-    # for which we assume e.g. fh_alc is the instrument name
-    clinical_instruments = metadata["field_name"].str.split("_complete").str[0]
-    metadata["instrument"] = np.where(
-        metadata["form_name"] == "clinical", clinical_instruments, metadata["form_name"]
-    )
-
+    metadata = add_instruments_to_metadata(metadata)
+    
     # Add form_complete field for each form
     forms = list(metadata["form_name"].unique())
     complete_fields = pd.DataFrame(
