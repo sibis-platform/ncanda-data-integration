@@ -144,9 +144,11 @@ def run_batch(verbose, metadata):
 def add_instruments_to_metadata(metadata):
     # Get the instrument name for the fields on the clinical form
 
-    # All instrument names without hyphens
+    # As a default, assume that the first string before the hyphen
+    # in the field_name is the instrument:
     clinical_instruments = metadata["field_name"].str.split("_").str[0]
 
+    # Clinical instruments which are exceptions to this rule:
     # fh_alc, fh_drug
     fh_alc_drug_re = "(fh_alc|fh_drug).*"
     fh_alc_drug_mask = metadata["field_name"].str.contains(fh_alc_drug_re, regex=True)
@@ -155,7 +157,7 @@ def add_instruments_to_metadata(metadata):
         fh_alc_drug_mask, fh_alc_drug_instruments, clinical_instruments
     )
 
-    #ssaga_dsm4, ssaga_dsm5
+    # ssaga_dsm4, ssaga_dsm5
     lssaga_re = "l?(ssaga_dsm(?:4|5)).*"
     lssaga_mask = metadata["field_name"].str.contains(lssaga_re, regex=True)
     lssaga_instruments = metadata["field_name"].str.extract(lssaga_re)[0]
@@ -163,7 +165,7 @@ def add_instruments_to_metadata(metadata):
         lssaga_mask, lssaga_instruments, clinical_instruments
     )
     
-    #cnp_eff
+    # cnp_eff
     cnp_re = "cnp.*"
     cnp_mask = metadata["field_name"].str.contains(cnp_re, regex=True)
     cnp_instruments = "cnp_eff"
@@ -171,7 +173,31 @@ def add_instruments_to_metadata(metadata):
         cnp_mask, cnp_instruments, clinical_instruments
     )
 
-    # Assume the form name is the instrument name, except for fields on the clinical form    
+    #  ssaga_youth_externalizing, ssaga_parent_externalizing, ssaga_youth_assx_minage, ssaga_parent_assx_minage, ssaga_cdsx_onset
+    ssaga_re = "ssaga_youth_externalizing|ssaga_parent_externalizing|ssaga_youth_assx_minage|ssaga_parent_assx_minage|ssaga_cdsx_onset"
+    ssaga_mask = metadata["field_name"].str.contains(ssaga_re, regex=True)
+    ssaga_instruments = "shr"
+    clinical_instruments = np.where(
+        ssaga_mask, ssaga_instruments, clinical_instruments
+    )
+
+    # binge_pastmonth, binge_pastmonth_yn, binge_pastyr, binge_pastyr_yn
+    binge_re = "binge_pastmonth|binge_pastmonth_yn|binge_pastyr|binge_pastyr_yn"
+    binge_mask = metadata["field_name"].str.contains(binge_re, regex=True)
+    binge_instruments = "cnp_eff"
+    clinical_instruments = np.where(
+        binge_mask, binge_instruments, clinical_instruments
+    )
+
+    # parent_edu
+    parent_edu_re = "parent_edu"
+    parent_edu_mask = metadata["field_name"].str.contains(parent_edu_re, regex=True)
+    parent_edu_instruments = "ses"
+    clinical_instruments = np.where(
+        parent_edu_mask, parent_edu_instruments, clinical_instruments
+    )
+    
+    # For field_names not on the clinical form, assume the form name is the instrument name:
     metadata["instrument"] = np.where(
         metadata["form_name"] == "clinical", clinical_instruments, metadata["form_name"]
     )
