@@ -59,7 +59,8 @@ def scrape_matching_issues(slog, title_string, target_label, scrape_tuple_from_i
         if title_string in issue.title:
             for label in issue.get_labels():
                 if target_label == label.name:
-                    scraped_tuple = scrape_tuple_from_issue(issue)
+                    issue_body = rehydrate_issue_body(issue.body)
+                    scraped_tuple = scrape_tuple_from_issue_body(issue_body)
                     scraped_tuples.append(scraped_tuple)
                     break
     return scraped_tuples
@@ -97,7 +98,7 @@ def get_base_command(label):
 
 def get_id_type(label):
     id_type = None
-    if label in ["import_mr_sessions"]:
+    if label in ["import_mr_sessions", "update_visit_data"]:
         id_type = "subject_id"
     elif label in ["check_new_sessions"]:
         id_type = "eid"
