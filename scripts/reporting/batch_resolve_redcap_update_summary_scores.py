@@ -26,13 +26,13 @@ def run_batch(verbose, metadata):
     title_string = "redcap_import_record:Failed to import into REDCap"
     target_label = "redcap_update_summary_scores"
 
-    def scrape_tuple_from_issue(issue):
-        request_error = utils.rehydrate_issue_body(issue.body)["requestError"]
+    def scrape_tuple_from_issue_body(issue_body):
+        request_error = issue_body['requestError']
         subject_ids = utils.extract_unique_subject_ids(request_error)
         first_field = request_error.split('","')[1]
         field_row = metadata[metadata["field_name"] == first_field]
         form = field_row["form_name"].item()
-        instrument = field_row["instrument"].item()
+        instrument = issue_body['experiment_site_id'].split("-")[0]
 
         scraped_tuple = (issue, subject_ids, form, instrument)
         if verbose:
@@ -42,7 +42,7 @@ def run_batch(verbose, metadata):
         return scraped_tuple
 
     scraped_tuples = utils.scrape_matching_issues(
-        slog, title_string, target_label, scrape_tuple_from_issue
+        slog, title_string, target_label, scrape_tuple_from_issue_body
     )
 
     all_found_subject_ids = "\n".join(
@@ -141,69 +141,6 @@ def run_batch(verbose, metadata):
             print(f"No errors recalculating or relocking form. Closed #{issue.number}")
 
 
-def add_instruments_to_metadata(metadata):
-    # Get the instrument name for the fields on the clinical form
-
-    # As a default, assume that the first string before the hyphen
-    # in the field_name is the instrument:
-    clinical_instruments = metadata["field_name"].str.split("_").str[0]
-
-    # Clinical instruments which are exceptions to this rule:
-    # fh_alc, fh_drug
-    fh_alc_drug_re = "(fh_alc|fh_drug).*"
-    fh_alc_drug_mask = metadata["field_name"].str.contains(fh_alc_drug_re, regex=True)
-    fh_alc_drug_instruments = metadata["field_name"].str.extract(fh_alc_drug_re)[0]
-    clinical_instruments = np.where(
-        fh_alc_drug_mask, fh_alc_drug_instruments, clinical_instruments
-    )
-
-    # ssaga_dsm4, ssaga_dsm5
-    lssaga_re = "l?(ssaga_dsm(?:4|5)).*"
-    lssaga_mask = metadata["field_name"].str.contains(lssaga_re, regex=True)
-    lssaga_instruments = metadata["field_name"].str.extract(lssaga_re)[0]
-    clinical_instruments = np.where(
-        lssaga_mask, lssaga_instruments, clinical_instruments
-    )
-    
-    # cnp_eff
-    cnp_re = "cnp.*"
-    cnp_mask = metadata["field_name"].str.contains(cnp_re, regex=True)
-    cnp_instruments = "cnp_eff"
-    clinical_instruments = np.where(
-        cnp_mask, cnp_instruments, clinical_instruments
-    )
-
-    #  ssaga_youth_externalizing, ssaga_parent_externalizing, ssaga_youth_assx_minage, ssaga_parent_assx_minage, ssaga_cdsx_onset
-    ssaga_re = "ssaga_youth_externalizing|ssaga_parent_externalizing|ssaga_youth_assx_minage|ssaga_parent_assx_minage|ssaga_cdsx_onset"
-    ssaga_mask = metadata["field_name"].str.contains(ssaga_re, regex=True)
-    ssaga_instruments = "shr"
-    clinical_instruments = np.where(
-        ssaga_mask, ssaga_instruments, clinical_instruments
-    )
-
-    # binge_pastmonth, binge_pastmonth_yn, binge_pastyr, binge_pastyr_yn
-    binge_re = "binge_pastmonth|binge_pastmonth_yn|binge_pastyr|binge_pastyr_yn"
-    binge_mask = metadata["field_name"].str.contains(binge_re, regex=True)
-    binge_instruments = "cnp_eff"
-    clinical_instruments = np.where(
-        binge_mask, binge_instruments, clinical_instruments
-    )
-
-    # parent_edu
-    parent_edu_re = "parent_edu"
-    parent_edu_mask = metadata["field_name"].str.contains(parent_edu_re, regex=True)
-    parent_edu_instruments = "ses"
-    clinical_instruments = np.where(
-        parent_edu_mask, parent_edu_instruments, clinical_instruments
-    )
-    
-    # For field_names not on the clinical form, assume the form name is the instrument name:
-    metadata["instrument"] = np.where(
-        metadata["form_name"] == "clinical", clinical_instruments, metadata["form_name"]
-    )
-
-    return metadata
-            
 def main():
     """
     Scrapes subject id's from all redcap_update_summary_scores "Failed to import into redcap"-labeled
@@ -224,7 +161,6 @@ def main():
     metadata = redcap_api.export_metadata(format="df").reset_index()[
         ["form_name", "field_name"]
     ]
-    metadata = add_instruments_to_metadata(metadata)
     
     # Add form_complete field for each form
     forms = list(metadata["form_name"].unique())
@@ -232,7 +168,6 @@ def main():
         {
             "field_name": [f"{form}_complete" for form in forms],
             "form_name": forms,
-            "instrument": forms,
         }
     )
 
