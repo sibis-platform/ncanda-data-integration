@@ -26,13 +26,14 @@ def run_batch(verbose, metadata):
     title_string = "redcap_import_record:Failed to import into REDCap"
     target_label = "redcap_update_summary_scores"
 
-    def scrape_tuple_from_issue_body(issue_body):
-        request_error = issue_body['requestError']
+    def scrape_tuple_from_issue_dict(issue):
+        issue_dict = utils.rehydrate_issue_body(issue.body)
+        request_error = issue_dict['requestError']
         subject_ids = utils.extract_unique_subject_ids(request_error)
         first_field = request_error.split('","')[1]
         field_row = metadata[metadata["field_name"] == first_field]
         form = field_row["form_name"].item()
-        instrument = issue_body['experiment_site_id'].split("-")[0]
+        instrument = issue_dict['experiment_site_id'].split("-")[0]
 
         scraped_tuple = (issue, subject_ids, form, instrument)
         if verbose:
@@ -42,17 +43,13 @@ def run_batch(verbose, metadata):
         return scraped_tuple
 
     scraped_tuples = utils.scrape_matching_issues(
-        slog, title_string, target_label, scrape_tuple_from_issue_body
+        slog, title_string, target_label, scrape_tuple_from_issue_dict
     )
 
-    all_found_subject_ids = "\n".join(
-        ["\n".join(subject_ids) for _, subject_ids, _, _ in scraped_tuples]
-    )
-    print(f"\nFound the following subject id's:\n{all_found_subject_ids}")
-    if not utils.prompt_y_n("Are all subject id's valid? (y/n)"):
-        print("Aborting")
+    if not verify_scraped_data(scraped_tuples):
+        print("Aborting...")
         return
-
+    
     script_path = "/sibis-software/python-packages/sibispy/cmds/"
     events = ["Baseline", "1y", "2y", "3y", "4y", "5y", "6y", "7y"]
     update_scores_base_command = [
@@ -134,7 +131,7 @@ def run_batch(verbose, metadata):
                 f"Summary scores recalculated, {__file__} closing now.",
             )
         else:
-            utils.close_and_comment(
+            utils.comment_and_close(
                 issue,
                 f"Summary scores recalculated, {__file__} closing now.",
             )

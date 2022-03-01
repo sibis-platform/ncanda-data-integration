@@ -119,3 +119,10 @@ def get_id(id_type, issue_dict):
         if "experiment_id" in issue_dict:
             scraped_id = issue_dict["experiment_id"]
     return scraped_id
+
+def verify_scraped_data(scraped_tuples):
+    print("\nFound the following data:")
+    for scraped_tuple in scraped_tuples:
+        print("\t".join([str(item) for item in scraped_tuple[1:]]))
+    return prompt_y_n("Is all data valid? (y/n)")
+
