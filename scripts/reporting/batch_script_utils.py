@@ -21,7 +21,7 @@ def extract_unique_subject_ids(text: str) -> list:
 
 def prompt_y_n(prompt: str) -> bool:
     while True:
-        confirm = input(prompt + "\n")
+        confirm = input(prompt + " (y/n)\n")
         if confirm in ["n", "y"]:
             return confirm == "y"
         print("Invalid input")
@@ -36,17 +36,6 @@ def run_command(command: list, verbose: bool):
         print(f"\nstderr:\n{completed_process.stderr}")
     return completed_process
 
-def comment_and_close(issue, close_comment: str):
-    issue.create_comment(close_comment)
-    issue.edit(state="closed")
-    
-def prompt_close_or_comment(issue, close_comment: str):
-    if prompt_y_n("Close issue? (y/n)"):
-        comment_and_close(issue, close_comment)
-    elif prompt_y_n("Comment on issue? (y/n)"):
-        comment = input("Enter comment:\n")
-        issue.create_comment(comment)
-
 def get_open_issues(slog):
     ncanda_operations = slog.log.postGithubRepo
     issues = ncanda_operations.get_issues(state="open")
@@ -60,7 +49,8 @@ def scrape_matching_issues(slog, title_string, target_label, scrape_tuple_from_i
             for label in issue.get_labels():
                 if target_label == label.name:
                     scraped_tuple = scrape_tuple_from_issue(issue)
-                    scraped_tuples.append(scraped_tuple)
+                    if scraped_tuple:
+                        scraped_tuples.append(scraped_tuple)
                     break
     return scraped_tuples
 
@@ -120,9 +110,40 @@ def get_id(id_type, issue_dict):
             scraped_id = issue_dict["experiment_id"]
     return scraped_id
 
-def verify_scraped_data(scraped_tuples):
-    print("\nFound the following data:")
+def verify_scraped_tuples(scraped_tuples, display_scraped_tuple):
+    print("\nFound the following tuples:")
     for scraped_tuple in scraped_tuples:
-        print("\t".join([str(item) for item in scraped_tuple[1:]]))
-    return prompt_y_n("Is all data valid? (y/n)")
+        display_scraped_tuple(scraped_tuple)
+    return prompt_y_n("Are all tuples valid?")
+
+
+def update_issues(scraped_tuples, display_scraped_tuple, process_scraped_tuple, close_comment, error_comment, verbose):
+    closed_issues = []
+    commented_issues = []
+
+    for scraped_tuple in scraped_tuples:
+        issue = scraped_tuple[0]
+        errors = process_scraped_tuple(scraped_tuple)
+        if errors:
+            if verbose:
+                print("\n\nErrors:\n")
+                for error in errors:
+                    print(f"stdout:{error[0]}\nstderr:\n{error[1]}")
+
+            error_strings = ["stdout:\n"+error[0]+"\nstderr:\n"+error[1] for error in errors]
+            issue.create_comment(
+                error_comment + "\n".join(error_strings)
+            )
+            commented_issues.append(f"#{issue.number}")
+        else:
+            if verbose:
+                print(f"Closing #{issue.number}")
+
+            issue.create_comment(close_comment)
+            issue.edit(state="closed")
+            closed_issues.append(f"#{issue.number}")
+
+    if verbose:
+        print(f"\n\nClosed:\n{', '.join(closed_issues)}")
+        print(f"Commented:\n{', '.join(commented_issues)}")
 

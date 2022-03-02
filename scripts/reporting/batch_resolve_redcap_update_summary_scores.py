@@ -26,7 +26,7 @@ def run_batch(verbose, metadata):
     title_string = "redcap_import_record:Failed to import into REDCap"
     target_label = "redcap_update_summary_scores"
 
-    def scrape_tuple_from_issue_dict(issue):
+    def scrape_tuple_from_issue(issue):
         issue_dict = utils.rehydrate_issue_body(issue.body)
         request_error = issue_dict['requestError']
         subject_ids = utils.extract_unique_subject_ids(request_error)
@@ -42,34 +42,31 @@ def run_batch(verbose, metadata):
             )
         return scraped_tuple
 
-    scraped_tuples = utils.scrape_matching_issues(
-        slog, title_string, target_label, scrape_tuple_from_issue_dict
-    )
+    def display_scraped_tuple(scraped_tuple):
+        (issue, subject_ids, form, instrument) = scraped_tuple
+        for subject_id in subject_ids:
+            print("\t".join([subject_id, form, instrument]))
 
-    if not verify_scraped_data(scraped_tuples):
-        print("Aborting...")
-        return
-    
     script_path = "/sibis-software/python-packages/sibispy/cmds/"
     events = ["Baseline", "1y", "2y", "3y", "4y", "5y", "6y", "7y"]
+    locking_data_base_command = [
+        script_path + "exec_redcap_locking_data.py",
+        "-e",
+    ] + events
     update_scores_base_command = [
         script_path + "redcap_update_summary_scores.py",
         "-a",
         "-s",
     ]
-    locking_data_base_command = [
-        script_path + "exec_redcap_locking_data.py",
-        "-e",
-    ] + events
 
-    for issue, subject_ids, form, instrument in scraped_tuples:
-        print(
-            f"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nResolving issue #{issue.number} with the following id's:\n{subject_ids}\n"
-        )
+    def resolve_locking_issue(scraped_tuple):
+        (issue, subject_ids, form, instrument) = scraped_tuple
+        if verbose:
+            print("\n"*20 + "Resolving:")
+            display_scraped_tuple(scraped_tuple)
 
         # Loop through subject id's mentioned in issue since redcap_update_summary_scores.py only recalculates one at a time
-        errors_recalculating = []
-        errors_relocking = []
+        errors = []
         for subject_id in subject_ids:
             if verbose:
                 print(f"\nUnlocking {subject_id}...")
@@ -99,7 +96,7 @@ def run_batch(verbose, metadata):
             out = completed_recalculate_process.stdout
             err = completed_recalculate_process.stderr
             if out or err:
-                errors_recalculating.append((subject_id, out, err))
+                errors.append((out, err))
 
             if verbose:
                 print(f"\nRelocking {subject_id}...")
@@ -116,28 +113,26 @@ def run_batch(verbose, metadata):
             out = completed_lock_process.stdout
             err = completed_lock_process.stderr
             if out or err:
-                errors_relocking.append((subject_id, out, err))
+                errors.append((out, err))
 
-        if errors_recalculating or errors_relocking:
-            print("\n\nRecalculating errors:\n")
-            for error in errors_recalculating:
-                print(f"{error[0]}:\nstdout:{error[1]}\nstderr:\n{error[2]}")
-            print("\n\nRelocking errors:\n")
-            for error in errors_relocking:
-                print(f"{error[0]}:\nstdout:{error[1]}\nstderr:\n{error[2]}")
-
-            utils.prompt_close_or_comment(
-                issue,
-                f"Summary scores recalculated, {__file__} closing now.",
-            )
-        else:
-            utils.comment_and_close(
-                issue,
-                f"Summary scores recalculated, {__file__} closing now.",
-            )
-            print(f"No errors recalculating or relocking form. Closed #{issue.number}")
+        return errors
 
 
+
+    close_comment = f"Courtesy of {__file__}:\nSummary scores recalculated, closing."
+    error_comment = f"Courtesy of {__file__}:\nErrors produced when recalculating or locking:"
+
+    # Run batch
+    scraped_tuples = utils.scrape_matching_issues(
+        slog, title_string, target_label, scrape_tuple_from_issue
+    )
+
+    if not utils.verify_scraped_tuples(scraped_tuples, display_scraped_tuple):
+        print("Aborting...")
+        return
+
+    utils.update_issues(scraped_tuples, display_scraped_tuple, resolve_locking_issue, close_comment, error_comment, verbose)
+    
 def main():
     """
     Scrapes subject id's from all redcap_update_summary_scores "Failed to import into redcap"-labeled
