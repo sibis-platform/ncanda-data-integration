@@ -1,18 +1,6 @@
 from subprocess import run
 import re
 
-
-def rehydrate_issue_body(body: str) -> dict:
-    rehydrated_body = {}
-    bulletpoints = body.split("\n-")[1:]
-    for bulletpoint in bulletpoints:
-        key, value = bulletpoint.split(":", 1)
-        key = key.strip()
-        value = value.strip()
-        rehydrated_body[key] = value
-    return rehydrated_body
-
-
 def extract_unique_subject_ids(text: str) -> list:
     subject_id_regex = "[A-EX]-\d{5}-[FMTX]-\d"
     subject_ids = sorted(list(set(re.findall(subject_id_regex, text))))
@@ -27,13 +15,8 @@ def prompt_y_n(prompt: str) -> bool:
         print("Invalid input")
 
 
-def run_command(command: list, verbose: bool):
-    if verbose:
-        print(" ".join(command))
+def run_command(command: list):
     completed_process = run(command, capture_output=True)
-    if verbose:
-        print(f"stdout:\n{completed_process.stdout}")
-        print(f"\nstderr:\n{completed_process.stderr}")
     return completed_process
 
 def get_open_issues(slog):
@@ -54,7 +37,7 @@ def scrape_matching_issues(slog, title_string, target_label, scrape_tuple_from_i
                     break
     return scraped_tuples
 
-def get_base_command(label):
+def get_base_command(label: str):
     if label == "import_mr_sessions":
         return [
             "/sibis-software/ncanda-data-integration/scripts/redcap/import_mr_sessions",
@@ -85,7 +68,7 @@ def get_base_command(label):
         ]
 
 
-def get_id_type(label):
+def get_id_type(label: str):
     id_type = None
     if label in ["import_mr_sessions"]:
         id_type = "subject_id"
@@ -97,7 +80,7 @@ def get_id_type(label):
     return id_type
 
 
-def get_id(id_type, issue_dict):
+def get_id(id_type: str, issue_dict: dict):
     scraped_id = None
     if id_type == "subject_id":
         if "experiment_site_id" in issue_dict:
@@ -110,7 +93,7 @@ def get_id(id_type, issue_dict):
             scraped_id = issue_dict["experiment_id"]
     return scraped_id
 
-def verify_scraped_tuples(scraped_tuples, display_scraped_tuple):
+def verify_scraped_tuples(scraped_tuples: list, display_scraped_tuple):
     print("\nFound the following tuples:")
     for scraped_tuple in scraped_tuples:
         display_scraped_tuple(scraped_tuple)
@@ -130,20 +113,35 @@ def update_issues(scraped_tuples, display_scraped_tuple, process_scraped_tuple, 
                 for error in errors:
                     print(f"stdout:{error[0]}\nstderr:\n{error[1]}")
 
-            error_strings = ["stdout:\n"+error[0]+"\nstderr:\n"+error[1] for error in errors]
-            issue.create_comment(
-                error_comment + "\n".join(error_strings)
-            )
+            scraped_tuple.comment()
             commented_issues.append(f"#{issue.number}")
         else:
             if verbose:
                 print(f"Closing #{issue.number}")
 
-            issue.create_comment(close_comment)
-            issue.edit(state="closed")
+            scraped_tuple.close()
             closed_issues.append(f"#{issue.number}")
 
     if verbose:
         print(f"\n\nClosed:\n{', '.join(closed_issues)}")
         print(f"Commented:\n{', '.join(commented_issues)}")
+
+def get_scraper_for_label(label: str):
+    scraper = None
+    if label in ["redcap_update_summary_scores"]:
+    def scrape_tuple_from_issue(issue):
+        issue_dict = utils.rehydrate_issue_body(issue.body)
+        request_error = issue_dict['requestError']
+        subject_ids = utils.extract_unique_subject_ids(request_error)
+        first_field = request_error.split('","')[1]
+        field_row = metadata[metadata["field_name"] == first_field]
+        form = field_row["form_name"].item()
+        instrument = issue_dict['experiment_site_id'].split("-")[0]
+
+        scraped_tuple = (issue, subject_ids, form, instrument)
+        if verbose:
+            print(
+                f"\nFound the following subject id's in #{issue.number}:\n{subject_ids}"
+            )
+        return scraped_tuple
 

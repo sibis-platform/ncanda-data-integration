@@ -22,25 +22,10 @@ import numpy as np
 import batch_script_utils as utils
 
 
-def run_batch(verbose, metadata):
+def run_batch(label, metadata, verbose):
     title_string = "redcap_import_record:Failed to import into REDCap"
-    target_label = "redcap_update_summary_scores"
 
-    def scrape_tuple_from_issue(issue):
-        issue_dict = utils.rehydrate_issue_body(issue.body)
-        request_error = issue_dict['requestError']
-        subject_ids = utils.extract_unique_subject_ids(request_error)
-        first_field = request_error.split('","')[1]
-        field_row = metadata[metadata["field_name"] == first_field]
-        form = field_row["form_name"].item()
-        instrument = issue_dict['experiment_site_id'].split("-")[0]
-
-        scraped_tuple = (issue, subject_ids, form, instrument)
-        if verbose:
-            print(
-                f"\nFound the following subject id's in #{issue.number}:\n{subject_ids}"
-            )
-        return scraped_tuple
+    scrape_tuple_from_issue = utils.get_scraper_for_label(label)
 
     def display_scraped_tuple(scraped_tuple):
         (issue, subject_ids, form, instrument) = scraped_tuple
@@ -63,7 +48,7 @@ def run_batch(verbose, metadata):
         (issue, subject_ids, form, instrument) = scraped_tuple
         if verbose:
             print("\n"*20 + "Resolving:")
-            display_scraped_tuple(scraped_tuple)
+            print(scraped_tuple.stringify())
 
         # Loop through subject id's mentioned in issue since redcap_update_summary_scores.py only recalculates one at a time
         errors = []
@@ -119,12 +104,10 @@ def run_batch(verbose, metadata):
 
 
 
-    close_comment = f"Courtesy of {__file__}:\nSummary scores recalculated, closing."
-    error_comment = f"Courtesy of {__file__}:\nErrors produced when recalculating or locking:"
 
     # Run batch
     scraped_tuples = utils.scrape_matching_issues(
-        slog, title_string, target_label, scrape_tuple_from_issue
+        slog, title_string, label, scrape_tuple_from_issue
     )
 
     if not utils.verify_scraped_tuples(scraped_tuples, display_scraped_tuple):
@@ -166,7 +149,9 @@ def main():
     metadata = metadata.append(complete_fields)
 
     config = _get_config(session)
-    run_batch(args.verbose, metadata)
+
+    for label in args.labels:
+        run_batch(label, metadata, args.verbose)
 
 
 def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
@@ -179,6 +164,15 @@ def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
         Retests them and closes the corresponding issue if nothing printed to stdout.
         Otherwise comments on the issue with the contents of stdout""",
     )
+
+    parser.add_argument(
+        "--labels",
+        help="Which labels to scrape issues for (options: redcap_update_summary_scores, update_visit_data, import_mr_sessions, update_summary_forms). Separated by spaces.",
+        nargs="+",
+        action="store",
+        default=None,
+    )
+    
     sibispy.cli.add_standard_params(parser)
     return parser.parse_args(input_args)
 
