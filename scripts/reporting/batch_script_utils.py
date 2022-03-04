@@ -1,10 +1,12 @@
 from subprocess import run
 import re
+import issues
 
-def extract_unique_subject_ids(text: str) -> list:
-    subject_id_regex = "[A-EX]-\d{5}-[FMTX]-\d"
-    subject_ids = sorted(list(set(re.findall(subject_id_regex, text))))
-    return subject_ids
+
+def extract_unique_study_ids(text: str) -> list:
+    study_id_regex = "[A-EX]-\d{5}-[FMTX]-\d"
+    study_ids = sorted(list(set(re.findall(study_id_regex, text))))
+    return study_ids
 
 
 def prompt_y_n(prompt: str) -> bool:
@@ -15,27 +17,43 @@ def prompt_y_n(prompt: str) -> bool:
         print("Invalid input")
 
 
-def run_command(command: list):
+def run_command(command: list, verbose: bool):
+    if verbose:
+        print(" ".join(command))
     completed_process = run(command, capture_output=True)
+    if verbose:
+        print(f"stdout:\n{completed_process.stdout}")
+        print(f"\nstderr:\n{completed_process.stderr}")
     return completed_process
+
 
 def get_open_issues(slog):
     ncanda_operations = slog.log.postGithubRepo
     issues = ncanda_operations.get_issues(state="open")
     return issues
-        
-def scrape_matching_issues(slog, title_string, target_label, scrape_tuple_from_issue):
-    issues = get_open_issues(slog)
-    scraped_tuples = []
-    for issue in issues:
-        if title_string in issue.title:
-            for label in issue.get_labels():
-                if target_label == label.name:
-                    scraped_tuple = scrape_tuple_from_issue(issue)
-                    if scraped_tuple:
-                        scraped_tuples.append(scraped_tuple)
-                    break
-    return scraped_tuples
+
+
+def scrape_matching_issues(
+    slog, metadata, verbose, title_string, target_label, issue_numbers, issue_class
+):
+    """Returns a list of issues which match the passed title, label, and issue_numbers. Issues
+    are instances of the passed issue class."""
+    open_issues = get_open_issues(slog)
+    scraped_issues = []
+    for open_issue in open_issues:
+        if len(issue_numbers) == 0 or open_issue.number in issue_numbers:
+            if title_string in open_issue.title:
+                for label in open_issue.get_labels():
+                    if target_label == label.name:
+                        try:
+                            scraped_issue = issue_class(verbose, open_issue, metadata)
+                        except ValueError as e:
+                            print(e)
+                        else:
+                            scraped_issues.append(scraped_issue)
+                        break
+    return scraped_issues
+
 
 def get_base_command(label: str):
     if label == "import_mr_sessions":
@@ -93,55 +111,36 @@ def get_id(id_type: str, issue_dict: dict):
             scraped_id = issue_dict["experiment_id"]
     return scraped_id
 
-def verify_scraped_tuples(scraped_tuples: list, display_scraped_tuple):
-    print("\nFound the following tuples:")
-    for scraped_tuple in scraped_tuples:
-        display_scraped_tuple(scraped_tuple)
-    return prompt_y_n("Are all tuples valid?")
+
+def verify_scraped_issues(scraped_issues: list):
+    print("\nFound the following issues:")
+    for scraped_issue in scraped_issues:
+        print(scraped_issue.stringify())
+    return prompt_y_n("Are all issues valid?")
 
 
-def update_issues(scraped_tuples, display_scraped_tuple, process_scraped_tuple, close_comment, error_comment, verbose):
+def update_issues(scraped_issues, verbose: bool):
+    """Loops through the list of issues, tests them, and updates them on GitHub."""
     closed_issues = []
     commented_issues = []
 
-    for scraped_tuple in scraped_tuples:
-        issue = scraped_tuple[0]
-        errors = process_scraped_tuple(scraped_tuple)
-        if errors:
-            if verbose:
-                print("\n\nErrors:\n")
-                for error in errors:
-                    print(f"stdout:{error[0]}\nstderr:\n{error[1]}")
-
-            scraped_tuple.comment()
-            commented_issues.append(f"#{issue.number}")
+    for scraped_issue in scraped_issues:
+        scraped_issue.test_commands()
+        scraped_issue.update()
+        if scraped_issue.resolved:
+            closed_issues.append(f"#{scraped_issue.number}")
         else:
-            if verbose:
-                print(f"Closing #{issue.number}")
-
-            scraped_tuple.close()
-            closed_issues.append(f"#{issue.number}")
+            commented_issues.append(f"#{scraped_issue.number}")
 
     if verbose:
         print(f"\n\nClosed:\n{', '.join(closed_issues)}")
         print(f"Commented:\n{', '.join(commented_issues)}")
 
-def get_scraper_for_label(label: str):
-    scraper = None
-    if label in ["redcap_update_summary_scores"]:
-    def scrape_tuple_from_issue(issue):
-        issue_dict = utils.rehydrate_issue_body(issue.body)
-        request_error = issue_dict['requestError']
-        subject_ids = utils.extract_unique_subject_ids(request_error)
-        first_field = request_error.split('","')[1]
-        field_row = metadata[metadata["field_name"] == first_field]
-        form = field_row["form_name"].item()
-        instrument = issue_dict['experiment_site_id'].split("-")[0]
 
-        scraped_tuple = (issue, subject_ids, form, instrument)
-        if verbose:
-            print(
-                f"\nFound the following subject id's in #{issue.number}:\n{subject_ids}"
-            )
-        return scraped_tuple
-
+def get_class_for_label(label: str):
+    """Returns the issue class for the passed label."""
+    issue_class = None
+    if label == "redcap_update_summary_scores":
+        issue_class = issues.RedcapUpdateSummaryScoresIssue
+    assert issue_class != None
+    return issue_class

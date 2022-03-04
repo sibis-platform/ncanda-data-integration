@@ -20,108 +20,58 @@ from collections import defaultdict
 import numpy as np
 
 import batch_script_utils as utils
+from commands import ExecRedcapLockingData
 
 
-def run_batch(label, metadata, verbose):
+def run_batch(label, issue_numbers, metadata, verbose):
     title_string = "redcap_import_record:Failed to import into REDCap"
+    issue_class = utils.get_class_for_label(label)
 
-    scrape_tuple_from_issue = utils.get_scraper_for_label(label)
-
-    def display_scraped_tuple(scraped_tuple):
-        (issue, subject_ids, form, instrument) = scraped_tuple
-        for subject_id in subject_ids:
-            print("\t".join([subject_id, form, instrument]))
-
-    script_path = "/sibis-software/python-packages/sibispy/cmds/"
-    events = ["Baseline", "1y", "2y", "3y", "4y", "5y", "6y", "7y"]
-    locking_data_base_command = [
-        script_path + "exec_redcap_locking_data.py",
-        "-e",
-    ] + events
-    update_scores_base_command = [
-        script_path + "redcap_update_summary_scores.py",
-        "-a",
-        "-s",
-    ]
-
-    def resolve_locking_issue(scraped_tuple):
-        (issue, subject_ids, form, instrument) = scraped_tuple
-        if verbose:
-            print("\n"*20 + "Resolving:")
-            print(scraped_tuple.stringify())
-
-        # Loop through subject id's mentioned in issue since redcap_update_summary_scores.py only recalculates one at a time
-        errors = []
-        for subject_id in subject_ids:
-            if verbose:
-                print(f"\nUnlocking {subject_id}...")
-            unlock_command = (
-                ["python"]
-                + locking_data_base_command
-                + ["-f"]
-                + [form]
-                + ["-s"]
-                + [subject_id]
-                + ["--unlock"]
-            )
-            completed_unlock_process = utils.run_command(unlock_command, verbose)
-
-            if verbose:
-                print(f"\nRecalculating {subject_id}...")
-            recalculate_command = (
-                ["python"]
-                + update_scores_base_command
-                + [subject_id]
-                + ["-i"]
-                + [instrument]
-            )
-            completed_recalculate_process = utils.run_command(
-                recalculate_command, verbose
-            )
-            out = completed_recalculate_process.stdout
-            err = completed_recalculate_process.stderr
-            if out or err:
-                errors.append((out, err))
-
-            if verbose:
-                print(f"\nRelocking {subject_id}...")
-            lock_command = (
-                ["python"]
-                + locking_data_base_command
-                + ["-f"]
-                + [form]
-                + ["-s"]
-                + [subject_id]
-                + ["--lock"]
-            )
-            completed_lock_process = utils.run_command(lock_command, verbose)
-            out = completed_lock_process.stdout
-            err = completed_lock_process.stderr
-            if out or err:
-                errors.append((out, err))
-
-        return errors
-
-
-
-
-    # Run batch
-    scraped_tuples = utils.scrape_matching_issues(
-        slog, title_string, label, scrape_tuple_from_issue
+    scraped_issues = utils.scrape_matching_issues(
+        slog, metadata, verbose, title_string, label, issue_numbers, issue_class
     )
 
-    if not utils.verify_scraped_tuples(scraped_tuples, display_scraped_tuple):
+    if not utils.verify_scraped_issues(scraped_issues):
         print("Aborting...")
         return
 
-    utils.update_issues(scraped_tuples, display_scraped_tuple, resolve_locking_issue, close_comment, error_comment, verbose)
-    
+    closed_issues = []
+    commented_issues = []
+    for scraped_issue in scraped_issues:
+        if verbose:
+            print("\n" * 20)
+            print(scraped_issue.stringify())
+
+        for command in scraped_issue.get_commands():
+            unlock_command = ExecRedcapLockingData(
+                verbose, command.study_id, command.form, lock=False
+            )
+            lock_command = ExecRedcapLockingData(
+                verbose, command.study_id, command.form, lock=True
+            )
+            unlock_command.test()
+            command.test()
+            lock_command.test()
+            if not lock_command.success:
+                print(f"Errors relocking:\n{lock_command.stringify_result()}")
+
+        scraped_issue.update()
+        if scraped_issue.resolved:
+            closed_issues.append(f"#{scraped_issue.number}")
+        else:
+            commented_issues.append(f"#{scraped_issue.number}")
+
+    if verbose:
+        print(f"\n\nClosed:\n{', '.join(closed_issues)}")
+        print(f"Commented:\n{', '.join(commented_issues)}")
+
+
 def main():
     """
-    Scrapes subject id's from all redcap_update_summary_scores "Failed to import into redcap"-labeled
-    issues. Unlocks all clinical forms for each subject id, recalculates the summary scores, and
-    relocks them. Retests them and closes the corresponding issue if nothing printed to stdout.
-    Otherwise comments on the issue with the contents of stdout.
+    Scrapes subject id's from all "Failed to import into redcap"-labeled
+    issues with the passed label. Unlocks the locked form, reruns the script, and
+    relocks the form. Comments on issues with the results, and closes them if
+    no error is generated when rerunning the script.
     """
     args = _parse_args()
     session = _initialize(args)
@@ -136,7 +86,7 @@ def main():
     metadata = redcap_api.export_metadata(format="df").reset_index()[
         ["form_name", "field_name"]
     ]
-    
+
     # Add form_complete field for each form
     forms = list(metadata["form_name"].unique())
     complete_fields = pd.DataFrame(
@@ -151,7 +101,7 @@ def main():
     config = _get_config(session)
 
     for label in args.labels:
-        run_batch(label, metadata, args.verbose)
+        run_batch(label, args.issue_numbers, metadata, args.verbose)
 
 
 def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
@@ -159,10 +109,11 @@ def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
     Parse CLI arguments.
     """
     parser = argparse.ArgumentParser(
-        prog="batch_test_import_mr_sessions",
-        description="""Scrapes subject id's from all import_mr_sessions-labeled issues. 
-        Retests them and closes the corresponding issue if nothing printed to stdout.
-        Otherwise comments on the issue with the contents of stdout""",
+        prog="batch_resolve_locking_issues",
+        description="""Scrapes subject id's from all "Failed to import into redcap"-labeled
+    issues with the passed label. Unlocks the locked form, reruns the script, and
+    relocks the form. Comments on issues with the results, and closes them if
+    no error is generated when rerunning the script.""",
     )
 
     parser.add_argument(
@@ -172,7 +123,15 @@ def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
         action="store",
         default=None,
     )
-    
+    parser.add_argument(
+        "--issue_numbers",
+        help="Which issue numbers to scrape issues for. Separated by spaces.",
+        nargs="+",
+        type=int,
+        action="store",
+        default=None,
+    )
+
     sibispy.cli.add_standard_params(parser)
     return parser.parse_args(input_args)
 
@@ -184,7 +143,7 @@ def _initialize(args: argparse.Namespace) -> sibispy.Session:
     slog.init_log(
         verbose=args.verbose,
         post_to_github=True,
-        github_issue_title="import_mr_sessions batch run",
+        github_issue_title="batch_resolve_locking_issues",
         github_issue_label="bug",
         timerDir=None,
     )
