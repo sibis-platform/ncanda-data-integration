@@ -48,7 +48,8 @@ def scrape_matching_issues(
                         try:
                             scraped_issue = issue_class(verbose, open_issue, metadata)
                         except ValueError as e:
-                            print(e)
+                            if verbose:
+                                print(e)
                         else:
                             scraped_issues.append(scraped_issue)
                         break

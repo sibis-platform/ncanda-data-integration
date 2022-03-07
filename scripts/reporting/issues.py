@@ -70,7 +70,7 @@ class Issue(object):
         self.resolved = True
         comment = ""
         for command in self.commands:
-            self.resolved = self.resolved and command.success
+            self.resolved = self.resolved and command.ran_successfully()
             comment = comment + "\n" + command.stringify()
 
         self.comment(comment)
@@ -82,7 +82,7 @@ class Issue(object):
 
     def test_commands(self):
         for command in self.commands:
-            command.test()
+            command.run()
 
     def stringify(self):
         return f"#{self.issue.number}\n" + "\n".join(
@@ -101,7 +101,7 @@ class RedcapUpdateSummaryScoresIssue(Issue):
 
         if "requestError" not in self.body or "experiment_site_id" not in self.body:
             raise ValueError(
-                f"requestError or experiment_site_id not in #{self.number}"
+                f"#{self.number}\nrequestError or experiment_site_id not in body"
             )
 
         study_ids = utils.extract_unique_study_ids(self.body["requestError"])

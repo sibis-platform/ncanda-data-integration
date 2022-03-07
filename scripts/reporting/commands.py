@@ -11,51 +11,56 @@ class Command(object):
     ----------
     verbose : bool
         Whether to print command and result when testing.
-    tested : bool
+    been_run : bool
         Whether the command has been run yet.
-    success : bool
-        True if the command ran without printing anything to stdout or sterr.
     result : dict
         Stores stdout and stderr when command run.
 
     Methods
     -------
-    test()
+    run()
         Runs the command and stores the result.
+    ran_successfully()
+        Returns true if the command ran without printing to stderr or stdout.
     stringify_command()
-    Returns the command as a string.
+        Returns the command as a string.
     stringify_result()
-    Returns the result of runninng the command as a string.
+        Returns the result of runninng the command as a string.
     stringify()
-    Returns the command and the result as a string.
+        Returns the command and the result as a string.
 
     """
 
     def __init__(self, verbose):
         self.verbose = verbose
-        self.tested = False
+        self.been_run = False
         self.success = False
         self.result = {}
 
-    def test(self):
+    def run(self):
         if self.verbose:
             print(self.stringify_command())
         completed_process = run(self.command, capture_output=True)
         self.result["stdout"] = completed_process.stdout
         self.result["stderr"] = completed_process.stderr
-        self.success = not self.result["stdout"] and not self.result["stderr"]
-        self.tested = True
+        self.been_run = True
         if self.verbose:
             print(self.stringify_result())
+
+    def ran_successfully(self):
+        if self.been_run and not self.result["stdout"] and not self.result["stderr"]:
+            return True
+        return False
 
     def stringify_command(self):
         return " ".join(self.command)
 
     def stringify_result(self):
-        assert self.tested, "Test command before getting result"
-        if self.success:
+        if not self.been_run:
+            return "Command not run"
+        if self.ran_successfully():
             return "Success! No errors printed to console."
-        return f"Failure:\nstdout:\n{self.result['stdout']}\nstderr:\n{self.result['stderr']}"
+        return f"stdout:\n{self.result['stdout']}\nstderr:\n{self.result['stderr']}"
 
     def stringify(self):
         return self.stringify_command() + "\n" + self.stringify_result()
@@ -131,6 +136,6 @@ class ExecRedcapLockingData(Command):
             + events
         )
         if self.lock:
-            self.command.append("lock")
+            self.command.append("--lock")
         else:
-            self.command.append("unlock")
+            self.command.append("--unlock")

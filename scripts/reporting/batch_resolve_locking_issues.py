@@ -40,7 +40,7 @@ def run_batch(label, issue_numbers, metadata, verbose):
     for scraped_issue in scraped_issues:
         if verbose:
             print("\n" * 20)
-            print(scraped_issue.stringify())
+            print(f"#{scraped_issue.number}")
 
         for command in scraped_issue.get_commands():
             unlock_command = ExecRedcapLockingData(
@@ -49,11 +49,12 @@ def run_batch(label, issue_numbers, metadata, verbose):
             lock_command = ExecRedcapLockingData(
                 verbose, command.study_id, command.form, lock=True
             )
-            unlock_command.test()
-            command.test()
-            lock_command.test()
-            if not lock_command.success:
-                print(f"Errors relocking:\n{lock_command.stringify_result()}")
+            print("\n")
+            unlock_command.run()
+            command.run()
+            lock_command.run()
+            if not lock_command.ran_successfully():
+                print(f"\nErrors relocking:\n{lock_command.stringify()}")
 
         scraped_issue.update()
         if scraped_issue.resolved:
@@ -121,7 +122,7 @@ def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
         help="Which labels to scrape issues for (options: redcap_update_summary_scores, update_visit_data, import_mr_sessions, update_summary_forms). Separated by spaces.",
         nargs="+",
         action="store",
-        default=None,
+        default=[],
     )
     parser.add_argument(
         "--issue_numbers",
@@ -129,7 +130,7 @@ def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
         nargs="+",
         type=int,
         action="store",
-        default=None,
+        default=[],
     )
 
     sibispy.cli.add_standard_params(parser)
