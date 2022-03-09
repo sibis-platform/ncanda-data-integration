@@ -20,14 +20,16 @@ upload_to_s3()
     fi
 }
 
+backup_tmp=/fs/snapshots
+
 # MySQL first - this can be run as root
-mysqldump --single-transaction --routines --triggers --all-databases --events | xz |  aespipe -P ${HOME}/aes/keys -e aes256 > /var/tmp/mysql.sql.xz.aes
-upload_to_s3 /var/tmp/mysql.sql.xz.aes
+mysqldump --single-transaction --quick --routines --triggers --all-databases --events | xz |  aespipe -P ${HOME}/aes/keys -e aes256 > ${backup_tmp}/mysql.sql.xz.aes
+upload_to_s3 ${backup_tmp}/mysql.sql.xz.aes
 
 # PostgreSQL need to be run as user "postgres", at least the DB dump part of it
-/bin/su -l postgres -c pg_dumpall | xz |  aespipe -P ${HOME}/aes/keys -e aes256 > /var/tmp/pgsql.sql.xz.aes
-upload_to_s3 /var/tmp/pgsql.sql.xz.aes
+/bin/su -l postgres -c pg_dumpall | xz |  aespipe -P ${HOME}/aes/keys -e aes256 > ${backup_tmp}/pgsql.sql.xz.aes
+upload_to_s3 ${backup_tmp}/pgsql.sql.xz.aes
 
 # Files uploaded to REDCap
-gtar -cf - /fs/storage/redcap | xz | aespipe -P ${HOME}/aes/keys -e aes256 > /var/tmp/redcap-files.tar.xz.aes
-upload_to_s3 /var/tmp/redcap-files.tar.xz.aes
+gtar -cf - /fs/storage/redcap | xz | aespipe -P ${HOME}/aes/keys -e aes256 > ${backup_tmp}/redcap-files.tar.xz.aes
+upload_to_s3 ${backup_tmp}/redcap-files.tar.xz.aes
