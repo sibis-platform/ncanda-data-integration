@@ -20,7 +20,7 @@ from collections import defaultdict
 import numpy as np
 
 import batch_script_utils as utils
-from commands import ExecRedcapLockingData
+from commands import ExecRedcapLockingDataCommand
 
 
 def run_batch(label, issue_numbers, metadata, verbose):
@@ -32,7 +32,7 @@ def run_batch(label, issue_numbers, metadata, verbose):
     )
 
     if not utils.verify_scraped_issues(scraped_issues):
-        print("Aborting...")
+        print("Aborting this label...")
         return
 
     closed_issues = []
@@ -41,12 +41,17 @@ def run_batch(label, issue_numbers, metadata, verbose):
         if verbose:
             print("\n" * 20)
             print(f"#{scraped_issue.number}")
+        # List of issue types which don't need human approval to unlock/recalculate/lock
+        automatic_issues = ["redcap_update_summary_scores"]
+        if label not in automatic_issues:
+            if not utils.prompt_y_n(f"Unlock/recalculate/lock issue? ({scraped_issue.issue.html_url})"):
+                continue
 
         for command in scraped_issue.get_commands():
-            unlock_command = ExecRedcapLockingData(
+            unlock_command = ExecRedcapLockingDataCommand(
                 verbose, command.study_id, command.form, lock=False
             )
-            lock_command = ExecRedcapLockingData(
+            lock_command = ExecRedcapLockingDataCommand(
                 verbose, command.study_id, command.form, lock=True
             )
             print("\n")
@@ -102,6 +107,7 @@ def main():
     config = _get_config(session)
 
     for label in args.labels:
+        print(label)
         run_batch(label, args.issue_numbers, metadata, args.verbose)
 
 
@@ -119,10 +125,11 @@ def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
 
     parser.add_argument(
         "--labels",
-        help="Which labels to scrape issues for (options: redcap_update_summary_scores, update_visit_data, import_mr_sessions, update_summary_forms). Separated by spaces.",
+        help="Which labels to scrape issues for (options: redcap_update_summary_scores, update_visit_data, update_summary_forms, import_mr_sessions). Separated by spaces.",
         nargs="+",
         action="store",
         default=[],
+        required=True
     )
     parser.add_argument(
         "--issue_numbers",

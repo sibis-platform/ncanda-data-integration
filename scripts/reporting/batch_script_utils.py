@@ -143,5 +143,11 @@ def get_class_for_label(label: str):
     issue_class = None
     if label == "redcap_update_summary_scores":
         issue_class = issues.RedcapUpdateSummaryScoresIssue
+    elif label == "update_visit_data":
+        issue_class = issues.UpdateVisitDataIssue
+    elif label == "update_summary_forms":
+        issue_class = issues.UpdateSummaryFormsIssue
+    elif label == "import_mr_sessions":
+        issue_class = issues.ImportMRSessionsIssue
     assert issue_class != None
     return issue_class
