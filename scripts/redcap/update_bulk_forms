@@ -182,8 +182,7 @@ for form in forms_list:
                     error_list = error_string.split(',')
                     error_list = [error_field.strip(r'"') for error_field in error_list]
                     error_lists.append(error_list)
-                    print(error_list)
-                
+
                 for error_list in error_lists:
                     if "This field is located on a form that is locked" in error_list[-1]:
 
