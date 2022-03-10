@@ -176,32 +176,39 @@ for form in forms_list:
                 old_form_status = pandas.DataFrame(old_form_status_out)
 
                 error_obj = eval(str(e))
-                error_list = [ c.strip(r'"') for c in error_obj['error'].split(',') ]
-                if "This field is located on a form that is locked" in error_list[-1]:
-		    
-		    # this does not work correctly anymore 
-                    # for limesurvey
-                    err_subject_id = error_list[0]
-                    err_field = error_list[1]
-                    err_event_id = event
+                error_strings = error_obj['error'].split('\n')
+                error_lists = []
+                for error_string in error_strings[:5]:
+                    error_list = error_string.split(',')
+                    error_list = [error_field.strip(r'"') for error_field in error_list]
+                    error_lists.append(error_list)
+                    print(error_list)
+                
+                for error_list in error_lists:
+                    if "This field is located on a form that is locked" in error_list[-1]:
 
-		    # New value that was tried to  
-		    #error_list[2]
+                        # this does not work correctly anymore 
+                        # for limesurvey
+                        err_subject_id = error_list[0]
+                        err_field = error_list[1]
+                        err_event_id = event
 
-                    error_id = err_subject_id + "-" + err_event_id
-                    error_index_list = [err_subject_id.strip() == form_subject_id_form_event_id[0].strip() and err_event_id.strip() == form_subject_id_form_event_id[1].strip() for form_subject_id_form_event_id in form_status.index.tolist()]
-                    new_value = str(form_status[err_field][error_index_list].values) 
-                    old_value = str(old_form_status[err_field][error_index_list].values)
-                    slog.info(error_id, "Cannot update '" + err_field + "' field as form is locked",
-                              field = err_field,
-                              value_old = old_value,
-                              value_new = new_value,
-			      form = form,
-                              info = "if the current value is unequal to '' and the new value is '' then redcap wont update the form. A possible solution is to select complete for the field.")
+                        # New value that was tried to  
+                        #error_list[2]
 
-                else : 
-                    remaining_error.append(str(error_obj))
+                        error_id = err_subject_id + "-" + err_event_id
+                        error_index_list = [err_subject_id.strip() == form_subject_id_form_event_id[0].strip() and err_event_id.strip() == form_subject_id_form_event_id[1].strip() for form_subject_id_form_event_id in form_status.index.tolist()]
+                        new_value = str(form_status[err_field][error_index_list].values) 
+                        old_value = str(old_form_status[err_field][error_index_list].values)
+                        slog.info(error_id, "Cannot update '" + err_field + "' field as form is locked",
+                                  field = err_field,
+                                  value_old = old_value,
+                                  value_new = new_value,
+                                  form = form,
+                                  info = "if the current value is unequal to '' and the new value is '' then redcap wont update the form. A possible solution is to select complete for the field.")
 
+                    else : 
+                        remaining_error.append(str(error_obj))
 
 #                for error in  str(e).split("u'",3)[2].split("\\n"):
 #                    error_list = error.split('","') 
