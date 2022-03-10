@@ -178,7 +178,7 @@ for form in forms_list:
                 error_obj = eval(str(e))
                 error_strings = error_obj['error'].split('\n')
                 error_lists = []
-                for error_string in error_strings[:5]:
+                for error_string in error_strings:
                     error_list = error_string.split(',')
                     error_list = [error_field.strip(r'"') for error_field in error_list]
                     error_lists.append(error_list)
