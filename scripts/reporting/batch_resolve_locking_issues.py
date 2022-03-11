@@ -23,7 +23,7 @@ import batch_script_utils as utils
 from commands import ExecRedcapLockingDataCommand
 
 
-def run_batch(label, issue_numbers, metadata, verbose):
+def run_batch(label, issue_numbers, metadata, force, verbose):
     title_string = "redcap_import_record:Failed to import into REDCap"
     issue_class = utils.get_class_for_label(label)
 
@@ -43,16 +43,17 @@ def run_batch(label, issue_numbers, metadata, verbose):
             print(f"#{scraped_issue.number}")
         # List of issue types which don't need human approval to unlock/recalculate/lock
         automatic_issues = ["redcap_update_summary_scores"]
-        if label not in automatic_issues:
+        if label not in automatic_issues and not force:
             if not utils.prompt_y_n(f"Unlock/recalculate/lock issue? ({scraped_issue.issue.html_url})"):
                 continue
 
+
         for command in scraped_issue.get_commands():
             unlock_command = ExecRedcapLockingDataCommand(
-                verbose, command.study_id, command.form, lock=False
+                verbose, command.study_id, scraped_issue.form, lock=False
             )
             lock_command = ExecRedcapLockingDataCommand(
-                verbose, command.study_id, command.form, lock=True
+                verbose, command.study_id, scraped_issue.form, lock=True
             )
             print("\n")
             unlock_command.run()
@@ -108,7 +109,7 @@ def main():
 
     for label in args.labels:
         print(label)
-        run_batch(label, args.issue_numbers, metadata, args.verbose)
+        run_batch(label, args.issue_numbers, metadata, args.force, args.verbose)
 
 
 def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
@@ -139,8 +140,17 @@ def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
         action="store",
         default=[],
     )
+    parser.add_argument("-v", "--verbose",
+                        help="Verbose operation",
+                        action="store_true",
+                        default=False)
+    parser.add_argument("-f", "--force",
+                        help="If this tag is not used, the script will prompt the user for confirmation before unlocking/recalculating/relocking for issues which are not redcap_update_summary_scores. Use this tag to skip this prompt, e.g. if you're passing in only issue numbers that you know you want to unlock/recalculate/relock.",
+                        action="store_true",
+                        default=False)
 
-    sibispy.cli.add_standard_params(parser)
+
+    
     return parser.parse_args(input_args)
 
 

@@ -107,11 +107,11 @@ class RedcapUpdateSummaryScoresIssue(Issue):
         study_ids = utils.extract_unique_study_ids(self.body["requestError"])
         first_field = self.body["requestError"].split('","')[1]
         field_row = metadata[metadata["field_name"] == first_field]
-        form = field_row["form_name"].item()
+        self.form = field_row["form_name"].item()
         instrument = self.body["experiment_site_id"].split("-")[0]
         for study_id in study_ids:
             command = commands.RedcapUpdateSummaryScoresCommand(
-                self.verbose, study_id, form, instrument
+                self.verbose, study_id, instrument
             )
             self.commands.append(command)
 
@@ -128,20 +128,32 @@ class UpdateVisitDataIssue(Issue):
     def __init__(self, verbose, issue, metadata):
         Issue.__init__(self, verbose, issue)
 
-        if "requestError" not in self.body:
-            raise ValueError(
-                f"#{self.number}\nrequestError not in body"
-            )
-
-        study_ids = utils.extract_unique_study_ids(self.body["requestError"])
-        first_field = self.body["requestError"].split('","')[1]
-        field_row = metadata[metadata["field_name"] == first_field]
-        form = field_row["form_name"].item()
-        for study_id in study_ids:
+        if "requestError" in self.body:
+            study_ids = utils.extract_unique_study_ids(self.body["requestError"])
+            first_field = self.body["requestError"].split('","')[1]
+            field_row = metadata[metadata["field_name"] == first_field]
+            self.form = field_row["form_name"].item()
+            for study_id in study_ids:
+                command = commands.UpdateVisitDataCommand(
+                    self.verbose, study_id, self.form
+                )
+                self.commands.append(command)
+        elif "form_name" in self.body:
+            form = self.body["form_name"]
+            study_ids = utils.extract_unique_study_ids(self.body["experiment_site_id"])
+            if not study_ids:
+                raise ValueError(
+                    f"#{self.number}\nNo study id in experiment_site_id"
+                )
+            study_id = study_ids[0]
             command = commands.UpdateVisitDataCommand(
                 self.verbose, study_id, form
             )
             self.commands.append(command)
+        else:
+            raise ValueError(
+                f"#{self.number}\nrequestError and form_name not in body"
+            )
 
         if self.verbose:
             print(self.stringify())
@@ -156,20 +168,27 @@ class UpdateSummaryFormsIssue(Issue):
     def __init__(self, verbose, issue, metadata):
         Issue.__init__(self, verbose, issue)
 
-        if "requestError" not in self.body:
-            raise ValueError(
-                f"#{self.number}\nrequestError not in body"
-            )
-        study_ids = utils.extract_unique_study_ids(self.body["requestError"])
-        first_field = self.body["requestError"].split('","')[1]
-        field_row = metadata[metadata["field_name"] == first_field]
-        form = field_row["form_name"].item()
-        for study_id in study_ids:
+        if "requestError" in self.body:
+            study_ids = utils.extract_unique_study_ids(self.body["requestError"])
+            first_field = self.body["requestError"].split('","')[1]
+            field_row = metadata[metadata["field_name"] == first_field]
+            self.form = field_row["form_name"].item()
+            for study_id in study_ids:
+                command = commands.UpdateSummaryFormsCommand(
+                    self.verbose, study_id
+                )
+                self.commands.append(command)
+        elif "records_this_visit" in self.body:
+            study_id = utils.extract_unique_study_ids(self.body["records_this_visit"])[0]
             command = commands.UpdateSummaryFormsCommand(
-                self.verbose, study_id
-            )
+                    self.verbose, study_id
+                )
             self.commands.append(command)
-
+        else:
+            raise ValueError(
+                f"#{self.number}\nrequestError and records_this_visit not in body"
+            )
+            
         if self.verbose:
             print(self.stringify())
 
@@ -182,17 +201,31 @@ class ImportMRSessionsIssue(Issue):
     def __init__(self, verbose, issue, metadata):
         Issue.__init__(self, verbose, issue)
 
-        if "requestError" not in self.body:
-            raise ValueError(
-                f"#{self.number}\nrequestError not in body"
-            )
-
-        study_ids = utils.extract_unique_study_ids(self.body["requestError"])
-        for study_id in study_ids:
-            command = commands.UpdateSummaryFormsCommand(
+        if "requestError" in self.body:
+            study_ids = utils.extract_unique_study_ids(self.body["requestError"])
+            first_field = self.body["requestError"].split('","')[1]
+            field_row = metadata[metadata["field_name"] == first_field]
+            self.form = field_row["form_name"].item()
+            for study_id in study_ids:
+                command = commands.ImportMRSessionsCommand(
+                    self.verbose, study_id
+                )
+                self.commands.append(command)
+        elif "experiment_site_id" in self.body:
+            study_ids = utils.extract_unique_study_ids(self.body["experiment_site_id"])
+            if not study_ids:
+                raise ValueError(
+                    f"#{self.number}\nNo study id in experiment_site_id"
+                )
+            study_id = study_ids[0]
+            command = commands.ImportMRSessionsCommand(
                 self.verbose, study_id
             )
             self.commands.append(command)
+        else:
+            raise ValueError(
+                f"#{self.number}\nrequestError not in body"
+            )
 
         if self.verbose:
             print(self.stringify())

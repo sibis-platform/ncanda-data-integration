@@ -65,40 +65,6 @@ class Command(object):
     def stringify(self):
         return self.stringify_command() + "\n" + self.stringify_result()
 
-
-class RedcapUpdateSummaryScoresCommand(Command):
-    """
-    A subclass of Command. Represents redcap_update_summary_scores.py commands.
-
-    ...
-
-    Attributes
-    ----------
-    study_id : str
-        id of subject to run command on, e.g. A-00002-F-2
-    form : str
-        Form to run command on, e.g. clinical
-    instrument : str
-        Instrument to run command on, e.g. ses
-    """
-
-    def __init__(self, verbose, study_id, form, instrument):
-        Command.__init__(self, verbose)
-        self.study_id = study_id
-        self.form = form
-        self.instrument = instrument
-        script_path = "/sibis-software/python-packages/sibispy/cmds/redcap_update_summary_scores.py"
-        self.command = (
-            ["python"]
-            + [script_path]
-            + ["-a"]
-            + ["-s"]
-            + [study_id]
-            + ["-i"]
-            + [instrument]
-        )
-
-
 class ExecRedcapLockingDataCommand(Command):
     """
     A subclass of Command. Represents exec_redcap_locking_data.py commands.
@@ -126,21 +92,20 @@ class ExecRedcapLockingDataCommand(Command):
             "/sibis-software/python-packages/sibispy/cmds/exec_redcap_locking_data.py"
         )
         self.command = (
-            ["python"]
-            + [script_path]
-            + ["-f"]
-            + [self.form]
-            + ["-s"]
-            + [self.study_id]
-            + ["-e"]
+            ["python",
+            script_path,
+             "-e"]
             + events
+            + ["--forms",
+            self.form,
+            "--study-id",
+            self.study_id]
         )
         if self.lock:
             self.command.append("--lock")
         else:
             self.command.append("--unlock")
-
-
+    
 class RedcapUpdateSummaryScoresCommand(Command):
     """
     A subclass of Command. Represents redcap_update_summary_scores.py commands.
@@ -151,28 +116,24 @@ class RedcapUpdateSummaryScoresCommand(Command):
     ----------
     study_id : str
         id of subject to run command on, e.g. A-00002-F-2
-    form : str
-        Form which needs to be unlocked to run command
     instrument : str
         Instrument to run command on, e.g. ses
     """
 
-    def __init__(self, verbose, study_id, form, instrument):
+    def __init__(self, verbose, study_id, instrument):
         Command.__init__(self, verbose)
         self.study_id = study_id
-        self.form = form
         self.instrument = instrument
         script_path = "/sibis-software/python-packages/sibispy/cmds/redcap_update_summary_scores.py"
         self.command = (
-            ["python"]
-            + [script_path]
-            + ["-a"]
-            + ["-s"]
-            + [study_id]
-            + ["-i"]
-            + [instrument]
+            ["python",
+            script_path,
+            "-a",
+            "-s",
+            study_id,
+            "-i",
+            instrument]
         )
-
 
 class UpdateVisitDataCommand(Command):
     """
@@ -194,12 +155,12 @@ class UpdateVisitDataCommand(Command):
         self.form = form
         script_path = "/sibis-software/ncanda-data-integration/scripts/import/laptops/update_visit_data"
         self.command = (
-            [script_path]
-            + ["-a"]
-            + ["--study-id"]
-            + [study_id]
-            + ["--forms"]
-            + [form]
+            script_path,
+            "-a",
+            "--study-id",
+            study_id,
+            "--forms",
+            form,
         )
 
 
@@ -215,14 +176,40 @@ class UpdateSummaryFormsCommand(Command):
         id of subject to run command on, e.g. A-00002-F-2
     """
 
-    def __init__(self, verbose, study_id, form=None):
+    def __init__(self, verbose, study_id):
         Command.__init__(self, verbose)
         self.study_id = study_id
-        self.form = form
         script_path = "/sibis-software/ncanda-data-integration/scripts/import/webcnp/update_summary_forms"
         self.command = (
-            [script_path]
-            + ["-a"]
-            + ["--study-id"]
-            + [study_id]
+            [script_path,
+             "-a",
+             "--study-id",
+             study_id]
+        )
+
+class ImportMRSessionsCommand(Command):
+    """
+    A subclass of Command. Represents import_mr_sessions.py commands.
+
+    ...
+
+    Attributes
+    ----------
+    study_id : str
+        id of subject to run command on, e.g. A-00002-F-2
+    """
+
+    def __init__(self, verbose, study_id):
+        Command.__init__(self, verbose)
+        self.study_id = study_id
+        script_path = "/sibis-software/ncanda-data-integration/scripts/redcap/import_mr_sessions"
+        self.command = (
+            [script_path,
+            "--pipeline-root-dir",
+            "/fs/ncanda-share/cases",
+            "--run-pipeline-script",
+            "/fs/ncanda-share/scripts/bin/ncanda_all_pipelines",
+            "-f",
+            "--study-id",
+            study_id]
         )
