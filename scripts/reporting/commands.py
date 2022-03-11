@@ -65,6 +65,7 @@ class Command(object):
     def stringify(self):
         return self.stringify_command() + "\n" + self.stringify_result()
 
+
 class ExecRedcapLockingDataCommand(Command):
     """
     A subclass of Command. Represents exec_redcap_locking_data.py commands.
@@ -92,20 +93,16 @@ class ExecRedcapLockingDataCommand(Command):
             "/sibis-software/python-packages/sibispy/cmds/exec_redcap_locking_data.py"
         )
         self.command = (
-            ["python",
-            script_path,
-             "-e"]
+            ["python", script_path, "-e"]
             + events
-            + ["--forms",
-            self.form,
-            "--study-id",
-            self.study_id]
+            + ["--forms", self.form, "--study-id", self.study_id]
         )
         if self.lock:
             self.command.append("--lock")
         else:
             self.command.append("--unlock")
-    
+
+
 class RedcapUpdateSummaryScoresCommand(Command):
     """
     A subclass of Command. Represents redcap_update_summary_scores.py commands.
@@ -125,15 +122,8 @@ class RedcapUpdateSummaryScoresCommand(Command):
         self.study_id = study_id
         self.instrument = instrument
         script_path = "/sibis-software/python-packages/sibispy/cmds/redcap_update_summary_scores.py"
-        self.command = (
-            ["python",
-            script_path,
-            "-a",
-            "-s",
-            study_id,
-            "-i",
-            instrument]
-        )
+        self.command = ["python", script_path, "-a", "-s", study_id, "-i", instrument]
+
 
 class UpdateVisitDataCommand(Command):
     """
@@ -180,12 +170,8 @@ class UpdateSummaryFormsCommand(Command):
         Command.__init__(self, verbose)
         self.study_id = study_id
         script_path = "/sibis-software/ncanda-data-integration/scripts/import/webcnp/update_summary_forms"
-        self.command = (
-            [script_path,
-             "-a",
-             "--study-id",
-             study_id]
-        )
+        self.command = [script_path, "-a", "--study-id", study_id]
+
 
 class ImportMRSessionsCommand(Command):
     """
@@ -202,14 +188,16 @@ class ImportMRSessionsCommand(Command):
     def __init__(self, verbose, study_id):
         Command.__init__(self, verbose)
         self.study_id = study_id
-        script_path = "/sibis-software/ncanda-data-integration/scripts/redcap/import_mr_sessions"
-        self.command = (
-            [script_path,
+        script_path = (
+            "/sibis-software/ncanda-data-integration/scripts/redcap/import_mr_sessions"
+        )
+        self.command = [
+            script_path,
             "--pipeline-root-dir",
             "/fs/ncanda-share/cases",
             "--run-pipeline-script",
             "/fs/ncanda-share/scripts/bin/ncanda_all_pipelines",
             "-f",
             "--study-id",
-            study_id]
-        )
+            study_id,
+        ]
