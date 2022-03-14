@@ -1,27 +1,17 @@
 from subprocess import run
 import re
+import issues
 
 
-def rehydrate_issue_body(body: str) -> dict:
-    rehydrated_body = {}
-    bulletpoints = body.split("\n-")[1:]
-    for bulletpoint in bulletpoints:
-        key, value = bulletpoint.split(":", 1)
-        key = key.strip()
-        value = value.strip()
-        rehydrated_body[key] = value
-    return rehydrated_body
-
-
-def extract_unique_subject_ids(text: str) -> list:
-    subject_id_regex = "[A-EX]-\d{5}-[FMTX]-\d"
-    subject_ids = sorted(list(set(re.findall(subject_id_regex, text))))
-    return subject_ids
+def extract_unique_study_ids(text: str) -> list:
+    study_id_regex = "[A-EX]-\d{5}-[FMTX]-\d"
+    study_ids = sorted(list(set(re.findall(study_id_regex, text))))
+    return study_ids
 
 
 def prompt_y_n(prompt: str) -> bool:
     while True:
-        confirm = input(prompt + "\n")
+        confirm = input(prompt + " (y/n)\n")
         if confirm in ["n", "y"]:
             return confirm == "y"
         print("Invalid input")
@@ -36,22 +26,11 @@ def run_command(command: list, verbose: bool):
         print(f"\nstderr:\n{completed_process.stderr}")
     return completed_process
 
-def comment_and_close(issue, close_comment: str):
-    issue.create_comment(close_comment)
-    issue.edit(state="closed")
-    
-def prompt_close_or_comment(issue, close_comment: str):
-    if prompt_y_n("Close issue? (y/n)"):
-        comment_and_close(issue, close_comment)
-    elif prompt_y_n("Comment on issue? (y/n)"):
-        comment = input("Enter comment:\n")
-        issue.create_comment(comment)
 
 def get_open_issues(slog):
     ncanda_operations = slog.log.postGithubRepo
     issues = ncanda_operations.get_issues(state="open")
     return issues
-        
 def scrape_matching_issues(slog, title_string, target_label, scrape_tuple_from_issue):
     issues = get_open_issues(slog)
     scraped_tuples = []
@@ -96,7 +75,7 @@ def get_base_command(label):
         ]
 
 
-def get_id_type(label):
+def get_id_type(label: str):
     id_type = None
     if label in ["import_mr_sessions", "update_visit_data"]:
         id_type = "subject_id"
@@ -108,7 +87,7 @@ def get_id_type(label):
     return id_type
 
 
-def get_id(id_type, issue_dict):
+def get_id(id_type: str, issue_dict: dict):
     scraped_id = None
     if id_type == "subject_id":
         if "experiment_site_id" in issue_dict:
@@ -120,3 +99,35 @@ def get_id(id_type, issue_dict):
         if "experiment_id" in issue_dict:
             scraped_id = issue_dict["experiment_id"]
     return scraped_id
+
+def update_issues(scraped_issues, verbose: bool):
+    """Loops through the list of issues, tests them, and updates them on GitHub."""
+    closed_issues = []
+    commented_issues = []
+
+    for scraped_issue in scraped_issues:
+        scraped_issue.test_commands()
+        scraped_issue.update()
+        if scraped_issue.resolved:
+            closed_issues.append(f"#{scraped_issue.number}")
+        else:
+            commented_issues.append(f"#{scraped_issue.number}")
+
+    if verbose:
+        print(f"\n\nClosed:\n{', '.join(closed_issues)}")
+        print(f"Commented:\n{', '.join(commented_issues)}")
+
+
+def get_class_for_label(label: str):
+    """Returns the issue class for the passed label."""
+    issue_class = None
+    if label == "redcap_update_summary_scores":
+        issue_class = issues.RedcapUpdateSummaryScoresIssue
+    elif label == "update_visit_data":
+        issue_class = issues.UpdateVisitDataIssue
+    elif label == "update_summary_forms":
+        issue_class = issues.UpdateSummaryFormsIssue
+    elif label == "import_mr_sessions":
+        issue_class = issues.ImportMRSessionsIssue
+    assert issue_class != None
+    return issue_class
