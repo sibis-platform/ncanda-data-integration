@@ -31,32 +31,20 @@ def get_open_issues(slog):
     ncanda_operations = slog.log.postGithubRepo
     issues = ncanda_operations.get_issues(state="open")
     return issues
+def scrape_matching_issues(slog, title_string, target_label, scrape_tuple_from_issue):
+    issues = get_open_issues(slog)
+    scraped_tuples = []
+    for issue in issues:
+        if title_string in issue.title:
+            for label in issue.get_labels():
+                if target_label == label.name:
+                    issue_body = rehydrate_issue_body(issue.body)
+                    scraped_tuple = scrape_tuple_from_issue_body(issue_body)
+                    scraped_tuples.append(scraped_tuple)
+                    break
+    return scraped_tuples
 
-
-def scrape_matching_issues(
-    slog, metadata, verbose, title_string, target_label, issue_numbers, issue_class
-):
-    """Returns a list of issues which match the passed title, label, and issue_numbers. Issues
-    are instances of the passed issue class."""
-    open_issues = get_open_issues(slog)
-    scraped_issues = []
-    for open_issue in open_issues:
-        if len(issue_numbers) == 0 or open_issue.number in issue_numbers:
-            if title_string in open_issue.title:
-                for label in open_issue.get_labels():
-                    if target_label == label.name:
-                        try:
-                            scraped_issue = issue_class(verbose, open_issue, metadata)
-                        except ValueError as e:
-                            if verbose:
-                                print(e)
-                        else:
-                            scraped_issues.append(scraped_issue)
-                        break
-    return scraped_issues
-
-
-def get_base_command(label: str):
+def get_base_command(label):
     if label == "import_mr_sessions":
         return [
             "/sibis-software/ncanda-data-integration/scripts/redcap/import_mr_sessions",
@@ -89,7 +77,7 @@ def get_base_command(label: str):
 
 def get_id_type(label: str):
     id_type = None
-    if label in ["import_mr_sessions"]:
+    if label in ["import_mr_sessions", "update_visit_data"]:
         id_type = "subject_id"
     elif label in ["check_new_sessions"]:
         id_type = "eid"
@@ -111,14 +99,6 @@ def get_id(id_type: str, issue_dict: dict):
         if "experiment_id" in issue_dict:
             scraped_id = issue_dict["experiment_id"]
     return scraped_id
-
-
-def verify_scraped_issues(scraped_issues: list):
-    print("\nFound the following issues:")
-    for scraped_issue in scraped_issues:
-        print(scraped_issue.stringify())
-    return prompt_y_n("Are all issues valid?")
-
 
 def update_issues(scraped_issues, verbose: bool):
     """Loops through the list of issues, tests them, and updates them on GitHub."""
