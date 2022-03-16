@@ -54,19 +54,6 @@ def scrape_matching_issues(
                         break
     return scraped_issues
 
-# def scrape_matching_issues(slog, title_string, target_label, scrape_tuple_from_issue):
-#     issues = get_open_issues(slog)
-#     scraped_tuples = []
-#     for issue in issues:
-#         if title_string in issue.title:
-#             for label in issue.get_labels():
-#                 if target_label == label.name:
-#                     issue_body = rehydrate_issue_body(issue.body)
-#                     scraped_tuple = scrape_tuple_from_issue_body(issue_body)
-#                     scraped_tuples.append(scraped_tuple)
-#                     break
-#     return scraped_tuples
-
 def get_base_command(label):
     if label == "import_mr_sessions":
         return [
