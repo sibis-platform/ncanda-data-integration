@@ -145,5 +145,9 @@ def get_class_for_label(label: str):
         issue_class = issues.UpdateSummaryFormsIssue
     elif label == "import_mr_sessions":
         issue_class = issues.ImportMRSessionsIssue
+    elif label == "check_new_sessions":
+        issue_class = issues.CheckNewSessionsIssue
+    elif label == "check_phantom_scans":
+        issue_class = issues.CheckPhantomScansIssue
     assert issue_class != None
     return issue_class

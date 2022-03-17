@@ -214,3 +214,41 @@ class ImportMRSessionsIssue(Issue):
 
         if self.verbose:
             print(self.stringify())
+
+class CheckNewSessionsIssue(Issue):
+    """
+    Subclass of Issue used for check_new_sessions issues.
+
+    """
+
+    def __init__(self, verbose, issue, metadata):
+        Issue.__init__(self, verbose, issue)
+
+        if "eid" in self.body:
+            eid = self.body["eid"]
+            command = commands.CheckNewSessionsCommand(self.verbose, eid)
+            self.commands.append(command)
+        else:
+            raise ValueError(f"#{self.number}\neid not in body")
+
+        if self.verbose:
+            print(self.stringify())
+
+class CheckPhantomScansIssue(Issue):
+    """
+    Subclass of Issue used for check_phantom_scans issues.
+
+    """
+
+    def __init__(self, verbose, issue, metadata):
+        Issue.__init__(self, verbose, issue)
+
+        if "experiment_id" in self.body:
+            experiment_id = self.body["experiment_id"]
+            command = commands.CheckPhantomScansCommand(self.verbose, experiment_id)
+            self.commands.append(command)
+        else:
+            raise ValueError(f"#{self.number}\nexperiment_id not in body")
+
+        if self.verbose:
+            print(self.stringify())
