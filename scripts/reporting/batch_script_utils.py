@@ -55,6 +55,10 @@ def update_issues(scraped_issues, verbose: bool):
     commented_issues = []
 
     for scraped_issue in scraped_issues:
+        if verbose:
+            print("\n" * 20)
+            print(f"#{scraped_issue.number}")
+
         scraped_issue.test_commands()
         scraped_issue.update()
         if scraped_issue.resolved:

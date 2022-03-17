@@ -26,7 +26,7 @@ import github
 import batch_script_utils as utils
 
 
-def run_batch(verbose, label):
+def run_batch(label, issue_numbers, metadata, verbose):
     issue_class = utils.get_class_for_label(label)
     title_string = ""
 
@@ -51,8 +51,31 @@ def main():
     session = _initialize(args)
     config = _get_config(session)
 
+    session.api.update({"data_entry": None})
+    redcap_api = None
+    try:
+        redcap_api = session.connect_server("data_entry")
+    except Exception as e:
+        print(e.message)
+
+    metadata = redcap_api.export_metadata(format="df").reset_index()[
+        ["form_name", "field_name"]
+    ]
+
+    # Add form_complete field for each form
+    forms = list(metadata["form_name"].unique())
+    complete_fields = pd.DataFrame(
+        {
+            "field_name": [f"{form}_complete" for form in forms],
+            "form_name": forms,
+        }
+    )
+
+    metadata = metadata.append(complete_fields)
+
     for label in args.labels:
-        run_batch(args.verbose, label)
+        print(label)
+        run_batch(label, args.issue_numbers, metadata, args.verbose)
 
 
 def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
