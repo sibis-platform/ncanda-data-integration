@@ -133,6 +133,8 @@ class UpdateVisitDataIssue(Issue):
             first_field = self.body["requestError"].split('","')[1]
             field_row = metadata[metadata["field_name"] == first_field]
             self.form = field_row["form_name"].item()
+            if "limesurvey_ssaga" in self.form:
+                self.form = "_".join(self.body['redcap_variable'].split('_')[:-1])
             for study_id in study_ids:
                 command = commands.UpdateVisitDataCommand(
                     self.verbose, study_id, self.form
