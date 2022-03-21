@@ -16,17 +16,6 @@ def prompt_y_n(prompt: str) -> bool:
             return confirm == "y"
         print("Invalid input")
 
-
-def run_command(command: list, verbose: bool):
-    if verbose:
-        print(" ".join(command))
-    completed_process = run(command, capture_output=True)
-    if verbose:
-        print(f"stdout:\n{completed_process.stdout}")
-        print(f"\nstderr:\n{completed_process.stderr}")
-    return completed_process
-
-
 def get_open_issues(slog):
     ncanda_operations = slog.log.postGithubRepo
     issues = ncanda_operations.get_issues(state="open")
@@ -54,62 +43,6 @@ def scrape_matching_issues(
                         break
     return scraped_issues
 
-def get_base_command(label):
-    if label == "import_mr_sessions":
-        return [
-            "/sibis-software/ncanda-data-integration/scripts/redcap/import_mr_sessions",
-            "-f",
-            "--pipeline-root-dir",
-            "/fs/ncanda-share/cases",
-            "--run-pipeline-script",
-            "/fs/ncanda-share/scripts/bin/ncanda_all_pipelines",
-            "--study-id",
-        ]
-    elif label == "check_new_sessions":
-        return [
-            "/sibis-software/ncanda-data-integration/scripts/xnat/check_new_sessions",
-            "-f",
-            "-e",
-        ]
-    elif label == "update_visit_data":
-        return [
-            "/sibis-software/ncanda-data-integration/scripts/import/laptops/update_visit_data",
-            "-a",
-            "--study-id",
-        ]
-    elif label == "check_phantom_scans":
-        return [
-            "/sibis-software/ncanda-data-integration/scripts/xnat/check_phantom_scans",
-            "-a",
-            "-e",
-        ]
-
-
-def get_id_type(label: str):
-    id_type = None
-    if label in ["import_mr_sessions", "update_visit_data"]:
-        id_type = "subject_id"
-    elif label in ["check_new_sessions"]:
-        id_type = "eid"
-    elif label in ["check_phantom_scans"]:
-        id_type = "experiment_id"
-    assert id_type is not None
-    return id_type
-
-
-def get_id(id_type: str, issue_dict: dict):
-    scraped_id = None
-    if id_type == "subject_id":
-        if "experiment_site_id" in issue_dict:
-            scraped_id = issue_dict["experiment_site_id"][:11]
-    elif id_type == "eid":
-        if "eid" in issue_dict:
-            scraped_id = issue_dict["eid"]
-    elif id_type == "experiment_id":
-        if "experiment_id" in issue_dict:
-            scraped_id = issue_dict["experiment_id"]
-    return scraped_id
-
 def verify_scraped_issues(scraped_issues: list):
     print("\nFound the following issues:")
     for scraped_issue in scraped_issues:
@@ -122,6 +55,10 @@ def update_issues(scraped_issues, verbose: bool):
     commented_issues = []
 
     for scraped_issue in scraped_issues:
+        if verbose:
+            print("\n" * 20)
+            print(f"#{scraped_issue.number}")
+
         scraped_issue.test_commands()
         scraped_issue.update()
         if scraped_issue.resolved:
@@ -145,5 +82,9 @@ def get_class_for_label(label: str):
         issue_class = issues.UpdateSummaryFormsIssue
     elif label == "import_mr_sessions":
         issue_class = issues.ImportMRSessionsIssue
+    elif label == "check_new_sessions":
+        issue_class = issues.CheckNewSessionsIssue
+    elif label == "check_phantom_scans":
+        issue_class = issues.CheckPhantomScansIssue
     assert issue_class != None
     return issue_class

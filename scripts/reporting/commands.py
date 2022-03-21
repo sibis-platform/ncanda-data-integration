@@ -201,3 +201,53 @@ class ImportMRSessionsCommand(Command):
             "--study-id",
             study_id,
         ]
+
+class CheckNewSessionsCommand(Command):
+    """
+    A subclass of Command. Represents check_new_sessions.py commands.
+
+    ...
+
+    Attributes
+    ----------
+    experiment_id : str
+        experiment_id of subject to run command on, e.g. NCANDA_E11304
+    """
+
+    def __init__(self, verbose, experiment_id):
+        Command.__init__(self, verbose)
+        self.experiment_id = experiment_id
+        script_path = (
+            "/sibis-software/ncanda-data-integration/scripts/xnat/check_new_sessions"
+        )
+        self.command = [
+            script_path,
+            "-f",
+            "-e",
+            experiment_id,
+        ]
+
+class CheckPhantomScansCommand(Command):
+    """
+    A subclass of Command. Represents check_phantom_scans.py commands.
+
+    ...
+
+    Attributes
+    ----------
+    experiment_id : str
+        experiment_id of subject to run command on, e.g. NCANDA_E11304
+    """
+
+    def __init__(self, verbose, experiment_id):
+        Command.__init__(self, verbose)
+        self.experiment_id = experiment_id
+        script_path = (
+            "/sibis-software/ncanda-data-integration/scripts/xnat/check_phantom_scans"
+        )
+        self.command = [
+            script_path,
+            "-a",
+            "-e",
+            experiment_id,
+        ]
