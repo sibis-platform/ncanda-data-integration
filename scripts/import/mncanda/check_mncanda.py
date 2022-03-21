@@ -67,3 +67,7 @@ def check_datadict(dd: pd.DataFrame) -> NoReturn:
         "yesno",
     ]), "Impermissible field type listed in datadict"
     assert dd['Field Label'].notnull().all(), "All variables are described"
+
+if __name__ == "__main__":
+    main()
+    
