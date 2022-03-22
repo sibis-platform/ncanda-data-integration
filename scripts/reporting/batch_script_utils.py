@@ -2,10 +2,13 @@ from subprocess import run
 import re
 import issues
 
+STUDY_ID_REGEX = "[A-EX]-\d{5}-[FMTX]-\d"
+YEAR_EVENT_REGEX = "(baseline|[0-9]{1,2}y)_visit"
+MIDYEAR_EVENT_REGEX = "[0-9]{1,3}month_followup"
+EVENT_REGEX = f"({year_event_regex}|{midyear_event_regex})_arm_[123]"
 
 def extract_unique_study_ids(text: str) -> list:
-    study_id_regex = "[A-EX]-\d{5}-[FMTX]-\d"
-    study_ids = sorted(list(set(re.findall(study_id_regex, text))))
+    study_ids = sorted(list(set(re.findall(STUDY_ID_REGEX, text))))
     return study_ids
 
 
