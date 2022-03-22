@@ -2,6 +2,7 @@ import batch_script_utils as utils
 import commands
 import regex as re
 
+
 class Issue(object):
     """
     A class used to represent an issue.
@@ -108,8 +109,12 @@ class RedcapUpdateSummaryScoresIssue(Issue):
         first_field = self.body["requestError"].split('","')[1]
         field_row = metadata[metadata["field_name"] == first_field]
         self.form = field_row["form_name"].item()
-        experiment_site_id_regex = f"({utils.STUDY_ID_REGEX}_{utils.EVENT_REGEX}_)?(.*)-"
-        instrument = re.match(experiment_site_id_regex, self.body["experiment_site_id"])[-1]
+        experiment_site_id_regex = (
+            f"({utils.STUDY_ID_REGEX}_{utils.EVENT_REGEX}_)?(.*)-"
+        )
+        instrument = re.match(
+            experiment_site_id_regex, self.body["experiment_site_id"]
+        )[-1]
 
         for study_id in study_ids:
             command = commands.RedcapUpdateSummaryScoresCommand(

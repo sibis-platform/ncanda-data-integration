@@ -7,6 +7,7 @@ YEAR_EVENT_REGEX = "(baseline|[0-9]{1,2}y)_visit"
 MIDYEAR_EVENT_REGEX = "[0-9]{1,3}month_followup"
 EVENT_REGEX = f"({year_event_regex}|{midyear_event_regex})_arm_[123]"
 
+
 def extract_unique_study_ids(text: str) -> list:
     study_ids = sorted(list(set(re.findall(STUDY_ID_REGEX, text))))
     return study_ids
@@ -35,6 +36,7 @@ def get_open_issues(slog):
     issues = ncanda_operations.get_issues(state="open")
     return issues
 
+
 def scrape_matching_issues(
     slog, metadata, verbose, title_string, target_label, issue_numbers, issue_class
 ):
@@ -56,6 +58,7 @@ def scrape_matching_issues(
                             scraped_issues.append(scraped_issue)
                         break
     return scraped_issues
+
 
 def get_base_command(label):
     if label == "import_mr_sessions":
@@ -113,11 +116,13 @@ def get_id(id_type: str, issue_dict: dict):
             scraped_id = issue_dict["experiment_id"]
     return scraped_id
 
+
 def verify_scraped_issues(scraped_issues: list):
     print("\nFound the following issues:")
     for scraped_issue in scraped_issues:
         print(scraped_issue.stringify())
     return prompt_y_n("Are all issues valid?")
+
 
 def update_issues(scraped_issues, verbose: bool):
     """Loops through the list of issues, tests them, and updates them on GitHub."""
