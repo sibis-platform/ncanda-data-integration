@@ -137,7 +137,7 @@ class UpdateVisitDataIssue(Issue):
             if "limesurvey_ssaga" in self.form:
                 lssaga_regex = "(lssaga[1234]_youth|lssaga[1234]_parent)"
                 lssaga_matches = re.match(lssaga_regex, self.body['redcap_variable'])
-                if len(lssaga_matches) == 0:
+                if not lssaga_matches:
                     raise ValueError(f"#{self.number}\nNo lssaga form in redcap_variable")
                 imports_form = lssaga_matches[0]
             for study_id in study_ids:
