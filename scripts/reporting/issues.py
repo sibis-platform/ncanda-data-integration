@@ -1,7 +1,7 @@
 import batch_script_utils as utils
 import commands
-import regex as re
 
+import regex as re
 
 class Issue(object):
     """
@@ -143,11 +143,16 @@ class UpdateVisitDataIssue(Issue):
             first_field = self.body["requestError"].split('","')[1]
             field_row = metadata[metadata["field_name"] == first_field]
             self.form = field_row["form_name"].item()
+            imports_form = self.form
             if "limesurvey_ssaga" in self.form:
-                self.form = "_".join(self.body['redcap_variable'].split('_')[:-1])
+                lssaga_regex = "(lssaga[1234]_youth|lssaga[1234]_parent)"
+                lssaga_matches = re.match(lssaga_regex, self.body['redcap_variable'])
+                if not lssaga_matches:
+                    raise ValueError(f"#{self.number}\nNo lssaga form in redcap_variable")
+                imports_form = lssaga_matches[0]
             for study_id in study_ids:
                 command = commands.UpdateVisitDataCommand(
-                    self.verbose, study_id, self.form
+                    self.verbose, study_id, imports_form
                 )
                 self.commands.append(command)
         elif "form_name" in self.body:
