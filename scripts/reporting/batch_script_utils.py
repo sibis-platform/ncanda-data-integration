@@ -5,7 +5,7 @@ import issues
 STUDY_ID_REGEX = "[A-EX]-\d{5}-[FMTX]-\d"
 YEAR_EVENT_REGEX = "(baseline|[0-9]{1,2}y)_visit"
 MIDYEAR_EVENT_REGEX = "[0-9]{1,3}month_followup"
-EVENT_REGEX = f"({year_event_regex}|{midyear_event_regex})_arm_[123]"
+EVENT_REGEX = f"({YEAR_EVENT_REGEX}|{MIDYEAR_EVENT_REGEX})_arm_[123]"
 
 
 def extract_unique_study_ids(text: str) -> list:
