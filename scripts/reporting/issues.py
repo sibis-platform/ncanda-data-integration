@@ -112,9 +112,12 @@ class RedcapUpdateSummaryScoresIssue(Issue):
         experiment_site_id_regex = (
             f"({utils.STUDY_ID_REGEX}_{utils.EVENT_REGEX}_)?(.*)-"
         )
-        instrument = re.match(
+        experiment_site_id_matches = re.match(
             experiment_site_id_regex, self.body["experiment_site_id"]
-        )[-1]
+        )
+        if not experiment_site_id_matches:
+            raise ValueError(f"#{self.number}\nNo matches in experiment_site_id")
+        instrument = experiment_site_id_matches[-1]
 
         for study_id in study_ids:
             command = commands.RedcapUpdateSummaryScoresCommand(
