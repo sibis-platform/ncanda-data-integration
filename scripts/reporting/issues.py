@@ -143,6 +143,8 @@ class UpdateVisitDataIssue(Issue):
             first_field = self.body["requestError"].split('","')[1]
             field_row = metadata[metadata["field_name"] == first_field]
             self.form = field_row["form_name"].item()
+            if "limesurvey_ssaga" in self.form:
+                self.form = "_".join(self.body['redcap_variable'].split('_')[:-1])
             for study_id in study_ids:
                 command = commands.UpdateVisitDataCommand(
                     self.verbose, study_id, self.form
@@ -221,6 +223,44 @@ class ImportMRSessionsIssue(Issue):
             self.commands.append(command)
         else:
             raise ValueError(f"#{self.number}\nrequestError not in body")
+
+        if self.verbose:
+            print(self.stringify())
+
+class CheckNewSessionsIssue(Issue):
+    """
+    Subclass of Issue used for check_new_sessions issues.
+
+    """
+
+    def __init__(self, verbose, issue, metadata):
+        Issue.__init__(self, verbose, issue)
+
+        if "eid" in self.body:
+            eid = self.body["eid"]
+            command = commands.CheckNewSessionsCommand(self.verbose, eid)
+            self.commands.append(command)
+        else:
+            raise ValueError(f"#{self.number}\neid not in body")
+
+        if self.verbose:
+            print(self.stringify())
+
+class CheckPhantomScansIssue(Issue):
+    """
+    Subclass of Issue used for check_phantom_scans issues.
+
+    """
+
+    def __init__(self, verbose, issue, metadata):
+        Issue.__init__(self, verbose, issue)
+
+        if "experiment_id" in self.body:
+            experiment_id = self.body["experiment_id"]
+            command = commands.CheckPhantomScansCommand(self.verbose, experiment_id)
+            self.commands.append(command)
+        else:
+            raise ValueError(f"#{self.number}\nexperiment_id not in body")
 
         if self.verbose:
             print(self.stringify())
