@@ -269,3 +269,29 @@ class CheckPhantomScansIssue(Issue):
 
         if self.verbose:
             print(self.stringify())
+
+class UpdateBulkFormsIssue(Issue):
+    """
+    Subclass of Issue used for update_bulk_forms issues.
+
+    """
+
+    def __init__(self, verbose, issue, metadata):
+        Issue.__init__(self, verbose, issue)
+
+        if "form" in self.body:
+            self.form = self.body["form"]
+        else:
+            raise ValueError(f"#{self.number}\nNo form in issue body")
+        if "experiment_site_id" in self.body:
+            study_ids = utils.extract_unique_study_ids(self.body["experiment_site_id"])
+            if not study_ids:
+                raise ValueError(f"#{self.number}\nNo study id in experiment_site_id")
+            study_id = study_ids[0]
+            command = commands.UpdateBulkFormsCommand(self.verbose, study_id)
+            self.commands.append(command)
+        else:
+            raise ValueError(f"#{self.number}\nNo experiment_site_id in issue body")
+
+        if self.verbose:
+            print(self.stringify())

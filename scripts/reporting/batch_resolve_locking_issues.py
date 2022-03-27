@@ -24,7 +24,7 @@ from commands import ExecRedcapLockingDataCommand
 
 
 def run_batch(label, issue_numbers, metadata, force, verbose):
-    title_string = "redcap_import_record:Failed to import into REDCap"
+    title_string = "redcap_import_record:Failed to import into REDCap|field as form is locked"
     issue_class = utils.get_class_for_label(label)
 
     scraped_issues = utils.scrape_matching_issues(

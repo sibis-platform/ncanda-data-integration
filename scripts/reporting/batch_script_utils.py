@@ -27,7 +27,7 @@ def get_open_issues(slog):
 
 
 def scrape_matching_issues(
-    slog, metadata, verbose, title_string, target_label, issue_numbers, issue_class
+    slog, metadata, verbose, title_regex, target_label, issue_numbers, issue_class
 ):
     """Returns a list of issues which match the passed title, label, and issue_numbers. Issues
     are instances of the passed issue class."""
@@ -35,7 +35,7 @@ def scrape_matching_issues(
     scraped_issues = []
     for open_issue in open_issues:
         if len(issue_numbers) == 0 or open_issue.number in issue_numbers:
-            if title_string in open_issue.title:
+            if re.search(title_regex, open_issue.title):
                 for label in open_issue.get_labels():
                     if target_label == label.name:
                         try:
@@ -93,5 +93,7 @@ def get_class_for_label(label: str):
         issue_class = issues.CheckNewSessionsIssue
     elif label == "check_phantom_scans":
         issue_class = issues.CheckPhantomScansIssue
+    elif label == "update_bulk_forms":
+        issue_class = issues.UpdateBulkFormsIssue
     assert issue_class != None
     return issue_class
