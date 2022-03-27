@@ -202,6 +202,7 @@ class ImportMRSessionsCommand(Command):
             study_id,
         ]
 
+
 class CheckNewSessionsCommand(Command):
     """
     A subclass of Command. Represents check_new_sessions.py commands.
@@ -227,6 +228,7 @@ class CheckNewSessionsCommand(Command):
             experiment_id,
         ]
 
+
 class CheckPhantomScansCommand(Command):
     """
     A subclass of Command. Represents check_phantom_scans.py commands.
@@ -251,6 +253,7 @@ class CheckPhantomScansCommand(Command):
             "-e",
             experiment_id,
         ]
+
 
 class UpdateBulkFormsCommand(Command):
     """

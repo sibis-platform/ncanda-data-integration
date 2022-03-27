@@ -20,6 +20,7 @@ def prompt_y_n(prompt: str) -> bool:
             return confirm == "y"
         print("Invalid input")
 
+
 def get_open_issues(slog):
     ncanda_operations = slog.log.postGithubRepo
     issues = ncanda_operations.get_issues(state="open")

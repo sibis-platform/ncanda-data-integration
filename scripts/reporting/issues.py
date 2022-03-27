@@ -3,6 +3,7 @@ import commands
 
 import re
 
+
 class Issue(object):
     """
     A class used to represent an issue.
@@ -146,9 +147,11 @@ class UpdateVisitDataIssue(Issue):
             imports_form = self.form
             if "limesurvey_ssaga" in self.form:
                 lssaga_regex = "(lssaga[1234]_youth|lssaga[1234]_parent)"
-                lssaga_matches = re.match(lssaga_regex, self.body['redcap_variable'])
+                lssaga_matches = re.match(lssaga_regex, self.body["redcap_variable"])
                 if not lssaga_matches:
-                    raise ValueError(f"#{self.number}\nNo lssaga form in redcap_variable")
+                    raise ValueError(
+                        f"#{self.number}\nNo lssaga form in redcap_variable"
+                    )
                 imports_form = lssaga_matches[0]
             for study_id in study_ids:
                 command = commands.UpdateVisitDataCommand(
@@ -232,6 +235,7 @@ class ImportMRSessionsIssue(Issue):
         if self.verbose:
             print(self.stringify())
 
+
 class CheckNewSessionsIssue(Issue):
     """
     Subclass of Issue used for check_new_sessions issues.
@@ -251,6 +255,7 @@ class CheckNewSessionsIssue(Issue):
         if self.verbose:
             print(self.stringify())
 
+
 class CheckPhantomScansIssue(Issue):
     """
     Subclass of Issue used for check_phantom_scans issues.
@@ -269,6 +274,7 @@ class CheckPhantomScansIssue(Issue):
 
         if self.verbose:
             print(self.stringify())
+
 
 class UpdateBulkFormsIssue(Issue):
     """

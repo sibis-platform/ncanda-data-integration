@@ -24,7 +24,9 @@ from commands import ExecRedcapLockingDataCommand
 
 
 def run_batch(label, issue_numbers, metadata, force, verbose):
-    title_string = "redcap_import_record:Failed to import into REDCap|field as form is locked"
+    title_string = (
+        "redcap_import_record:Failed to import into REDCap|field as form is locked"
+    )
     issue_class = utils.get_class_for_label(label)
 
     scraped_issues = utils.scrape_matching_issues(
@@ -45,7 +47,7 @@ def run_batch(label, issue_numbers, metadata, force, verbose):
         automatic_issues = ["redcap_update_summary_scores"]
         if label not in automatic_issues and not force:
             if not utils.prompt_y_n(
-                    f"Unlock/recalculate/lock issue? IMPORTANT: Make sure there are not other locking issues involving the subject id you are about to recalculate before continuing. Otherwise, invalid data may propagate.\n({scraped_issue.issue.html_url})"
+                f"Unlock/recalculate/lock issue? IMPORTANT: Make sure there are not other locking issues involving the subject id you are about to recalculate before continuing. Otherwise, invalid data may propagate.\n({scraped_issue.issue.html_url})"
             ):
                 continue
 
