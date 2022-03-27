@@ -1,7 +1,7 @@
 import batch_script_utils as utils
 import commands
 
-import regex as re
+import re
 
 class Issue(object):
     """
