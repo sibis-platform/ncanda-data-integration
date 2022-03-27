@@ -65,7 +65,10 @@ def process_form( form, complete_field_names, study_id,event):
             index_col = str([rc_entry.def_field, 'redcap_event_name']),
             msg=str(e))
         return
- 
+
+    if records.empty:
+        return [],[]
+    
     # Unless we force complete update, drop already-Complete records for speed
     if not args.update_all:
         records = records[ records[form_complete_field].map( str ) != '2' ]
