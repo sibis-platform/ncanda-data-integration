@@ -127,7 +127,7 @@ def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
 
     parser.add_argument(
         "--labels",
-        help="Which labels to scrape issues for (options: redcap_update_summary_scores, update_visit_data, update_summary_forms, import_mr_sessions). Separated by spaces.",
+        help="Which labels to scrape issues for (options: redcap_update_summary_scores, update_visit_data, update_summary_forms, import_mr_sessions, update_bulk_forms). Separated by spaces.",
         nargs="+",
         action="store",
         default=[],
