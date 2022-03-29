@@ -3,6 +3,7 @@ import commands
 
 import re
 
+
 class Issue(object):
     """
     A class used to represent an issue.
@@ -146,9 +147,11 @@ class UpdateVisitDataIssue(Issue):
             imports_form = self.form
             if "limesurvey_ssaga" in self.form:
                 lssaga_regex = "(lssaga[1234]_youth|lssaga[1234]_parent)"
-                lssaga_matches = re.match(lssaga_regex, self.body['redcap_variable'])
+                lssaga_matches = re.match(lssaga_regex, self.body["redcap_variable"])
                 if not lssaga_matches:
-                    raise ValueError(f"#{self.number}\nNo lssaga form in redcap_variable")
+                    raise ValueError(
+                        f"#{self.number}\nNo lssaga form in redcap_variable"
+                    )
                 imports_form = lssaga_matches[0]
             for study_id in study_ids:
                 command = commands.UpdateVisitDataCommand(
@@ -232,6 +235,7 @@ class ImportMRSessionsIssue(Issue):
         if self.verbose:
             print(self.stringify())
 
+
 class CheckNewSessionsIssue(Issue):
     """
     Subclass of Issue used for check_new_sessions issues.
@@ -251,6 +255,7 @@ class CheckNewSessionsIssue(Issue):
         if self.verbose:
             print(self.stringify())
 
+
 class CheckPhantomScansIssue(Issue):
     """
     Subclass of Issue used for check_phantom_scans issues.
@@ -266,6 +271,33 @@ class CheckPhantomScansIssue(Issue):
             self.commands.append(command)
         else:
             raise ValueError(f"#{self.number}\nexperiment_id not in body")
+
+        if self.verbose:
+            print(self.stringify())
+
+
+class UpdateBulkFormsIssue(Issue):
+    """
+    Subclass of Issue used for update_bulk_forms issues.
+
+    """
+
+    def __init__(self, verbose, issue, metadata):
+        Issue.__init__(self, verbose, issue)
+
+        if "form" in self.body:
+            self.form = self.body["form"]
+        else:
+            raise ValueError(f"#{self.number}\nNo form in issue body")
+        if "experiment_site_id" in self.body:
+            study_ids = utils.extract_unique_study_ids(self.body["experiment_site_id"])
+            if not study_ids:
+                raise ValueError(f"#{self.number}\nNo study id in experiment_site_id")
+            study_id = study_ids[0]
+            command = commands.UpdateBulkFormsCommand(self.verbose, study_id)
+            self.commands.append(command)
+        else:
+            raise ValueError(f"#{self.number}\nNo experiment_site_id in issue body")
 
         if self.verbose:
             print(self.stringify())

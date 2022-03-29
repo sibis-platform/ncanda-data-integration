@@ -202,6 +202,7 @@ class ImportMRSessionsCommand(Command):
             study_id,
         ]
 
+
 class CheckNewSessionsCommand(Command):
     """
     A subclass of Command. Represents check_new_sessions.py commands.
@@ -227,6 +228,7 @@ class CheckNewSessionsCommand(Command):
             experiment_id,
         ]
 
+
 class CheckPhantomScansCommand(Command):
     """
     A subclass of Command. Represents check_phantom_scans.py commands.
@@ -250,4 +252,30 @@ class CheckPhantomScansCommand(Command):
             "-a",
             "-e",
             experiment_id,
+        ]
+
+
+class UpdateBulkFormsCommand(Command):
+    """
+    A subclass of Command. Represents update_bulk_forms commands.
+
+    ...
+
+    Attributes
+    ----------
+    study_id : str
+        id of subject to run command on, e.g. A-00002-F-2
+    """
+
+    def __init__(self, verbose, study_id):
+        Command.__init__(self, verbose)
+        self.study_id = study_id
+        script_path = (
+            "/sibis-software/ncanda-data-integration/scripts/redcap/update_bulk_forms"
+        )
+        self.command = [
+            script_path,
+            "-a",
+            "--study-id",
+            study_id,
         ]
