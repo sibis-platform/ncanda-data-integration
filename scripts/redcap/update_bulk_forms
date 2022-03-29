@@ -70,19 +70,30 @@ def process_form( form, complete_field_names, study_id,event):
     if records.empty:
         return [],[]
     
-    # Unless we force complete update, drop already-Complete records for speed
-    if not args.update_all:
-        records = records[ records[form_complete_field].map( str ) != '2' ]
-        
-    previous = records[ [form_complete_field] ]
+    # Set subforms of complete forms complete
+    if args.complete_subforms:
+        records = records[ records[form_complete_field].map( str ) == '2' ]
+        previous = records[ complete_field_names ]
 
-    records[form_complete_field] = records.apply( compute_bulk_status, axis=1, args = (complete_field_names, form_complete_field) )
-    # Dump all records where bulk status is unchanged - no need to upload these
-    select_records = records[form_complete_field] != previous[form_complete_field]
-    records = records[select_records]
-    previous = previous[select_records]
+        records[complete_field_names] = '2'
+        # Dump all records where bulk status is unchanged - no need to upload these
+        select_records = records[complete_field_names] != previous[complete_field_names]
+        records = records[select_records]
+        previous = previous[select_records]
+        return records[complete_field_names],previous[complete_field_names] 
+    else:
+        # Unless we force complete update, drop already-Complete records for speed
+        if not args.update_all:
+            records = records[ records[form_complete_field].map( str ) != '2' ]
 
-    return records[form_complete_field],previous[form_complete_field] 
+        previous = records[ [form_complete_field] ]
+
+        records[form_complete_field] = records.apply( compute_bulk_status, axis=1, args = (complete_field_names, form_complete_field) )
+        # Dump all records where bulk status is unchanged - no need to upload these
+        select_records = records[form_complete_field] != previous[form_complete_field]
+        records = records[select_records]
+        previous = previous[select_records]
+        return records[form_complete_field],previous[form_complete_field] 
 
 #
 # MAIN  
@@ -105,8 +116,11 @@ parser.add_argument("--study-id",
                     help="Limit processing to subject id (e.g., A-00000-F-1) - multiple ones seperate them by ',' (e.g., 'A-00000-F-1,A-00002-F-2') ",
                     action="store",
                     default=None)
+parser.add_argument("--complete_subforms", help="If this argument is passed, subforms of complete forms are marked complete. Default behavior is the opposite, marking forms as the lowest completion status of any subform. Sets args.update_all to be true.", action="store_true", default=False)
 
 args = parser.parse_args()
+if args.complete_subforms:
+    args.update_all = True
 
 slog.init_log(args.verbose, args.post_to_github,'NCANDA Redcap: Update Form Status (update_bulk_forms)', 'update_bulk_forms', args.time_log_dir)
 
@@ -160,7 +174,7 @@ for form in forms_list:
  
         events_this_form = form_event_mapping[ form_event_mapping[form_key] == form ]['unique_event_name'].tolist()
 
-        for event in events_this_form : 
+        for event in events_this_form :
           form_status_out,old_form_status_out = process_form( form, complete_field_names, args.study_id,event)
           if len(form_status_out) == 0 : 
               continue 
