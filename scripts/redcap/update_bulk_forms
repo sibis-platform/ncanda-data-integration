@@ -73,13 +73,7 @@ def process_form( form, complete_field_names, study_id,event):
     # Set subforms of complete forms complete
     if args.complete_subforms:
         records = records[ records[form_complete_field].map( str ) == '2' ]
-        previous = records[ complete_field_names ]
-
         records[complete_field_names] = '2'
-        # Dump all records where bulk status is unchanged - no need to upload these
-        select_records = records[complete_field_names] != previous[complete_field_names]
-        records = records[select_records]
-        previous = previous[select_records]
         return records[complete_field_names],previous[complete_field_names] 
     else:
         # Unless we force complete update, drop already-Complete records for speed
