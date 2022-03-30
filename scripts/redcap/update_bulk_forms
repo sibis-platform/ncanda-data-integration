@@ -171,6 +171,13 @@ parser.add_argument(
     action="store_true",
     default=False,
 )
+parser.add_argument(
+    "--event",
+    help="Only process a specific event (e.g. baseline_visit_arm_1 or 1y_visit_arm_1)",
+    action="store",
+    default=None,
+)
+
 
 args = parser.parse_args()
 if args.complete_subforms:
@@ -245,6 +252,8 @@ for form in forms_list:
         ].tolist()
 
         for event in events_this_form:
+            if args.event and event != args.event:
+                continue
             form_status_out, old_form_status_out = process_form(
                 form, complete_field_names, args.study_id, event
             )
