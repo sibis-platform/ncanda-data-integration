@@ -21,104 +21,175 @@ import redcap
 import math
 
 #
-# Functions 
+# Functions
 #
 
 # Compute the bulk "Complete" status of a record based on component status values
-def compute_bulk_status( row, field_names, form_complete_field ):
+def compute_bulk_status(row, field_names, form_complete_field):
     status = None
     for field in field_names:
         if math.isnan(float(row[field])):
-           status = '0'
-           # changed this here as otherwise the following if statement does not make sense to me as otherwise status could be overwritten 
-           break 
-        elif status == None  or row[field] < status:
-           status = row[field]
+            status = "0"
+            # changed this here as otherwise the following if statement does not make sense to me as otherwise status could be overwritten
+            break
+        elif status == None or row[field] < status:
+            status = row[field]
 
     return status
 
+
 # Process a bulk form with a number of components, each with their own "complete" status
-def process_form( form, complete_field_names, study_id,event):
+def process_form(form, complete_field_names, study_id, event):
     # Label of the "Complete" status field for this form
-    form_complete_field = '%s_complete' % form
+    form_complete_field = "%s_complete" % form
 
     # Get list of events for which this form exists
     # events_this_form = form_event_mapping[ form_event_mapping[form_key] == form ]['unique_event_name'].tolist()
-    events_this_form=[event]
+    events_this_form = [event]
 
     if args.verbose:
-        print("Processing events",events_this_form)
+        print("Processing events", events_this_form)
 
     # Get fields for applicable events
     try:
-        if study_id :
-            records = rc_entry.export_records( events=events_this_form, fields=[ form_complete_field ] + complete_field_names, event_name='unique', format='df', df_kwargs = { 'index_col': [rc_entry.def_field,'redcap_event_name'], 'dtype' : 'object' } , records = study_id.split(','))
-        else :
-            records = rc_entry.export_records( events=events_this_form, fields=[ form_complete_field ] + complete_field_names, event_name='unique', format='df', df_kwargs = { 'index_col': [rc_entry.def_field,'redcap_event_name'], 'dtype' : 'object' } )
+        if study_id:
+            records = rc_entry.export_records(
+                events=events_this_form,
+                fields=[form_complete_field] + complete_field_names,
+                event_name="unique",
+                format="df",
+                df_kwargs={
+                    "index_col": [rc_entry.def_field, "redcap_event_name"],
+                    "dtype": "object",
+                },
+                records=study_id.split(","),
+            )
+        else:
+            records = rc_entry.export_records(
+                events=events_this_form,
+                fields=[form_complete_field] + complete_field_names,
+                event_name="unique",
+                format="df",
+                df_kwargs={
+                    "index_col": [rc_entry.def_field, "redcap_event_name"],
+                    "dtype": "object",
+                },
+            )
     except Exception as e:
         slog.info(
-            hashlib.sha1(b'update_bulk_forms').hexdigest()[0:6],
+            hashlib.sha1(b"update_bulk_forms").hexdigest()[0:6],
             "ERROR: Exporting records failed",
-            script='update_bulk_forms',
+            script="update_bulk_forms",
             events=events_this_form,
             fields=[form_complete_field] + complete_field_names,
-            index_col = str([rc_entry.def_field, 'redcap_event_name']),
-            msg=str(e))
+            index_col=str([rc_entry.def_field, "redcap_event_name"]),
+            msg=str(e),
+        )
         return
 
     # only do it if you have any records
     if records.empty:
-        return [],[]
-    
+        return [], []
+
     # Set subforms of complete forms complete
     if args.complete_subforms:
-        records = records[ records[form_complete_field].map( str ) == '2' ]
-        previous = records[ complete_field_names ]
+        records = records[records[form_complete_field].map(str) == "2"]
+        previous = records[complete_field_names]
 
-        records[complete_field_names] = '2'
-        return records[complete_field_names],previous[complete_field_names] 
+        records[complete_field_names] = "2"
+        return records[complete_field_names], previous[complete_field_names]
     else:
         # Unless we force complete update, drop already-Complete records for speed
         if not args.update_all:
-            records = records[ records[form_complete_field].map( str ) != '2' ]
+            records = records[records[form_complete_field].map(str) != "2"]
 
-        previous = records[ [form_complete_field] ]
+        previous = records[[form_complete_field]]
 
-        records[form_complete_field] = records.apply( compute_bulk_status, axis=1, args = (complete_field_names, form_complete_field) )
+        records[form_complete_field] = records.apply(
+            compute_bulk_status,
+            axis=1,
+            args=(complete_field_names, form_complete_field),
+        )
         # Dump all records where bulk status is unchanged - no need to upload these
         select_records = records[form_complete_field] != previous[form_complete_field]
         records = records[select_records]
         previous = previous[select_records]
-        return records[form_complete_field],previous[form_complete_field] 
+        return records[form_complete_field], previous[form_complete_field]
+
 
 #
-# MAIN  
+# MAIN
 #
 
 
 # Setup command line parser
-parser = argparse.ArgumentParser(description="Update completion status of forms that contain more than one instrument",
-                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser = argparse.ArgumentParser(
+    description="Update completion status of forms that contain more than one instrument",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+)
 parser.add_argument("-v", "--verbose", help="Verbose operation", action="store_true")
-parser.add_argument("--forms", help="Select specific forms to update. Separate multiple forms with commas.", action="store", default=None )
-parser.add_argument("-a", "--update-all", help="Update all summary records, regardless of current completion status (otherwise, only 'Complete' forms will be skipped)", action="store_true")
-parser.add_argument("-n", "--no-upload", help="Do not upload any scores to REDCap server; instead write to CSV file with given path.", action="store")
-parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
-parser.add_argument("-t","--time-log-dir",
-                    help="If set then time logs are written to that directory",
-                    action="store",
-                    default=None)
-parser.add_argument("--study-id",
-                    help="Limit processing to subject id (e.g., A-00000-F-1) - multiple ones seperate them by ',' (e.g., 'A-00000-F-1,A-00002-F-2') ",
-                    action="store",
-                    default=None)
-parser.add_argument("--complete_subforms", help="If this argument is passed, subforms of complete forms are marked complete. Default behavior is the opposite, marking forms as the lowest completion status of any subform. Sets args.update_all to be true.", action="store_true", default=False)
+parser.add_argument(
+    "--forms",
+    help="Select specific forms to update. Separate multiple forms with commas.",
+    action="store",
+    default=None,
+)
+parser.add_argument(
+    "-a",
+    "--update-all",
+    help="Update all summary records, regardless of current completion status (otherwise, only 'Complete' forms will be skipped)",
+    action="store_true",
+)
+parser.add_argument(
+    "-n",
+    "--no-upload",
+    help="Do not upload any scores to REDCap server; instead write to CSV file with given path.",
+    action="store",
+)
+parser.add_argument(
+    "-p",
+    "--post-to-github",
+    help="Post all issues to GitHub instead of std out.",
+    action="store_true",
+)
+parser.add_argument(
+    "-t",
+    "--time-log-dir",
+    help="If set then time logs are written to that directory",
+    action="store",
+    default=None,
+)
+parser.add_argument(
+    "--study-id",
+    help="Limit processing to subject id (e.g., A-00000-F-1) - multiple ones seperate them by ',' (e.g., 'A-00000-F-1,A-00002-F-2') ",
+    action="store",
+    default=None,
+)
+parser.add_argument(
+    "--complete_subforms",
+    help="If this argument is passed, subforms of complete forms are marked complete. Default behavior is the opposite, marking forms as the lowest completion status of any subform. Sets args.update_all to be true.",
+    action="store_true",
+    default=False,
+)
+parser.add_argument(
+    "--event",
+    help="Only process a specific event (e.g. baseline_visit_arm_1 or 1y_visit_arm_1)",
+    action="store",
+    default=None,
+)
+
 
 args = parser.parse_args()
 if args.complete_subforms:
     args.update_all = True
 
-slog.init_log(args.verbose, args.post_to_github,'NCANDA Redcap: Update Form Status (update_bulk_forms)', 'update_bulk_forms', args.time_log_dir)
+slog.init_log(
+    args.verbose,
+    args.post_to_github,
+    "NCANDA Redcap: Update Form Status (update_bulk_forms)",
+    "update_bulk_forms",
+    args.time_log_dir,
+)
 
 slog.startTimer1()
 
@@ -131,20 +202,22 @@ if not session.configure():
 
 # If connection to redcap server fail, try multiple times
 try:
-    rc_entry = session.connect_server('data_entry', True)
+    rc_entry = session.connect_server("data_entry", True)
 except Exception as error:
-    slog.info(hashlib.sha1(b'update_bulk_forms').hexdigest()[0:6],
-    "ERROR: Could not connect to redcap!",
-    script = 'update_bulk_forms',
-    msg=str(error))
+    slog.info(
+        hashlib.sha1(b"update_bulk_forms").hexdigest()[0:6],
+        "ERROR: Could not connect to redcap!",
+        script="update_bulk_forms",
+        msg=str(error),
+    )
     sys.exit()
 
-if not rc_entry : 
-    if args.verbose :
+if not rc_entry:
+    if args.verbose:
         print("ERROR: Failed to connect to server!")
     sys.exit(1)
-    
-form_event_mapping = rc_entry.export_fem(format='df')
+
+form_event_mapping = rc_entry.export_fem(format="df")
 form_key = session.get_redcap_form_key()
 
 # If list of forms given, only update those
@@ -153,112 +226,148 @@ records_uploaded = 0
 
 if args.forms:
     forms_list = []
-    for form in args.forms.split( ',' ):
+    for form in args.forms.split(","):
         if form in rc_entry.forms:
-            forms_list.append( form )
+            forms_list.append(form)
         else:
             print("WARNING: form '%s' does not exist.\n" % form)
 
 for form in forms_list:
 
     # Does this form have any "_complete" fields, and if so, which ones?
-    complete_field_names = [ field['field_name'] for field in rc_entry.metadata if re.match( '.*_complete$', field['field_name'] ) and (field['form_name'] == form) and (field['field_type'] == 'dropdown') ]
+    complete_field_names = [
+        field["field_name"]
+        for field in rc_entry.metadata
+        if re.match(".*_complete$", field["field_name"])
+        and (field["form_name"] == form)
+        and (field["field_type"] == "dropdown")
+    ]
 
-    if len( complete_field_names ) > 0:
+    if len(complete_field_names) > 0:
         if args.verbose:
-            print("Processing bulk form",form)
- 
-        events_this_form = form_event_mapping[ form_event_mapping[form_key] == form ]['unique_event_name'].tolist()
+            print("Processing bulk form", form)
 
-        for event in events_this_form :
-          form_status_out,old_form_status_out = process_form( form, complete_field_names, args.study_id,event)
-          if len(form_status_out) == 0 : 
-              continue 
+        events_this_form = form_event_mapping[form_event_mapping[form_key] == form][
+            "unique_event_name"
+        ].tolist()
 
-          form_status = pandas.DataFrame(form_status_out)
-          if args.no_upload:
-              form_status.to_csv( args.no_upload + "-" + form + ".csv")
-	   
-          else:
-            try:
-                import_response = rc_entry.import_records(form_status, overwrite='overwrite' )
-            except Exception as e:
-                # for certain errors find out value 
-                remaining_error = [] 
-                old_form_status = pandas.DataFrame(old_form_status_out)
+        for event in events_this_form:
+            if args.event and event != args.event:
+                continue
+            form_status_out, old_form_status_out = process_form(
+                form, complete_field_names, args.study_id, event
+            )
+            if len(form_status_out) == 0:
+                continue
 
-                error_obj = eval(str(e))
-                error_strings = error_obj['error'].split('\n')
-                error_lists = []
-                for error_string in error_strings:
-                    error_list = error_string.split(',')
-                    error_list = [error_field.strip(r'"') for error_field in error_list]
-                    error_lists.append(error_list)
-
-                for error_list in error_lists:
-                    if "This field is located on a form that is locked" in error_list[-1]:
-
-                        # this does not work correctly anymore 
-                        # for limesurvey
-                        err_subject_id = error_list[0]
-                        err_field = error_list[1]
-                        err_event_id = event
-
-                        # New value that was tried to  
-                        #error_list[2]
-
-                        error_id = err_subject_id + "-" + err_event_id
-                        error_index_list = [err_subject_id.strip() == form_subject_id_form_event_id[0].strip() and err_event_id.strip() == form_subject_id_form_event_id[1].strip() for form_subject_id_form_event_id in form_status.index.tolist()]
-                        new_value = str(form_status[err_field][error_index_list].values) 
-                        old_value = str(old_form_status[err_field][error_index_list].values)
-                        slog.info(error_id, "Cannot update '" + err_field + "' field as form is locked",
-                                  field = err_field,
-                                  value_old = old_value,
-                                  value_new = new_value,
-                                  form = form,
-                                  info = "if the current value is unequal to '' and the new value is '' then redcap wont update the form. A possible solution is to select complete for the field.")
-
-                    else : 
-                        remaining_error.append(str(error_obj))
-
-#                for error in  str(e).split("u'",3)[2].split("\\n"):
-#                    error_list = error.split('","') 
-#                    error_list[0] =  error_list[0][1:] 
-#                    if "This field is located on a form that is locked" in error_list[3] :
-#                        err_subject_id = error_list[0][:11] 
-#                        err_event_id = error_list[0][13:-1] 
-#                        err_field = error_list[1]
-#
-#                        error_id= err_subject_id + "-" + err_event_id
-#                        error_index_list = [err_subject_id.strip() == form_subject_id_form_event_id[0].strip() and err_event_id.strip() == form_subject_id_form_event_id[1].strip() for form_subject_id_form_event_id in form_status.index.tolist()]
-#                        new_value = str(form_status[err_field][error_index_list].values) 
-#                        old_value = str(old_form_status[err_field][error_index_list].values) 
-#
-#                        slog.info(error_id, "Cannot update '" + err_field + "' field as form is locked",
-#                                  field = err_field,
-#                                  value = old_value,
-#                                  form = form,
-#                                  info = "if the current value is unequal to '' and the new value is '' then redcap wont update the form. A possible solution is to select complete for the field.",
-#                                  value_new = new_value)
-#
-#                    else : 
-#                        remaining_error.append(error)
-
-                if remaining_error:
-                    log_id = hashlib.sha1(str(e).encode()).hexdigest()[0:6]
-                    error_title = 'Exception while importing records into Redcap'
-                    slog.info(log_id,
-                              error_title,
-                              msg=str(remaining_error))
-
-            #
-	    # end of except statement 
-	    #
+            form_status = pandas.DataFrame(form_status_out)
+            if args.no_upload:
+                form_status.to_csv(args.no_upload + "-" + form + ".csv")
 
             else:
-                if 'count' in list(import_response.keys()):
-                    records_uploaded += import_response['count']
-                    if args.verbose:
-                        print("Uploaded",import_response['count'],"records to REDCap.")
+                try:
+                    import_response = rc_entry.import_records(
+                        form_status, overwrite="overwrite"
+                    )
+                except Exception as e:
+                    # for certain errors find out value
+                    remaining_error = []
+                    old_form_status = pandas.DataFrame(old_form_status_out)
 
-slog.takeTimer1("script_time","{'uploads': " +  str(records_uploaded) + "}")
+                    error_obj = eval(str(e))
+                    error_strings = error_obj["error"].split("\n")
+                    error_lists = []
+                    for error_string in error_strings:
+                        error_list = error_string.split(",")
+                        error_list = [
+                            error_field.strip(r'"') for error_field in error_list
+                        ]
+                        error_lists.append(error_list)
+
+                    for error_list in error_lists:
+                        if (
+                            "This field is located on a form that is locked"
+                            in error_list[-1]
+                        ):
+
+                            # this does not work correctly anymore
+                            # for limesurvey
+                            err_subject_id = error_list[0]
+                            err_field = error_list[1]
+                            err_event_id = event
+
+                            # New value that was tried to
+                            # error_list[2]
+
+                            error_id = err_subject_id + "-" + err_event_id
+                            error_index_list = [
+                                err_subject_id.strip()
+                                == form_subject_id_form_event_id[0].strip()
+                                and err_event_id.strip()
+                                == form_subject_id_form_event_id[1].strip()
+                                for form_subject_id_form_event_id in form_status.index.tolist()
+                            ]
+                            new_value = str(
+                                form_status[err_field][error_index_list].values
+                            )
+                            old_value = str(
+                                old_form_status[err_field][error_index_list].values
+                            )
+                            slog.info(
+                                error_id,
+                                "Cannot update '"
+                                + err_field
+                                + "' field as form is locked",
+                                field=err_field,
+                                value_old=old_value,
+                                value_new=new_value,
+                                form=form,
+                                info="if the current value is unequal to '' and the new value is '' then redcap wont update the form. A possible solution is to select complete for the field.",
+                            )
+
+                        else:
+                            remaining_error.append(str(error_obj))
+
+                    #                for error in  str(e).split("u'",3)[2].split("\\n"):
+                    #                    error_list = error.split('","')
+                    #                    error_list[0] =  error_list[0][1:]
+                    #                    if "This field is located on a form that is locked" in error_list[3] :
+                    #                        err_subject_id = error_list[0][:11]
+                    #                        err_event_id = error_list[0][13:-1]
+                    #                        err_field = error_list[1]
+                    #
+                    #                        error_id= err_subject_id + "-" + err_event_id
+                    #                        error_index_list = [err_subject_id.strip() == form_subject_id_form_event_id[0].strip() and err_event_id.strip() == form_subject_id_form_event_id[1].strip() for form_subject_id_form_event_id in form_status.index.tolist()]
+                    #                        new_value = str(form_status[err_field][error_index_list].values)
+                    #                        old_value = str(old_form_status[err_field][error_index_list].values)
+                    #
+                    #                        slog.info(error_id, "Cannot update '" + err_field + "' field as form is locked",
+                    #                                  field = err_field,
+                    #                                  value = old_value,
+                    #                                  form = form,
+                    #                                  info = "if the current value is unequal to '' and the new value is '' then redcap wont update the form. A possible solution is to select complete for the field.",
+                    #                                  value_new = new_value)
+                    #
+                    #                    else :
+                    #                        remaining_error.append(error)
+
+                    if remaining_error:
+                        log_id = hashlib.sha1(str(e).encode()).hexdigest()[0:6]
+                        error_title = "Exception while importing records into Redcap"
+                        slog.info(log_id, error_title, msg=str(remaining_error))
+
+                #
+                # end of except statement
+                #
+
+                else:
+                    if "count" in list(import_response.keys()):
+                        records_uploaded += import_response["count"]
+                        if args.verbose:
+                            print(
+                                "Uploaded",
+                                import_response["count"],
+                                "records to REDCap.",
+                            )
+
+slog.takeTimer1("script_time", "{'uploads': " + str(records_uploaded) + "}")
