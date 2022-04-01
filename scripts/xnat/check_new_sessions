@@ -675,11 +675,14 @@ def convert_qc_csv(filename: str, new_filename: str, verbose: bool = False):
             )
         return
 
-    # TODO the project_name column is required, but unused.
-    # For now, just omit it.
-    project_name = ''
+    project_name_pattern = re.compile('([a-z]+)_incoming')
     new_rows = []
     for _index, row in df.iterrows():
+        match = project_name_pattern.search(row['nifti_folder'])
+        if match:
+            project_name = match.group(1)
+        else:
+            project_name = 'unknown'
         new_rows.append(
             [
                 project_name,
