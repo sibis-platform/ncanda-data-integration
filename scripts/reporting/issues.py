@@ -152,7 +152,7 @@ class UpdateVisitDataIssue(Issue):
                     raise ValueError(
                         f"#{self.number}\nNo lssaga form in redcap_variable"
                     )
-                imports_form = lssaga_matches[0]
+                imports_form = lssaga_matches.group(1)
             for study_id in study_ids:
                 command = commands.UpdateVisitDataCommand(
                     self.verbose, study_id, imports_form
