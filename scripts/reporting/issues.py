@@ -269,6 +269,10 @@ class CheckPhantomScansIssue(Issue):
             experiment_id = self.body["experiment_id"]
             command = commands.CheckPhantomScansCommand(self.verbose, experiment_id)
             self.commands.append(command)
+        elif "experiment_site_id" in self.body:
+            experiment_site_id = self.body["experiment_site_id"]
+            command = commands.CheckPhantomScansCommand(self.verbose, experiment_site_id)
+            self.commands.append(command)
         else:
             raise ValueError(f"#{self.number}\nexperiment_id not in body")
 
