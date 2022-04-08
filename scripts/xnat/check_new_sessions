@@ -486,12 +486,12 @@ def mri_quality_check(experiment, session_dir, manufacturer, session_label, eid,
     # manufacturer_u = manufacturer.split(' ',1)[0].upper()
 
     if not manufacturer in list(expected_images.keys()):
-        slog.info(session_label, "Error: Manufacturer '" + manufacturer + "' unkwnown", 
+        slog.info(session_label, "Error: Manufacturer '" + manufacturer + "' unknown", 
                   manufacturer=str(manufacturer), 
                   defined=str(list(expected_images.keys())),
                   eid =eid)
 
-        return False
+        return []
 
     errors = []
     # filter out all files that have an exception
@@ -539,9 +539,7 @@ def mri_quality_check(experiment, session_dir, manufacturer, session_label, eid,
           "continues to exhibit the problematic features, please inquire with "
           "the Datacore to check whether a re-scan should be scheduled.")
 
-        return False
-
-    return True
+    return errors
 
 def remove_file(session_label,fileName): 
     # nothing to do 
@@ -1157,7 +1155,8 @@ for (eid, project, subject, insert_date,
         try : 
             if not check_for_phantom(session_label):
                 errorFlag = incomplete_scan_check(experiment, manufacturer, session_label, eid, scan_types, missing_scan_map)
-                errorFlag = errorFlag or not mri_quality_check(experiment, session_dir, manufacturer, session_label, eid, scan_id_list, incorrect_formatting_map)
+                mri_errors = mri_quality_check(experiment, session_dir, manufacturer, session_label, eid, scan_id_list, incorrect_formatting_map)
+                errorFlag = errorFlag or (len(mri_errors) != 0)
 
                 manufacturer_u = manufacturer.split(' ',1)[0].upper()
                 failed_dti = check_dti(dti_checker,experiment, session_dir, dti_scans, cases_dir, session_label, eid, manufacturer_u,scanner_model, incorrect_formatting_map)
@@ -1213,6 +1212,15 @@ for (eid, project, subject, insert_date,
             sys.stdout.write("Skipping QC...")
             sys.stdout.flush()
 
+    # Reformat mri_errors returned from mri_quality_check
+    def exclude_keys(d, keys):
+        return {x: d[x] for x in d if x not in keys}
+    key_to_exclude = ['scan_id', 'scan_type']
+    errors_by_scan = defaultdict(list)
+    for error in mri_errors:
+        scan_id = error['scan_id']
+        errors_by_scan[scan_id].append(exclude_keys(error, keys_to_exclude))
+            
     # "unset" (i.e., uninspected) mandatory scantypes
     if len(unseen_scans):
         unseen_scans_type = []
@@ -1222,6 +1230,9 @@ for (eid, project, subject, insert_date,
         for scan, scan_type in unseen_scans:
              unseen_scans_type.append(scan_type)
              scan_note = experiment.scans[scan].get('note') or ''
+             scan_errors = errors_by_scan[scan_id]
+             if len(scan_errors) > 0 and scan_note == '':
+                 scan_note = "Scan Errors:\n" + str(scan_errors)
              scan_note = sanitize_string_for_csv(scan_note)
              row = f'{eid},{session_dir},{scan},{scan_type},"{exp_note}",,"{scan_note}"\n'
              scans_to_qc.append(row)
