@@ -156,8 +156,17 @@ def check_experiment(session, eid, experiment):
                           related_issues = issue_url,
                           cmd=" ".join(sys.argv))
                 return False
-            
-            phantom_scans = ifc.array.experiments(experiment_type='xnat:mrSessionData', constraints={ 'xnat:mrSessionData/subject_id':phantom_id, 'date': edate})
+            try:
+                phantom_scans = ifc.array.experiments(experiment_type='xnat:mrSessionData', constraints={ 'xnat:mrSessionData/subject_id':phantom_id, 'date': edate})
+            except Exception as e:
+                error=f"Failed to retrieve phantom scan with id {phantom_id} on {edate}."
+                slog.info(experiment_label,error,
+                          site_id=sid,
+                          project=prj,
+                          subject_experiment_id=seid,
+                          error_msg = str(e) )
+
+                
             # handle check for phantoms on the same day but wrong scanner
             eids = phantom_scans.get('ID', always_list=True)
             phantom_scanners = [ifc.select.experiments[eid].get('scanner') for eid in eids]
