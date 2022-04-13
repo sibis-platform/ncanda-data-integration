@@ -1391,6 +1391,7 @@ for (
     errorFlag = False
     failed_dti = ""
 
+    scan_errors = []
     if not os.path.exists(qc_file_tmp):
         # Only do if not a phantom scan
         try:
