@@ -1497,10 +1497,10 @@ for (
     def exclude_keys(d, keys):
         return {x: d[x] for x in d if x not in keys}
 
-    key_to_exclude = ["scan_id", "scan_type"]
+    keys_to_exclude = ["scan_id", "scan_type"]
     errors_by_scan = defaultdict(list)
     for error in scan_errors:
-        scan_id = error["scan_id"]
+        scan_id = str(error["scan_id"])
         errors_by_scan[scan_id].append(exclude_keys(error, keys_to_exclude))
 
     # "unset" (i.e., uninspected) mandatory scantypes
