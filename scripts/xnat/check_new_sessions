@@ -628,9 +628,9 @@ def mri_quality_check(
             eid=eid,
         )
 
-        return []
+        return True, []
 
-    errors = []
+    scan_errors = []
     # filter out all files that have an exception
     if incorrect_formatting_map:
         incorrect_formatting_exception = incorrect_formatting_map.get(session_label)
@@ -652,17 +652,17 @@ def mri_quality_check(
 
     for e in image_check(experiment, session_dir, manufacturer, no_exception_list):
         if e:
-            errors.append(e)
+            scan_errors.append(e)
 
     for e in frame_check(experiment, manufacturer, no_exception_list):
         if e:
-            errors.append(e)
+            scan_errors.append(e)
 
     for e in voxelRes_check(experiment, manufacturer, no_exception_list):
         if e:
-            errors.append(e)
+            scan_errors.append(e)
 
-    if errors:
+    if scan_errors:
         try:
             dag = experiment.project.replace("_incoming", "")
         except Exception:  # if for some reason <site>_incoming cannot be retrieved?!
@@ -670,7 +670,7 @@ def mri_quality_check(
         slog.info(
             session_label,
             "ERROR: scans in session failed to match standard setting",
-            violations=str(errors),
+            violations=str(scan_errors),
             eid=eid,
             site_forward=dag,
             site_resolution="If the scan is expected to be wrong, please let "
@@ -680,8 +680,9 @@ def mri_quality_check(
             "continues to exhibit the problematic features, please inquire with "
             "the Datacore to check whether a re-scan should be scheduled.",
         )
-
-    return errors
+        
+        return True, scan_errors
+    return False, []
 
 
 def remove_file(session_label, fileName):
@@ -1394,7 +1395,8 @@ for (
         # Only do if not a phantom scan
         try:
             if not check_for_phantom(session_label):
-                errorFlag = incomplete_scan_check(
+                errorFlag = False
+                incompleteScanFlag = incomplete_scan_check(
                     experiment,
                     manufacturer,
                     session_label,
@@ -1402,7 +1404,10 @@ for (
                     scan_types,
                     missing_scan_map,
                 )
-                mri_errors = mri_quality_check(
+                if incompleteScanFlag:
+                    errorFlag = True
+
+                mriErrorsFlag, scan_errors = mri_quality_check(
                     experiment,
                     session_dir,
                     manufacturer,
@@ -1411,7 +1416,8 @@ for (
                     scan_id_list,
                     incorrect_formatting_map,
                 )
-                errorFlag = errorFlag or (len(mri_errors) != 0)
+                if mriErrorsFlag:
+                    errorFlag = True
 
                 manufacturer_u = manufacturer.split(" ", 1)[0].upper()
                 failed_dti = check_dti(
@@ -1426,7 +1432,6 @@ for (
                     scanner_model,
                     incorrect_formatting_map,
                 )
-
                 if len(failed_dti):
                     errorFlag = True
                     htmldt.append(
@@ -1488,13 +1493,13 @@ for (
             sys.stdout.write("Skipping QC...")
             sys.stdout.flush()
 
-    # Reformat mri_errors returned from mri_quality_check
+    # Reformat scan_errors returned from mri_quality_check
     def exclude_keys(d, keys):
         return {x: d[x] for x in d if x not in keys}
 
     key_to_exclude = ["scan_id", "scan_type"]
     errors_by_scan = defaultdict(list)
-    for error in mri_errors:
+    for error in scan_errors:
         scan_id = error["scan_id"]
         errors_by_scan[scan_id].append(exclude_keys(error, keys_to_exclude))
 
