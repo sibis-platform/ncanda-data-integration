@@ -85,7 +85,7 @@ def upload_findings_to_xnat(
 
         email.send('%s XNAT - Questionable Scans' % sibis_session.get_project_name(),
                    email._admin_email,
-                   email._admin_email,
+                   [email._admin_email],
                    str(questionable_scans),
                    False)    
 
