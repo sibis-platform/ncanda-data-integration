@@ -680,7 +680,7 @@ def mri_quality_check(
             "continues to exhibit the problematic features, please inquire with "
             "the Datacore to check whether a re-scan should be scheduled.",
         )
-        
+
         return True, scan_errors
     return False, []
 
