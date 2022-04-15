@@ -620,14 +620,18 @@ def mri_quality_check(
     # manufacturer_u = manufacturer.split(' ',1)[0].upper()
 
     if not manufacturer in list(expected_images.keys()):
+        error_msg = "Error: Manufacturer unknown:'" + manufacturer + "'"
         slog.info(
             session_label,
-            "Error: Manufacturer '" + manufacturer + "' unknown",
+            error_msg,
             manufacturer=str(manufacturer),
             defined=str(list(expected_images.keys())),
             eid=eid,
         )
-
+        if not experiment.note:
+            experiment.note = error_msg
+        elif "Error: Manufacturer unknown" not in experiment.note:
+            experiment.note = experiment.note + "\n" + error_msg
         return True, []
 
     scan_errors = []
