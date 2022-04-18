@@ -620,7 +620,7 @@ def mri_quality_check(
     # manufacturer_u = manufacturer.split(' ',1)[0].upper()
 
     if not manufacturer in list(expected_images.keys()):
-        error_msg = "Error Manufacturer " + manufacturer + " unknown"
+        error_msg = "Error: Manufacturer " + manufacturer + " unknown"
         slog.info(
             session_label,
             error_msg,
@@ -630,7 +630,7 @@ def mri_quality_check(
         )
         if not experiment.note:
             experiment.note = error_msg
-        elif "Error Manufacturer" not in experiment.note:
+        elif "Error: Manufacturer" not in experiment.note:
             experiment.note = experiment.note + "\n" + error_msg
         return True, []
 
@@ -1501,12 +1501,19 @@ for (
     # Reformat scan_errors returned from mri_quality_check
     def exclude_keys(d, keys):
         return {x: d[x] for x in d if x not in keys}
-
-    keys_to_exclude = ["scan_id", "scan_type"]
-    errors_by_scan = defaultdict(list)
+    def dict_to_string(d):
+        string = ""
+        for key in d:
+            string += key + ":\n" + d[key] + "\n"
+        return string
+    
+    keys_to_exclude = ["scan_id", "scan_type", "manufacturer"]
+    errors_by_scan = defaultdict(str)
     for error in scan_errors:
+        smaller_error = exclude_keys(error, keys_to_exclude)
+        error_string = dict_to_string(smaller_error)
         scan_id = str(error["scan_id"])
-        errors_by_scan[scan_id].append(exclude_keys(error, keys_to_exclude))
+        errors_by_scan[scan_id] = errors_by_scan[scan_id] + error_string
 
     # "unset" (i.e., uninspected) mandatory scantypes
     if len(unseen_scans):
@@ -1517,9 +1524,9 @@ for (
         for scan, scan_type in unseen_scans:
             unseen_scans_type.append(scan_type)
             scan_note = experiment.scans[scan].get("note") or ""
-            scan_errors = errors_by_scan[scan]
-            if len(scan_errors) > 0 and scan_note == "":
-                scan_note = "Scan Errors:\n" + str(scan_errors)
+            error_string = errors_by_scan[scan]
+            if error_string != "" and "Scan Errors:" not in scan_note:
+                scan_note += "\nScan Errors:\n" + error_string
             scan_note = sanitize_string_for_csv(scan_note)
             row = (
                 f'{eid},{session_dir},{scan},{scan_type},"{exp_note}",,"{scan_note}"\n'
