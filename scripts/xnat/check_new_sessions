@@ -620,7 +620,7 @@ def mri_quality_check(
     # manufacturer_u = manufacturer.split(' ',1)[0].upper()
 
     if not manufacturer in list(expected_images.keys()):
-        error_msg = "Error: Manufacturer " + manufacturer + " unknown"
+        error_msg = "ERR: Manufacturer " + manufacturer + " unknown"
         slog.info(
             session_label,
             error_msg,
@@ -630,8 +630,8 @@ def mri_quality_check(
         )
         if not experiment.note:
             experiment.note = error_msg
-        elif "Error: Manufacturer" not in experiment.note:
-            experiment.note = experiment.note + "\n" + error_msg
+        elif "ERR: Manufacturer" not in experiment.note:
+            experiment.note = experiment.note + "\n" + error_msg + ";"
         return True, []
 
     scan_errors = []
@@ -1525,8 +1525,8 @@ for (
             unseen_scans_type.append(scan_type)
             scan_note = experiment.scans[scan].get("note") or ""
             error_string = errors_by_scan[scan]
-            if error_string != "" and "Scan Errors:" not in scan_note:
-                scan_note += "\nScan Errors:\n" + error_string
+            if error_string != "" and "ERR:" not in scan_note:
+                scan_note += "\nERR:\n" + error_string + ";"
             scan_note = sanitize_string_for_csv(scan_note)
             row = (
                 f'{eid},{session_dir},{scan},{scan_type},"{exp_note}",,"{scan_note}"\n'
