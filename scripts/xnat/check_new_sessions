@@ -631,7 +631,7 @@ def mri_quality_check(
         if not experiment.note:
             experiment.note = error_msg
         elif "ERR: Manufacturer" not in experiment.note:
-            experiment.note = experiment.note + "\n" + error_msg + ";"
+            experiment.note = experiment.note + "  " + error_msg + ";"
         return True, []
 
     scan_errors = []
@@ -1504,7 +1504,7 @@ for (
     def dict_to_string(d):
         string = ""
         for key in d:
-            string += key + ":\n" + d[key] + "\n"
+            string += key + ":  " + d[key] + "  "
         return string
     
     keys_to_exclude = ["scan_id", "scan_type", "manufacturer"]
@@ -1526,7 +1526,7 @@ for (
             scan_note = experiment.scans[scan].get("note") or ""
             error_string = errors_by_scan[scan]
             if error_string != "" and "ERR:" not in scan_note:
-                scan_note += "\nERR:\n" + error_string + ";"
+                scan_note += "  ERR:  " + error_string + ";"
             scan_note = sanitize_string_for_csv(scan_note)
             row = (
                 f'{eid},{session_dir},{scan},{scan_type},"{exp_note}",,"{scan_note}"\n'
