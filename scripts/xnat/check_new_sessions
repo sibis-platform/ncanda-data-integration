@@ -836,14 +836,14 @@ def convert_qc_csv(filename: str, new_filename: str, verbose: bool = False):
     for _index, row in df.iterrows():
         match = project_name_pattern.search(row["nifti_folder"])
         if match:
-            project_name = match.group(1)
+            project_name = match.group(1).upper()
         else:
             project_name = "unknown"
         new_rows.append(
             [
                 project_name,
                 row["xnat_experiment_id"],
-                f"{row['xnat_experiment_id']}_{row['scan_type']}",
+                f"{row['scan_id']_{row['scan_type']}",
                 row["scan_type"],
                 row["scan_id"],
                 str(
