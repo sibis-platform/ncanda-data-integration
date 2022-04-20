@@ -515,7 +515,7 @@ def export_and_queue(red2cas, redcap_visit_id, xnat, session_data, redcap_key, p
         # Changed title so it is informative when displayed in short form through qsub
 
         job_title = subject_code[7:] + visit_code[0] + visit_code[9:] + '-' + just_pipeline_script
-        log_file = '/fs/ncanda-share/log/export_mr_sessions_pipeline' + job_title + '.txt'
+        log_file = '/fs/ncanda-share/log/export_mr_sessions_pipeline/' + job_title + '.txt'
         red2cas.schedule_cluster_job(qsub_exe,'N%s-Nightly' % (job_title),submit_log=log_file, verbose = verbose)
             
     # It is very important to clear the PyXNAT cache, lest we run out of disk space and shut down all databases in the process
