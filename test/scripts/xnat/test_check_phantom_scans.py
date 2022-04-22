@@ -23,6 +23,10 @@ def session(config_file):
     return get_session(config_file)
 
 @pytest.fixture
+def email_adr(session):
+    return session.get_email()
+
+@pytest.fixture
 def slog():
     '''
     Return a sibislogger instance initialized for a test session.
@@ -36,12 +40,14 @@ def slog():
     return slog
 
 
-def test_select_experiments(session, slog):
+def test_select_experiments(session, slog, email_adr):
     project = 'xnat'
     ifc = session.connect_server(project, True)
     def experiments_502(experiment_type, constraints):
         from .xnat.exceptions import XNATResponseError
         raise XNATResponseError('Invalid response from XNATSession for url {} (status {}):\n{}'.format('test_uri', 502, "test_text"))
+
+    args = {'verbose': True}
     
     with patch.object(ifc.array, 'experiments', new=experiments_502):
 
@@ -50,5 +56,5 @@ def test_select_experiments(session, slog):
             experiment = ifc.select.experiments[eid]
         except KeyError as e:
             pass
-        assert(not check_experiment(session, eid, experiment))
+        assert(not check_phantom_scans.check_experiment(session, args, email_adr, eid, experiment))
         
