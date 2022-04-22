@@ -56,5 +56,8 @@ def test_select_experiments(session, slog, email_adr):
             experiment = ifc.select.experiments[eid]
         except KeyError as e:
             pass
-        assert(not check_phantom_scans.check_experiment(session, args, email_adr, eid, experiment))
+
+        sibis_config = session.get_operations_dir()
+        assert(sibis_config, "Could not get operations directory from session")
+        assert(not check_phantom_scans.check_experiment(session, sibis_config, args, email_adr, eid, experiment))
         
