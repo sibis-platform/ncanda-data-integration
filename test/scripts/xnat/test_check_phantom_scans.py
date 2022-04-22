@@ -39,6 +39,9 @@ def slog():
     slog.init_log(False, False,'test_session', 'test_session','/tmp')
     return slog
 
+class Args:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
 
 def test_select_experiments(session, slog, email_adr):
     project = 'xnat'
@@ -47,7 +50,7 @@ def test_select_experiments(session, slog, email_adr):
         from .xnat.exceptions import XNATResponseError
         raise XNATResponseError('Invalid response from XNATSession for url {} (status {}):\n{}'.format('test_uri', 502, "test_text"))
 
-    args = {'verbose': True}
+    args = Args(verbose=True)
     
     with patch.object(ifc.array, 'experiments', new=experiments_502):
 
@@ -59,5 +62,6 @@ def test_select_experiments(session, slog, email_adr):
 
         sibis_config = session.get_operations_dir()
         assert(sibis_config, "Could not get operations directory from session")
+        import pdb;pdb.set_trace()
         assert(not check_phantom_scans.check_experiment(session, ifc, sibis_config, args, email_adr, eid, experiment))
         
