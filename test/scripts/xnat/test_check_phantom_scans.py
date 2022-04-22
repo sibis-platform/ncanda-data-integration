@@ -59,5 +59,5 @@ def test_select_experiments(session, slog, email_adr):
 
         sibis_config = session.get_operations_dir()
         assert(sibis_config, "Could not get operations directory from session")
-        assert(not check_phantom_scans.check_experiment(session, sibis_config, args, email_adr, eid, experiment))
+        assert(not check_phantom_scans.check_experiment(session, ifc, sibis_config, args, email_adr, eid, experiment))
         
