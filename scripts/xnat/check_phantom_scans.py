@@ -171,7 +171,7 @@ def find_phantom_scan_24h(
 
 
 # Check one experiment for matching phantom scans
-def check_experiment(session, args, email, eid, experiment):
+def check_experiment(session, sibis_config, args, email, eid, experiment):
     expUtil = xnat_util.XNATSessionElementUtil(experiment)
     try:
         experiment_last_modified = expUtil.get("last_modified")
@@ -451,7 +451,7 @@ if __name__ == "__main__":
         # Do not change to True ! as xnat saves it as 'true'
         if experiment.fields.get("phantommissingoverride") != "true":
             count_phantom += 1
-            check_experiment(session, args, email, eid, experiment)
+            check_experiment(session, sibis_config, args, email, eid, experiment)
 
     if args.sendmail:
         email.send_all(ifc)
