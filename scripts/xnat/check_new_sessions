@@ -750,6 +750,83 @@ def convert_qc_csv(filename: str, new_filename: str, verbose: bool = False):
         print(f"Wrote converted CSV to {target_file}.")
 
 
+def deconvert_qc_csv(filename: str, new_filename: str, verbose: bool = False):
+    """Convert the new CSV format to the old Girder QC CSV format."""
+    source_file = os.path.join(log_dir, filename)
+    target_file = os.path.join(log_dir, new_filename)
+    if not pathlib.Path(source_file).exists():
+        if verbose:
+            print(f"{source_file} does not exist.")
+        return
+    if not source_file.endswith(".csv"):
+        if verbose:
+            print(f"{source_file} is not a CSV file.")
+        return
+    df = pd.read_csv(source_file, dtype=str, na_filter=False)
+    expected_columns = [
+        "project_name",
+        "experiment_name",
+        "scan_name",
+        "scan_type",
+        "frame_number",
+        "file_location",
+        "experiment_notes",
+        "subject_id",
+        "session_id",
+        "scan_link",
+        "last_decision",
+        "last_decision_creator",
+        "last_decision_note",
+        "last_decision_created",
+        "identified_artifacts",
+        "location_of_interest",
+    ]
+    if len(df.columns) > len(expected_columns) or any(df.columns != expected_columns):
+        breakpoint()
+        if verbose:
+            print(
+                f"{source_file} is not congruent with the new"
+                f" MIQA import format. Expected columns {str(expected_columns)} but recieved {str(df.columns)}."
+            )
+        return
+
+    new_rows = []
+    for _index, row in df.iterrows():
+        # Remove the experiment and scan directories from the file_location to extract the nifti_folder
+        nifti_folder = "/".join(row["file_location"].split("/")[:-2])
+        # last decision metadata is stored in the scan_note field
+        creator = row["last_decision_creator"]
+        created = row["last_decision_created"]
+        note = row["last_decision_note"]
+        scan_note = f"{note} {creator} {created}"
+        print(f'composing {note} {creator} {created} into {scan_note}')
+        new_rows.append(
+            [
+                row["experiment_name"], # xnat_experiment_id
+                nifti_folder, # nifti_folder
+                row["frame_number"], # scan_id
+                row["scan_type"], # scan_type
+                row["experiment_notes"], # experiment_note
+                row["last_decision"], # decision
+                scan_note, # scan_note
+            ]
+        )
+    new_df = pd.DataFrame(
+        new_rows,
+        columns=[
+            "xnat_experiment_id",
+            "nifti_folder",
+            "scan_id",
+            "scan_type",
+            "experiment_note",
+            "decision",
+            "scan_note",
+        ],
+    )
+    new_df.to_csv(target_file, index=False)
+    if verbose:
+        print(f"Wrote deconverted CSV to {target_file}.")
+
 #============================================================
 # Main
 #============================================================
