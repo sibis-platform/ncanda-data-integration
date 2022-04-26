@@ -245,9 +245,10 @@ class CheckPhantomScansCommand(Command):
         Command.__init__(self, verbose)
         self.experiment_id = experiment_id
         script_path = (
-            "/sibis-software/ncanda-data-integration/scripts/xnat/check_phantom_scans"
+            "/sibis-software/ncanda-data-integration/scripts/xnat/check_phantom_scans.py"
         )
         self.command = [
+            'python',
             script_path,
             "-a",
             "-e",
