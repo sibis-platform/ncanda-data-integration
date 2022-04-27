@@ -39,29 +39,27 @@ def slog():
     slog.init_log(False, False,'test_session', 'test_session','/tmp')
     return slog
 
-class Args:
+class Object:
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
 def test_select_experiments(session, slog, email_adr):
     project = 'xnat'
     ifc = session.connect_server(project, True)
-    def experiments_502(experiment_type, constraints):
-        from .xnat.exceptions import XNATResponseError
-        raise XNATResponseError('Invalid response from XNATSession for url {} (status {}):\n{}'.format('test_uri', 502, "test_text"))
-
-    args = Args(verbose=True)
+    eid = "NCANDA_E00067"
+    try:
+        experiment = ifc.select.experiments[eid]
+    except KeyError as e:
+        pass
     
-    with patch.object(ifc.array, 'experiments', new=experiments_502):
 
-        eid = "NCANDA_E00067"
-        try:
-            experiment = ifc.select.experiments[eid]
-        except KeyError as e:
-            pass
+    def experiments_502(experiment_type, constraints):
+        raise Exception('Invalid response from XNATSession for url {} (status {}):\n{}'.format('test_uri', 502, "test_text"))
 
-        sibis_config = session.get_operations_dir()
-        assert(sibis_config, "Could not get operations directory from session")
-        import pdb;pdb.set_trace()
-        assert(not check_phantom_scans.check_experiment(session, ifc, sibis_config, args, email_adr, eid, experiment))
+    args = Object(verbose=True)
+    ifc_dummy = Object(array = Object(experiments = experiments_502))
+    sibis_config = session.get_operations_dir()
+    assert(sibis_config, "Could not get operations directory from session")
+
+    assert(not check_phantom_scans.check_experiment(session, ifc_dummy, sibis_config, args, email_adr, eid, experiment))
         
