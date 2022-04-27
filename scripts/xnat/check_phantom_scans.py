@@ -52,7 +52,7 @@ def find_phantom_scan_24h(
     edate_yesterday = (this_date - datetime.timedelta(PHANTOM_DAY_LIMIT)).strftime(
         "%Y-%m-%d"
     )
-
+                    
     # Simple approach: search only on dates (meaning we might accidentally pick
     # something that's N days + M hours later):
     # constraints = [('xnat:mrSessionData/SUBJECT_ID', 'LIKE', phantom_id), 'AND',
@@ -126,12 +126,13 @@ def find_phantom_scan_24h(
                 project_id=prj,
                 experiment_id=seid,
                 experiment_date=edate,
+                search_range=[edate_yesterday,edate_tomorrow],
                 site_forward=dag,
                 site_resolution="If a phantom exists within the "
                 f"{PHANTOM_DAY_LIMIT}-day limit, please upload it to "
                 "XNAT. If a phantom does not exist within this limit, "
                 "please inform the Datacore so that they can set the "
-                "respective XNAT flag.",
+                "respective XNAT flag. If you believe a phantom scan exists, make sure its subject id is '" +  phantom_id +"'",
             )
     else:
         if args.warn_same_day_phantom:
@@ -250,6 +251,7 @@ def check_experiment(session, args, email, eid, experiment):
             ]
             if args.verbose:
                 print("Phantom scans: {0}".format(phantom_scans))
+                
             if scanner not in phantom_scanners and len(phantom_scans) != 0:
 
                 err = "Error: {0} - scanner mismatch for session {1} (scanner: {2}) and phantom {3} (scanner: {4}).".format(
