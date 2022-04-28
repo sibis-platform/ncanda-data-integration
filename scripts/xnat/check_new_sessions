@@ -209,7 +209,7 @@ physio = [
 # ============================================================
 
 # checking if the sites have sent physiology data
-def check_physio(experiment, ifc, eid):
+def check_physio(experiment, ifc, eid, xnat_url):
     try:
         if get_custom_variable(experiment, "physioproblemoverride") == "true":
             return True
@@ -219,6 +219,8 @@ def check_physio(experiment, ifc, eid):
             eid + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],
             "ERROR: Could not retrieve physioproblemoverride",
             err_msg=str(err_msg),
+            eid=eid,
+            xnat_url=xnat_url
         )
         return False
 
@@ -336,7 +338,7 @@ def check_for_phantom(label):
 
 
 def incomplete_scan_check(
-    experiment, manufacturer, session_label, eid, scan_types, missing_scan_map
+        experiment, manufacturer, session_label, eid, xnat_url, scan_types, missing_scan_map
 ):
     missing_scans = []
     scan_types_set = set(scan_types)
@@ -370,6 +372,7 @@ def incomplete_scan_check(
             session_label,
             "Do not support manufacturer {}".format(manufacturer),
             eid=eid,
+            xnat_url=xnat_url
         )
         return True
 
@@ -410,6 +413,7 @@ def incomplete_scan_check(
             manufacturer=manufacturer,
             missing_scans=",".join(missing_scans),
             eid=eid,
+            xnat_url=xnat_url,
             site_forward=dag,
             site_resolution="If the scans exist, please upload them to "
             "XNAT. If they do not exist, please inform the Datacore so "
@@ -613,6 +617,7 @@ def mri_quality_check(
     manufacturer,
     session_label,
     eid,
+    xnat_url,
     scan_list,
     incorrect_formatting_map,
 ):
@@ -627,6 +632,7 @@ def mri_quality_check(
             manufacturer=str(manufacturer),
             defined=str(list(expected_images.keys())),
             eid=eid,
+            xnat_url=xnat_url,
         )
         if not experiment.note:
             experiment.note = error_msg
@@ -676,6 +682,7 @@ def mri_quality_check(
             "ERROR: scans in session failed to match standard setting",
             violations=str(scan_errors),
             eid=eid,
+            xnat_url=xnat_url,
             site_forward=dag,
             site_resolution="If the scan is expected to be wrong, please let "
             "the Datacore know so that they can set an exception. If the scan "
@@ -1114,7 +1121,7 @@ for eid in experiments_to_check:
         previous_sessions.append(this_session[0])
     else:
         error = "WARNING: flagged session appears to have disappeared."
-        slog.info(eid, error)
+        slog.info(eid, error, xnat_url=sibis_session.get_xnat_session_address(eid, 'html'))
 
 # All sessions to check - previously flagged plus updated
 sessions_to_check = sorted(
@@ -1181,6 +1188,7 @@ for (
     session_label,
     last_modified,
 ) in sessions_to_check:
+    xnat_url = sibis_session.get_xnat_session_address(eid, 'html'),
     index += 1
     if args.check_all:
         print("==== ", index, eid)
@@ -1233,6 +1241,7 @@ for (
             "ERROR: Could not retrieve experiment specific parameters from xnat - skipping session",
             project=project,
             eid=eid,
+            xnat_url=xnat_url,
             info="Most likely network problem or another app is trying to access xnat at the same time",
             err_msg=str(err_msg),
             detail=traceback.format_exception(info[0], info[1], info[2]),
@@ -1319,6 +1328,7 @@ for (
             "ERROR: Could not retrieve scan specific parameters from xnat - skipping session",
             project=project,
             eid=eid,
+            xnat_url=xnat_url,
             info="Most likely network problem",
             err_msg=str(err_msg),
             detail=traceback.format_exception(exc_type, exc_value, exc_traceback),
@@ -1358,6 +1368,7 @@ for (
                         + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],
                         "ERROR: Could not generate nifti files - skipping session",
                         eid=eid,
+                        xnat_url=xnat_url
                         project=project,
                         err_msg=str(err_msg),
                         detail=traceback.format_exception(*info),
@@ -1406,6 +1417,7 @@ for (
                     manufacturer,
                     session_label,
                     eid,
+                    xnat_url,
                     scan_types,
                     missing_scan_map,
                 )
@@ -1418,6 +1430,7 @@ for (
                     manufacturer,
                     session_label,
                     eid,
+                    xnat_url,
                     scan_id_list,
                     incorrect_formatting_map,
                 )
@@ -1448,7 +1461,7 @@ for (
             # missing physio data
             physio_ok = True
             if not isPhantom and len(fmri_scans):
-                physio_ok = check_physio(experiment, ifc, eid)
+                physio_ok = check_physio(experiment, ifc, eid, xnat_url)
                 if not physio_ok:
                     errorFlag = True
                     htmlphys.append(session_html_link)
@@ -1470,6 +1483,7 @@ for (
                             project=project,
                             file=qc_file,
                             eid=eid,
+                            xnat_url = sibis_session.get_xnat_session_address(eid, 'html'),
                             error=str(err),
                         )
 
@@ -1483,6 +1497,7 @@ for (
                 project=project,
                 info="Most likely network problem",
                 eid=eid,
+                xnat_url = sibis_session.get_xnat_session_address(eid, 'html'),
                 error=str(err_msg),
                 detail=traceback.format_exception(*info),
             )
