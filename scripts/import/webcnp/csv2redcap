@@ -261,10 +261,10 @@ data["redcap_data_access_group"] = data["redcap_data_access_group"].str.replace(
 uploaded = 0
 for [key, row] in data.iterrows():
     record = dict(row.dropna())
-
+       
     # Upload new data to REDCap
     import_response = session.redcap_import_record_to_api(
-        [record], None, "cvs2redcap-import"
+        [record], None, "csv2redcap-import"
     )
     if not import_response:
         print("WARNING: failed to upload record", record["record_id"])
