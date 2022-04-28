@@ -142,25 +142,58 @@ data = data[data["test_sessions_datasetid"] >= 22000]
 records_in_redcap = redcap.export_records(
     fields=["record_id", "test_sessions_datasetid", "test_sessions_complete"],
     format="df",
-)
+).reset_index()
+
 # See what's already on the server
-existing = records_in_redcap["test_sessions_datasetid"].tolist()
+existing = records_in_redcap["record_id"].tolist()
+
+# Create record id's
+# Copy originals into fields to preserve
+data["test_sessions_subid_orig"] = data["test_sessions_subid"].copy()
+data["test_sessions_dotest_orig"] = data["test_sessions_dotest"].copy()
+
+# Bring Subject ID into correct format and select appropriate prefix
+data["test_sessions_subid"] = data["test_sessions_subid"].map(
+    lambda s: "%s????????" % str(s)
+)
+data["test_sessions_subid"] = data["test_sessions_subid"].str.replace("-", "")
+data["test_sessions_subid"] = data["test_sessions_subid"].map(
+    lambda s: "%s-%s-%s-%s" % (s[0], s[1:6], s[6], s[7])
+)
+
+# Create column with record ID
+data["record_id"] = data["test_sessions_subid"]
+for [index, row] in data.iterrows():
+    new_value = "%s-%s-%d" % (
+        row["test_sessions_subid"],
+        row["test_sessions_dotest"][0:10],
+        row["test_sessions_datasetid"],
+    )
+    data.at[index, "record_id"] = new_value
+
+# Drop the separate subject ID and test date columns so as to not overwrite corrected ones.
+data = data.drop(["test_sessions_subid", "test_sessions_dotest"], axis=1)
+
+# Mask for records which are already in redcap
+not_in_existing = data["record_id"].map(lambda x: x not in existing)
+
 
 if not args.import_all:
     # Remove all records that are already in REDCap
     # Filter out existing records
-    data = data[data["test_sessions_datasetid"].map(lambda x: x not in existing)]
+    data = data[not_in_existing]
 else:
     # ignore data sets that are set to complete (status = 2)
+    not_complete = data["record_id"].map(lambda x: 
+                                                  records_in_redcap.loc[
+                                                      records_in_redcap["record_id"] == x,
+                                                      "test_sessions_complete",
+                                                  ].values[0]
+                                                  != 2
+                                                  )
+    import pdb;pdb.set_trace()
     data = data[
-        data["test_sessions_datasetid"].map(
-            lambda x: x not in existing
-            or records_in_redcap.loc[
-                records_in_redcap["test_sessions_datasetid"] == x,
-                "test_sessions_complete",
-            ].values[0]
-            != 2
-        )
+        not_in_existing | not_complete
     ]
 
 # Anything left?
@@ -192,10 +225,6 @@ for sheet in list(cnp.instruments.keys()):
             sys.exit(1)
 
 
-# Copy originals into fields to preserve
-data["test_sessions_subid_orig"] = data["test_sessions_subid"].copy()
-data["test_sessions_dotest_orig"] = data["test_sessions_dotest"].copy()
-
 # Replace old default ("C") with new default ("C1")
 status_variables = [
     "mpract_status",
@@ -220,28 +249,6 @@ data[status_variables] = data[status_variables].apply(
     lambda x: x.str.replace(old_default, new_default, regex = True)
 )
 
-
-# Bring Subject ID into correct format and select appropriate prefix
-data["test_sessions_subid"] = data["test_sessions_subid"].map(
-    lambda s: "%s????????" % str(s)
-)
-data["test_sessions_subid"] = data["test_sessions_subid"].str.replace("-", "")
-data["test_sessions_subid"] = data["test_sessions_subid"].map(
-    lambda s: "%s-%s-%s-%s" % (s[0], s[1:6], s[6], s[7])
-)
-
-# Create column with record ID
-data["record_id"] = data["test_sessions_subid"]
-for [index, row] in data.iterrows():
-    new_value = "%s-%s-%d" % (
-        row["test_sessions_subid"],
-        row["test_sessions_dotest"][0:10],
-        row["test_sessions_datasetid"],
-    )
-    data.at[index, "record_id"] = new_value
-
-# Drop the separate subject ID and test date columns so as to not overwrite corrected ones.
-data = data.drop(["test_sessions_subid", "test_sessions_dotest"], axis=1)
 
 # Bring original "siteid" column back to assign each record to the correct data access group
 data["redcap_data_access_group"] = data["test_sessions_siteid"].map(lambda s: s.lower())
