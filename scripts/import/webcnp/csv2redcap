@@ -184,17 +184,17 @@ if not args.import_all:
     data = data[not_in_existing]
 else:
     # ignore data sets that are set to complete (status = 2)
-    not_complete = data["record_id"].map(lambda x: 
-                                                  records_in_redcap.loc[
-                                                      records_in_redcap["record_id"] == x,
-                                                      "test_sessions_complete",
-                                                  ].values[0]
-                                                  != 2
-                                                  )
-    import pdb;pdb.set_trace()
-    data = data[
-        not_in_existing | not_complete
-    ]
+    not_complete = data["record_id"].map(
+        lambda x: records_in_redcap.loc[
+            records_in_redcap["record_id"] == x,
+            "test_sessions_complete",
+        ].values[0]
+        != 2
+    )
+    import pdb
+
+    pdb.set_trace()
+    data = data[not_in_existing | not_complete]
 
 # Anything left?
 if not len(data) and args.verbose:
@@ -246,7 +246,7 @@ status_variables = [
 old_default = "^C$"
 new_default = "C1"
 data[status_variables] = data[status_variables].apply(
-    lambda x: x.str.replace(old_default, new_default, regex = True)
+    lambda x: x.str.replace(old_default, new_default, regex=True)
 )
 
 
