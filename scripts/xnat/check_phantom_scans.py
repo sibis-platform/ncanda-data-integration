@@ -172,7 +172,7 @@ def find_phantom_scan_24h(
 
 
 # Check one experiment for matching phantom scans
-def check_experiment(session, args, email, eid, experiment):
+def check_experiment(session, ifc, sibis_config, args, email, eid, experiment):
     expUtil = xnat_util.XNATSessionElementUtil(experiment)
     try:
         experiment_last_modified = expUtil.get("last_modified")
@@ -237,13 +237,17 @@ def check_experiment(session, args, email, eid, experiment):
                 )
                 return False
 
-            phantom_scans = ifc.array.experiments(
-                experiment_type="xnat:mrSessionData",
-                constraints={
-                    "xnat:mrSessionData/subject_id": phantom_id,
-                    "date": edate,
-                },
-            )
+            try:
+                phantom_scans = ifc.array.experiments(experiment_type='xnat:mrSessionData', constraints={ 'xnat:mrSessionData/subject_id':phantom_id, 'date': edate})
+            except Exception as e:
+                error=f"Failed to retrieve phantom scan with id {phantom_id} on {edate}."
+                slog.info(experiment_label,error,
+                          site_id=sid,
+                          project=prj,
+                          subject_experiment_id=seid,
+                          error_msg = str(e) )
+                return False
+
             # handle check for phantoms on the same day but wrong scanner
             eids = phantom_scans.get("ID", always_list=True)
             phantom_scanners = [
@@ -450,7 +454,7 @@ if __name__ == "__main__":
         # Do not change to True ! as xnat saves it as 'true'
         if experiment.fields.get("phantommissingoverride") != "true":
             count_phantom += 1
-            check_experiment(session, args, email, eid, experiment)
+            check_experiment(session, ifc, sibis_config, args, email, eid, experiment)
 
     if args.sendmail:
         email.send_all(ifc)
