@@ -191,9 +191,6 @@ else:
         ].values[0]
         != 2
     )
-    import pdb
-
-    pdb.set_trace()
     data = data[not_in_existing | not_complete]
 
 # Anything left?
