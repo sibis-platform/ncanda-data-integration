@@ -1483,7 +1483,7 @@ for (
                             project=project,
                             file=qc_file,
                             eid=eid,
-                            xnat_url = sibis_session.get_xnat_session_address(eid, 'html'),
+                            xnat_url = xnat_url,
                             error=str(err),
                         )
 
@@ -1497,7 +1497,7 @@ for (
                 project=project,
                 info="Most likely network problem",
                 eid=eid,
-                xnat_url = sibis_session.get_xnat_session_address(eid, 'html'),
+                xnat_url = xnat_url,
                 error=str(err_msg),
                 detail=traceback.format_exception(*info),
             )
