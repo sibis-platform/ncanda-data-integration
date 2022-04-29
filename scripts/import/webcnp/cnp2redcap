@@ -17,9 +17,11 @@ selected_args=""
 options=$(getopt -o pt:vh -- "$@" 2> /dev/null) ;
 eval set -- "$options"
 helpFlag=false
+verboseFlag=false
 while true; do
      case ${1} in
-         -p|-v) selected_args+="${1} " ;;
+         -p)  selected_args+="${1} " ;;
+	 -v)  selected_args+="${1} "; verboseFlag=true ;;
 	 -h)  selected_args+="${1} "; helpFlag=true ;;
          -t)  shift; selected_args+="-t ${1} " ;;
          --)  break;; 
@@ -44,6 +46,10 @@ fi
 #
 for csv in `cd ${tmpdir}; ls | fgrep .csv`; do
     cmd="${bindir}/csv2redcap ${selected_args} --import-all ${tmpdir}/${csv}"
+    if $verboseFlag; then
+	echo "$cmd"
+    fi
+    
     if ! $cmd; then
 	# if it fails with exit 1 than network connection is instable - stop loop so you do not get lots of these errors 
 	# generally only one file in the loop anyway
