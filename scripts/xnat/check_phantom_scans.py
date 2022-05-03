@@ -34,6 +34,7 @@ def find_phantom_scan_24h(
     prj,
     experiment_label,
     seid,
+    xnat_url,
     experiment_last_modified,
     phantom_id,
     edate,
@@ -125,6 +126,7 @@ def find_phantom_scan_24h(
                 error,
                 project_id=prj,
                 experiment_id=seid,
+                xnat_url=xnat_url,
                 experiment_date=edate,
                 search_range=[edate_yesterday,edate_tomorrow],
                 site_forward=dag,
@@ -172,7 +174,7 @@ def find_phantom_scan_24h(
 
 
 # Check one experiment for matching phantom scans
-def check_experiment(session, ifc, sibis_config, args, email, eid, experiment):
+def check_experiment(session, ifc, sibis_config, args, email, eid, xnat_url, experiment):
     expUtil = xnat_util.XNATSessionElementUtil(experiment)
     try:
         experiment_last_modified = expUtil.get("last_modified")
@@ -198,6 +200,7 @@ def check_experiment(session, ifc, sibis_config, args, email, eid, experiment):
             error,
             info="Please check if eid still exists in xnat. If not ignore error and otherwise run ./check_phantom_scans -e "
             + eid,
+            xnat_url=xnat_url
         )
         return False
 
@@ -266,6 +269,7 @@ def check_experiment(session, ifc, sibis_config, args, email, eid, experiment):
                     err,
                     phantom_experiment_id=eids,
                     experiment_xnat_id=seid,
+                    xnat_url=xnat_url,
                     project=prj,
                 )
             elif len(phantom_scans) == 0:
@@ -273,6 +277,7 @@ def check_experiment(session, ifc, sibis_config, args, email, eid, experiment):
                     prj,
                     experiment_label,
                     seid,
+                    xnat_url,
                     experiment_last_modified,
                     phantom_id,
                     edate,
@@ -290,6 +295,7 @@ def check_experiment(session, ifc, sibis_config, args, email, eid, experiment):
                 project=prj,
                 changed_sites_phantom=str(changed_sites_phantom),
                 subject_experiment_id=seid,
+                xnat_url=xnat_url,
                 info="Most likely entry missing for this visit in section 'check_phantom_scans' of file 'special_cases.yml'",
                 error_msg=str(e),
             )
@@ -438,6 +444,7 @@ if __name__ == "__main__":
         experiment_ids = list(ifc.select.experiments)
 
     for eid in experiment_ids:
+        xnat_url = session.get_xnat_session_address(eid, 'html')
         # For each experiment, see if the override variable is set. Otherwise check it
         try:
             experiment = ifc.select.experiments[eid]
@@ -447,6 +454,7 @@ if __name__ == "__main__":
                 "ERROR: failed to retrieve experiment from XNAT",
                 info="Please check if eid still exists in xnat. If not ignore error and otherwise run ./check_phantom_scans -e "
                 + eid,
+                xnat_url=xnat_url,
                 error_msg=str(e),
             )
             continue
@@ -454,7 +462,7 @@ if __name__ == "__main__":
         # Do not change to True ! as xnat saves it as 'true'
         if experiment.fields.get("phantommissingoverride") != "true":
             count_phantom += 1
-            check_experiment(session, ifc, sibis_config, args, email, eid, experiment)
+            check_experiment(session, ifc, sibis_config, args, email, eid, xnat_url, experiment)
 
     if args.sendmail:
         email.send_all(ifc)
@@ -473,6 +481,7 @@ if __name__ == "__main__":
             eid,
             "Warning: failed to update XNAT server location " + uri_addr,
             error_msg=str(e),
+            xnat_url=xnat_url,
             xnat_api_output=xnat_output,
         )
 
