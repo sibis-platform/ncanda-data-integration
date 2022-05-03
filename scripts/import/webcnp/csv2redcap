@@ -184,14 +184,14 @@ if not args.import_all:
     data = data[not_in_existing]
 else:
     # ignore data sets that are set to complete (status = 2)
-    not_complete = data["record_id"].map(
-        lambda x: records_in_redcap.loc[
+    not_in_exisitng_or_not_complete = data["record_id"].map(
+        lambda x: x not in existing or records_in_redcap.loc[
             records_in_redcap["record_id"] == x,
             "test_sessions_complete",
         ].values[0]
         != 2
     )
-    data = data[not_in_existing | not_complete]
+    data = data[not_in_existing_or_not_complete]
 
 # Anything left?
 if not len(data) and args.verbose:
