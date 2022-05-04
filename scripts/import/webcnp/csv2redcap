@@ -185,7 +185,8 @@ if not args.import_all:
 else:
     # ignore data sets that are set to complete (status = 2)
     not_in_existing_or_not_complete = data["record_id"].map(
-        lambda x: x not in existing or records_in_redcap.loc[
+        lambda x: x not in existing
+        or records_in_redcap.loc[
             records_in_redcap["record_id"] == x,
             "test_sessions_complete",
         ].values[0]
@@ -258,7 +259,7 @@ data["redcap_data_access_group"] = data["redcap_data_access_group"].str.replace(
 uploaded = 0
 for [key, row] in data.iterrows():
     record = dict(row.dropna())
-       
+
     # Upload new data to REDCap
     import_response = session.redcap_import_record_to_api(
         [record], None, "csv2redcap-import"
