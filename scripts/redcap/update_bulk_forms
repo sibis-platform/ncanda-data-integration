@@ -24,6 +24,20 @@ import math
 # Functions
 #
 
+# Compute clinical "Complete" status of a record based on component status values
+# note we use a different logic than for bulk status for a reason
+# as missing forms do not define overall status
+def compute_clinical_complete_status(row, field_names, form_complete_field):
+    status=""
+    for field in field_names:
+        if not math.isnan(float(row[field])) :
+            if status == "" :
+               status = row[field]
+            elif  row[field] < status:
+                status = row[field]
+                
+    return status
+
 # Compute the bulk "Complete" status of a record based on component status values
 def compute_bulk_status(row, field_names, form_complete_field):
     status = None
@@ -51,11 +65,12 @@ def process_form(form, complete_field_names, study_id, event):
         print("Processing events", events_this_form)
 
     # Get fields for applicable events
+    redcap_fields=[form_complete_field] + complete_field_names + ['visit_ignore','visit_date']
     try:
         if study_id:
             records = rc_entry.export_records(
                 events=events_this_form,
-                fields=[form_complete_field] + complete_field_names,
+                fields=redcap_fields,
                 event_name="unique",
                 format="df",
                 df_kwargs={
@@ -67,7 +82,7 @@ def process_form(form, complete_field_names, study_id, event):
         else:
             records = rc_entry.export_records(
                 events=events_this_form,
-                fields=[form_complete_field] + complete_field_names,
+                fields=redcap_fields,
                 event_name="unique",
                 format="df",
                 df_kwargs={
@@ -81,7 +96,7 @@ def process_form(form, complete_field_names, study_id, event):
             "ERROR: Exporting records failed",
             script="update_bulk_forms",
             events=events_this_form,
-            fields=[form_complete_field] + complete_field_names,
+            fields=redcap_fields,
             index_col=str([rc_entry.def_field, "redcap_event_name"]),
             msg=str(e),
         )
@@ -89,6 +104,9 @@ def process_form(form, complete_field_names, study_id, event):
 
     # only do it if you have any records
     if records.empty:
+        if args.verbose :
+            print("INFO: no record found!")
+                  
         return [], []
 
     # Set subforms of complete forms complete
@@ -102,14 +120,37 @@ def process_form(form, complete_field_names, study_id, event):
         # Unless we force complete update, drop already-Complete records for speed
         if not args.update_all:
             records = records[records[form_complete_field].map(str) != "2"]
+            
+        # Dump all records that are from missing visits
+        # otherwise you will at each run update the record further below as old record of complete statys is always 0 and new one '' 
+        records = records[records['visit_ignore___yes'].map(str) == "0"]
+        records = records[records['visit_date'].map(str) != "nan"]
+
+        if records.empty:
+            if args.verbose :
+                print("INFO: no record found that needs updating!")
+                  
+                return [], []
+    
+        # if record['visit_ignore___yes'] == 1 or  str(record['visit_date']).lower() == 'nan'  :
 
         previous = records[[form_complete_field]]
 
-        records[form_complete_field] = records.apply(
-            compute_bulk_status,
-            axis=1,
-            args=(complete_field_names, form_complete_field),
-        )
+        if form == "clinical":
+            records[form_complete_field] = records.apply(
+                compute_clinical_complete_status,
+                axis=1,
+                args=(complete_field_names, form_complete_field),
+            )
+            
+        else :
+            records[form_complete_field] = records.apply(
+                compute_bulk_status,
+                axis=1,
+                args=(complete_field_names, form_complete_field),
+            )
+
+            
         # Dump all records where bulk status is unchanged - no need to upload these
         select_records = records[form_complete_field] != previous[form_complete_field]
         records = records[select_records]
@@ -257,13 +298,18 @@ for form in forms_list:
             form_status_out, old_form_status_out = process_form(
                 form, complete_field_names, args.study_id, event
             )
+
             if len(form_status_out) == 0:
+                # Nothing to update so go to next event
                 continue
 
             form_status = pandas.DataFrame(form_status_out)
             if args.no_upload:
-                form_status.to_csv(args.no_upload + "-" + form + ".csv")
-
+                csvFile=args.no_upload + "-" + form + "-" + event + ".csv"
+                if args.verbose :
+                   print("INFO:writing to",csvFile)
+                    
+                form_status.to_csv(csvFile)
             else:
                 try:
                     import_response = rc_entry.import_records(

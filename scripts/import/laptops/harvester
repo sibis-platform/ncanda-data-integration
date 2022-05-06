@@ -46,7 +46,7 @@ parser.add_argument("--force-upload",
                          "same name already exists.",
                     action="store_true")
 parser.add_argument("--file-to-upload",
-                    help="Absolute file path for path to CSV file.")
+                    help="Absolute file path to txt file.")
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true",
                     default=False)
 parser.add_argument("--only-converter-post-to-github", help="Do not double post issues to GitHub that are produced by commands called during conversion..", action="store_true", default=False)
@@ -287,6 +287,9 @@ def handle_file(path, site, filename, verbose, infer_dag=False):
         # Only perform eprime2 redcap if anything was processed 
         if filesProcessed > 0 : 
             eprime_cmd = [os.path.join(bindir, "eprime2redcap"), path, 'stroop_log_file']
+            if verbose:
+                print("Running", ' '.join(eprime_cmd))
+                
             try:
                 subprocess.check_output(eprime_cmd)
             except:

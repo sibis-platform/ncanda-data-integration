@@ -51,7 +51,7 @@ fi
 catch_output_email "${SCRIPT_LABEL}:REDCap: Update Form Status (update_bulk_forms)" ${SIBIS}/scripts/redcap/update_bulk_forms -p -t ${LOG_DIR}
 
 # TODO: Remove the `-e` argument once SRI cleans up its issues from past years
-catch_output_email "${SCRIPT_LABEL}:REDCap: Date-event associations (wrong_date_association)" ${SIBIS}/scripts/redcap/wrong_date_associations.py -p -q -t ${LOG_DIR} -e {7,8,9}y_visit_arm_1
+catch_output_email "${SCRIPT_LABEL}:REDCap: Date-event associations (wrong_date_association)" ${SIBIS}/scripts/redcap/wrong_date_associations.py -p -q -e {7,8,9}y_visit_arm_1
 
 #
 # Previouly front-nighlty
@@ -70,7 +70,7 @@ if [ ${IMAGE_PROCESS_FLAG} == 1 ]; then
   # --qc-csv ${SIBIS_ANALYSIS_DIR}/beta/image-qc/scan_qc.csv
 
   # Check whether any MR sessions are missing corresponding phantom scans
-  catch_output_email "${SCRIPT_LABEL}:XNAT: Check Phantom Scan (check_phantom_scans)" ${SIBIS}/scripts/xnat/check_phantom_scans --check-all -p -t ${LOG_DIR}
+  catch_output_email "${SCRIPT_LABEL}:XNAT: Check Phantom Scan (check_phantom_scans)" ${SIBIS}/scripts/xnat/check_phantom_scans.py --check-all -p -t ${LOG_DIR}
 
   # Run fMRI QA on subjects ## Currently disabled because it isn't looked at but takes a long time to run
   ##catch_output_email "XNAT: Subject fMRI QA Messages" ${SIBIS}/scripts/xnat/fmri_qa_subjects
