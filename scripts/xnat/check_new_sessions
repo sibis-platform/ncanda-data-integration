@@ -20,7 +20,6 @@ import datetime
 import yaml
 import hashlib
 import bisect
-import pandas as pd
 import pathlib
 import traceback
 from typing import List
@@ -32,6 +31,7 @@ from sibispy.xnat_util import XNATSessionElementUtil, XNATExperimentUtil
 import make_session_niftis
 
 import upload_visual_qc
+from .miqa_file_generation import convert_qc_csv
 
 # ============================================================
 # Definitions
@@ -809,188 +809,6 @@ def write_scans_to_file(
     return True
 
 
-def convert_qc_csv(filename: str, new_filename: str, verbose: bool = False):
-    """Convert the old Girder QC CSV format to the new CSV format."""
-    source_file = os.path.join(log_dir, filename)
-    target_file = os.path.join(log_dir, new_filename)
-    if not pathlib.Path(source_file).exists():
-        if verbose:
-            print(f"{source_file} does not exist.")
-        return
-    if not source_file.endswith(".csv"):
-        if verbose:
-            print(f"{source_file} is not a CSV file.")
-        return
-    df = pd.read_csv(source_file, dtype=str)
-    expected_columns = [
-        "xnat_experiment_id",
-        "nifti_folder",
-        "scan_id",
-        "scan_type",
-        "experiment_note",
-        "decision",
-        "scan_note",
-    ]
-    if len(df.columns) != len(expected_columns) or any(df.columns != expected_columns):
-        if verbose:
-            print(
-                f"{source_file} is not congruent with the old"
-                f" MIQA import format. Expected columns {str(expected_columns)} but recieved {str(df.columns)}."
-            )
-        return
-
-    project_name_pattern = re.compile("([a-z]+)_incoming")
-    new_rows = []
-    for _index, row in df.iterrows():
-        match = project_name_pattern.search(row["nifti_folder"])
-        if match:
-            project_name = match.group(1).upper()
-        else:
-            project_name = "unknown"
-        # last decision metadata is stored in the scan_note field like this:
-        # "{note} {creator} {created}"
-        try:
-            scan_note = row["scan_note"].split(" ")
-            note = " ".join(scan_note[:-3])
-            creator = scan_note[-3]
-            created = f"{scan_note[-2]} {scan_note[-1]}".strip()
-            print(f"decomposed {scan_note} into [{note}, {creator}, {created}]")
-        except Exception:
-            # Use empty fields if the scan_note is not parseable
-            note = ""
-            creator = ""
-            created = ""
-        new_rows.append(
-            [
-                project_name,  # project_name
-                row["xnat_experiment_id"],  # experiment_name
-                f"{row['xnat_experiment_id']}_{row['scan_type']}",  # scan_name
-                row["scan_type"],  # scan_type
-                row["scan_id"],  # frame_number
-                str(
-                    pathlib.Path(
-                        row["nifti_folder"],
-                        f"{row['scan_id']}_{row['scan_type']}",
-                        "image.nii.gz",
-                    )
-                ),  # file_location
-                row["experiment_note"],  # experiment_notes
-                # TODO populate these correctly
-                "",  # subject_id
-                "",  # session_id
-                "",  # scan_link
-                row["decision"],  # last_decision
-                creator,  # last_decision_creator
-                note,  # last_decision_note
-                created,  # last_decision_created
-                "",  # identified_artifacts
-                "",  # location_of_interest
-            ]
-        )
-    new_df = pd.DataFrame(
-        new_rows,
-        columns=[
-            "project_name",
-            "experiment_name",
-            "scan_name",
-            "scan_type",
-            "frame_number",
-            "file_location",
-            "experiment_notes",
-            "subject_id",
-            "session_id",
-            "scan_link",
-            "last_decision",
-            "last_decision_creator",
-            "last_decision_note",
-            "last_decision_created",
-            "identified_artifacts",
-            "location_of_interest",
-        ],
-    )
-    new_df.to_csv(target_file, index=False)
-    if verbose:
-        print(f"Wrote converted CSV to {target_file}.")
-
-
-def deconvert_qc_csv(filename: str, new_filename: str, verbose: bool = False):
-    """Convert the new CSV format to the old Girder QC CSV format."""
-    source_file = os.path.join(log_dir, filename)
-    target_file = os.path.join(log_dir, new_filename)
-    if not pathlib.Path(source_file).exists():
-        if verbose:
-            print(f"{source_file} does not exist.")
-        return
-    if not source_file.endswith(".csv"):
-        if verbose:
-            print(f"{source_file} is not a CSV file.")
-        return
-    df = pd.read_csv(source_file, dtype=str, na_filter=False)
-    expected_columns = [
-        "project_name",
-        "experiment_name",
-        "scan_name",
-        "scan_type",
-        "frame_number",
-        "file_location",
-        "experiment_notes",
-        "subject_id",
-        "session_id",
-        "scan_link",
-        "last_decision",
-        "last_decision_creator",
-        "last_decision_note",
-        "last_decision_created",
-        "identified_artifacts",
-        "location_of_interest",
-    ]
-    if len(df.columns) > len(expected_columns) or any(df.columns != expected_columns):
-        breakpoint()
-        if verbose:
-            print(
-                f"{source_file} is not congruent with the new"
-                f" MIQA import format. Expected columns {str(expected_columns)} but recieved {str(df.columns)}."
-            )
-        return
-
-    new_rows = []
-    for _index, row in df.iterrows():
-        # Remove the experiment and scan directories from the file_location to extract the nifti_folder
-        nifti_folder = "/".join(row["file_location"].split("/")[:-2])
-        # last decision metadata is stored in the scan_note field
-        creator = row["last_decision_creator"]
-        created = row["last_decision_created"]
-        note = row["last_decision_note"]
-        scan_note = f"{note} {creator} {created}"
-        print(f"composing {note} {creator} {created} into {scan_note}")
-        new_rows.append(
-            [
-                row["experiment_name"],  # xnat_experiment_id
-                nifti_folder,  # nifti_folder
-                row["frame_number"],  # scan_id
-                row["scan_type"],  # scan_type
-                row["experiment_notes"],  # experiment_note
-                row["last_decision"],  # decision
-                scan_note,  # scan_note
-            ]
-        )
-    new_df = pd.DataFrame(
-        new_rows,
-        columns=[
-            "xnat_experiment_id",
-            "nifti_folder",
-            "scan_id",
-            "scan_type",
-            "experiment_note",
-            "decision",
-            "scan_note",
-        ],
-    )
-    new_df.to_csv(target_file, index=False)
-    if verbose:
-        print(f"Wrote deconverted CSV to {target_file}.")
-
-
 # ============================================================
 # Main
 # ============================================================
@@ -1130,11 +948,6 @@ with open(os.path.join(sibis_config, "special_cases.yml"), "r") as fi:
 
 # Date format for XNAT dates
 now_str = time.strftime(xnat_date_format)
-
-# If using the new MIQA installation, convert the v2 CSVs back into the original Girder CSV format
-if args.qc_csv_v2:
-    deconvert_qc_csv("scans_to_review_v2.csv", "scans_to_review.csv", args.verbose)
-    deconvert_qc_csv("scans_to_question_v2.csv", "scans_to_question.csv", args.verbose)
 
 # Upload new QC results
 qc_file = os.path.join(log_dir, "scans_to_review.csv")
@@ -1861,8 +1674,18 @@ if args.qc_csv or args.qc_csv_v2:
     write_scans_to_file(scans_to_question, "scans_to_question.csv", args.verbose)
 
 if args.qc_csv_v2:
-    convert_qc_csv("scans_to_review.csv", "scans_to_review_v2.csv", args.verbose)
-    convert_qc_csv("scans_to_question.csv", "scans_to_question_v2.csv", args.verbose)
+    convert_qc_csv(
+        "scans_to_review.csv",
+        "scans_to_review_v2.csv",
+        log_dir,
+        args.verbose,
+    )
+    convert_qc_csv(
+        "scans_to_question.csv",
+        "scans_to_question_v2.csv",
+        log_dir,
+        args.verbose,
+    )
 
 
 # Finally, update config stored on the server to have current date/time as the
