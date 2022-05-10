@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 ##
-##  See COPYING file distributed along with the ncanda-data-integration package
-##  for the copyright and license terms
+#  See COPYING file distributed along with the ncanda-data-integration package
+#  for the copyright and license terms
 ##
 
 from __future__ import print_function
@@ -12,7 +12,6 @@ from builtins import str
 from collections import defaultdict
 import os
 import re
-import csv
 import sys
 import glob
 import time
@@ -24,7 +23,7 @@ import bisect
 import pandas as pd
 import pathlib
 import traceback
-from typing import List, NoReturn
+from typing import List
 
 import sibispy
 from sibispy import sibislogger as slog
@@ -208,6 +207,7 @@ physio = [
 # Functions
 # ============================================================
 
+
 # checking if the sites have sent physiology data
 def check_physio(experiment, ifc, eid, xnat_url):
     try:
@@ -300,7 +300,7 @@ def check_dti(
                     xnat_para.append(scan)
                     parameters += [xnat_para]
 
-                except Exception as err_msg:
+                except Exception:
                     errors.append("could not retrieve scan parameters for " + scan_dir)
 
     if len(parameters) > 1:
@@ -338,7 +338,7 @@ def check_for_phantom(label):
 
 
 def incomplete_scan_check(
-        experiment, manufacturer, session_label, eid, xnat_url, scan_types, missing_scan_map
+    experiment, manufacturer, session_label, eid, xnat_url, scan_types, missing_scan_map
 ):
     missing_scans = []
     scan_types_set = set(scan_types)
@@ -588,7 +588,7 @@ def image_check(experiment, session_dir, manufacturer, scan_list):
         scan_type = experiment.scans[scan_id].get("type")
 
         # Nothing to do
-        if not scan_type in list(expected_images[manufacturer].keys()):
+        if scan_type not in list(expected_images[manufacturer].keys()):
             continue
 
         imgrange = expected_images[manufacturer][scan_type]
@@ -624,7 +624,7 @@ def mri_quality_check(
     # only use first part of string so GE Manufacturer is turned into GE
     # manufacturer_u = manufacturer.split(' ',1)[0].upper()
 
-    if not manufacturer in list(expected_images.keys()):
+    if manufacturer not in list(expected_images.keys()):
         error_msg = "ERR: Manufacturer " + manufacturer + " unknown"
         slog.info(
             session_label,
@@ -846,7 +846,7 @@ def convert_qc_csv(filename: str, new_filename: str, verbose: bool = False):
         if match:
             project_name = match.group(1).upper()
         else:
-            project_name = 'unknown'
+            project_name = "unknown"
         # last decision metadata is stored in the scan_note field like this:
         # "{note} {creator} {created}"
         try:
@@ -854,37 +854,37 @@ def convert_qc_csv(filename: str, new_filename: str, verbose: bool = False):
             note = " ".join(scan_note[:-3])
             creator = scan_note[-3]
             created = f"{scan_note[-2]} {scan_note[-1]}".strip()
-            print(f'decomposed {scan_note} into [{note}, {creator}, {created}]')
-        except:
+            print(f"decomposed {scan_note} into [{note}, {creator}, {created}]")
+        except Exception:
             # Use empty fields if the scan_note is not parseable
             note = ""
             creator = ""
             created = ""
         new_rows.append(
             [
-                project_name, # project_name
-                row["xnat_experiment_id"], # experiment_name
-                f"{row['xnat_experiment_id']}_{row['scan_type']}", # scan_name
-                row["scan_type"], # scan_type
-                row["scan_id"], # frame_number
+                project_name,  # project_name
+                row["xnat_experiment_id"],  # experiment_name
+                f"{row['xnat_experiment_id']}_{row['scan_type']}",  # scan_name
+                row["scan_type"],  # scan_type
+                row["scan_id"],  # frame_number
                 str(
                     pathlib.Path(
                         row["nifti_folder"],
                         f"{row['scan_id']}_{row['scan_type']}",
                         "image.nii.gz",
                     )
-                ), # file_location
-                row["experiment_note"], # experiment_notes
+                ),  # file_location
+                row["experiment_note"],  # experiment_notes
                 # TODO populate these correctly
-                "", # subject_id
-                "", # session_id
-                "", # scan_link
-                row["decision"], # last_decision
-                creator, # last_decision_creator
-                note, # last_decision_note
-                created, # last_decision_created
-                "", # identified_artifacts
-                "", # location_of_interest
+                "",  # subject_id
+                "",  # session_id
+                "",  # scan_link
+                row["decision"],  # last_decision
+                creator,  # last_decision_creator
+                note,  # last_decision_note
+                created,  # last_decision_created
+                "",  # identified_artifacts
+                "",  # location_of_interest
             ]
         )
     new_df = pd.DataFrame(
@@ -962,16 +962,16 @@ def deconvert_qc_csv(filename: str, new_filename: str, verbose: bool = False):
         created = row["last_decision_created"]
         note = row["last_decision_note"]
         scan_note = f"{note} {creator} {created}"
-        print(f'composing {note} {creator} {created} into {scan_note}')
+        print(f"composing {note} {creator} {created} into {scan_note}")
         new_rows.append(
             [
-                row["experiment_name"], # xnat_experiment_id
-                nifti_folder, # nifti_folder
-                row["frame_number"], # scan_id
-                row["scan_type"], # scan_type
-                row["experiment_notes"], # experiment_note
-                row["last_decision"], # decision
-                scan_note, # scan_note
+                row["experiment_name"],  # xnat_experiment_id
+                nifti_folder,  # nifti_folder
+                row["frame_number"],  # scan_id
+                row["scan_type"],  # scan_type
+                row["experiment_notes"],  # experiment_note
+                row["last_decision"],  # decision
+                scan_note,  # scan_note
             ]
         )
     new_df = pd.DataFrame(
@@ -989,6 +989,7 @@ def deconvert_qc_csv(filename: str, new_filename: str, verbose: bool = False):
     new_df.to_csv(target_file, index=False)
     if verbose:
         print(f"Wrote deconverted CSV to {target_file}.")
+
 
 # ============================================================
 # Main
@@ -1132,8 +1133,8 @@ now_str = time.strftime(xnat_date_format)
 
 # If using the new MIQA installation, convert the v2 CSVs back into the original Girder CSV format
 if args.qc_csv_v2:
-    deconvert_qc_csv('scans_to_review_v2.csv', 'scans_to_review.csv', args.verbose)
-    deconvert_qc_csv('scans_to_question_v2.csv', 'scans_to_question.csv', args.verbose)
+    deconvert_qc_csv("scans_to_review_v2.csv", "scans_to_review.csv", args.verbose)
+    deconvert_qc_csv("scans_to_question_v2.csv", "scans_to_question.csv", args.verbose)
 
 # Upload new QC results
 qc_file = os.path.join(log_dir, "scans_to_review.csv")
@@ -1195,7 +1196,7 @@ if not args.check_all:
                 "Re-checking %d previously flagged experiments"
                 % len(experiments_to_check)
             )
-    except:
+    except Exception:
         # If we cannot get last script run date from server, leave at epoch
         # (Jan 1, 1970)
         if args.verbose:
@@ -1238,7 +1239,9 @@ for eid in experiments_to_check:
         previous_sessions.append(this_session[0])
     else:
         error = "WARNING: flagged session appears to have disappeared."
-        slog.info(eid, error, xnat_url=sibis_session.get_xnat_session_address(eid, 'html'))
+        slog.info(
+            eid, error, xnat_url=sibis_session.get_xnat_session_address(eid, "html")
+        )
 
 # All sessions to check - previously flagged plus updated
 sessions_to_check = sorted(
@@ -1281,7 +1284,7 @@ if args.restart:
 
     def _filter_fun(ses):
         global restart
-        if restart == False and ses[0] == args.restart:
+        if not restart and ses[0] == args.restart:
             restart = True
         return restart
 
@@ -1305,7 +1308,7 @@ for (
     session_label,
     last_modified,
 ) in sessions_to_check:
-    xnat_url = sibis_session.get_xnat_session_address(eid, 'html'),
+    xnat_url = (sibis_session.get_xnat_session_address(eid, "html"),)
     index += 1
     if args.check_all:
         print("==== ", index, eid)
@@ -1600,7 +1603,7 @@ for (
                             project=project,
                             file=qc_file,
                             eid=eid,
-                            xnat_url = xnat_url,
+                            xnat_url=xnat_url,
                             error=str(err),
                         )
 
@@ -1614,7 +1617,7 @@ for (
                 project=project,
                 info="Most likely network problem",
                 eid=eid,
-                xnat_url = xnat_url,
+                xnat_url=xnat_url,
                 error=str(err_msg),
                 detail=traceback.format_exception(*info),
             )
@@ -1633,12 +1636,13 @@ for (
     # Reformat scan_errors returned from mri_quality_check
     def exclude_keys(d, keys):
         return {x: d[x] for x in d if x not in keys}
+
     def dict_to_string(d):
         string = ""
         for key in d:
             string += key + ":  " + d[key] + "  "
         return string
-    
+
     keys_to_exclude = ["scan_id", "scan_type", "manufacturer"]
     errors_by_scan = defaultdict(str)
     for error in scan_errors:
