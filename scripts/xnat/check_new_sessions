@@ -1132,8 +1132,8 @@ now_str = time.strftime(xnat_date_format)
 
 # If using the new MIQA installation, convert the v2 CSVs back into the original Girder CSV format
 if args.qc_csv_v2:
-    deconvert_qc_csv('scans_to_review_v2.csv', 'scans_to_review.csv', args.verbose)
-    deconvert_qc_csv('scans_to_question_v2.csv', 'scans_to_question.csv', args.verbose)
+    deconvert_qc_csv('scans_to_review_v2.csv', 'scans_to_review_deconverted.csv', args.verbose)
+    deconvert_qc_csv('scans_to_question_v2.csv', 'scans_to_question_deconverted.csv', args.verbose)
 
 # Upload new QC results
 qc_file = os.path.join(log_dir, "scans_to_review.csv")
