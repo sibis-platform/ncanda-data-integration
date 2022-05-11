@@ -1703,7 +1703,7 @@ if args.qc_json:
     )
     write_miqa_import_file(
         "scans_to_question.csv",
-        "scans_to_question_v2.csv",
+        "scans_to_question_v2.json",
         log_dir,
         args.verbose,
         format=MIQAFileFormat.JSON,
