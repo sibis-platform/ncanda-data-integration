@@ -31,7 +31,7 @@ from sibispy.xnat_util import XNATSessionElementUtil, XNATExperimentUtil
 import make_session_niftis
 
 import upload_visual_qc
-from .miqa_file_generation import write_miqa_import_file, MIQAFileFormat
+import miqa_file_generation
 
 # ============================================================
 # Definitions
@@ -1679,13 +1679,13 @@ if args.qc_csv or args.qc_csv_v2:
     write_scans_to_file(scans_to_question, "scans_to_question.csv", args.verbose)
 
 if args.qc_csv_v2:
-    write_miqa_import_file(
+    miqa_file_generation.write_miqa_import_file(
         "scans_to_review.csv",
         "scans_to_review_v2.csv",
         log_dir,
         args.verbose,
     )
-    write_miqa_import_file(
+    miqa_file_generation.write_miqa_import_file(
         "scans_to_question.csv",
         "scans_to_question_v2.csv",
         log_dir,
@@ -1694,19 +1694,19 @@ if args.qc_csv_v2:
 
 # Or a QC json file
 if args.qc_json:
-    write_miqa_import_file(
+    miqa_file_generation.write_miqa_import_file(
         "scans_to_review.csv",
         "scans_to_review_v2.csv",
         log_dir,
         args.verbose,
-        format=MIQAFileFormat.JSON,
+        format=miqa_file_generation.MIQAFileFormat.JSON,
     )
-    write_miqa_import_file(
+    miqa_file_generation.write_miqa_import_file(
         "scans_to_question.csv",
         "scans_to_question_v2.json",
         log_dir,
         args.verbose,
-        format=MIQAFileFormat.JSON,
+        format=miqa_file_generation.MIQAFileFormat.JSON,
     )
 
 
