@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 ##
-##  See COPYING file distributed along with the ncanda-data-integration package
-##  for the copyright and license terms
+#  See COPYING file distributed along with the ncanda-data-integration package
+#  for the copyright and license terms
 ##
 
 from __future__ import print_function
@@ -12,7 +12,6 @@ from builtins import str
 from collections import defaultdict
 import os
 import re
-import csv
 import sys
 import glob
 import time
@@ -21,10 +20,9 @@ import datetime
 import yaml
 import hashlib
 import bisect
-import pandas as pd
 import pathlib
 import traceback
-from typing import List, NoReturn
+from typing import List
 
 import sibispy
 from sibispy import sibislogger as slog
@@ -33,6 +31,7 @@ from sibispy.xnat_util import XNATSessionElementUtil, XNATExperimentUtil
 import make_session_niftis
 
 import upload_visual_qc
+from .miqa_file_generation import write_miqa_import_file, MIQAFileFormat
 
 # ============================================================
 # Definitions
@@ -208,6 +207,7 @@ physio = [
 # Functions
 # ============================================================
 
+
 # checking if the sites have sent physiology data
 def check_physio(experiment, ifc, eid, xnat_url):
     try:
@@ -300,7 +300,7 @@ def check_dti(
                     xnat_para.append(scan)
                     parameters += [xnat_para]
 
-                except Exception as err_msg:
+                except Exception:
                     errors.append("could not retrieve scan parameters for " + scan_dir)
 
     if len(parameters) > 1:
@@ -338,7 +338,7 @@ def check_for_phantom(label):
 
 
 def incomplete_scan_check(
-        experiment, manufacturer, session_label, eid, xnat_url, scan_types, missing_scan_map
+    experiment, manufacturer, session_label, eid, xnat_url, scan_types, missing_scan_map
 ):
     missing_scans = []
     scan_types_set = set(scan_types)
@@ -588,7 +588,7 @@ def image_check(experiment, session_dir, manufacturer, scan_list):
         scan_type = experiment.scans[scan_id].get("type")
 
         # Nothing to do
-        if not scan_type in list(expected_images[manufacturer].keys()):
+        if scan_type not in list(expected_images[manufacturer].keys()):
             continue
 
         imgrange = expected_images[manufacturer][scan_type]
@@ -624,7 +624,7 @@ def mri_quality_check(
     # only use first part of string so GE Manufacturer is turned into GE
     # manufacturer_u = manufacturer.split(' ',1)[0].upper()
 
-    if not manufacturer in list(expected_images.keys()):
+    if manufacturer not in list(expected_images.keys()):
         error_msg = "ERR: Manufacturer " + manufacturer + " unknown"
         slog.info(
             session_label,
@@ -809,75 +809,6 @@ def write_scans_to_file(
     return True
 
 
-def convert_qc_csv(filename: str, new_filename: str, verbose: bool = False):
-    source_file = os.path.join(log_dir, filename)
-    target_file = os.path.join(log_dir, new_filename)
-    if not pathlib.Path(source_file).exists():
-        if verbose:
-            print(f"{source_file} does not exist.")
-        return
-    if not source_file.endswith(".csv"):
-        if verbose:
-            print(f"{source_file} is not a CSV file.")
-        return
-    df = pd.read_csv(source_file, dtype=str)
-    expected_columns = [
-        "xnat_experiment_id",
-        "nifti_folder",
-        "scan_id",
-        "scan_type",
-        "experiment_note",
-        "decision",
-        "scan_note",
-    ]
-    if len(df.columns) != len(expected_columns) or any(df.columns != expected_columns):
-        if verbose:
-            print(
-                f"{source_file} is not congruent with the old"
-                f" MIQA import format. Expected columns {str(expected_columns)} but recieved {str(df.columns)}."
-            )
-        return
-
-    project_name_pattern = re.compile("([a-z]+)_incoming")
-    new_rows = []
-    for _index, row in df.iterrows():
-        match = project_name_pattern.search(row["nifti_folder"])
-        if match:
-            project_name = match.group(1).upper()
-        else:
-            project_name = "unknown"
-        new_rows.append(
-            [
-                project_name,
-                row["xnat_experiment_id"],
-                f"{row['scan_id']}_{row['scan_type']}",
-                row["scan_type"],
-                row["scan_id"],
-                str(
-                    pathlib.Path(
-                        row["nifti_folder"],
-                        f"{row['scan_id']}_{row['scan_type']}",
-                        "image.nii.gz",
-                    )
-                ),
-            ]
-        )
-    new_df = pd.DataFrame(
-        new_rows,
-        columns=[
-            "project_name",
-            "experiment_name",
-            "scan_name",
-            "scan_type",
-            "frame_number",
-            "file_location",
-        ],
-    )
-    new_df.to_csv(target_file, index=False)
-    if verbose:
-        print(f"Wrote converted CSV to {target_file}.")
-
-
 # ============================================================
 # Main
 # ============================================================
@@ -935,6 +866,11 @@ parser.add_argument(
 parser.add_argument(
     "--qc-csv-v2",
     help="Write scans to qc to a csv file in the new format.",
+    action="store_true",
+)
+parser.add_argument(
+    "--qc-json",
+    help="Write scans to qc to a json file.",
     action="store_true",
 )
 parser.add_argument(
@@ -1078,7 +1014,7 @@ if not args.check_all:
                 "Re-checking %d previously flagged experiments"
                 % len(experiments_to_check)
             )
-    except:
+    except Exception:
         # If we cannot get last script run date from server, leave at epoch
         # (Jan 1, 1970)
         if args.verbose:
@@ -1121,7 +1057,9 @@ for eid in experiments_to_check:
         previous_sessions.append(this_session[0])
     else:
         error = "WARNING: flagged session appears to have disappeared."
-        slog.info(eid, error, xnat_url=sibis_session.get_xnat_session_address(eid, 'html'))
+        slog.info(
+            eid, error, xnat_url=sibis_session.get_xnat_session_address(eid, "html")
+        )
 
 # All sessions to check - previously flagged plus updated
 sessions_to_check = sorted(
@@ -1164,7 +1102,7 @@ if args.restart:
 
     def _filter_fun(ses):
         global restart
-        if restart == False and ses[0] == args.restart:
+        if not restart and ses[0] == args.restart:
             restart = True
         return restart
 
@@ -1188,7 +1126,7 @@ for (
     session_label,
     last_modified,
 ) in sessions_to_check:
-    xnat_url = sibis_session.get_xnat_session_address(eid, 'html'),
+    xnat_url = (sibis_session.get_xnat_session_address(eid, "html"),)
     index += 1
     if args.check_all:
         print("==== ", index, eid)
@@ -1483,7 +1421,7 @@ for (
                             project=project,
                             file=qc_file,
                             eid=eid,
-                            xnat_url = xnat_url,
+                            xnat_url=xnat_url,
                             error=str(err),
                         )
 
@@ -1497,7 +1435,7 @@ for (
                 project=project,
                 info="Most likely network problem",
                 eid=eid,
-                xnat_url = xnat_url,
+                xnat_url=xnat_url,
                 error=str(err_msg),
                 detail=traceback.format_exception(*info),
             )
@@ -1516,12 +1454,13 @@ for (
     # Reformat scan_errors returned from mri_quality_check
     def exclude_keys(d, keys):
         return {x: d[x] for x in d if x not in keys}
+
     def dict_to_string(d):
         string = ""
         for key in d:
             string += key + ":  " + d[key] + "  "
         return string
-    
+
     keys_to_exclude = ["scan_id", "scan_type", "manufacturer"]
     errors_by_scan = defaultdict(str)
     for error in scan_errors:
@@ -1740,8 +1679,35 @@ if args.qc_csv or args.qc_csv_v2:
     write_scans_to_file(scans_to_question, "scans_to_question.csv", args.verbose)
 
 if args.qc_csv_v2:
-    convert_qc_csv("scans_to_review.csv", "scans_to_review_v2.csv", args.verbose)
-    convert_qc_csv("scans_to_question.csv", "scans_to_question_v2.csv", args.verbose)
+    write_miqa_import_file(
+        "scans_to_review.csv",
+        "scans_to_review_v2.csv",
+        log_dir,
+        args.verbose,
+    )
+    write_miqa_import_file(
+        "scans_to_question.csv",
+        "scans_to_question_v2.csv",
+        log_dir,
+        args.verbose,
+    )
+
+# Or a QC json file
+if args.qc_json:
+    write_miqa_import_file(
+        "scans_to_review.csv",
+        "scans_to_review_v2.csv",
+        log_dir,
+        args.verbose,
+        format=MIQAFileFormat.JSON,
+    )
+    write_miqa_import_file(
+        "scans_to_question.csv",
+        "scans_to_question_v2.json",
+        log_dir,
+        args.verbose,
+        format=MIQAFileFormat.JSON,
+    )
 
 
 # Finally, update config stored on the server to have current date/time as the
