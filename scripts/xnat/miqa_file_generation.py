@@ -58,7 +58,6 @@ def convert_dataframe_to_new_format(df, verbose=False):
             note = " ".join(scan_note[:-3])
             creator = scan_note[-3]
             created = f"{scan_note[-2]} {scan_note[-1]}".strip()
-            print(f"decomposed {scan_note} into [{note}, {creator}, {created}]")
         except Exception:
             # Use empty fields if the scan_note is not parseable
             note = ""
