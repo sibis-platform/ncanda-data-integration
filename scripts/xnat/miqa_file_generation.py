@@ -198,3 +198,26 @@ def write_miqa_import_file(
             json.dump(ingest_dict, fp)
         if verbose:
             print(f"Wrote converted JSON to {target_file}.")
+
+
+def read_miqa_import_file(
+    filename: str,
+    log_dir: str,
+    verbose: bool = False,
+    format: MIQAFileFormat = MIQAFileFormat.CSV,
+):
+    """Return a dictionary representing all scans in a MIQA CSV or JSON"""
+    source_file = os.path.join(log_dir, filename)
+
+    if format == MIQAFileFormat.CSV:
+        df = get_data_from_old_format_file(source_file, verbose)
+        if df is not None:
+            new_df = convert_dataframe_to_new_format(df, verbose)
+        else:
+            new_df = convert_dataframe_to_new_format(
+                pd.read_csv(source_file, dtype=str),
+                verbose,
+            )
+        return import_dataframe_to_dict(new_df, verbose)
+    elif format == MIQAFileFormat.JSON:
+        return json.load(open(source_file))
