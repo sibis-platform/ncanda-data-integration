@@ -42,11 +42,12 @@ def main(args):
     #
     # Turn it into a redcap list 
     #
-    pipe_rd_list = pandas.DataFrame(columns=['xnat_sid','study_id','redcap_event_name'])
+    pipe_list_missing = pandas.DataFrame(columns=['xnat_sid','study_id','redcap_event_name'])
 
     print("=======================")
     print("Check for errors in pipeline list:") 
 
+    checked_set = set()
     for sline in pipe_list:
         sub_arm_visit,reason = sline.split(' ')
         if reason != "missing\n" : 
@@ -59,8 +60,18 @@ def main(args):
             continue 
             
         if rest != "measures":
-            print(sub_arm_visit + " form should not be missing")
-            continue 
+            # This tells us that the measures directory is not missing.
+            # However, all the forms from the visit might still be missing.
+            # The demographics and midyear_youth_interview files can be present even if the year visit is missing
+            # since they're from the midyear visit following this visit.
+            # So if all forms besides these two are missing, then the visit is missing.
+            base = subject+'/'+arm+'/'+visit
+            if base in checked_set:
+                continue
+            num_missing = len([x for x in pipe_list if base in x])
+            checked_set.add(base)
+            if num_missing < 60:
+                continue
 
         # Find redcap id from xnat subject id 
         redcap_subject = redcap_list_base[redcap_list_base['mri_xnat_sid']==subject]
@@ -76,12 +87,12 @@ def main(args):
         else : 
             event = str(visit.split("_")[1]) + "_visit_arm_1"
 
-        pipe_rd_list = pipe_rd_list.append(pandas.DataFrame([[subject,redcap_sid,event]],columns=['xnat_sid','study_id','redcap_event_name']),ignore_index=True)
+        pipe_list_missing = pipe_list_missing.append(pandas.DataFrame([[subject,redcap_sid,event]],columns=['xnat_sid','study_id','redcap_event_name']),ignore_index=True)
 
     print(" ") 
     print("=======================")
     print("Missing in pipeline:") 
-    for index,pipe_rd_entry in pipe_rd_list.iterrows():
+    for index,pipe_rd_entry in pipe_list_missing.iterrows():
         if not in_dataframe(pipe_rd_entry,redcap_list_missing):
             print(pipe_rd_entry.to_string())
             print(" ") 
@@ -90,7 +101,7 @@ def main(args):
     print("=======================")
     print("Is in pipeline and not in REDCap:") 
     for index,red_entry in redcap_list_missing.iterrows():
-        if not in_dataframe(red_entry,pipe_rd_list):
+        if not in_dataframe(red_entry,pipe_list_missing):
             print("xnat_sid   ", redcap_list_base[redcap_list_base['study_id'] == red_entry.study_id]['mri_xnat_sid'].values[0])
             print(red_entry.to_string()) 
             print(" ") 
