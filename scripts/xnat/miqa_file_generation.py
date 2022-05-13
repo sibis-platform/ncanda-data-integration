@@ -194,7 +194,7 @@ def write_miqa_import_file(
             print(f"Wrote converted CSV to {target_file}.")
     elif format == MIQAFileFormat.JSON:
         ingest_dict = import_dataframe_to_dict(new_df, verbose)
-        with open(new_filename, "w") as fp:
+        with open(target_file, "w") as fp:
             json.dump(ingest_dict, fp)
         if verbose:
             print(f"Wrote converted JSON to {target_file}.")
