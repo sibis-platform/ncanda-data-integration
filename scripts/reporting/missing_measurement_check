@@ -70,7 +70,7 @@ def main(args):
                 continue
             num_missing = len([x for x in pipe_list if base in x])
             checked_set.add(base)
-            if num_missing < 60:
+            if num_missing < 84:
                 continue
 
         # Find redcap id from xnat subject id 
