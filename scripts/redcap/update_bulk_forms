@@ -38,6 +38,22 @@ def compute_clinical_complete_status(row, field_names, form_complete_field):
                 
     return status
 
+
+# Compute limesurvey_ssaga_youth  complete status of a record based on component status values
+# account for abbreviated ssaga (4y or later and 22 years or younger) : only part 1 needs to be complete 
+def compute_lssaga_youth_complete_status(row, field_names, form_complete_field,event):
+    status=""
+    # baseline does not have lssaga so this function is ony called for followup visits
+    event_year=float(event.split('y',1)[0])
+    age=float(row['age'])
+
+    if  math.isnan(age) or age >= 23 or event_year < 4 :
+        return compute_bulk_status(row, field_names, form_complete_field)
+
+    # abreviated ssaga 
+    return row['limesurvey_ssaga_part_1_youth_complete']
+
+         
 # Compute the bulk "Complete" status of a record based on component status values
 def compute_bulk_status(row, field_names, form_complete_field):
     status = None
@@ -65,7 +81,7 @@ def process_form(form, complete_field_names, study_id, event):
         print("Processing events", events_this_form)
 
     # Get fields for applicable events
-    redcap_fields=[form_complete_field] + complete_field_names + ['visit_ignore','visit_date']
+    redcap_fields=[form_complete_field] + complete_field_names + ['visit_ignore','visit_date','age']
     try:
         if study_id:
             records = rc_entry.export_records(
@@ -142,7 +158,13 @@ def process_form(form, complete_field_names, study_id, event):
                 axis=1,
                 args=(complete_field_names, form_complete_field),
             )
-            
+        elif form == "limesurvey_ssaga_youth":
+            records[form_complete_field] = records.apply(
+                compute_lssaga_youth_complete_status,
+                axis=1,
+                args=(complete_field_names, form_complete_field,event),
+            )
+
         else :
             records[form_complete_field] = records.apply(
                 compute_bulk_status,
