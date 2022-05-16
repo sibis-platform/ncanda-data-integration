@@ -47,7 +47,6 @@ def main(args):
     print("=======================")
     print("Check for errors in pipeline list:") 
 
-    checked_set = set()
     for sline in pipe_list:
         sub_arm_visit,reason = sline.split(' ')
         if reason != "missing\n" : 
@@ -62,16 +61,14 @@ def main(args):
         if rest != "measures":
             # This tells us that the measures directory is not missing.
             # However, all the forms from the visit might still be missing.
-            # The demographics and midyear_youth_interview files can be present even if the year visit is missing
+            # This happens because the midyear visit forms are stored in the same directory
             # since they're from the midyear visit following this visit.
-            # So if all forms besides these two are missing, then the visit is missing.
-            base = subject+'/'+arm+'/'+visit
-            if base in checked_set:
+            # To check if the yearly visit is missing, it's sufficient to check if the
+            # clinical form is missing, since it will always exist if the visit does.
+            if 'clinical' not in rest:
                 continue
-            num_missing = len([x for x in pipe_list if base in x])
-            checked_set.add(base)
-            if num_missing < 84:
-                continue
+
+
 
         # Find redcap id from xnat subject id 
         redcap_subject = redcap_list_base[redcap_list_base['mri_xnat_sid']==subject]
