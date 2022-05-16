@@ -80,6 +80,15 @@ def main(args):
 
     print(" ") 
     print("=======================")
+    print("No visit date and not marked missing:")
+    not_marked_missing = redcap_list['visit_ignore___yes']==0
+    no_visit_date = redcap_list['visit_date'].isnull()
+    matching_visits = redcap_list[(not_marked_missing) & (no_visit_date)][['study_id','redcap_event_name']]
+    print(matching_visits.to_string(index=False))
+
+
+    print(" ") 
+    print("=======================")
     print("Missing in pipeline:") 
     for index,pipe_rd_entry in pipe_rd_list.iterrows():
         if not in_dataframe(pipe_rd_entry,redcap_list_missing):
