@@ -19,6 +19,7 @@ from sibispy import sibislogger as slog
 import pandas
 import redcap
 import math
+import re
 
 #
 # Functions
@@ -381,6 +382,10 @@ for form in forms_list:
                             old_value = str(
                                 old_form_status[err_field][error_index_list].values
                             )
+                            project_id = rc_entry.export_project_info()['project_id']
+                            visit = re.match('(\d*y_visit)|(\d*month_followup)',event).group()
+                            arm_num = int(re.search('arm_(\d*)', event).group(1))
+                            url = session.get_formattable_redcap_form_address(project_id, visit, arm_num, err_subject_id, form)
                             slog.info(
                                 error_id,
                                 "Cannot update '"
@@ -390,6 +395,7 @@ for form in forms_list:
                                 value_old=old_value,
                                 value_new=new_value,
                                 form=form,
+                                url=url,
                                 info="if the current value is unequal to '' and the new value is '' then redcap wont update the form. A possible solution is to select complete for the field.",
                             )
 
