@@ -188,7 +188,7 @@ def write_miqa_import_file(
 
     df = get_data_from_old_format_file(source_file, verbose)
     new_df = convert_dataframe_to_new_format(df, verbose)
-    new_df.replace(numpy.nan, "", regex=True)
+    new_df = new_df.replace(numpy.nan, "", regex=True)
 
     if format == MIQAFileFormat.CSV:
         new_df.to_csv(target_file, index=False)
