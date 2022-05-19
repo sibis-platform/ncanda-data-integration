@@ -814,7 +814,7 @@ for form_prefix, form_name in forms.items():
         study_id = key[0]
         event = key[1]
         project_id = redcap_project.export_project_info()['project_id']
-        visit = re.match('(\d*y_visit)|(\d*month_followup)',event).group()
+        visit = re.match('(baseline_visit)|(\d*y_visit)|(\d*month_followup)',event).group()
         arm_num = int(re.search('arm_(\d*)', event).group(1))
         redcap_url = session.get_formattable_redcap_form_address(project_id, visit, arm_num, study_id, form_name)
 
