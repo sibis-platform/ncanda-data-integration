@@ -330,6 +330,7 @@ def MissingFormChecks(
     import_complete_records,
     form_name,
     incomplete_records_list,
+    redcap_url
 ):
     # Note the first part of the session_id can be different from the subject_id - subject_id is what to go by if defined
     session_id = "{}-{}".format(subject_id, vdate)
@@ -353,6 +354,7 @@ def MissingFormChecks(
                 entry_subject_id=subject_id,
                 form_name=form_name,
                 event_id=event_id,
+                redcap_url=redcap_url,
                 import_visit_dates_of_not_incomplete_records=incomplete_records_list.to_string(),
                 target_visit_date=vdate,
                 date_range=str([date_on_or_after, date_before]),
@@ -370,6 +372,7 @@ def MissingFormChecks(
                 entry_subject_id=subject_id,
                 form_name=form_name,
                 event_id=event_id,
+                redcap_url=redcap_url,
                 import_visit_dates=records_this_subject[date_label].to_string(),
                 info="If that is on purpose and 'Manually Entered' flag exists in the form, please set it to 'yes' in the record of the entry project",
                 target_visit_date=vdate,
@@ -385,6 +388,7 @@ def MissingFormChecks(
         entry_subject_id=subject_id,
         form_name=form_name,
         event_id=event_id,
+        redcap_url=redcap_url,
         import_visit_dates=records_this_subject[date_label].to_string(),
         target_visit_date=vdate,
     )
@@ -807,6 +811,13 @@ for form_prefix, form_name in forms.items():
         desc=form_prefix,
         disable=not args.progress_bar,
     ):
+        study_id = key[0]
+        event = key[1]
+        project_id = redcap_project.export_project_info()['project_id']
+        visit = re.match('(\d*y_visit)|(\d*month_followup)',event).group()
+        arm_num = int(re.search('arm_(\d*)', event).group(1))
+        redcap_url = session.get_formattable_redcap_form_address(project_id, visit, arm_num, study_id, form_name)
+
         if args.verbose:
             print("Processing", key)
         # Select imported records for this subject
@@ -845,6 +856,7 @@ for form_prefix, form_name in forms.items():
                         subject_id=key[0],
                         form_name=form_name,
                         event_id=key[1],
+                        redcap_url=redcap_url,
                         visit_date=form_target_date,
                         site_forward=site_forward,
                         site_resolution=site_resolution,
@@ -877,6 +889,7 @@ for form_prefix, form_name in forms.items():
                             subject_id=key[0],
                             form_name=form_name,
                             event_id=key[1],
+                            redcap_url=redcap_url,
                             info="'Form target date' does not match anymore the administration date on the form! If the visit date of the sleep study was changed contact site if it is ok to change the date of form in import project!",
                             form_target_date=form_target_date,
                             form_date=entry_form_data[date_label][key],
@@ -889,6 +902,7 @@ for form_prefix, form_name in forms.items():
                             subject_id=key[0],
                             form_name=form_name,
                             event_id=key[1],
+                            redcap_url=redcap_url,
                             info="Not sure what happened - it is not a date problem !",
                             form_target_date=form_target_date,
                             form_date=entry_form_data[date_label][key],
@@ -975,6 +989,7 @@ for form_prefix, form_name in forms.items():
                         subject_id=key[0],
                         form_name=form_name,
                         event_id=key[1],
+                        redcap_url=redcap_url,
                         visit_date=visit_date,
                         serach_range="["
                         + str(date_on_or_after)
@@ -1038,11 +1053,12 @@ for form_prefix, form_name in forms.items():
                     visit_date,
                     date_on_or_after,
                     date_before,
-                    key[0],
-                    key[1],
+                    study_id,
+                    event,
                     import_complete_records,
                     form_name,
                     records_this_subject[date_label],
+                    redcap_url
                 )
 
                 if args.reset_disappeared:

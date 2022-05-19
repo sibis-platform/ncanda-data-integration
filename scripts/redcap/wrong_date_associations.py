@@ -292,7 +292,7 @@ if __name__ == '__main__':
     url_info = marks.reset_index()[['study_id', 'form', 'redcap_event_name']]
     url_info['project_id'] = redcap_api.export_project_info()['project_id']
     url_info['arm_num'] = url_info['redcap_event_name'].str.extract('arm_(\d)')
-    url_info['visit'] = url_info['redcap_event_name'].str.extract('(\d*y_visit)|(\d*month_followup)')[0]
+    url_info['visit'] = url_info['redcap_event_name'].str.extract('(baseline_visit)|(\d*y_visit)|(\d*month_followup)')[0]
     marks['url'] = list(map(session.get_formattable_redcap_form_address, url_info['project_id'], url_info['visit'], url_info['arm_num'].astype(int), url_info['study_id'], url_info['form']))
 
     # Changeable UID template for logging each dataframe by row

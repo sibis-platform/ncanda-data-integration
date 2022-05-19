@@ -383,7 +383,7 @@ for form in forms_list:
                                 old_form_status[err_field][error_index_list].values
                             )
                             project_id = rc_entry.export_project_info()['project_id']
-                            visit = re.match('(\d*y_visit)|(\d*month_followup)',event).group()
+                            visit = re.match('(baseline_visit)|(\d*y_visit)|(\d*month_followup)',event).group()
                             arm_num = int(re.search('arm_(\d*)', event).group(1))
                             url = session.get_formattable_redcap_form_address(project_id, visit, arm_num, err_subject_id, form)
                             slog.info(
