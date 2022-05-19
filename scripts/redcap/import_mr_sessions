@@ -131,6 +131,7 @@ def get_usable_scans_list( session, xnat_eid_list, redcap_visit_id, xnat_sid):
 
     for xnat_eid in xnat_eid_list:
         xnat_exp = session.xnat_get_experiment(xnat_eid)
+        xnat_url = session.get_xnat_session_address(xnat_eid)
         if not xnat_exp : 
             slog.info(redcap_visit_id + "-" +  + hashlib.sha1(xnat_eid.encode()).hexdigest()[0:6],"ERROR: could not get experiment",
                       info="Most likely due to internet connection! Please rerun script for subject and visit", 
@@ -148,14 +149,15 @@ def get_usable_scans_list( session, xnat_eid_list, redcap_visit_id, xnat_sid):
                           info="Most likely due to internet connection! Please rerun script for subject and visit", 
                           redcap_visit_id = redcap_visit_id,
                           xnat_sid = xnat_sid,
-                          xnat_eid = xnat_eid, 
+                          xnat_eid = xnat_eid,
+                          xnat_url=xnat_url,
                           scan = scan,
                           err_msg = str(err_msg))
 
                 return [None,True] 
  
             if quality == 'usable':
-                result.append( ( type, xnat_eid, scan ) )
+                result.append( ( type, xnat_eid, xnat_url, scan ) )
 
     return [result,False]
 
@@ -167,7 +169,7 @@ def get_scans_by_type( red2cas, usable_scans_list, visit_date, redcap_visit_id):
     result = dict()
     for type in ncanda_scan_types:
           # Get list of scans for this type; as we go, compute and sort by number of days between visit date and scan date
-        scans = sorted( [ (eid, scan, red2cas.days_between_dates(visit_date,xnat_sessions_dict[eid][0])) for (scan_type,eid,scan) in usable_scans_list if re.match( '^ncanda-%s-v1$' % type, scan_type ) ], key=lambda x: abs(x[2]) )
+        scans = sorted( [ (eid, xnat_url, scan, red2cas.days_between_dates(visit_date,xnat_sessions_dict[eid][0])) for (scan_type,eid,xnat_url,scan) in usable_scans_list if re.match( '^ncanda-%s-v1$' % type, scan_type ) ], key=lambda x: abs(x[2]) )
 
         # Changed logic here should generally just be one scan across all sessions
         # if (len( scans ) == 1) or (len( scans ) > 1 and scans[0][2] < scans[1][2]): 
@@ -185,7 +187,7 @@ def get_scans_by_type( red2cas, usable_scans_list, visit_date, redcap_visit_id):
 # Get fieldmap series for a given scan series (either DTI or rs-fMRI) - this can be more than one, because Siemens writes two under the same type
 #
 def get_fieldmap_scans( usable_scans_list, for_scan, scannerMfg,redcap_visit_id, exceptions_num_type):
-    matched_fieldmaps = [ (eid,scan) for (type,eid,scan) in usable_scans_list if 'grefieldmap' in type and for_scan[0]==eid ]
+    matched_fieldmaps = [ (eid,scan) for (type,eid,xnat_url,scan) in usable_scans_list if 'grefieldmap' in type and for_scan[0]==eid ]
 
     # only point out if we have more usable scans than needed so it is correctly labelled in xnat
     # if they are not enough scans it should have been cought before otherwise need to add another round of exception /get error message twice
@@ -844,9 +846,16 @@ for [key, row] in mr_sessions_redcap.iterrows():
     if visit_date == 'nan':
         if float(row['visit_ignore___yes']) != 1:
             error = f'Missing visit date for subject with visit data at {key[1]}.'
+
+            project_id = redcap_project.export_project_info()['project_id']
+            visit = re.match('(\d*y_visit)|(\d*month_followup)',event).group()
+            arm_num = int(re.search('arm_(\d*)', event).group(1))
+            redcap_url = session.get_formattable_redcap_subject_address(project_id, arm_num, subject_label)
+            
             slog.info(
                 key[0], error, visit_id=key[1],
                 site_forward=row.get('redcap_data_access_group'),
+                redcap_url=redcap_url,
                 site_resolution="The visit was most likely mistakenly created "
                 "ahead of time. If that is the case, please set the visit to "
                 "be ignored in Visit Notes, with the reason 'Temporary "
