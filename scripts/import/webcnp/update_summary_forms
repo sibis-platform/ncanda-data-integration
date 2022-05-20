@@ -18,6 +18,7 @@ import pandas
 import sys 
 import hashlib
 import numbers
+import re
 
 import sibispy
 from sibispy import sibislogger as slog
@@ -182,6 +183,9 @@ imported_records['test_sessions_dotest'] = imported_records.apply( lambda row: r
 # Go over all summary records (i.e., the visit log) and find corresponding imported records
 #
 for key, row in summary_records.iterrows():
+    event = key[1]
+    arm_num = int(re.search('arm_(\d*)', event).group(1))
+
     # Select imported records for this subject
     records_this_subject = imported_records[ imported_records['test_sessions_subid'] == key[0] ]
 
@@ -198,8 +202,16 @@ for key, row in summary_records.iterrows():
             if len( records_this_visit ) > 1:
                 # Not unique - warning
                 error = 'WARNING: More than one CNP record found for subject %s, event %s, visit date %s - selecting the latest record' % (key[0],key[1],visit_date)
+
+                import_project_id = rc_import.export_project_info()['project_id']
+                formattable_redcap_address = session.get_formattable_redcap_subject_address(import_project_id,arm_num)
+                
+                records_list = records_this_visit.index.tolist()
+                redcap_urls = list(map(lambda record_id: formattable_redcap_address % (record_id), records_list))
+                
                 slog.info("DuplicateRecords-" + hashlib.sha1(error.encode()).hexdigest()[0:6], error,
-                          records_this_visit = str(records_this_visit.index.tolist()),
+                          records_this_visit = str(records_list),
+                          redcap_urls=redcap_urls,
                           site_forward=row.get('redcap_data_access_group'),
                           site_resolve="Determine which record should be "
                           "passed on to Data Entry project and mark the other "
@@ -246,8 +258,13 @@ for key, row in summary_records.iterrows():
         elif summary_records['cnp_summary_complete'][key] != '' and float( summary_records['cnp_summary_complete'][key] ) > 0 and ( summary_records['cnp_missing'][key] != 1 ):
             error = ("WARNING: Previously assigned WebCNP data for subject {}, "
                      "event {} appears to have disappeared.").format(key[0], key[1])
+            data_entry_project_id = rc_summary.export_project_info()['project_id']
+            study_id = key[0]
+            redcap_url = session.get_formattable_redcap_subject_address(data_entry_project_id,arm_num, study_id)
+
             slog.info("MissingCNP-" + hashlib.sha1(error.encode()).hexdigest()[0:6],
                       error,
+                      redcap_url=redcap_url,
                       description=(
                           "Either the data has been removed from Data Entry, "
                           "or the CNP has not made it through the pipeline "
