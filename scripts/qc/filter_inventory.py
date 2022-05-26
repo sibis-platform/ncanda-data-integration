@@ -33,7 +33,9 @@ def less_content_than_max(inventory):
     # -> Site should ensure that no content was omitted
     # (only makes sense on some forms)
     return ((inventory['non_nan_count'] > 0) &
-            (inventory['non_nan_count'] < inventory['non_nan_count'].max()))
+            (inventory['non_nan_count'] < inventory['non_nan_count'].max()) &
+            (~inventory['form_name'].isin(['limesurvey_ssaga_youth','limesurvey_ssaga_parent','youth_report_2','youth_report_1b','mri_report','youth_report_1','parent_report','participant_last_use_summary']))
+    )
 
 def empty_unmarked(inventory):
     # -> Site should double-check that these cases are actually absent, and
