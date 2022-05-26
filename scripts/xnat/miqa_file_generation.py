@@ -44,7 +44,7 @@ def get_data_from_old_format_file(file, verbose=False):
     return df
 
 
-def convert_dataframe_to_new_format(df, verbose=False):
+def convert_dataframe_to_new_format(df, image_extensions, verbose=False):
     new_rows = []
     for _index, row in df.iterrows():
         match = project_name_pattern.search(row["nifti_folder"])
@@ -64,33 +64,37 @@ def convert_dataframe_to_new_format(df, verbose=False):
             note = ""
             creator = ""
             created = ""
-        new_rows.append(
-            [
-                project_name,  # project_name
-                row["xnat_experiment_id"],  # experiment_name
-                f"{row['xnat_experiment_id']}_{row['scan_type']}",  # scan_name
-                row["scan_type"],  # scan_type
-                row["scan_id"],  # frame_number
-                str(
-                    pathlib.Path(
-                        row["nifti_folder"],
-                        f"{row['scan_id']}_{row['scan_type']}",
-                        "image.nii.gz",
-                    )
-                ),  # file_location
-                row["experiment_note"],  # experiment_notes
-                # TODO populate these correctly
-                "",  # subject_id
-                "",  # session_id
-                "",  # scan_link
-                row["decision"],  # last_decision
-                creator,  # last_decision_creator
-                note,  # last_decision_note
-                created,  # last_decision_created
-                "",  # identified_artifacts
-                "",  # location_of_interest
-            ]
+        scan_dir = pathlib.Path(
+            row["nifti_folder"], f"{row['scan_id']}_{row['scan_type']}"
         )
+        frame_locations = [
+            location
+            for location in scan_dir.glob("*")
+            if any(str(location).endswith(extension) for extension in image_extensions)
+        ]
+        for index, frame_location in enumerate(frame_locations):
+            frame_number = row["scan_id"] if len(frame_locations) < 2 else index
+            new_rows.append(
+                [
+                    project_name,  # project_name
+                    row["xnat_experiment_id"],  # experiment_name
+                    f"{row['xnat_experiment_id']}_{row['scan_type']}",  # scan_name
+                    row["scan_type"],  # scan_type
+                    frame_number,  # frame_number
+                    str(frame_location),  # file_location
+                    row["experiment_note"],  # experiment_notes
+                    # TODO populate these correctly
+                    "",  # subject_id
+                    "",  # session_id
+                    "",  # scan_link
+                    row["decision"],  # last_decision
+                    creator,  # last_decision_creator
+                    note,  # last_decision_note
+                    created,  # last_decision_created
+                    "",  # identified_artifacts
+                    "",  # location_of_interest
+                ]
+            )
     new_df = pd.DataFrame(
         new_rows,
         columns=[
@@ -187,6 +191,7 @@ def write_miqa_import_file(
     log_dir: str,
     verbose: bool = False,
     format: MIQAFileFormat = MIQAFileFormat.CSV,
+    image_extensions: list = [".nii.gz", ".nii", ".nrrd"],
     project_list: list = [],
 ):
     """Convert the old Girder QC CSV format to the new CSV format."""
@@ -194,7 +199,7 @@ def write_miqa_import_file(
     target_file = os.path.join(log_dir, new_filename)
 
     df = get_data_from_old_format_file(source_file, verbose)
-    new_df = convert_dataframe_to_new_format(df, verbose)
+    new_df = convert_dataframe_to_new_format(df, image_extensions, verbose)
     new_df = new_df.replace(numpy.nan, "", regex=True)
 
     non_empty_projects = new_df["project_name"].unique()
@@ -226,6 +231,7 @@ def read_miqa_import_file(
     log_dir: str,
     verbose: bool = False,
     format: MIQAFileFormat = MIQAFileFormat.CSV,
+    image_extensions: list = [".nii.gz", ".nii", ".nrrd"],
 ):
     """Return a dictionary representing all scans in a MIQA CSV or JSON"""
     source_file = os.path.join(log_dir, filename)
@@ -233,10 +239,11 @@ def read_miqa_import_file(
     if format == MIQAFileFormat.CSV:
         df = get_data_from_old_format_file(source_file, verbose)
         if df is not None:
-            new_df = convert_dataframe_to_new_format(df, verbose)
+            new_df = convert_dataframe_to_new_format(df, image_extensions, verbose)
         else:
             new_df = convert_dataframe_to_new_format(
                 pd.read_csv(source_file, dtype=str),
+                image_extensions,
                 verbose,
             )
         return import_dataframe_to_dict(new_df, verbose)
