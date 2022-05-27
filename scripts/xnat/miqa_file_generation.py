@@ -72,6 +72,7 @@ def convert_dataframe_to_new_format(df, image_extensions, verbose=False):
             for location in scan_dir.glob("*")
             if any(str(location).endswith(extension) for extension in image_extensions)
         ]
+        frame_locations.sort(key=lambda path: path.name)
         for index, frame_location in enumerate(frame_locations):
             frame_number = row["scan_id"] if len(frame_locations) < 2 else index
             new_rows.append(
