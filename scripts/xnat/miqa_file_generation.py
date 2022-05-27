@@ -44,7 +44,7 @@ def get_data_from_old_format_file(file, verbose=False):
     return df
 
 
-def convert_dataframe_to_new_format(df, verbose=False):
+def convert_dataframe_to_new_format(df, image_extensions, verbose=False):
     new_rows = []
     for _index, row in df.iterrows():
         match = project_name_pattern.search(row["nifti_folder"])
@@ -64,33 +64,38 @@ def convert_dataframe_to_new_format(df, verbose=False):
             note = ""
             creator = ""
             created = ""
-        new_rows.append(
-            [
-                project_name,  # project_name
-                row["xnat_experiment_id"],  # experiment_name
-                f"{row['xnat_experiment_id']}_{row['scan_type']}",  # scan_name
-                row["scan_type"],  # scan_type
-                row["scan_id"],  # frame_number
-                str(
-                    pathlib.Path(
-                        row["nifti_folder"],
-                        f"{row['scan_id']}_{row['scan_type']}",
-                        "image.nii.gz",
-                    )
-                ),  # file_location
-                row["experiment_note"],  # experiment_notes
-                # TODO populate these correctly
-                "",  # subject_id
-                "",  # session_id
-                "",  # scan_link
-                row["decision"],  # last_decision
-                creator,  # last_decision_creator
-                note,  # last_decision_note
-                created,  # last_decision_created
-                "",  # identified_artifacts
-                "",  # location_of_interest
-            ]
+        scan_dir = pathlib.Path(
+            row["nifti_folder"], f"{row['scan_id']}_{row['scan_type']}"
         )
+        frame_locations = [
+            location
+            for location in scan_dir.glob("*")
+            if any(str(location).endswith(extension) for extension in image_extensions)
+        ]
+        frame_locations.sort(key=lambda path: path.name)
+        for index, frame_location in enumerate(frame_locations):
+            frame_number = row["scan_id"] if len(frame_locations) < 2 else index
+            new_rows.append(
+                [
+                    project_name,  # project_name
+                    row["xnat_experiment_id"],  # experiment_name
+                    f"{row['xnat_experiment_id']}_{row['scan_type']}",  # scan_name
+                    row["scan_type"],  # scan_type
+                    frame_number,  # frame_number
+                    str(frame_location),  # file_location
+                    row["experiment_note"],  # experiment_notes
+                    # TODO populate these correctly
+                    "",  # subject_id
+                    "",  # session_id
+                    "",  # scan_link
+                    row["decision"],  # last_decision
+                    creator,  # last_decision_creator
+                    note,  # last_decision_note
+                    created,  # last_decision_created
+                    "",  # identified_artifacts
+                    "",  # location_of_interest
+                ]
+            )
     new_df = pd.DataFrame(
         new_rows,
         columns=[
@@ -122,55 +127,61 @@ def import_dataframe_to_dict(df, verbose=False):
     ingest_dict = {"projects": {}}
     for project_name, project_df in df.groupby("project_name"):
         project_dict = {"experiments": {}}
-        for experiment_name, experiment_df in project_df.groupby("experiment_name"):
-            experiment_dict = {"scans": {}}
-            if "experiment_notes" in experiment_df.columns:
-                experiment_dict["notes"] = experiment_df["experiment_notes"].iloc[0]
-            for scan_name, scan_df in experiment_df.groupby("scan_name"):
-                try:
-                    scan_dict = {
-                        "type": scan_df["scan_type"].iloc[0],
-                        "frames": {
-                            int(row[1]["frame_number"]): {
-                                "file_location": row[1]["file_location"]
+        if list(project_df["experiment_name"].unique()) != [""]:
+            for experiment_name, experiment_df in project_df.groupby("experiment_name"):
+                experiment_dict = {"scans": {}}
+                if "experiment_notes" in experiment_df.columns:
+                    experiment_dict["notes"] = experiment_df["experiment_notes"].iloc[0]
+                for scan_name, scan_df in experiment_df.groupby("scan_name"):
+                    scan_dict = {}
+                    if list(scan_df["file_location"].unique()) != [""]:
+                        try:
+                            scan_dict = {
+                                "type": scan_df["scan_type"].iloc[0],
+                                "frames": {
+                                    int(row[1]["frame_number"]): {
+                                        "file_location": row[1]["file_location"]
+                                    }
+                                    for row in scan_df.iterrows()
+                                },
                             }
-                            for row in scan_df.iterrows()
-                        },
-                    }
-                except ValueError as e:
-                    if verbose:
-                        print(
-                            f'Invalid frame number {str(e).split(":")[-1]}. Must be an integer value.'
-                        )
+                        except ValueError as e:
+                            if verbose:
+                                print(
+                                    f'Invalid frame number {str(e).split(":")[-1]}. Must be an integer value.'
+                                )
 
-                if "subject_id" in scan_df.columns:
-                    scan_dict["subject_id"] = scan_df["subject_id"].iloc[0]
-                if "session_id" in scan_df.columns:
-                    scan_dict["session_id"] = scan_df["session_id"].iloc[0]
-                if "scan_link" in scan_df.columns:
-                    scan_dict["scan_link"] = scan_df["scan_link"].iloc[0]
-                if (
-                    "last_decision" in scan_df.columns
-                    and scan_df["last_decision"].iloc[0]
-                ):
-                    decision_dict = {
-                        "decision": scan_df["last_decision"].iloc[0],
-                        "creator": scan_df["last_decision_creator"].iloc[0],
-                        "note": scan_df["last_decision_note"].iloc[0],
-                        "created": scan_df["last_decision_created"].iloc[0],
-                        "user_identified_artifacts": scan_df[
-                            "identified_artifacts"
-                        ].iloc[0]
-                        or None,
-                        "location": scan_df["location_of_interest"].iloc[0] or None,
-                    }
-                    decision_dict = {k: (v or None) for k, v in decision_dict.items()}
-                    scan_dict["last_decision"] = decision_dict
-                else:
-                    scan_dict["last_decision"] = None
+                        if "subject_id" in scan_df.columns:
+                            scan_dict["subject_id"] = scan_df["subject_id"].iloc[0]
+                        if "session_id" in scan_df.columns:
+                            scan_dict["session_id"] = scan_df["session_id"].iloc[0]
+                        if "scan_link" in scan_df.columns:
+                            scan_dict["scan_link"] = scan_df["scan_link"].iloc[0]
+                        if (
+                            "last_decision" in scan_df.columns
+                            and scan_df["last_decision"].iloc[0]
+                        ):
+                            decision_dict = {
+                                "decision": scan_df["last_decision"].iloc[0],
+                                "creator": scan_df["last_decision_creator"].iloc[0],
+                                "note": scan_df["last_decision_note"].iloc[0],
+                                "created": scan_df["last_decision_created"].iloc[0],
+                                "user_identified_artifacts": scan_df[
+                                    "identified_artifacts"
+                                ].iloc[0]
+                                or None,
+                                "location": scan_df["location_of_interest"].iloc[0]
+                                or None,
+                            }
+                            decision_dict = {
+                                k: (v or None) for k, v in decision_dict.items()
+                            }
+                            scan_dict["last_decision"] = decision_dict
+                        else:
+                            scan_dict["last_decision"] = None
 
-                experiment_dict["scans"][scan_name] = scan_dict
-            project_dict["experiments"][experiment_name] = experiment_dict
+                        experiment_dict["scans"][scan_name] = scan_dict
+                project_dict["experiments"][experiment_name] = experiment_dict
         ingest_dict["projects"][project_name] = project_dict
     return ingest_dict
 
@@ -181,14 +192,28 @@ def write_miqa_import_file(
     log_dir: str,
     verbose: bool = False,
     format: MIQAFileFormat = MIQAFileFormat.CSV,
+    image_extensions: list = [".nii.gz", ".nii", ".nrrd"],
+    project_list: list = [],
 ):
     """Convert the old Girder QC CSV format to the new CSV format."""
     source_file = os.path.join(log_dir, filename)
     target_file = os.path.join(log_dir, new_filename)
 
     df = get_data_from_old_format_file(source_file, verbose)
-    new_df = convert_dataframe_to_new_format(df, verbose)
+    new_df = convert_dataframe_to_new_format(df, image_extensions, verbose)
     new_df = new_df.replace(numpy.nan, "", regex=True)
+
+    non_empty_projects = new_df["project_name"].unique()
+    for non_empty_project in non_empty_projects:
+        if non_empty_project not in project_list:
+            raise Exception(
+                f"Found data for {non_empty_project}, which was not included in {project_list}. Failed to write file."
+            )
+    for project_name in project_list:
+        if project_name not in non_empty_projects:
+            new_df.loc[len(new_df.index)] = [project_name] + [
+                "" for col in range(len(new_df.columns) - 1)
+            ]
 
     if format == MIQAFileFormat.CSV:
         new_df.to_csv(target_file, index=False)
@@ -207,6 +232,7 @@ def read_miqa_import_file(
     log_dir: str,
     verbose: bool = False,
     format: MIQAFileFormat = MIQAFileFormat.CSV,
+    image_extensions: list = [".nii.gz", ".nii", ".nrrd"],
 ):
     """Return a dictionary representing all scans in a MIQA CSV or JSON"""
     source_file = os.path.join(log_dir, filename)
@@ -214,10 +240,11 @@ def read_miqa_import_file(
     if format == MIQAFileFormat.CSV:
         df = get_data_from_old_format_file(source_file, verbose)
         if df is not None:
-            new_df = convert_dataframe_to_new_format(df, verbose)
+            new_df = convert_dataframe_to_new_format(df, image_extensions, verbose)
         else:
             new_df = convert_dataframe_to_new_format(
                 pd.read_csv(source_file, dtype=str),
+                image_extensions,
                 verbose,
             )
         return import_dataframe_to_dict(new_df, verbose)
