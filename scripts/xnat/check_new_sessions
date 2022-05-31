@@ -776,7 +776,7 @@ def write_scans_to_file(
     scans_with_header: List, filename: str, verbose: bool = False
 ) -> bool:
     target_file = os.path.join(log_dir, filename)
-    
+
     if len(scans_with_header) > 1:
         if os.path.exists(target_file + ".lock"):
             target_file = target_file + ".tmp"
@@ -790,10 +790,10 @@ def write_scans_to_file(
         if verbose:
             print(f"Created {target_file} with {len(scans_with_header)} lines")
     elif len(scans_with_header) == 1:
-            with open(target_file, "w") as fi:
-                fi.writelines(scans_with_header)
-                if verbose:
-                    print(f"Created {target_file} with header only")
+        with open(target_file, "w") as fi:
+            fi.writelines(scans_with_header)
+            if verbose:
+                print(f"Created {target_file} with header only")
     else:
         return False
 
@@ -1677,12 +1677,14 @@ if args.qc_csv_v2:
         "scans_to_review_v2.csv",
         log_dir,
         args.verbose,
+        session=sibis_session,
     )
     miqa_file_generation.write_miqa_import_file(
         "scans_to_question.csv",
         "scans_to_question_v2.csv",
         log_dir,
         args.verbose,
+        session=sibis_session,
     )
 
 # Or a QC json file
@@ -1693,6 +1695,7 @@ if args.qc_json:
         log_dir,
         args.verbose,
         format=miqa_file_generation.MIQAFileFormat.JSON,
+        session=sibis_session,
     )
     miqa_file_generation.write_miqa_import_file(
         "scans_to_question.csv",
@@ -1700,6 +1703,7 @@ if args.qc_json:
         log_dir,
         args.verbose,
         format=miqa_file_generation.MIQAFileFormat.JSON,
+        session=sibis_session,
     )
 
 
