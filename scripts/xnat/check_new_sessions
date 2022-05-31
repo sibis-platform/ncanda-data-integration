@@ -1671,6 +1671,12 @@ if args.qc_csv or args.qc_csv_v2 or args.qc_json:
     write_scans_to_file(scans_to_qc, "scans_to_review.csv", args.verbose)
     write_scans_to_file(scans_to_question, "scans_to_question.csv", args.verbose)
 
+project_list = (
+    args.project_list.replace("[", "").replace("]", "").replace(" ", "").split(",")
+    if args.project_list
+    else []
+)
+
 if args.qc_csv_v2:
     miqa_file_generation.write_miqa_import_file(
         "scans_to_review.csv",
@@ -1678,6 +1684,7 @@ if args.qc_csv_v2:
         log_dir,
         args.verbose,
         session=sibis_session,
+        project_list=project_list,
     )
     miqa_file_generation.write_miqa_import_file(
         "scans_to_question.csv",
@@ -1685,6 +1692,7 @@ if args.qc_csv_v2:
         log_dir,
         args.verbose,
         session=sibis_session,
+        project_list=project_list,
     )
 
 # Or a QC json file
@@ -1696,6 +1704,7 @@ if args.qc_json:
         args.verbose,
         format=miqa_file_generation.MIQAFileFormat.JSON,
         session=sibis_session,
+        project_list=project_list,
     )
     miqa_file_generation.write_miqa_import_file(
         "scans_to_question.csv",
@@ -1704,6 +1713,7 @@ if args.qc_json:
         args.verbose,
         format=miqa_file_generation.MIQAFileFormat.JSON,
         session=sibis_session,
+        project_list=project_list,
     )
 
 
