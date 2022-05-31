@@ -867,6 +867,12 @@ parser.add_argument(
     action="store_true",
 )
 parser.add_argument(
+    "--project_list",
+    help="The list of project names to include in the output file",
+    default=[],
+    action="store",
+)
+parser.add_argument(
     "-f",
     "--force-qc-check",
     help="Always perform quality check regardless if it was done before.",
