@@ -82,9 +82,8 @@ def convert_dataframe_to_new_format(
         for index, frame_location in enumerate(frame_locations):
             frame_number = row["scan_id"] if len(frame_locations) < 2 else index
             experiment = row["xnat_experiment_id"]
-            # TODO populate these correctly
             subject_id = ""
-            session_id = ""
+            session_id = experiment  # TODO populate correctly
             scan_link = ""
             if session:
                 scan_link = session.get_xnat_session_address(experiment)
