@@ -44,7 +44,13 @@ def get_data_from_old_format_file(file, verbose=False):
     return df
 
 
-def convert_dataframe_to_new_format(df, image_extensions, verbose=False, session=None):
+def convert_dataframe_to_new_format(
+    df,
+    image_extensions,
+    verbose=False,
+    session=None,
+    subject_mapping=None,
+):
     new_rows = []
     for _index, row in df.iterrows():
         match = project_name_pattern.search(row["nifti_folder"])
@@ -75,19 +81,21 @@ def convert_dataframe_to_new_format(df, image_extensions, verbose=False, session
         frame_locations.sort(key=lambda path: path.name)
         for index, frame_location in enumerate(frame_locations):
             frame_number = row["scan_id"] if len(frame_locations) < 2 else index
-
+            experiment = row["xnat_experiment_id"]
             # TODO populate these correctly
             subject_id = ""
             session_id = ""
             scan_link = ""
             if session:
-                scan_link = session.get_xnat_session_address(row["xnat_experiment_id"])
+                scan_link = session.get_xnat_session_address(experiment)
+            if subject_mapping and experiment in subject_mapping:
+                subject_id = subject_mapping[experiment]
 
             new_rows.append(
                 [
                     project_name,  # project_name
-                    row["xnat_experiment_id"],  # experiment_name
-                    f"{row['xnat_experiment_id']}_{row['scan_type']}",  # scan_name
+                    experiment,  # experiment_name
+                    f"{experiment}_{row['scan_type']}",  # scan_name
                     row["scan_type"],  # scan_type
                     frame_number,  # frame_number
                     str(frame_location),  # file_location
@@ -200,6 +208,7 @@ def write_miqa_import_file(
     verbose: bool = False,
     format: MIQAFileFormat = MIQAFileFormat.CSV,
     session=None,
+    subject_mapping=None,
     image_extensions: list = [".nii.gz", ".nii", ".nrrd"],
     project_list: list = [],
 ):
@@ -209,7 +218,11 @@ def write_miqa_import_file(
 
     df = get_data_from_old_format_file(source_file, verbose)
     new_df = convert_dataframe_to_new_format(
-        df, image_extensions, verbose, session=session
+        df,
+        image_extensions,
+        verbose,
+        session=session,
+        subject_mapping=subject_mapping,
     )
     new_df = new_df.replace(numpy.nan, "", regex=True)
 
