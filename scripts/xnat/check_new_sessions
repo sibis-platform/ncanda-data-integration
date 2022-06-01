@@ -868,9 +868,10 @@ parser.add_argument(
 )
 parser.add_argument(
     "--project_list",
-    help="The list of project names to include in the output file",
+    help="The list of project names to include in the output file, separated by spaces",
     default=[],
-    action="store",
+    nargs="+",
+    type=str,
 )
 parser.add_argument(
     "-f",
@@ -1677,11 +1678,6 @@ if args.qc_csv or args.qc_csv_v2 or args.qc_json:
     write_scans_to_file(scans_to_qc, "scans_to_review.csv", args.verbose)
     write_scans_to_file(scans_to_question, "scans_to_question.csv", args.verbose)
 
-project_list = (
-    args.project_list.replace("[", "").replace("]", "").replace(" ", "").split(",")
-    if args.project_list
-    else []
-)
 subject_mapping = {
     eid: subject
     for (eid, project, subject, insert_date, label, last_modified) in new_sessions
@@ -1695,7 +1691,7 @@ if args.qc_csv_v2:
         args.verbose,
         session=sibis_session,
         subject_mapping=subject_mapping,
-        project_list=project_list,
+        project_list=args.project_list,
     )
     miqa_file_generation.write_miqa_import_file(
         "scans_to_question.csv",
@@ -1704,7 +1700,7 @@ if args.qc_csv_v2:
         args.verbose,
         session=sibis_session,
         subject_mapping=subject_mapping,
-        project_list=project_list,
+        project_list=args.project_list,
     )
 
 # Or a QC json file
@@ -1717,7 +1713,7 @@ if args.qc_json:
         format=miqa_file_generation.MIQAFileFormat.JSON,
         session=sibis_session,
         subject_mapping=subject_mapping,
-        project_list=project_list,
+        project_list=args.project_list,
     )
     miqa_file_generation.write_miqa_import_file(
         "scans_to_question.csv",
@@ -1727,7 +1723,7 @@ if args.qc_json:
         format=miqa_file_generation.MIQAFileFormat.JSON,
         session=sibis_session,
         subject_mapping=subject_mapping,
-        project_list=project_list,
+        project_list=args.project_list,
     )
 
 

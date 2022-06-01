@@ -82,8 +82,9 @@ def convert_dataframe_to_new_format(
         for index, frame_location in enumerate(frame_locations):
             frame_number = row["scan_id"] if len(frame_locations) < 2 else index
             experiment = row["xnat_experiment_id"]
+            scan_type = row["scan_type"]
             subject_id = ""
-            session_id = experiment  # TODO populate correctly
+            session_id = "XXXX"  # TODO populate correctly
             scan_link = ""
             if session:
                 scan_link = session.get_xnat_session_address(experiment)
@@ -94,8 +95,8 @@ def convert_dataframe_to_new_format(
                 [
                     project_name,  # project_name
                     experiment,  # experiment_name
-                    f"{experiment}_{row['scan_type']}",  # scan_name
-                    row["scan_type"],  # scan_type
+                    f"{experiment}_{scan_type}",  # scan_name
+                    scan_type,  # scan_type
                     frame_number,  # frame_number
                     str(frame_location),  # file_location
                     row["experiment_note"],  # experiment_notes
