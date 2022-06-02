@@ -56,6 +56,8 @@ new_sessions = []
 xnat_date_format = "%Y-%m-%d %H:%M:%S"
 dti30b500_check_date = "2017-02-01 00:00:00"
 
+project_list = ["DUKE", "OHSU", "SRI", "UCSD", "UPITT"]
+
 # Get list of all sessions after the chosen date
 # Adding fields such as 'xnat:mrSessionData/scanner/manufacturer' does not work for some reason
 fields_per_session = [
@@ -865,13 +867,6 @@ parser.add_argument(
     "--qc-json",
     help="Write scans to qc to a json file.",
     action="store_true",
-)
-parser.add_argument(
-    "--project_list",
-    help="The list of project names to include in the output file, separated by spaces",
-    default=[],
-    nargs="+",
-    type=str,
 )
 parser.add_argument(
     "-f",
@@ -1691,7 +1686,7 @@ if args.qc_csv_v2:
         args.verbose,
         session=sibis_session,
         subject_mapping=subject_mapping,
-        project_list=args.project_list,
+        project_list=project_list,
     )
     miqa_file_generation.write_miqa_import_file(
         "scans_to_question.csv",
@@ -1700,7 +1695,7 @@ if args.qc_csv_v2:
         args.verbose,
         session=sibis_session,
         subject_mapping=subject_mapping,
-        project_list=args.project_list,
+        project_list=project_list,
     )
 
 # Or a QC json file
@@ -1713,7 +1708,7 @@ if args.qc_json:
         format=miqa_file_generation.MIQAFileFormat.JSON,
         session=sibis_session,
         subject_mapping=subject_mapping,
-        project_list=args.project_list,
+        project_list=project_list,
     )
     miqa_file_generation.write_miqa_import_file(
         "scans_to_question.csv",
@@ -1723,7 +1718,7 @@ if args.qc_json:
         format=miqa_file_generation.MIQAFileFormat.JSON,
         session=sibis_session,
         subject_mapping=subject_mapping,
-        project_list=args.project_list,
+        project_list=project_list,
     )
 
 
