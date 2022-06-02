@@ -1451,7 +1451,7 @@ for (
     def dict_to_string(d):
         string = ""
         for key in d:
-            string += key + ":  " + d[key] + "  "
+            string += key + ":  " + str(d[key]) + "  "
         return string
 
     keys_to_exclude = ["scan_id", "scan_type", "manufacturer"]
