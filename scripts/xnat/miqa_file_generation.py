@@ -44,7 +44,13 @@ def get_data_from_old_format_file(file, verbose=False):
     return df
 
 
-def convert_dataframe_to_new_format(df, image_extensions, verbose=False):
+def convert_dataframe_to_new_format(
+    df,
+    image_extensions,
+    verbose=False,
+    session=None,
+    subject_mapping=None,
+):
     new_rows = []
     for _index, row in df.iterrows():
         match = project_name_pattern.search(row["nifti_folder"])
@@ -75,19 +81,28 @@ def convert_dataframe_to_new_format(df, image_extensions, verbose=False):
         frame_locations.sort(key=lambda path: path.name)
         for index, frame_location in enumerate(frame_locations):
             frame_number = row["scan_id"] if len(frame_locations) < 2 else index
+            experiment = row["xnat_experiment_id"]
+            scan_type = row["scan_type"]
+            subject_id = ""
+            session_id = "XXXX"  # TODO populate correctly
+            scan_link = ""
+            if session:
+                scan_link = session.get_xnat_session_address(experiment)
+            if subject_mapping and experiment in subject_mapping:
+                subject_id = subject_mapping[experiment]
+
             new_rows.append(
                 [
                     project_name,  # project_name
-                    row["xnat_experiment_id"],  # experiment_name
-                    f"{row['xnat_experiment_id']}_{row['scan_type']}",  # scan_name
-                    row["scan_type"],  # scan_type
+                    experiment,  # experiment_name
+                    f"{experiment}_{scan_type}",  # scan_name
+                    scan_type,  # scan_type
                     frame_number,  # frame_number
                     str(frame_location),  # file_location
                     row["experiment_note"],  # experiment_notes
-                    # TODO populate these correctly
-                    "",  # subject_id
-                    "",  # session_id
-                    "",  # scan_link
+                    subject_id,  # subject_id
+                    session_id,  # session_id
+                    scan_link,  # scan_link
                     row["decision"],  # last_decision
                     creator,  # last_decision_creator
                     note,  # last_decision_note
@@ -192,6 +207,8 @@ def write_miqa_import_file(
     log_dir: str,
     verbose: bool = False,
     format: MIQAFileFormat = MIQAFileFormat.CSV,
+    session=None,
+    subject_mapping=None,
     image_extensions: list = [".nii.gz", ".nii", ".nrrd"],
     project_list: list = [],
 ):
@@ -200,7 +217,13 @@ def write_miqa_import_file(
     target_file = os.path.join(log_dir, new_filename)
 
     df = get_data_from_old_format_file(source_file, verbose)
-    new_df = convert_dataframe_to_new_format(df, image_extensions, verbose)
+    new_df = convert_dataframe_to_new_format(
+        df,
+        image_extensions,
+        verbose,
+        session=session,
+        subject_mapping=subject_mapping,
+    )
     new_df = new_df.replace(numpy.nan, "", regex=True)
 
     non_empty_projects = new_df["project_name"].unique()
