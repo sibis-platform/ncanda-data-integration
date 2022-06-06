@@ -56,7 +56,7 @@ new_sessions = []
 xnat_date_format = "%Y-%m-%d %H:%M:%S"
 dti30b500_check_date = "2017-02-01 00:00:00"
 
-project_list = ["DUKE", "OHSU", "SRI", "UCSD", "UPITT"]
+project_list = ["DUKE", "OHSU", "SRI", "UCSD", "UPMC"]
 
 # Get list of all sessions after the chosen date
 # Adding fields such as 'xnat:mrSessionData/scanner/manufacturer' does not work for some reason
