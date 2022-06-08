@@ -233,15 +233,15 @@ def encode_session_and_scan( session_and_scan, type_list, match_eid = None ):
         if type in list(session_and_scan.keys()): 
             type_id = session_and_scan[type][0]
             if not match_eid :
-                return "%s/%s" % (type_id,session_and_scan[type][1])
+                return "%s/%s" % (type_id,session_and_scan[type][2])
 
             if type_id == match_eid:
-                return "%s/%s" % (type_id,session_and_scan[type][1])
+                return "%s/%s" % (type_id,session_and_scan[type][2])
 
             id_list = [type_id,match_eid] if type_id < match_eid else [match_eid,type_id]
             exception_id = merge_xnat_sessions.get(id_list[0])
             if exception_id and exception_id  == id_list[1] :
-                return "%s/%s" % (type_id,session_and_scan[type][1])
+                return "%s/%s" % (type_id,session_and_scan[type][2])
 
     return ""
 
@@ -975,3 +975,4 @@ if args.verbose:
         print("Suppressed uploading of %d records to REDCap." % ( len( mr_sessions_redcap ) ))
 
 slog.takeTimer1("script_time","{'records': " + str(len(mr_sessions_redcap)) + ", 'uploads': " +  str(records_uploaded) + "}")
+
