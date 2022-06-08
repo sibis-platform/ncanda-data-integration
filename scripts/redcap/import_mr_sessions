@@ -169,7 +169,7 @@ def get_scans_by_type( red2cas, usable_scans_list, visit_date, redcap_visit_id):
     result = dict()
     for type in ncanda_scan_types:
           # Get list of scans for this type; as we go, compute and sort by number of days between visit date and scan date
-        scans = sorted( [ (eid, xnat_url, scan, red2cas.days_between_dates(visit_date,xnat_sessions_dict[eid][0])) for (scan_type,eid,xnat_url,scan) in usable_scans_list if re.match( '^ncanda-%s-v1$' % type, scan_type ) ], key=lambda x: abs(x[2]) )
+        scans = sorted( [ (eid, xnat_url, scan, red2cas.days_between_dates(visit_date,xnat_sessions_dict[eid][0])) for (scan_type,eid,xnat_url,scan) in usable_scans_list if re.match( '^ncanda-%s-v1$' % type, scan_type ) ], key=lambda x: abs(x[3]) )
 
         # Changed logic here should generally just be one scan across all sessions
         # if (len( scans ) == 1) or (len( scans ) > 1 and scans[0][2] < scans[1][2]): 
@@ -233,15 +233,15 @@ def encode_session_and_scan( session_and_scan, type_list, match_eid = None ):
         if type in list(session_and_scan.keys()): 
             type_id = session_and_scan[type][0]
             if not match_eid :
-                return "%s/%s" % (type_id,session_and_scan[type][1])
+                return "%s/%s" % (type_id,session_and_scan[type][2])
 
             if type_id == match_eid:
-                return "%s/%s" % (type_id,session_and_scan[type][1])
+                return "%s/%s" % (type_id,session_and_scan[type][2])
 
             id_list = [type_id,match_eid] if type_id < match_eid else [match_eid,type_id]
             exception_id = merge_xnat_sessions.get(id_list[0])
             if exception_id and exception_id  == id_list[1] :
-                return "%s/%s" % (type_id,session_and_scan[type][1])
+                return "%s/%s" % (type_id,session_and_scan[type][2])
 
     return ""
 
@@ -975,3 +975,4 @@ if args.verbose:
         print("Suppressed uploading of %d records to REDCap." % ( len( mr_sessions_redcap ) ))
 
 slog.takeTimer1("script_time","{'records': " + str(len(mr_sessions_redcap)) + ", 'uploads': " +  str(records_uploaded) + "}")
+
