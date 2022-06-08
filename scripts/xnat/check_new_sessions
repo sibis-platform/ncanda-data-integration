@@ -1121,7 +1121,7 @@ for (
     session_label,
     last_modified,
 ) in sessions_to_check:
-    xnat_url = (sibis_session.get_xnat_session_address(eid, "html"),)
+    xnat_url = sibis_session.get_xnat_session_address(eid, "html")
     index += 1
     if args.check_all:
         print("==== ", index, eid)
