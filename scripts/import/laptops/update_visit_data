@@ -1053,7 +1053,7 @@ for form_prefix, form_name in forms.items():
                     date_on_or_after,
                     date_before,
                     study_id,
-                    event,
+                    redcap_event_name,
                     import_complete_records,
                     form_name,
                     records_this_subject[date_label],
