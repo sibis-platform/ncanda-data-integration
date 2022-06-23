@@ -58,18 +58,7 @@ def convert_dataframe_to_new_format(
             project_name = match.group(1).upper()
         else:
             project_name = "unknown"
-        # last decision metadata is stored in the scan_note field like this:
-        # "{note} {creator} {created}"
-        try:
-            scan_note = row["scan_note"].split(" ")
-            note = " ".join(scan_note[:-3])
-            creator = scan_note[-3]
-            created = f"{scan_note[-2]} {scan_note[-1]}".strip()
-        except Exception:
-            # Use empty fields if the scan_note is not parseable
-            note = ""
-            creator = ""
-            created = ""
+
         scan_dir = pathlib.Path(
             row["nifti_folder"], f"{row['scan_id']}_{row['scan_type']}"
         )
@@ -78,6 +67,10 @@ def convert_dataframe_to_new_format(
             for location in scan_dir.glob("*")
             if any(str(location).endswith(extension) for extension in image_extensions)
         ]
+        if len(frame_locations) == 0:
+            print(
+                f"Error: Could not find any image files under {scan_dir}. Failed to write any frames for this scan."
+            )
         frame_locations.sort(key=lambda path: path.name)
         for index, frame_location in enumerate(frame_locations):
             frame_number = row["scan_id"] if len(frame_locations) < 2 else index
@@ -104,9 +97,9 @@ def convert_dataframe_to_new_format(
                     session_id,  # session_id
                     scan_link,  # scan_link
                     row["decision"],  # last_decision
-                    creator,  # last_decision_creator
-                    note,  # last_decision_note
-                    created,  # last_decision_created
+                    "",  # last_decision_creator
+                    row["scan_note"],  # last_decision_note
+                    "",  # last_decision_created
                     "",  # identified_artifacts
                     "",  # location_of_interest
                 ]
@@ -217,6 +210,7 @@ def write_miqa_import_file(
     target_file = os.path.join(log_dir, new_filename)
 
     df = get_data_from_old_format_file(source_file, verbose)
+    print(df)
     new_df = convert_dataframe_to_new_format(
         df,
         image_extensions,
@@ -225,6 +219,7 @@ def write_miqa_import_file(
         subject_mapping=subject_mapping,
     )
     new_df = new_df.replace(numpy.nan, "", regex=True)
+    print(new_df)
 
     non_empty_projects = new_df["project_name"].unique()
     for non_empty_project in non_empty_projects:
