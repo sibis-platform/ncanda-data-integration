@@ -15,6 +15,13 @@ class MIQAFileFormat(Enum):
     JSON = 1
 
 
+MIQADecisionCodes = {
+    "0": "Q?",
+    "1": "U",
+    "2": "UE",
+}
+
+
 def get_data_from_old_format_file(file, verbose=False):
     if not pathlib.Path(file).exists():
         if verbose:
@@ -83,6 +90,11 @@ def convert_dataframe_to_new_format(
                 scan_link = session.get_xnat_session_address(experiment)
             if subject_mapping and experiment in subject_mapping:
                 subject_id = subject_mapping[experiment]
+            decision = (
+                MIQADecisionCodes[row["decision"]]
+                if row["decision"] in MIQADecisionCodes
+                else "Q?"
+            )
 
             new_rows.append(
                 [
@@ -96,7 +108,7 @@ def convert_dataframe_to_new_format(
                     subject_id,  # subject_id
                     session_id,  # session_id
                     scan_link,  # scan_link
-                    row["decision"],  # last_decision
+                    decision,  # last_decision
                     "",  # last_decision_creator
                     row["scan_note"],  # last_decision_note
                     "",  # last_decision_created
@@ -210,7 +222,6 @@ def write_miqa_import_file(
     target_file = os.path.join(log_dir, new_filename)
 
     df = get_data_from_old_format_file(source_file, verbose)
-    print(df)
     new_df = convert_dataframe_to_new_format(
         df,
         image_extensions,
@@ -219,7 +230,6 @@ def write_miqa_import_file(
         subject_mapping=subject_mapping,
     )
     new_df = new_df.replace(numpy.nan, "", regex=True)
-    print(new_df)
 
     non_empty_projects = new_df["project_name"].unique()
     for non_empty_project in non_empty_projects:

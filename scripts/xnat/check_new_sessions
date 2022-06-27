@@ -1507,9 +1507,9 @@ for (
             scan_note = experiment.scans[scan].get("note") or ""
             scan_note = sanitize_string_for_csv(scan_note)
             quality_translation = defaultdict(lambda: "")
-            quality_translation["usable"] = "U"
-            quality_translation["usable-extra"] = "UE"
-            quality_translation["questionable"] = "Q?"
+            quality_translation["usable"] = "1"
+            quality_translation["usable-extra"] = "2"
+            quality_translation["questionable"] = "0"
             decision = quality_translation[quality]
             row = (
                 f'{eid},{session_dir},{scan},{scan_type},"{exp_note}",'
