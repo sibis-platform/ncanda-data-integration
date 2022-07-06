@@ -93,7 +93,7 @@ def convert_dataframe_to_new_format(
             decision = (
                 MIQADecisionCodes[row["decision"]]
                 if row["decision"] in MIQADecisionCodes
-                else "Q?"
+                else ""
             )
 
             new_rows.append(
