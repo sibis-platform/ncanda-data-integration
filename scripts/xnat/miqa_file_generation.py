@@ -15,6 +15,13 @@ class MIQAFileFormat(Enum):
     JSON = 1
 
 
+MIQADecisionCodes = {
+    "0": "Q?",
+    "1": "U",
+    "2": "UE",
+}
+
+
 def get_data_from_old_format_file(file, verbose=False):
     if not pathlib.Path(file).exists():
         if verbose:
@@ -58,18 +65,7 @@ def convert_dataframe_to_new_format(
             project_name = match.group(1).upper()
         else:
             project_name = "unknown"
-        # last decision metadata is stored in the scan_note field like this:
-        # "{note} {creator} {created}"
-        try:
-            scan_note = row["scan_note"].split(" ")
-            note = " ".join(scan_note[:-3])
-            creator = scan_note[-3]
-            created = f"{scan_note[-2]} {scan_note[-1]}".strip()
-        except Exception:
-            # Use empty fields if the scan_note is not parseable
-            note = ""
-            creator = ""
-            created = ""
+
         scan_dir = pathlib.Path(
             row["nifti_folder"], f"{row['scan_id']}_{row['scan_type']}"
         )
@@ -78,6 +74,10 @@ def convert_dataframe_to_new_format(
             for location in scan_dir.glob("*")
             if any(str(location).endswith(extension) for extension in image_extensions)
         ]
+        if len(frame_locations) == 0:
+            print(
+                f"Error: Could not find any image files under {scan_dir}. Failed to write any frames for this scan."
+            )
         frame_locations.sort(key=lambda path: path.name)
         for index, frame_location in enumerate(frame_locations):
             frame_number = row["scan_id"] if len(frame_locations) < 2 else index
@@ -90,6 +90,11 @@ def convert_dataframe_to_new_format(
                 scan_link = session.get_xnat_session_address(experiment)
             if subject_mapping and experiment in subject_mapping:
                 subject_id = subject_mapping[experiment]
+            decision = (
+                MIQADecisionCodes[row["decision"]]
+                if row["decision"] in MIQADecisionCodes
+                else ""
+            )
 
             new_rows.append(
                 [
@@ -103,10 +108,10 @@ def convert_dataframe_to_new_format(
                     subject_id,  # subject_id
                     session_id,  # session_id
                     scan_link,  # scan_link
-                    row["decision"],  # last_decision
-                    creator,  # last_decision_creator
-                    note,  # last_decision_note
-                    created,  # last_decision_created
+                    decision,  # last_decision
+                    "",  # last_decision_creator
+                    row["scan_note"],  # last_decision_note
+                    "",  # last_decision_created
                     "",  # identified_artifacts
                     "",  # location_of_interest
                 ]
