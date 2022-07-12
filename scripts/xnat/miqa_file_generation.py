@@ -19,6 +19,7 @@ MIQADecisionCodes = {
     "0": "Q?",
     "1": "U",
     "2": "UE",
+    "3": "B",
 }
 
 
@@ -60,12 +61,29 @@ def convert_dataframe_to_new_format(
 ):
     new_rows = []
     for _index, row in df.iterrows():
-        match = project_name_pattern.search(row["nifti_folder"])
-        if match:
-            project_name = match.group(1).upper()
-        else:
-            project_name = "unknown"
+        experiment = row["xnat_experiment_id"]
 
+        if subject_mapping and experiment in subject_mapping:
+            (subject_id, session_id, project_tmp)= subject_mapping[experiment]
+            # match = project_name_pattern.search(row["nifti_folder"])
+            #  project_name = match.group(1).upper()        
+            project_name= project_tmp.split("_")[0].upper()
+        else :
+            subject_id = ""
+            session_id = ""
+            project_name = "unknown"
+        
+        scan_type = row["scan_type"]     
+        scan_link = ""
+        if session:
+             scan_link = session.get_xnat_session_address(experiment)
+
+        decision = (
+            MIQADecisionCodes[row["decision"]]
+            if row["decision"] in MIQADecisionCodes
+            else ""
+        )
+            
         scan_dir = pathlib.Path(
             row["nifti_folder"], f"{row['scan_id']}_{row['scan_type']}"
         )
@@ -78,29 +96,20 @@ def convert_dataframe_to_new_format(
             print(
                 f"Error: Could not find any image files under {scan_dir}. Failed to write any frames for this scan."
             )
+
+
         frame_locations.sort(key=lambda path: path.name)
         for index, frame_location in enumerate(frame_locations):
-            frame_number = row["scan_id"] if len(frame_locations) < 2 else index
-            experiment = row["xnat_experiment_id"]
-            scan_type = row["scan_type"]
-            subject_id = ""
-            session_id = "XXXX"  # TODO populate correctly
-            scan_link = ""
-            if session:
-                scan_link = session.get_xnat_session_address(experiment)
-            if subject_mapping and experiment in subject_mapping:
-                subject_id = subject_mapping[experiment]
-            decision = (
-                MIQADecisionCodes[row["decision"]]
-                if row["decision"] in MIQADecisionCodes
-                else ""
-            )
-
+            # frame_number = row["scan_id"] if len(frame_locations) < 2 else index
+            frame_number =  index
             new_rows.append(
                 [
                     project_name,  # project_name
                     experiment,  # experiment_name
-                    f"{experiment}_{scan_type}",  # scan_name
+                    # f"{experiment}_{scan_type}",  # scan_name
+                    # Anne: does scan name have to be uniquelly defined across experiments as it was defined as 
+                    #  f"{experiment}_{scan_type}",  
+                    f"{row['scan_id']}_{row['scan_type']}", # scan_name
                     scan_type,  # scan_type
                     frame_number,  # frame_number
                     str(frame_location),  # file_location

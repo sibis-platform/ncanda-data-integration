@@ -858,11 +858,7 @@ parser.add_argument(
 parser.add_argument(
     "--qc-csv", help="Write scans to qc to a csv file.", action="store_true"
 )
-parser.add_argument(
-    "--qc-csv-v2",
-    help="Write scans to qc to a csv file in the new format.",
-    action="store_true",
-)
+
 parser.add_argument(
     "--qc-json",
     help="Write scans to qc to a json file.",
@@ -1507,9 +1503,12 @@ for (
             scan_note = experiment.scans[scan].get("note") or ""
             scan_note = sanitize_string_for_csv(scan_note)
             quality_translation = defaultdict(lambda: "")
+            # this is just made up 
             quality_translation["usable"] = "1"
             quality_translation["usable-extra"] = "2"
             quality_translation["questionable"] = "0"
+            quality_translation["unusable"] = "3"
+            
             decision = quality_translation[quality]
             row = (
                 f'{eid},{session_dir},{scan},{scan_type},"{exp_note}",'
@@ -1669,34 +1668,15 @@ elif args.verbose:
 
 
 # Write the scans to QC csv file.
-if args.qc_csv or args.qc_csv_v2 or args.qc_json:
+if args.qc_csv  or args.qc_json:
     write_scans_to_file(scans_to_qc, "scans_to_review.csv", args.verbose)
     write_scans_to_file(scans_to_question, "scans_to_question.csv", args.verbose)
 
+    
 subject_mapping = {
-    eid: subject
-    for (eid, project, subject, insert_date, label, last_modified) in new_sessions
+    eid: (subject,session_label,project)
+    for (eid,project,subject,insert_date,session_label,last_modified) in sessions_to_check
 }
-
-if args.qc_csv_v2:
-    miqa_file_generation.write_miqa_import_file(
-        "scans_to_review.csv",
-        "scans_to_review_v2.csv",
-        log_dir,
-        args.verbose,
-        session=sibis_session,
-        subject_mapping=subject_mapping,
-        project_list=project_list,
-    )
-    miqa_file_generation.write_miqa_import_file(
-        "scans_to_question.csv",
-        "scans_to_question_v2.csv",
-        log_dir,
-        args.verbose,
-        session=sibis_session,
-        subject_mapping=subject_mapping,
-        project_list=project_list,
-    )
 
 # Or a QC json file
 if args.qc_json:

@@ -25,7 +25,7 @@ from sibispy.xnat_util import XNATSessionElementUtil, XNATResourceUtil, XNATExpe
 #
 def export_to_nifti(experiment, subject, session, session_label, scan, scantype, xnat_dir, verbose=False):
     if verbose:
-        print("Starting export of nifti files for ", subject, session, session_label, scan, scantype,xnat_dir)
+        print("Start export of nifti files for ", subject, session, session_label, scan, scantype,xnat_dir)
 
     error_msg = []
 
