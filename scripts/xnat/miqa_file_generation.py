@@ -215,8 +215,10 @@ def import_dataframe_to_dict(df, verbose=False):
     return ingest_dict
 
 
+# filename: str,
+
 def write_miqa_import_file(
-    filename: str,
+    data_input: list,
     new_filename: str,
     log_dir: str,
     verbose: bool = False,
@@ -227,10 +229,13 @@ def write_miqa_import_file(
     project_list: list = [],
 ):
     """Convert the old Girder QC CSV format to the new CSV format."""
-    source_file = os.path.join(log_dir, filename)
+    # source_file = os.path.join(log_dir, 'scans_to_question.csv')
+    #df = get_data_from_old_format_file(source_file, verbose)
+    df= pd.DataFrame(columns=data_input[0].strip().split(","), 
+                      data=[row.strip().replace("\"","").split(",") for row in data_input[1:]])
+    
     target_file = os.path.join(log_dir, new_filename)
 
-    df = get_data_from_old_format_file(source_file, verbose)
     new_df = convert_dataframe_to_new_format(
         df,
         image_extensions,

@@ -1668,7 +1668,7 @@ elif args.verbose:
 
 
 # Write the scans to QC csv file.
-if args.qc_csv  or args.qc_json:
+if args.qc_csv : 
     write_scans_to_file(scans_to_qc, "scans_to_review.csv", args.verbose)
     write_scans_to_file(scans_to_question, "scans_to_question.csv", args.verbose)
 
@@ -1681,7 +1681,7 @@ subject_mapping = {
 # Or a QC json file
 if args.qc_json:
     miqa_file_generation.write_miqa_import_file(
-        "scans_to_review.csv",
+        scans_to_qc,
         "scans_to_review_v2.json",
         log_dir,
         args.verbose,
@@ -1690,8 +1690,10 @@ if args.qc_json:
         subject_mapping=subject_mapping,
         project_list=project_list,
     )
+
+    # "scans_to_question.csv",
     miqa_file_generation.write_miqa_import_file(
-        "scans_to_question.csv",
+        scans_to_question,
         "scans_to_question_v2.json",
         log_dir,
         args.verbose,
