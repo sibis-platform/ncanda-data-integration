@@ -15,7 +15,7 @@ import argparse
 import pandas as pd
 from typing import List, Union
 from pathlib import Path
-
+import sys
 
 def main():
     args = _args()
@@ -26,8 +26,15 @@ def main():
     dd_out.iloc[0, 0] = 'subject'
 
     data = pd.read_csv(args.in_data, dtype=str)
+
+    initialColNames=["subject","study_arm","age"]
+    if (data.columns[:3] != initialColNames).any() :
+        print("ERROR: First three columns of data file should be",initialColNames,"but are", data.columns[:3].values)
+        sys.exit(1)
+        
     data_out = data[[x for x in varlist if x in data.columns]].copy()
     data_out.rename(columns={'mri_xnat_sid': 'subject'}, inplace=True)
+    
 
     dd_out.to_csv(args.out_datadict, index=False)
     data_out.to_csv(args.out_data, index=False)
@@ -36,7 +43,7 @@ def main():
 def _args(input_list: List[str] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(prog="filter_mncanda_data")
     p.add_argument('--in-datadict', type=Path,
-                   default=Path("input_Y6/DataDictionary.mNCANDA_2021-04-28kmc.xlsx"))
+                   default=Path("input_Y6/DataDictionary.mNCANDA_2021-04-28kmc.csv"))
     p.add_argument('--in-data', type=Path, 
                    default=Path('input_Y6/ncd.ma.2021.mncanda.2021.1_3.csv'))
     p.add_argument('--out-data', type=Path, required=True)
@@ -48,7 +55,8 @@ def _args(input_list: List[str] = None) -> argparse.Namespace:
 
 def load_datadict(fname: Union[str, Path]) -> pd.DataFrame:
     # 1. Load
-    dd = pd.read_excel(fname)
+    # dd = pd.read_excel(fname)
+    dd = pd.read_csv(fname)
     # 2. TODO: Protect primary key
     return dd
 
@@ -58,11 +66,20 @@ def select_variables_from_datadict(
     skip_annotation: str = "withh?oldfromrelease",
     verbose: bool = False,
 ) -> List[str]:
-    skips = dd['Field Annotation'].str.contains(skip_annotation, na=False, case=False, regex=True)
-    unvalidated = (dd['Field Type'] == 'text') & dd['Text Validation Type OR Show Slider Number'].isnull()  # fixed from .notnull()
+    # they were all non
+    skips=dd['Field Annotation'].dropna()
+    # .str.contains(skip_annotation, na=False, case=False, regex=True)
+    if not skips.empty :
+        print("STILL HAS TO BE IMPLEMENTED")
+        sys.exit(1)
+        
+    unvalidated = ((dd[ "Variable / Field Name"] != "subject")  &   dd['Field Type'] == 'text') & dd['Text Validation Type OR Show Slider Number'].isnull()  # fixed from .notnull()
     index = dd['Variable / Field Name'].iloc[0]
-    dropped = dd.loc[skips | unvalidated, 'Variable / Field Name'].tolist()
-    selected = dd.loc[~skips & ~unvalidated, 'Variable / Field Name'].tolist()
+    #dropped = dd.loc[skips | unvalidated, 'Variable / Field Name'].tolist()
+    dropped = dd.loc[unvalidated, 'Variable / Field Name'].tolist()
+    # selected = dd.loc[~skips & ~unvalidated, 'Variable / Field Name'].tolist()
+    selected = dd.loc[ ~unvalidated, 'Variable / Field Name'].tolist()
+
     selected = [x.strip() for x in selected]
 
     if verbose:

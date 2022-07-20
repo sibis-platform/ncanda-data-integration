@@ -14,7 +14,7 @@ import argparse
 import pandas as pd
 from typing import List, NoReturn
 from pathlib import Path
-
+import sys
 
 def main():
     args = _args()
@@ -30,14 +30,14 @@ def _args(input_args: List[str] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser()
     p.add_argument("action", choices=["data", "datadict"])
     p.add_argument("source", type=Path)
-
+    return p.parse_args(input_args)
 
 def check_data(data: pd.DataFrame) -> NoReturn:
     raise NotImplementedError("Haven't written data checks yet.")
 
 
 def check_datadict(dd: pd.DataFrame) -> NoReturn:
-    assert dd.columns == [
+    assert (dd.columns == [
         "Variable / Field Name",
         "Form Name",
         "Section Header",
@@ -56,16 +56,23 @@ def check_datadict(dd: pd.DataFrame) -> NoReturn:
         "Matrix Group Name",
         "Matrix Ranking?",
         "Field Annotation",
-    ], "Wrong datadict header"
-    assert ~((dd["Field Type"] == "text") & 
-             (dd['Text Validation Type OR Show Slider Number'].isnull())
-             .any()), "Unvalidated text fields listed in datadict"
-    assert dd['Field Type'].isin([
+    ]).all(), "Wrong datadict header"
+
+    LIST=((dd[ "Variable / Field Name"] != "subject") & (dd["Field Type"] == "text") &  (dd['Text Validation Type OR Show Slider Number'].isnull()))
+    
+    if  LIST.any() :
+        print("The following fields are unvalidated text fields:")
+        print(dd[LIST][ "Variable / Field Name"].to_string(index=False))
+        sys.exit()
+        
+
+    assert ~dd['Field Type'].isin([
         "text",
         "dropdown",
         "radio",
         "yesno",
-    ]), "Impermissible field type listed in datadict"
+    ]).all(), "Impermissible field type listed in datadict"
+    
     assert dd['Field Label'].notnull().all(), "All variables are described"
 
 if __name__ == "__main__":
