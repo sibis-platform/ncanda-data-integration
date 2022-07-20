@@ -183,7 +183,7 @@ def main(args):
     # account for subjects changing sites so they have multiple subject numbers 
     xnat_list = xnat_list[xnat_list.subject_id.isin(subject_list + special_subject_list)]
 
-    exception_list = ['ncanda-calibration-v1','ncanda-fmri-antisaccade-v1','ncanda-localizer-v1','ncanda-fmri-ringrewards-v1','ncanda-dti6b500pepolar-v1_TRACEW',]
+    exception_list = ['ncanda-calibration-v1','ncanda-fmri-antisaccade-v1','ncanda-localizer-v1','ncanda-fmri-ringrewards-v1','ncanda-dti6b500pepolar-v1_TRACEW']
     print(" ") 
     print("Types of scans ignored: ", exception_list) 
     for exception in exception_list:
@@ -253,6 +253,7 @@ def main(args):
         print(" ") 
         print("=======================")
         print("In REDCap and not in XNAT:")
+        print("Even if experiment exists in XNAT the Session ID might be mispelled!")
         # Pandas 0.17 you can do the following 
         # only_in_redcap = pandas.merge(redcap_xnat_list, xnat_list, on=['experiment_id','scan_id'],how='left', indicator=True)['_merge'] == 'left_only'
         # print redcap_xnat_list[only_in_redcap].values
