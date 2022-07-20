@@ -12,10 +12,15 @@ from sibispy import sibislogger as slog
 import os
 
 def upload_findings_to_xnat(
-    sibis_session: sibispy.Session,
-    qc_csv_file: str,
-    sendEmailFlag: bool
+        sibis_session: sibispy.Session,
+        qc_csv_file: str,
+        sendEmailFlag: bool,
+        verbose: bool
 ) -> int:
+    
+    if verbose:
+        print(f"Uploading decisions from {qc_csv_file} to xnat")
+            
     if not os.path.exists(qc_csv_file):
         raise IOError("Please ensure {} exists!".format(qc_csv_file))
 
@@ -65,19 +70,43 @@ def upload_findings_to_xnat(
                 questionable_scans +=  " " + str(os.path.join(row['nifti_folder'],str(row['scan_id']) + "_" + str(row['scan_type']), "*.gz")) +  "<BR>" 
             else:
                 scan.set('quality','unknown')
-
+                
             # comment - always upload
-            if isinstance(row['scan_note'],str) and len(row['scan_note'])>0:
-                scan.set('note',row['scan_note'])
+            scan_note=row['scan_note']
+            if isinstance(scan_note,str) :
+                scan_note_len=len(scan_note)
+                if  scan_note_len :
+                    if scan_note_len > 254 :
+                        uploaded_note= scan_note[:254]
+
+                        import hashlib
+                        eLabel=row['xnat_experiment_id'] + "-" + str(row['scan_id']) + "-" + hashlib.sha1(scan_note.encode()).hexdigest()[0:6]
+                        slog.info(eLabel,
+                                  'Could not upload complete scan notes',
+                                  experiment= row['xnat_experiment_id'] ,
+                                  scan_id= row['scan_id'],
+                                  original_scan_note=scan_note,
+                                  uploaded_scan_note=uploaded_note,
+                                  info="XNAT  resticts scan notes to less than 255 characters. If uploaded_scan_note misses important details,  edit scan note in xnat directly so that you stay under the character count.  Close issue afterwards or when nothing needs to be edit")
+
+                    else :
+                        uploaded_note=scan_note
+                   
+                scan.set('note',uploaded_note)
 
         except Exception as e:
-            import hashlib, sys, traceback
-            slog.info(hashlib.sha1('upload_findings_to_xnat_{}'.format(row['xnat_experiment_id'])).hexdigest()[0:6], 
-                      'Problem processing findings for upload, exp: {}'.format(row['xnat_experiment_id']),
-                      error_msg=e.message,
-                      error_detail=traceback.format_exception(sys.exec_info()))
-            continue 
-
+                import hashlib, sys, traceback
+                sys_info=sys.exc_info()
+                eLabel=row['xnat_experiment_id']  + "-" + str(row['scan_id']) + "-" + hashlib.sha1(str(e).encode()).hexdigest()[0:6]
+                slog.info(eLabel,
+                          'Could not upload information for exp: {}'.format(row['xnat_experiment_id']),
+                          experiment= row['xnat_experiment_id'] ,
+                          scan= str(row['scan_id']),
+                          error_msg=e,
+                          error_detail=traceback.format_exception(sys_info[0],sys_info[1],sys_info[2]))
+                                        
+                continue 
+  
     # send email to qc manager
     if sendEmailFlag and len(questionable_scans) :
         from sibispy import sibis_email 
