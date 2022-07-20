@@ -951,7 +951,7 @@ qc_file = os.path.join(log_dir, "scans_to_review.csv")
 # when there's more questionable scans to be written to it
 if os.path.exists(qc_file):
     uploaded_scan_count = upload_visual_qc.upload_findings_to_xnat(
-        sibis_session, qc_file, sendEmailFlag=True
+        sibis_session, qc_file, (True if args.send_mail_to else False), args.verbose
     )
 
     if uploaded_scan_count > 0:
