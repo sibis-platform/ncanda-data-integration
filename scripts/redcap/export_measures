@@ -239,11 +239,8 @@ if len(missing_baseline) :
     #formattable_address = session.get_formattable_redcap_subject_address(project_id, arm_name)
     #urls = [formattable_address % (x[0]) for x in subject_arm_missing]
     
-    session.get_formattable_redcap_subject_address(
-    slog.info("export_measures-" + hashlib.sha1(str(missing_baseline).encode()).hexdigest()[0:6], "ERROR: Subjects are in arms but not part of baseline.",
-              entries = str(subject_arm_missing),
-              #urls,
-              info = "Please remove from redcap")
+    # session.get_formattable_redcap_subject_address(
+    slog.info("export_measures-" + hashlib.sha1(str(missing_baseline).encode()).hexdigest()[0:6], "ERROR: Subjects are in arms but not part of baseline.", entries = str(subject_arm_missing), info = "Please remove from redcap")
 
     visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: False if key[0] in missing_baseline else True )]
 
