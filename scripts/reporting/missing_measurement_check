@@ -48,6 +48,7 @@ def main(args):
     print("Check for errors in pipeline list:") 
 
     for sline in pipe_list:
+        # print(sline)
         sub_arm_visit,reason = sline.split(' ')
         if reason != "missing\n" : 
             print("Do not know how to handle ", sline)
