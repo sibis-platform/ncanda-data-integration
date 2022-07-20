@@ -423,6 +423,7 @@ def feed_to_csv2redcap(
     if post_to_github:
         additional_args.append('-p')
     # TODO: Get based on relative position to current file
+    # Import csv files to import_project 
     cmd_dir = "/sibis-software/ncanda-data-integration/scripts/import/laptops"
     cmd = [
         cmd_dir + "/csv2redcap",
