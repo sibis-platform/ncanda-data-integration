@@ -50,8 +50,8 @@ fi
 
 catch_output_email "${SCRIPT_LABEL}:REDCap: Update Form Status (update_bulk_forms)" ${SIBIS}/scripts/redcap/update_bulk_forms -p -t ${LOG_DIR}
 
-# TODO: Remove the `-e` argument once SRI cleans up its issues from past years
-catch_output_email "${SCRIPT_LABEL}:REDCap: Date-event associations (wrong_date_association)" ${SIBIS}/scripts/redcap/wrong_date_associations.py -p -q -e {7,8,9}y_visit_arm_1
+# -e {7,8,9}y_visit_arm_1
+catch_output_email "${SCRIPT_LABEL}:REDCap: Date-event associations (wrong_date_association)" ${SIBIS}/scripts/redcap/wrong_date_associations.py -p -q 
 
 #
 # Previouly front-nighlty
@@ -66,7 +66,7 @@ if [ ${IMAGE_PROCESS_FLAG} == 1 ]; then
   catch_output_email "${SCRIPT_LABEL}:XNAT: Check Session Names (check_object_names)" ${SIBIS}/scripts/xnat/check_object_names -p -t ${LOG_DIR} --send-mail --zip-root ${SIBIS_DVD_DIR}
 
   # Check for new or updated sessions and
-  catch_output_email "${SCRIPT_LABEL}:XNAT: Check New Sessions (check_new_sessions)" ${SIBIS}/scripts/xnat/check_new_sessions --qc-csv --qc-csv-v2 --send-mail-to ncanda-image-qc@sri.com -p -t ${LOG_DIR}
+  catch_output_email "${SCRIPT_LABEL}:XNAT: Check New Sessions (check_new_sessions)" ${SIBIS}/scripts/xnat/check_new_sessions --qc-csv --qc-json --send-mail-to ncanda-image-qc@sri.com -p -t ${LOG_DIR}
   # --qc-csv ${SIBIS_ANALYSIS_DIR}/beta/image-qc/scan_qc.csv
 
   # Check whether any MR sessions are missing corresponding phantom scans
