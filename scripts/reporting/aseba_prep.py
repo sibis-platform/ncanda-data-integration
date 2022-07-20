@@ -146,7 +146,7 @@ aseba_df_answers = (aseba_df.filter(regex=form_specifics.form_field_regex)
 # Check that all relevant columns were provided and form_field_regex didn't
 # under- or over-select
 if len(aseba_df_answers.columns) != form_specifics.field_count:
-    raise ValueError("%d fields expected for form %s, but only %d present" % (
+    raise ValueError("%d fields expected for form %s, but %d present" % (
         form_specifics.field_count,
         args.form.upper(),
         len(aseba_df_answers.columns)
