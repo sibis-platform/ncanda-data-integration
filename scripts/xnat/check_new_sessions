@@ -946,13 +946,16 @@ with open(os.path.join(sibis_config, "special_cases.yml"), "r") as fi:
 now_str = time.strftime(xnat_date_format)
 
 
-# Upload new QC results from 2nd tier reviewer     - clean up later         
-qc_file = os.path.join(log_dir, "scans_to_question_v2.json")
+# Upload new QC results from 2nd tier reviewer     - clean up later
+# currently not loading bc not yet validated 
+qc_file = os.path.join(log_dir, "scans_to_question_v2.json__")
 # Check the file exists, since we're now moving it after the upload, not only
 # when there's more questionable scans to be written to it
 if os.path.exists(qc_file):        
     uploaded_scan_count = upload_visual_qc.upload_2nd_tier_to_xnat(sibis_session, qc_file, args.verbose)
-    
+    #import sys
+    #print("DEBUG")
+    #sys.exit(0)
     if uploaded_scan_count > 0:
         # archive file
         reviewed_path = os.path.join(log_dir, "reviewed")
