@@ -513,7 +513,7 @@ def frame_check(experiment, manufacturer, scan_list):
     if manufacturer == "GE MEDICAL SYSTEMS":
         for f in frames:
             if f[0] in scan_type_dictionary["GE MEDICAL SYSTEMS"]:
-                if frame_check_ge[f[0]] != f[1]:
+                if f[1] not in frame_check_ge[f[0]]:
                     error.append(
                         {
                             "scan_type": f[0],
@@ -569,7 +569,7 @@ def frame_check(experiment, manufacturer, scan_list):
                     )
                 continue
 
-            if f[1] != frame_check_siemens[f[0]]:
+            if f[1] not in frame_check_siemens[f[0]]:
                 # Some of the required frames are missing
                 error.append(
                     {
