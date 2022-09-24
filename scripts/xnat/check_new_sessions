@@ -123,7 +123,7 @@ expected_images["GE MEDICAL SYSTEMS"] = {
     "ncanda-dti30b400-v1": [32],
     "ncanda-dti60b1000-v1": [62],
     "ncanda-grefieldmap-v1": [6],
-    "ncanda-rsfmri-v1": [274, 275],
+    "ncanda-rsfmri-v1": [274, 275, 330],
 }
 
 expected_images["SIEMENS"] = {
@@ -134,7 +134,7 @@ expected_images["SIEMENS"] = {
     "ncanda-dti30b400-v1": [32],
     "ncanda-dti60b1000-v1": [62],
     "ncanda-grefieldmap-v1": [1, 2],
-    "ncanda-rsfmri-v1": [274, 275],
+    "ncanda-rsfmri-v1": [274, 275, 330],
 }
 
 #
@@ -148,7 +148,7 @@ frame_check_siemens = {
     "ncanda-dti30b400-v1": "32",
     "ncanda-dti60b1000-v1": "62",
     "ncanda-grefieldmap-v1": ["64", "128"],
-    "ncanda-rsfmri-v1": "275",
+    "ncanda-rsfmri-v1": ["275", "330"],
 }
 
 frame_check_ge = {
@@ -158,7 +158,7 @@ frame_check_ge = {
     "ncanda-dti30b400-v1": "2048",
     "ncanda-dti60b1000-v1": "3968",
     "ncanda-grefieldmap-v1": "384",
-    "ncanda-rsfmri-v1": "8768",
+    "ncanda-rsfmri-v1": ["8768", "10560"],
 }
 
 #
@@ -513,7 +513,7 @@ def frame_check(experiment, manufacturer, scan_list):
     if manufacturer == "GE MEDICAL SYSTEMS":
         for f in frames:
             if f[0] in scan_type_dictionary["GE MEDICAL SYSTEMS"]:
-                if frame_check_ge[f[0]] != f[1]:
+                if f[1] not in frame_check_ge[f[0]]:
                     error.append(
                         {
                             "scan_type": f[0],
@@ -569,7 +569,7 @@ def frame_check(experiment, manufacturer, scan_list):
                     )
                 continue
 
-            if f[1] != frame_check_siemens[f[0]]:
+            if f[1] not in frame_check_siemens[f[0]]:
                 # Some of the required frames are missing
                 error.append(
                     {
