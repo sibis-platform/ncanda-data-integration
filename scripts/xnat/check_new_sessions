@@ -1488,13 +1488,15 @@ for (
             string += key + ":  " + str(d[key]) + "  "
         return string
 
-    keys_to_exclude = ["scan_id", "scan_type", "manufacturer"]
+    keys_to_exclude = ["scan_id", "scan_type", "manufacturer", "nii_search"]
     errors_by_scan = defaultdict(str)
     for error in scan_errors:
         smaller_error = exclude_keys(error, keys_to_exclude)
         error_string = dict_to_string(smaller_error)
         scan_id = str(error["scan_id"])
-        errors_by_scan[scan_id] = errors_by_scan[scan_id] + error_string
+        # Avoide adding the same error message over and over again
+        if  (len(errors_by_scan[scan_id]) < 255) and (error_string not in errors_by_scan[scan_id]): 
+            errors_by_scan[scan_id] = errors_by_scan[scan_id] + error_string
 
     # "unset" (i.e., uninspected) mandatory scantypes
     if len(unseen_scans):
