@@ -158,8 +158,8 @@ def upload_2nd_tier_to_xnat(
                     exp.set("note",exp_note)
  
             for scan_id,scan_dict in exp_dict['scans'].items() :
-                sID= scan_id.split('_')[0]
                 
+                sID= scan_id.split('_')[0]
                 scan=exp.scans.get(sID)
                 if scan is None:
                     import hashlib
@@ -174,6 +174,7 @@ def upload_2nd_tier_to_xnat(
                 # Upload decision
                 scan_qc=scan_dict['last_decision']
                 scan_decision=scan_qc['decision']
+
                 try:
                     # quality - only change if the scan quality isn't determined yet
                     if scan.get('quality') in ['unusable', 'usable', 'usable-extra']:
