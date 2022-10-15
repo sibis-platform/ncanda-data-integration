@@ -101,7 +101,7 @@ required_ge = {
 
 
 scan_type_dictionary = {
-    "GE MEDICAL SYSTEMS": list(required_ge.keys()),
+    "GE": list(required_ge.keys()),
     "SIEMENS": list(required_siemens.keys()),
 }
 
@@ -115,7 +115,7 @@ required_fbirn = {"ncanda-rsfmri-v1": 1}
 # The nifti image count per session
 #
 expected_images = dict()
-expected_images["GE MEDICAL SYSTEMS"] = {
+expected_images["GE"] = {
     "ncanda-t1spgr-v1": [1],
     "ncanda-mprage-v1": [1],
     "ncanda-t2fse-v1": [1],
@@ -344,11 +344,11 @@ def incomplete_scan_check(
 ):
     missing_scans = []
     scan_types_set = set(scan_types)
-    ge_scan_types = set(scan_type_dictionary["GE MEDICAL SYSTEMS"])
+    ge_scan_types = set(scan_type_dictionary["GE"])
     siemens_scan_types = set(scan_type_dictionary["SIEMENS"])
     siemens_gradient_flag = False
 
-    if manufacturer == "GE MEDICAL SYSTEMS":
+    if manufacturer == "GE":
         if ge_scan_types.issubset(scan_types_set):
             return False
         else:
@@ -375,6 +375,7 @@ def incomplete_scan_check(
             "Do not support manufacturer {}".format(manufacturer),
             eid=eid,
             xnat_url=xnat_url,
+            site_resolution="Ask site to upload scans where scanner/manufacturer starts with SIEMENS or GE!"
         )
         return True
 
@@ -443,9 +444,9 @@ def voxelRes_check(experiment, manufacturer, scan_list):
         ]
         voxel_res.append(scan_res)
 
-    if manufacturer == "GE MEDICAL SYSTEMS":
+    if manufacturer == "GE":
         for v in voxel_res:
-            if v[0] in scan_type_dictionary["GE MEDICAL SYSTEMS"]:
+            if v[0] in scan_type_dictionary["GE"]:
                 try:
                     match = re.match(voxelres_ge[v[0]], v[1], flags=re.DOTALL)
                     if not match:
@@ -1190,8 +1191,8 @@ for (
 
     try:
 
-        manufacturer = "scanner/manufacturer"
-        manufacturer = experiment.get(manufacturer) or ""
+        manufacturer_str = "scanner/manufacturer"
+        manufacturer = experiment.get(manufacturer_str).split(' ',1)[0].upper()  or ""
         scanner_model_str = "scanner/model"
         scanner_model = experiment.get(scanner_model_str) or ""
 
@@ -1331,8 +1332,10 @@ for (
                         session_label
                         + "-"
                         + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],
-                        "ERROR: Could not generate nifti files - skipping session",
+                        "ERROR: Could not generate nifti files of scan "+ scanID + " "  + scantype + " - skipping rest of session",
                         eid=eid,
+                        scanID = scanID,
+                        scanType = scantype,   
                         xnat_url=xnat_url,
                         project=project,
                         err_msg=str(err_msg),
@@ -1340,7 +1343,7 @@ for (
                     )
                     experiments_for_next_run.append(eid)
                     remove_file(session_label, qc_file_tmp)
-                    continue
+                    break
 
                 if len(error_msg) or niftisWereCreatedFlag:
                     # Remove qc_file as session has to be checked again
@@ -1348,6 +1351,21 @@ for (
 
                     if len(error_msg) and quality != "unusable":
                         nifti_export_ok = False
+                        slog.info(
+                            session_label
+                            + "-"
+                            + hashlib.sha1(str(error_msg).encode()).hexdigest()[0:6],
+                            "ERROR: Could not generate nifti files of scan "+ scanID + " "  + scantype + " - skipping rest of session",
+                            eid=eid,
+                            scanID = scanID,
+                            scanType = scantype,                             
+                            xnat_url=xnat_url,
+                            project=project,
+                            err_msg=str(error_msg),
+                        )
+                        # stop so that you do not fill up entire session with failed nifti generations  
+                        break 
+                                        
                         htmln.append(
                             "".join(
                                 [
@@ -1372,7 +1390,7 @@ for (
     failed_dti = ""
 
     scan_errors = []
-    if not os.path.exists(qc_file_tmp):
+    if nifti_export_ok and not os.path.exists(qc_file_tmp):
         # Only do if not a phantom scan
         try:
             if not check_for_phantom(session_label):
@@ -1402,7 +1420,7 @@ for (
                 if mriErrorsFlag:
                     errorFlag = True
 
-                manufacturer_u = manufacturer.split(" ", 1)[0].upper()
+                # manufacturer_u = manufacturer.split(" ", 1)[0].upper()
                 failed_dti = check_dti(
                     dti_checker,
                     experiment,
@@ -1411,7 +1429,7 @@ for (
                     cases_dir,
                     session_label,
                     eid,
-                    manufacturer_u,
+                    manufacturer,
                     scanner_model,
                     incorrect_formatting_map,
                 )
@@ -1472,7 +1490,8 @@ for (
 
     else:
         physio_ok = True
-        rename_file(session_label, qc_file_tmp, qc_file)
+        if os.path.exists(qc_file_tmp):
+            rename_file(session_label, qc_file_tmp, qc_file)
 
         if args.verbose:
             sys.stdout.write("Skipping QC...")
