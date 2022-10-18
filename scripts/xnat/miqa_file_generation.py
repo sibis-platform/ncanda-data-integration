@@ -92,9 +92,9 @@ def convert_dataframe_to_new_format(
             for location in scan_dir.glob("*")
             if any(str(location).endswith(extension) for extension in image_extensions)
         ]
-        if len(frame_locations) == 0:
+        if len(frame_locations) == 0 and verbose: 
             print(
-                f"Error: Could not find any image files under {scan_dir}. Failed to write any frames for this scan."
+                f"Error:convert_dataframe_to_new_format: Could not find any image files under {scan_dir}. Failed to write any frames for this scan."
             )
 
 
