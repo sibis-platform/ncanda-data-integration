@@ -848,9 +848,11 @@ for [key, row] in mr_sessions_redcap.iterrows():
             error = f'Missing visit date for subject with visit data at {key[1]}.'
 
             project_id = redcap_project.export_project_info()['project_id']
-            visit = re.match('(baseline_visit)|(\d*y_visit)|(\d*month_followup)',event).group()
-            arm_num = int(re.search('arm_(\d*)', event).group(1))
-            redcap_url = session.get_formattable_redcap_subject_address(project_id, arm_num, subject_label)
+            try :
+                arm_num = int(re.search('arm_(\d*)', event).group(1))
+                redcap_url = session.get_formattable_redcap_subject_address(project_id, arm_num, subject_label)
+            except Exception as err_msg:
+                redcap_url = ""
             
             slog.info(
                 key[0], error, visit_id=key[1],
