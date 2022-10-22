@@ -37,7 +37,7 @@ import miqa_file_generation
 # Definitions
 # ============================================================
 
-# calculating unseen, duplicated, missing, and questionable scans
+#  unparsable dicom, unseen, duplicated, missing, and questionable scans
 htmln = []
 htmlu = []
 htmld = []
@@ -49,6 +49,7 @@ QC_HEADER = "xnat_experiment_id,nifti_folder,scan_id,scan_type,experiment_note,d
 scans_to_qc = [QC_HEADER]
 scans_to_question = [QC_HEADER]
 
+# Experiments that were flagged and that need to be checked next time again
 experiments_for_next_run = []
 
 new_sessions = []
@@ -804,7 +805,19 @@ def write_scans_to_file(
     os.chmod(target_file, 0o666)
     return True
 
+# Reformat scan_errors returned from mri_quality_check
+def exclude_keys(d, keys):
+    return {x: d[x] for x in d if x not in keys}
 
+def dict_to_string(d):
+    string = ""
+    for key in d:
+        string += key + ":  " + str(d[key]) + "  "
+        
+    return string
+
+
+    
 # ============================================================
 # Main
 # ============================================================
@@ -1031,11 +1044,12 @@ if not args.check_all:
         if args.verbose:
             print("Script was last run %s" % creation_date)
 
-        # Get list of previously flagged experiments that need to be checked
-        # again
+        # Get list of previously flagged experiments that need to be checked again
         if args.eid:
+            # Manually set
             experiments_to_check = set(args.eid.split(","))
         else:
+            # Download from xnat 
             experiments_to_check = set(content[0]["contents"].split(","))
         if args.verbose:
             print(
@@ -1073,8 +1087,7 @@ if not args.eid:
     if args.verbose:
         print("%d experiments have been modified since last run" % len(new_sessions))
 
-# Also get necessary data for all sessions flagged during previous run of this
-# script
+# Also get necessary data for all sessions flagged during previous run of this script
 previous_sessions = []
 for eid in experiments_to_check:
     criteria = [("xnat:mrSessionData/ID", "LIKE", eid.strip())]
@@ -1182,6 +1195,7 @@ for (
     elif os.path.isfile(qc_file):
         rename_file(session_label, qc_file, qc_file_tmp)
 
+    # Get pointer to experiment in xnat
     # Important to call it with project and subject label so that later it is stored in right location
     experiment = sibis_session.xnat_get_experiment(eid, project, subject)
     if not experiment:
@@ -1312,6 +1326,7 @@ for (
     if creatingNiftiFlag:
         for (scanID, scantype, quality) in scantype_and_quality:
             if re.match("^ncanda-.*-v[0-9]$", scantype):
+                details=""
                 try:
                     (
                         error_msg,
@@ -1326,30 +1341,18 @@ for (
                         xnat_dir,
                         verbose=args.verbose,
                     )
-                except Exception as err_msg:
+                except Exception as err_msg_raw:
                     info = sys.exc_info()
-                    slog.info(
-                        session_label
-                        + "-"
-                        + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],
-                        "ERROR: Could not generate nifti files of scan "+ scanID + " "  + scantype + " - skipping rest of session",
-                        eid=eid,
-                        scanID = scanID,
-                        scanType = scantype,   
-                        xnat_url=xnat_url,
-                        project=project,
-                        err_msg=str(err_msg),
-                        detail=traceback.format_exception(*info),
-                    )
-                    experiments_for_next_run.append(eid)
-                    remove_file(session_label, qc_file_tmp)
-                    break
-
-                if len(error_msg) or niftisWereCreatedFlag:
+                    details =traceback.format_exception(*info)
+                    err_msg=str(err_msg_raw)
+                    if len(err_msg) == 0:
+                        err_msg="No specific error msg!"
+                        
+                if len(error_msg) :
                     # Remove qc_file as session has to be checked again
                     remove_file(session_label, qc_file_tmp)
 
-                    if len(error_msg) and quality != "unusable":
+                    if quality != "unusable":
                         nifti_export_ok = False
                         slog.info(
                             session_label
@@ -1362,10 +1365,9 @@ for (
                             xnat_url=xnat_url,
                             project=project,
                             err_msg=str(error_msg),
+                            detail=details
                         )
-                        # stop so that you do not fill up entire session with failed nifti generations  
-                        break 
-                                        
+                        
                         htmln.append(
                             "".join(
                                 [
@@ -1376,7 +1378,13 @@ for (
                                 ]
                             )
                         )
+                        # stop so that you do not fill up entire session with failed nifti generations  
+                        break 
 
+                elif niftisWereCreatedFlag:
+                    # Remove qc_file as session has to be checked again
+                    remove_file(session_label, qc_file_tmp)
+                    
     # MRI Session Quality Checks
     if args.verbose:
         sys.stdout.write("Beginning QC...")
@@ -1388,7 +1396,6 @@ for (
 
     errorFlag = False
     failed_dti = ""
-
     scan_errors = []
     if nifti_export_ok and not os.path.exists(qc_file_tmp):
         # Only do if not a phantom scan
@@ -1442,12 +1449,13 @@ for (
                     )
 
             # missing physio data
-            physio_ok = True
             if not isPhantom and len(fmri_scans):
                 physio_ok = check_physio(experiment, ifc, eid, xnat_url)
                 if not physio_ok:
                     errorFlag = True
                     htmlphys.append(session_html_link)
+            else :   
+                physio_ok = True
 
             # If no error is detected write flag to data drive
             if not errorFlag:
@@ -1485,27 +1493,22 @@ for (
                 detail=traceback.format_exception(*info),
             )
             experiments_for_next_run.append(eid)
-            remove_file(session_label, qc_file_tmp)
             continue
-
+        
+    # if nifti_export_ok and not os.path.exists(qc_file_tmp):
     else:
-        physio_ok = True
-        if os.path.exists(qc_file_tmp):
+        # we know qc_file_tmp needs to exists otherwise would not gotten here
+        # in other words eid already passed all checks 
+        if nifti_export_ok :
+            physio_ok = True
             rename_file(session_label, qc_file_tmp, qc_file)
+        else :
+            #Physio was not checked so just setting it to False right now 
+            physio_ok = False
 
         if args.verbose:
             sys.stdout.write("Skipping QC...")
             sys.stdout.flush()
-
-    # Reformat scan_errors returned from mri_quality_check
-    def exclude_keys(d, keys):
-        return {x: d[x] for x in d if x not in keys}
-
-    def dict_to_string(d):
-        string = ""
-        for key in d:
-            string += key + ":  " + str(d[key]) + "  "
-        return string
 
     keys_to_exclude = ["scan_id", "scan_type", "manufacturer", "nii_search"]
     errors_by_scan = defaultdict(str)
@@ -1518,7 +1521,7 @@ for (
             errors_by_scan[scan_id] = errors_by_scan[scan_id] + error_string
 
     # "unset" (i.e., uninspected) mandatory scantypes
-    if len(unseen_scans):
+    if nifti_export_ok and len(unseen_scans):
         unseen_scans_type = []
 
         exp_note = experiment.get("note") or ""
@@ -1593,6 +1596,9 @@ for (
     else:
         if args.verbose:
             print("OK")
+
+# End for EID ... in sessions_to_check
+
 
 # Make links for all "new" sessions, i.e., those inserted after the
 # "last checked" date
