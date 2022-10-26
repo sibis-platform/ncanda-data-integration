@@ -12,16 +12,8 @@ from sibispy import sibislogger as slog
 import os
 import miqa_file_generation
 
-def upload_findings_to_xnat(
-        sibis_session: sibispy.Session,
-        qc_csv_file: str,
-        sendEmailFlag: bool,
-        verbose: bool
-) -> int:
-    
-    if verbose:
-        print(f"Uploading decisions from {qc_csv_file} to xnat")
-            
+def read_csf_file(qc_csv_file: str) -> pd.DataFrame:
+
     if not os.path.exists(qc_csv_file):
         raise IOError("Please ensure {} exists!".format(qc_csv_file))
 
@@ -31,9 +23,20 @@ def upload_findings_to_xnat(
        fData=pd.read_csv(qc_csv_file)
     except Exception as err_msg :
        raise IOError("Reading of File {} failed with the following error message: {}".format(qc_csv_file,str(err_msg)))
- 
+
+    return fData
+
+
+def upload_data_to_xnat(
+        sibis_session: sibispy.Session,
+        fData: pd.DataFrame,
+        sendEmailFlag: bool,
+        verbose: bool
+) -> int:
+     
     questionable_scans="" 
     uploaded_scan_count = 0
+    
     for index,row in fData.iterrows():
 
         exp=sibis_session.xnat_get_experiment(row['xnat_experiment_id'])
@@ -121,6 +124,18 @@ def upload_findings_to_xnat(
 
     return uploaded_scan_count
 
+def upload_csv_to_xnat(
+        sibis_session: sibispy.Session,
+        qc_csv_file: str,
+        sendEmailFlag: bool,
+        verbose: bool
+) -> int:
+    
+    if verbose:
+        print(f"Uploading decisions from {qc_csv_file} to xnat")
+            
+    fData=read_csf_file(qc_csv_file) 
+    return upload_data_to_xnat(sibis_session, fData, sendEmailFlag, verbose)
 
 
 def upload_2nd_tier_to_xnat(
