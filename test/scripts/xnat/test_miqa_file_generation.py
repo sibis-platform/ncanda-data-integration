@@ -84,21 +84,27 @@ def test_json_has_csv_data(file_prefix, sibis_session, project_list):
     csv_file=os.path.join(current_dir,file_prefix + ".csv")
     csv_df=upload_visual_qc.read_csf_file(csv_file)
 
+    ## extract the site from the CSV data so we can index into JSON
     csv_df["_site"] = csv_df["nifti_folder"].apply(lambda x : get_site_from_folder(x) )
 
     for idx, scan in csv_df.iterrows():
+        ## try fetching the JSON object using index coordinates from the csv file
         try:
             js_expt = json_dict["projects"][scan['_site']]["experiments"][scan["xnat_experiment_id"]]
             js_scan = js_expt["scans"][f"{scan['scan_id']}_{scan['scan_type']}"]
         except:
+            ## If this fails, means the JSON data doesn't match CSV
             assert False, "should have found the scan."
-            
+        
+        ## Validate that scan parameters
         assert js_scan["type"] == scan["scan_type"]
         if pd.isna(scan["decision"]):
             assert js_scan["last_decision"] == None
         else:
             assert js_scan["last_decision"]["decision"] == miqa_file_generation.MIQADecisionCodes[str(scan["decision"])]
             assert js_scan["last_decision"]["note"] == scan["scan_note"] or (pd.isna(scan["scan_note"]) and js_scan["last_decision"]["note"] in [None, ""])
+
+        ## Not sure if this is the right comparison
         assert js_expt["notes"] == scan["experiment_note"] or (pd.isna(scan["experiment_note"]) and js_expt["notes"] in [None, ""])
         
 
