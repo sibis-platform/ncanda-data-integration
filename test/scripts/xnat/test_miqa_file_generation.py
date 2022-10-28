@@ -64,6 +64,32 @@ def test_read_write_json(file_prefix, sibis_session, project_list):
     assert(filecmp.cmp(orig_file,created_file))
 
 
+@pytest.mark.parametrize("file_prefix",
+                        [
+                            "test_miqa_file_generation",
+                            # "test_miqa_file_generation_2"
+                        ])
+def test_json_convert_xnat_df(file_prefix):
+    # Read Json file
+    file_name=file_prefix +".json"
+    orig_file=os.path.join(current_dir,file_name)
+    assert(os.path.exists(str(orig_file)))    
+    json_dict=miqa_file_generation.read_miqa_import_file(file_name,current_dir, False, miqa_file_generation.MIQAFileFormat.JSON)
+    json_df: pd.DataFrame = miqa_file_generation.convert_json_to_xnat_dataframe(json_dict)
+
+    # Read Legacy CSV file
+    csv_file=os.path.join(current_dir,file_prefix + ".csv")
+    csv_df: pd.DataFrame = upload_visual_qc.read_csf_file(csv_file)
+    
+    # sort so we are comparing similar thing
+    dataframe_cols = ['xnat_experiment_id','scan_id','scan_type','nifti_folder','experiment_note','decision','scan_note']
+    json_df = json_df.sort_values(by=dataframe_cols).reset_index(drop=True)
+    csv_df = csv_df.sort_values(by=dataframe_cols).reset_index(drop=True)
+    
+    df_diffs = csv_df.compare(json_df)
+    assert len(df_diffs) == 0, "DataFrames should be identical."
+
+
 def get_site_from_folder(nifti_folder:str, prefix:str = "/fs/storage/XNAT/archive/"):
     site = nifti_folder.replace(prefix, "", 1)
     site = re.sub(r"_incoming/.*$", r"", site)

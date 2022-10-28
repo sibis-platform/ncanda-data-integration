@@ -22,6 +22,12 @@ MIQADecisionCodes = {
     "3": "UN",
 }
 
+XNATDecisionCodes = {
+    "Q?": 0, 
+    "U": 1,
+    "UE": 2, 
+    "UN": 3, 
+}
 
 def get_data_from_old_format_file(file, verbose=False):
     if not pathlib.Path(file).exists():
@@ -50,6 +56,47 @@ def get_data_from_old_format_file(file, verbose=False):
             )
         return None
     return df
+
+
+def convert_json_to_xnat_dataframe(
+    json_dict: dict
+) -> pd.DataFrame:
+    
+    dataframe_cols = ['xnat_experiment_id','nifti_folder','scan_id','scan_type','experiment_note','decision','scan_note']
+    
+    all_scans = []
+    for project_name in json_dict['projects'].keys():
+        experiments = json_dict['projects'][project_name]["experiments"]
+        for xnat_experiment_id in experiments.keys():
+            experiment =  experiments[xnat_experiment_id]
+            for scan_name_id in experiment["scans"].keys():
+                scan = experiment["scans"][scan_name_id]
+                
+                # initilize record
+                data = {}
+                for col in dataframe_cols:
+                    data[col] = pd.NA
+                
+                # fill out fields
+                data['xnat_experiment_id'] = xnat_experiment_id
+                data['nifti_folder'] = re.sub(f"/{scan_name_id}/.*$", "", scan["frames"]["0"]["file_location"])
+                data['scan_id'], _ = scan_name_id.split('_', maxsplit=1)
+                data['scan_id'] = int(data['scan_id'])
+                data['scan_type'] = scan["type"]
+                
+                if experiment["notes"] != None and experiment["notes"] != "":
+                    data["experiment_note"] = experiment["notes"]
+                
+                if scan["last_decision"] != None:
+                    data["decision"] = XNATDecisionCodes[scan["last_decision"]["decision"]]
+                    
+                    if scan["last_decision"]["note"] != "":
+                        data["scan_note"] = scan["last_decision"]["note"]
+
+                df = pd.DataFrame.from_records([data], columns=dataframe_cols)
+                all_scans.append(df)
+                
+    return pd.concat(all_scans, ignore_index=True)
 
 
 def convert_dataframe_to_new_format(
