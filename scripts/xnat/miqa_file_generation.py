@@ -22,12 +22,7 @@ MIQADecisionCodes = {
     "3": "UN",
 }
 
-XNATDecisionCodes = {
-    "Q?": 0, 
-    "U": 1,
-    "UE": 2, 
-    "UN": 3, 
-}
+MIQA2CNSDecisionCodes = { MIQADecisionCodes[key] : int(key) for key in MIQADecisionCodes.keys() }
 
 def get_data_from_old_format_file(file, verbose=False):
     if not pathlib.Path(file).exists():
@@ -58,7 +53,7 @@ def get_data_from_old_format_file(file, verbose=False):
     return df
 
 
-def convert_json_to_xnat_dataframe(
+def convert_json_to_check_new_sessions_df(
     json_dict: dict
 ) -> pd.DataFrame:
     
@@ -88,7 +83,7 @@ def convert_json_to_xnat_dataframe(
                     data["experiment_note"] = experiment["notes"]
                 
                 if scan["last_decision"] != None:
-                    data["decision"] = XNATDecisionCodes[scan["last_decision"]["decision"]]
+                    data["decision"] = MIQA2CNSDecisionCodes[scan["last_decision"]["decision"]]
                     
                     if scan["last_decision"]["note"] != "":
                         data["scan_note"] = scan["last_decision"]["note"]
@@ -141,8 +136,8 @@ def convert_dataframe_to_new_format(
         ]
         if len(frame_locations) == 0 and verbose:
             print(
-                f"Error:convert_dataframe_to_new_format: \
-                    Could not find any image files under {scan_dir}. Failed to write any frames for this scan."
+                f"Error:convert_dataframe_to_new_format:\n",
+                f"    Could not find any image files under {scan_dir}. Failed to write any frames for this scan."
             )
 
         frame_locations.sort(key=lambda path: path.name)
