@@ -32,7 +32,10 @@ def main():
     # 0. Set up and load files
     args = _parse_args()
     self_report_api, import_api = _setup(args)
-
+    if self_report_api == None or import_api == None  :
+        print("Errror:Could not connect to redcap - APIs were None")
+        sys.exit(1)
+    
     data = load_data(self_report_api, args.date_begin, args.all, args.verbose)
 
     # 1. Address RPIR
