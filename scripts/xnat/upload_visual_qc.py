@@ -64,6 +64,9 @@ def upload_data_to_xnat(
             elif row['decision'] == 2:
                 scan.set('quality', 'usable-extra')
                 uploaded_scan_count += 1
+            elif row['decision'] == 3:
+                scan.set('quality', 'unusable')
+                uploaded_scan_count += 1
             elif row['decision']==0:
                 scan.set('quality', 'questionable')
                 uploaded_scan_count += 1
@@ -133,8 +136,7 @@ def upload_csv_to_xnat(
     
     if verbose:
         print(f"Uploading decisions from {qc_csv_file} to xnat")
-            
-    fData=read_csf_file(qc_csv_file) 
+    fData=read_csf_file(qc_csv_file)
     return upload_data_to_xnat(sibis_session, fData, sendEmailFlag, verbose)
 
 
