@@ -308,6 +308,7 @@ def write_miqa_import_file(
         if verbose:
             print(f"Wrote converted JSON to {target_file}.")
 
+    return True 
 
 def read_miqa_import_file(
     filename: str,
