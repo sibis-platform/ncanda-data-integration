@@ -29,6 +29,7 @@ from sibispy import sibislogger as slog
 from sibispy import check_dti_gradients as chk_dti
 from sibispy.xnat_util import XNATSessionElementUtil, XNATExperimentUtil
 import make_session_niftis
+import pandas as pd
 
 import upload_visual_qc
 import miqa_file_generation
@@ -1730,29 +1731,30 @@ subject_mapping = {
 
 # Or a QC json file
 if args.qc_json:
-    miqa_file_generation.write_miqa_import_file(
-        scans_to_qc,
+    rows_cols = [row.split(',') for row in scans_to_qc]
+    df = pd.DataFrame(rows_cols[1:], columns=rows_cols[0])
+    new_df = miqa_file_generation.convert_dataframe_to_new_format(df)
+    scans_to_qc_json_dict = miqa_file_generation.import_dataframe_to_dict(new_df)
+    
+    if miqa_file_generation.write_miqa_import_file(
+         scans_to_qc_json_dict,
         "scans_to_review_v2.json",
-        log_dir,
-        args.verbose,
-        format=miqa_file_generation.MIQAFileFormat.JSON,
-        session=sibis_session,
-        subject_mapping=subject_mapping,
-        project_list=project_list,
-    )
+        log_dir) == False :
+        print("ERROR:Failed to write scans_to_review_v2.json")
 
     # "scans_to_question.csv",
-    miqa_file_generation.write_miqa_import_file(
-        scans_to_question,
+    print(scans_to_question)
+    rows_cols = [row.split(',') for row in scans_to_question]
+    df = pd.DataFrame(rows_cols[1:], columns=rows_cols[0])
+    new_df = miqa_file_generation.convert_dataframe_to_new_format(df)
+    scans_to_question_json_dict = miqa_file_generation.import_dataframe_to_dict(new_df)
+    
+    if miqa_file_generation.write_miqa_import_file(
+        scans_to_question_json_dict,
         "scans_to_question_v2.json",
-        log_dir,
-        args.verbose,
-        format=miqa_file_generation.MIQAFileFormat.JSON,
-        session=sibis_session,
-        subject_mapping=subject_mapping,
-        project_list=project_list,
-    )
-
+        log_dir) == False :
+        print("ERROR:Failed to write scans_to_question_v2.json")
+    
 
 # Finally, update config stored on the server to have current date/time as the
 # time that this script was last run
