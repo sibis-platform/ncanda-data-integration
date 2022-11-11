@@ -96,7 +96,7 @@ def convert_dataframe_to_new_format(
             if row["decision"] in MIQADecisionCodes
             else ""
         )
-        if decision:
+        if 'scan_note' in row:
             scan_note = row['scan_note']
 
         scan_dir = pathlib.Path(
