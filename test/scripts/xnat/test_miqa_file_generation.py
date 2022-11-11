@@ -50,14 +50,14 @@ def test_read_write_json(file_prefix, sibis_session, project_list):
     file_name=file_prefix +".json"
     orig_file=os.path.join(current_dir,file_name)
     assert(os.path.exists(str(orig_file)))    
-    json_dict=miqa_file_generation. read_miqa_import_file(file_name,current_dir, False, miqa_file_generation.MIQAFileFormat.JSON)
+    json_dict = miqa_file_generation.read_miqa_import_file(file_name, current_dir)
 
     # Write out Json File
     created_file=os.path.join("/tmp",file_name)
     if os.path.exists(created_file):
         os.remove(created_file)
         
-    miqa_file_generation.write_miqa_import_file(json_dict,file_name,"/tmp",False, format=miqa_file_generation.MIQAFileFormat.JSON,session=sibis_session,project_list=project_list)
+    miqa_file_generation.write_miqa_import_file(json_dict, file_name, "/tmp")
      
     # Compare_File
     # print(orig_file,created_file)
@@ -71,7 +71,7 @@ def test_read_bad_json(file_prefix, sibis_session, project_list):
     file_name=file_prefix +".json"
     orig_file=os.path.join(current_dir,file_name)
     assert(os.path.exists(str(orig_file)))    
-    json_dict=miqa_file_generation. read_miqa_import_file(file_name,current_dir, False, miqa_file_generation.MIQAFileFormat.JSON)
+    json_dict = miqa_file_generation.read_miqa_import_file(file_name, current_dir)
     assert json_dict == {}, "Json dict should be empty bc read from bad file"
  
 @pytest.mark.parametrize("file_prefix",
@@ -85,7 +85,7 @@ def test_json_convert_check_new_sessions_df(file_prefix):
     file_name=file_prefix +".json"
     orig_file=os.path.join(current_dir,file_name)
     assert(os.path.exists(str(orig_file)))    
-    json_dict=miqa_file_generation.read_miqa_import_file(file_name,current_dir, False, miqa_file_generation.MIQAFileFormat.JSON)
+    json_dict = miqa_file_generation.read_miqa_import_file(file_name, current_dir)
     json_df: pd.DataFrame = miqa_file_generation.convert_json_to_check_new_sessions_df(json_dict)
 
     # Read legacy CSV file
@@ -116,13 +116,16 @@ def test_write_to_json_(file_name):
     if os.path.exists(created_file):
         os.remove(created_file)
 
-    successFlag = miqa_file_generation.write_miqa_import_file(scans_to_qc,file_name,"/tmp",False, format=miqa_file_generation.MIQAFileFormat.JSON,session=sibis_session,project_list=project_list)
+    successFlag = miqa_file_generation.write_miqa_import_file(scans_to_qc, file_name, "/tmp")
 
     assert successFlag == False, "Writing Json file should have failed bc it is not correct dictionary" 
 
     # turn into json dictionary
-    scans_to_qc_json_dict= scans_to_qc
-    
-    successFlag = miqa_file_generation.write_miqa_import_file(scans_to_qc_json_dict,file_name,"/tmp",False, format=miqa_file_generation.MIQAFileFormat.JSON,session=sibis_session,project_list=project_list)
+    rows_cols = [row.split(',') for row in scans_to_qc]
+    df = pd.DataFrame(rows_cols[1:], columns=rows_cols[0])
+    new_df = miqa_file_generation.convert_dataframe_to_new_format(df)
+    scans_to_qc_json_dict = miqa_file_generation.import_dataframe_to_dict(new_df)
+
+    successFlag = miqa_file_generation.write_miqa_import_file(scans_to_qc_json_dict, file_name, "/tmp")
 
     assert successFlag == True, "Writing Json file should have been successsfull " 
