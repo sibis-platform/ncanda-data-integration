@@ -97,7 +97,7 @@ def convert_dataframe_to_new_format(
             else ""
         )
         if 'scan_note' in row:
-            scan_note = row['scan_note']
+            scan_note = row['scan_note'].replace('\"', '')
 
         scan_dir = pathlib.Path(
             row["nifti_folder"], f"{row['scan_id']}_{row['scan_type']}"
@@ -122,7 +122,7 @@ def convert_dataframe_to_new_format(
                     scan_type,  # scan_type
                     frame_number,  # frame_number
                     str(frame_location),  # file_location
-                    row["experiment_note"],  # experiment_notes
+                    row["experiment_note"].replace('\"', ''),  # experiment_notes
                     subject_id,  # subject_id
                     session_id,  # session_id
                     scan_link,  # scan_link
