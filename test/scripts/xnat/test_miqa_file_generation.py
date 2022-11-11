@@ -13,7 +13,7 @@ import filecmp
 import glob
 import re
 from tabnanny import verbose
-import pandas as pd 
+import pandas as pd
 from unittest.mock import patch
 import pytest
 import sibispy
@@ -39,7 +39,7 @@ def sibis_session():
     if not sibis_session.configure():
         print("Error: session configure file was not found")
         sys.exit()
-    
+
     return sibis_session
 
 @pytest.mark.parametrize("file_prefix",
@@ -49,16 +49,16 @@ def test_read_write_json(file_prefix, sibis_session, project_list):
     # Read Json file
     file_name=file_prefix +".json"
     orig_file=os.path.join(current_dir,file_name)
-    assert(os.path.exists(str(orig_file)))    
+    assert(os.path.exists(str(orig_file)))
     json_dict = miqa_file_generation.read_miqa_import_file(file_name, current_dir)
 
     # Write out Json File
     created_file=os.path.join("/tmp",file_name)
     if os.path.exists(created_file):
         os.remove(created_file)
-        
+
     miqa_file_generation.write_miqa_import_file(json_dict, file_name, "/tmp")
-     
+
     # Compare_File
     # print(orig_file,created_file)
     assert(filecmp.cmp(orig_file,created_file))
@@ -70,10 +70,10 @@ def test_read_bad_json(file_prefix, sibis_session, project_list):
     # Read Json file
     file_name=file_prefix +".json"
     orig_file=os.path.join(current_dir,file_name)
-    assert(os.path.exists(str(orig_file)))    
+    assert(os.path.exists(str(orig_file)))
     json_dict = miqa_file_generation.read_miqa_import_file(file_name, current_dir)
     assert json_dict == {}, "Json dict should be empty bc read from bad file"
- 
+
 @pytest.mark.parametrize("file_prefix",
                         [
                             "test_miqa_file_generation",
@@ -84,23 +84,23 @@ def test_json_convert_check_new_sessions_df(file_prefix):
     # print(" test_json_convert_check_new_sessions_df", file_prefix)
     file_name=file_prefix +".json"
     orig_file=os.path.join(current_dir,file_name)
-    assert(os.path.exists(str(orig_file)))    
+    assert(os.path.exists(str(orig_file)))
     json_dict = miqa_file_generation.read_miqa_import_file(file_name, current_dir)
     json_df: pd.DataFrame = miqa_file_generation.convert_json_to_check_new_sessions_df(json_dict)
 
     # Read legacy CSV file
     csv_file=os.path.join(current_dir,file_prefix + ".csv")
     csv_df: pd.DataFrame = upload_visual_qc.read_csf_file(csv_file)
-    
+
     # sort so we are comparing similar thing
     dataframe_cols = csv_df.columns.to_list()
     json_df = json_df.sort_values(by=dataframe_cols).reset_index(drop=True)
     csv_df = csv_df.sort_values(by=dataframe_cols).reset_index(drop=True)
-    
+
     df_diffs = csv_df.compare(json_df)
     assert len(df_diffs) == 0, "DataFrames should be identical."
 
-    
+
 
 
 @pytest.mark.parametrize("file_name",
@@ -119,14 +119,14 @@ def test_write_to_json_(file_name):
 
     successFlag = miqa_file_generation.write_miqa_import_file(scans_to_qc, file_name, "/tmp")
 
-    assert successFlag == False, "Writing Json file should have failed bc it is not correct dictionary" 
+    assert successFlag == False, "Writing Json file should have failed bc it is not correct dictionary"
 
     # turn into json dictionary
-    rows_cols = [row.split(',') for row in scans_to_qc]
+    rows_cols = [row.replace('\n', '').split(',') for row in scans_to_qc]
     df = pd.DataFrame(rows_cols[1:], columns=rows_cols[0])
     new_df = miqa_file_generation.convert_dataframe_to_new_format(df)
     scans_to_qc_json_dict = miqa_file_generation.import_dataframe_to_dict(new_df)
 
     successFlag = miqa_file_generation.write_miqa_import_file(scans_to_qc_json_dict, file_name, "/tmp")
 
-    assert successFlag == True, "Writing Json file should have been successsfull " 
+    assert successFlag == True, "Writing Json file should have been successsfull "
