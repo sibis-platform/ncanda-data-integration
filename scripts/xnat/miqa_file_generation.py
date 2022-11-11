@@ -104,7 +104,7 @@ def convert_dataframe_to_new_format(
         )
         frame_locations = [
             location
-            for location in scan_dir.glob("*")
+            for location in scan_dir.glob("*.nii.gz")
         ]
         if len(frame_locations) == 0:
             raise Exception(
