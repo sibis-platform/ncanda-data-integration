@@ -850,7 +850,7 @@ def upload_qc_file(sibis_session, qc_file_name, file_extension, file_flag,  send
         json_dict=miqa_file_generation.read_miqa_import_file(qc_file ,"/.")
         json_df: pd.DataFrame = miqa_file_generation.convert_json_to_check_new_sessions_df(json_dict)
 
-        uploaded_scan_count = upload_visual_qc.upload_data_to_xnat(sibis_session, json_df, sendEmailFlag,  verbose)
+        uploaded_scan_count = upload_visual_qc.upload_data_to_xnat(sibis_session, json_df, qc_file, sendEmailFlag,  verbose)
         # Create a name for the archived file
         archive_base_name = os.path.join(reviewed_path, "qc_2nd_tier_review_" + now_str[0:10] + "_")
         

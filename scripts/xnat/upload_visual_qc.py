@@ -30,6 +30,7 @@ def read_csf_file(qc_csv_file: str) -> pd.DataFrame:
 def upload_data_to_xnat(
         sibis_session: sibispy.Session,
         fData: pd.DataFrame,
+        data_file: str,
         sendEmailFlag: bool,
         verbose: bool
 ) -> int:
@@ -38,19 +39,21 @@ def upload_data_to_xnat(
     uploaded_scan_count = 0
     
     for index,row in fData.iterrows():
-
-        exp=sibis_session.xnat_get_experiment(row['xnat_experiment_id'])
+        xnat_experiment_id=row['xnat_experiment_id']
+        exp=sibis_session.xnat_get_experiment(xnat_experiment_id)
         if exp is None:
             import hashlib
-            slog.info("upload_findings_to_xnat-{}-{}".format(row['xnat_experiment_id'],hashlib.sha1('upload_findings_to_xnat_{xnat_experiment_id}'.format(**row).encode()).hexdigest()[0:6]),
-                      f'Experiment "{xnat_experiment_id}" from CSV file "{csv_file}" does not exist in XNAT.',
+            slog.info("upload_findings_to_xnat-{}-{}".format(xnat_experiment_id,hashlib.sha1('upload_findings_to_xnat_{xnat_experiment_id}'.format(**row).encode()).hexdigest()[0:6]),
+                      f'Experiment "{xnat_experiment_id}" from file "{data_file}" does not exist in XNAT.',
                       src='upload_findings_to_xnat')
             continue
-        scan=exp.scans.get(str(row['scan_id']))
+        
+        scan_id=str(row['scan_id'])
+        scan=exp.scans.get(scan_id)
         if scan is None:
             import hashlib
-            slog.info("upload_findings_to_xnat-{}-{}".format(row['xnat_experiment_id'],hashlib.sha1('upload_findings_to_xnat_{xnat_experiment_id}'.format(**row).encode()).hexdigest()[0:6]),
-                      f'Scan {scan_id} for Experiment "{xnat_experiment_id}" from CSV file "{csv_file}" does not exist in XNAT.',
+            slog.info("upload_findings_to_xnat-{}-{}".format(xnat_experiment_id,hashlib.sha1('upload_findings_to_xnat_{xnat_experiment_id}'.format(**row).encode()).hexdigest()[0:6]),
+                      f'Scan {scan_id} for Experiment "{xnat_experiment_id}" from file "{data_file}" does not exist in XNAT.',
                       src='upload_findings_to_xnat')
             continue
 
@@ -137,7 +140,7 @@ def upload_csv_to_xnat(
     if verbose:
         print(f"Uploading decisions from {qc_csv_file} to xnat")
     fData=read_csf_file(qc_csv_file)
-    return upload_data_to_xnat(sibis_session, fData, sendEmailFlag, verbose)
+    return upload_data_to_xnat(sibis_session, fData, qc_csv_file,sendEmailFlag, verbose)
 
 
 def upload_2nd_tier_to_xnat(
