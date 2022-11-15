@@ -350,6 +350,8 @@ def handle_file_update(path, verbose, infer_dag=False):
 #
 # Main function: perform svn update and catch all resulting events
 #
+
+
 # If you only want to upload a specific file then do not run svn update
 if args.file_to_upload: 
     args.omit_svn_update=True
@@ -360,10 +362,25 @@ if not args.omit_svn_update:
  
     svn_info = svn_client.info()
 
-    svn_updates = svn_client.update()
+    try : 
+        svn_updates = svn_client.update()
+    except Exception as err_msg:
+         slog.info(hashlib.sha1(('harvester' + str(err_msg)).encode()).hexdigest()[0:6],
+                   "ERROR: Failed to perform svn update !",
+                   script='harvester',
+                   msg=str(err_msg))
+         sys.exit(1) 
+         
     if len(svn_updates.errors) > 0:
+        slog.info(hashlib.sha1(('harvester' + str(svn_updates.errors)).encode()).hexdigest()[0:6],
+                  "ERROR: svn update returned errors !",
+                  script='harvester',
+                  msg=str(svn_updates.errors))
         sys.exit(1)
 
+    if args.verbose :
+        print("... done")
+    
     svn_diff = svn_client.diff_path(revision=svn_info['entry_revision'])
 
     for changed in svn_diff.files_changed():
