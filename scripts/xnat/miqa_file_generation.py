@@ -68,7 +68,7 @@ def convert_json_to_check_new_sessions_df(
                     decisions.sort(key=lambda x: parse(x["created"]))
 
                     data["decision"] = decisions[-1]["decision"]
-                    data["scan_note"] = ' / '.join([d["note"] for d in decisions])
+                    data["scan_note"] = '; '.join([f'{d["creator"]}: {d["note"]}' for d in decisions])
 
                 df = pd.DataFrame.from_records([data], columns=dataframe_cols)
                 all_scans.append(df)
