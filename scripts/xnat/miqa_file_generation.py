@@ -3,7 +3,7 @@ import os
 import re
 import pathlib
 import pandas as pd
-from schema import And, Optional, Or, Schema, SchemaError, Use
+from schema import Optional, Or, Schema, SchemaError, Use
 
 
 project_name_pattern = re.compile("([a-z]+)_incoming")
@@ -61,6 +61,14 @@ def convert_json_to_check_new_sessions_df(
 
                     if scan["last_decision"]["note"] != "":
                         data["scan_note"] = scan["last_decision"]["note"]
+
+                if "decisions" in scan and scan["decisions"] is not None:
+                    # TODO: what is the desired behavior here?
+                    # Can we record multiple decisions to this data structure?
+                    data["decision"] = MIQA2CNSDecisionCodes[scan["decisions"][0]["decision"]]
+
+                    if scan["decisions"][0]["note"] != "":
+                        data["scan_note"] = scan["decisions"][0]["note"]
 
                 df = pd.DataFrame.from_records([data], columns=dataframe_cols)
                 all_scans.append(df)
@@ -173,49 +181,41 @@ def import_dataframe_to_dict(df):
                 for scan_name, scan_df in experiment_df.groupby("scan_name"):
                     scan_dict = {}
                     if list(scan_df["file_location"].unique()) != [""]:
-                        try:
-                            scan_dict = {
-                                "type": scan_df["scan_type"].iloc[0],
-                                "frames": {
-                                    int(row[1]["frame_number"]): {
-                                        "file_location": row[1]["file_location"]
-                                    }
-                                    for row in scan_df.iterrows()
-                                },
-                            }
-                        except ValueError as e:
-                            raise Exception(
-                                f'Invalid frame number {str(e).split(":")[-1]}. Must be an integer value.'
-                            )
-
+                        scan_dict = {
+                            "type": scan_df["scan_type"].iloc[0],
+                            "frames": {
+                                int(row[1]["frame_number"]): {
+                                    "file_location": row[1]["file_location"]
+                                }
+                                for row in scan_df.iterrows()
+                            },
+                            "decisions": [],
+                        }
                         if "subject_id" in scan_df.columns:
                             scan_dict["subject_id"] = scan_df["subject_id"].iloc[0]
                         if "session_id" in scan_df.columns:
                             scan_dict["session_id"] = scan_df["session_id"].iloc[0]
                         if "scan_link" in scan_df.columns:
                             scan_dict["scan_link"] = scan_df["scan_link"].iloc[0]
-                        if (
-                            "last_decision" in scan_df.columns
-                            and scan_df["last_decision"].iloc[0]
-                        ):
+                        if "last_decision" in scan_df.columns and scan_df["last_decision"].iloc[0]:
                             decision_dict = {
                                 "decision": scan_df["last_decision"].iloc[0],
                                 "creator": scan_df["last_decision_creator"].iloc[0],
                                 "note": scan_df["last_decision_note"].iloc[0],
-                                "created": scan_df["last_decision_created"].iloc[0],
-                                "user_identified_artifacts": scan_df[
-                                    "identified_artifacts"
-                                ].iloc[0]
+                                "created": str(scan_df["last_decision_created"].iloc[0])
+                                if scan_df["last_decision_created"].iloc[0]
+                                else None,
+                                "user_identified_artifacts": scan_df["identified_artifacts"].iloc[0]
                                 or None,
-                                "location": scan_df["location_of_interest"].iloc[0]
-                                or None,
+                                "location": scan_df["location_of_interest"].iloc[0] or None,
                             }
-                            decision_dict = {
-                                k: (v or None) for k, v in decision_dict.items()
-                            }
-                            scan_dict["last_decision"] = decision_dict
-                        else:
-                            scan_dict["last_decision"] = None
+                            decision_dict = {k: (v or None) for k, v in decision_dict.items()}
+                            scan_dict["decisions"].append(decision_dict)
+
+                        if "subject_ID" in scan_df.columns:
+                            scan_dict["subject_ID"] = scan_df["subject_ID"].iloc[0]
+                        if "session_ID" in scan_df.columns:
+                            scan_dict["session_ID"] = scan_df["session_ID"].iloc[0]
 
                         experiment_dict["scans"][scan_name] = scan_dict
                 project_dict["experiments"][experiment_name] = experiment_dict
@@ -233,14 +233,24 @@ def validate_import_data(import_dict):
                             Optional('notes'): Optional(str, None),
                             'scans': {
                                 Optional(Use(str)): {
-                                    'type': And(Use(str)),
+                                    'type': Use(str),
                                     Optional('subject_id'): Or(str, None),
                                     Optional('session_id'): Or(str, None),
                                     Optional('scan_link'): Or(str, None),
-                                    'frames': {And(Use(int)): {'file_location': And(str)}},
+                                    'frames': {Use(int): {'file_location': Use(str)}},
+                                    Optional('decisions'): [
+                                        {
+                                            'decision': Use(str),
+                                            'creator': Or(str, None),
+                                            'note': Or(str, None),
+                                            'created': Or(str, None),
+                                            'user_identified_artifacts': Or(str, None),
+                                            'location': Or(str, None),
+                                        },
+                                    ],
                                     Optional('last_decision'): Or(
                                         {
-                                            'decision': And(str),
+                                            'decision': Use(str),
                                             'creator': Or(str, None),
                                             'note': Or(str, None),
                                             'created': Or(str, None),
