@@ -1,3 +1,4 @@
+from dateutil.parser import parse
 import json
 import os
 import re
@@ -63,12 +64,11 @@ def convert_json_to_check_new_sessions_df(
                         data["scan_note"] = scan["last_decision"]["note"]
 
                 if "decisions" in scan and scan["decisions"] is not None and len(scan["decisions"]) > 0:
-                    # TODO: what is the desired behavior here?
-                    # Can we record multiple decisions to this data structure?
-                    data["decision"] = MIQA2CNSDecisionCodes[scan["decisions"][0]["decision"]]
+                    decisions = scan["decisions"]
+                    decisions.sort(key=lambda x: parse(x["created"]))
 
-                    if scan["decisions"][0]["note"] != "":
-                        data["scan_note"] = scan["decisions"][0]["note"]
+                    data["decision"] = decisions[-1]["decision"]
+                    data["scan_note"] = ' / '.join([d["note"] for d in decisions])
 
                 df = pd.DataFrame.from_records([data], columns=dataframe_cols)
                 all_scans.append(df)
