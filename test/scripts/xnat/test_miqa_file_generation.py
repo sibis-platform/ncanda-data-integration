@@ -74,11 +74,28 @@ def test_read_bad_json(file_prefix, sibis_session, project_list):
     json_dict = miqa_file_generation.read_miqa_import_file(file_name, current_dir)
     assert json_dict == {}, "Json dict should be empty bc read from bad file"
 
+
+@pytest.mark.parametrize("file_prefix",
+                        [
+                            "test_miqa_file_generation_3"
+                        ])
+
+def test_json_convert_check_new_sessions(file_prefix):
+    # Read Json file
+    # print(" test_json_convert_check_new_sessions_df", file_prefix)
+    file_name=file_prefix +".json"
+    orig_file=os.path.join(current_dir,file_name)
+    assert(os.path.exists(str(orig_file)))
+    json_dict = miqa_file_generation.read_miqa_import_file(file_name, current_dir)
+    json_df: pd.DataFrame = miqa_file_generation.convert_json_to_check_new_sessions_df(json_dict)
+
+    
 @pytest.mark.parametrize("file_prefix",
                         [
                             "test_miqa_file_generation",
                             "test_miqa_file_generation_2"
                         ])
+
 def test_json_convert_check_new_sessions_df(file_prefix):
     # Read Json file
     # print(" test_json_convert_check_new_sessions_df", file_prefix)
