@@ -57,7 +57,7 @@ def convert_json_to_check_new_sessions_df(
                 if experiment["notes"] is not None and experiment["notes"] != "":
                     data["experiment_note"] = experiment["notes"]
 
-                if scan["last_decision"] is not None:
+                if ('last_decision' in scan.keys()) and  (scan["last_decision"] is not None):
                     data["decision"] = MIQA2CNSDecisionCodes[scan["last_decision"]["decision"]]
 
                     if scan["last_decision"]["note"] != "":
