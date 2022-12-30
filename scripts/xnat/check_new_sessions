@@ -167,15 +167,17 @@ frame_check_ge = {
 # Voxel Resolution per session
 #
 
+# this is how it used to be but causes issues when uploading to xnat
 voxelres_siemens = {
-    "ncanda-mprage-v1": 'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"',
-    "ncanda-t2fse-v1": 'x="0.46875\d*" y="0.46875\d*" z="1.2\d*"',
-    "ncanda-dti6b500pepolar-v1": 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
-    "ncanda-dti30b400-v1": 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
-    "ncanda-dti60b1000-v1": 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
-    "ncanda-grefieldmap-v1": 'x="2.5\d*" y="2.5\d*" z="2.5\d*"',
-    "ncanda-rsfmri-v1": 'x="3.75\d*" y="3.75\d*" z="5.0\d*"',
+    "ncanda-mprage-v1": "x=0.9375 y=0.9375 z=1.2",
+    "ncanda-t2fse-v1": ["x=0.46875 y=0.46875 z=1.2","x=0.4688 y=0.4688 z=1.2"] , 
+    "ncanda-dti6b500pepolar-v1": "x=2.5 y=2.5 z=2.5",
+    "ncanda-dti30b400-v1": "x=2.5 y=2.5 z=2.5",
+    "ncanda-dti60b1000-v1": "x=2.5 y=2.5 z=2.5",
+    "ncanda-grefieldmap-v1": "x=2.5 y=2.5 z=2.5",
+    "ncanda-rsfmri-v1": "x=3.75 y=3.75 z=5.0"
 }
+
 
 voxelres_ge = {
     "ncanda-t1spgr-v1": 'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"',
@@ -486,14 +488,16 @@ def voxelRes_check(experiment, manufacturer, scan_list):
         for v in voxel_res:
             if v[0] in scan_type_dictionary["SIEMENS"]:
                 try:
-                    match = re.match(voxelres_siemens[v[0]], v[1], flags=re.DOTALL)
-                    if not match:
+                    res_scan=v[1].replace('"',"")
+                    res_expected=voxelres_siemens[v[0]]
+                    # match = re.match(str(res_expected), str(res_scan), flags=re.DOTALL)
+                    if res_scan not in res_expected:
                         error.append(
                             {
                                 "field": "Voxel Resolution",
                                 "scan_type": v[0],
-                                "voxel_res": v[1],
-                                "expected_voxel_res": voxelres_siemens[v[0]],
+                                "voxel_res": res_scan,
+                                "expected_voxel_res": res_expected,
                                 "scan_id": v[2],
                             }
                         )
@@ -1007,14 +1011,18 @@ with open(os.path.join(sibis_config, "special_cases.yml"), "r") as fi:
     incorrect_formatting_map = complete_file.get("incorrect_format")
     missing_scan_map = complete_file.get("incomplete_sessions")
     more_of_type_map = complete_file.get("more_of_type")
+    ignore_xnat_session = complete_file.get("ignore_xnat_session")
     fi.close()
 
 # Upload new QC results
 # Check the file exists, since we're now moving it after the upload, not only
 # when there's more questionable scans to be written to it
-
-upload_qc_file(sibis_session, os.path.join(log_dir, "scans_to_question_v2"),".json", args.qc_json,False,args.verbose)
-upload_qc_file(sibis_session, os.path.join(log_dir, "scans_to_review"),".csv", args.qc_csv,(True if args.send_mail_to else False),args.verbose)
+if True:
+    upload_qc_file(sibis_session, os.path.join(log_dir, "scans_to_question_v2_debug"),".json", args.qc_json,False,args.verbose)
+    upload_qc_file(sibis_session, os.path.join(log_dir, "scans_to_review"),".csv", args.qc_csv,(True if args.send_mail_to else False),args.verbose)
+else :
+    print("WARNING:Skipping uploading!")
+    
 # upload_qc_file(sibis_session, os.path.join(log_dir, "scans_to_review"),".csv", False,(True if args.send_mail_to else False),args.verbose)
 
 # Experiments to check from last run - these should be the ones we flagged last
@@ -1165,11 +1173,13 @@ for (
     if args.check_all:
         print("==== ", index, eid)
 
-    # if index < 3517 :
-    #    continue
-    # if index == 3519:
-    #    sys.exit()
-    # print "==== ", index, eid
+    # those that are ignored by the system 
+    if  session_label in ignore_xnat_session :
+            if args.verbose:
+                sys.stdout.write("Ignoring %s\n" % (eid))
+                sys.stdout.flush()
+                continue
+            
     if args.verbose:
         sys.stdout.write(
             "%d Checking experiment %s/%s SID:%s EID:%s, insert date "
@@ -1526,7 +1536,10 @@ for (
             scan_note = experiment.scans[scan].get("note") or ""
             error_string = errors_by_scan[scan]
             if error_string != "" and "ERR:" not in scan_note:
-                scan_note += "  ERR:  " + error_string + ";"
+                if scan_note != "" :
+                    scan_note +=";" 
+                scan_note += "ERR:  " + error_string
+                
             scan_note = sanitize_string_for_csv(scan_note)
             row = (
                 f'{eid},{session_dir},{scan},{scan_type},"{exp_note}",,"{scan_note}"\n'
