@@ -836,7 +836,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
         continue
 
     if args.verbose: 
-        print(index, "Processing", key) 
+        print("\n====",index, "Processing", key,"====") 
 
     # Need to drop it otherwise upload to redcap fails 
     row = row.drop('mri_missing') 
