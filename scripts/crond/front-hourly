@@ -1,8 +1,15 @@
 #!/bin/bash -l
-n=0
-until [ "$n" -ge 3 ]
-do
-    timeout 5h /sibis-software/ncanda-data-integration/scripts/crond/front-hourly-script && break
-    n=$((n+1)) 
-    sleep 15s
-done
+# to make sure that it does not
+DATE=`date`
+timeout 58m /sibis-software/ncanda-data-integration/scripts/crond/front-hourly-script && exit 0
+echo "ERROR:front hourly did not complete within an hour !  $DATE"
+exit 1
+
+# this makes no sense to run in ourly 
+#n=0
+#until [ "$n" -ge 3 ]
+#do
+#   timeout 5h /sibis-software/ncanda-data-integration/scripts/crond/front-hourly-script && break
+ #  n=$((n+1)) 
+#    sleep 15s
+#done
