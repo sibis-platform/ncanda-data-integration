@@ -2,7 +2,6 @@
 """
 Export Self-Report surveys to be ingested by "Imported from Laptops" project
 and feed them to csv2redcap (unless upload is prevented with --no-upload).
-
 Outputs the newline-separated list of files written to the designated directory
 system (unless output is silenced with --no-output).
 """
@@ -36,7 +35,7 @@ def main():
         print("Errror:Could not connect to redcap - APIs were None")
         sys.exit(1)
     
-    data = load_data(self_report_api, args.date_begin, args.all, args.verbose)
+    data = load_data(self_report_api, args.date_begin, args.all, args.record_id,args.verbose)
 
     # 1. Address RPIR
     data = coalesce_rpir_fields(data)
@@ -64,11 +63,12 @@ def main():
     #
     # (because unlike lime2csv, this process isn't triggered by harvester, so
     # the output isn't automatically collected and fed to csv2redcap)
-    if not args.no_upload:
+    if not args.no_upload :
         process = feed_to_csv2redcap(written_files,
                                      args.verbose,
                                      args.post_to_github)
         if args.verbose:
+            print("\nUpload data to redcap")
             print(process)
 
     # Alternatively, instead of steps 5 and 6, we could just import records
@@ -105,6 +105,8 @@ def _parse_args(input_args: List[str] = None) -> argparse.Namespace:
                    help="Don't invoke csv2redcap after writing to output_dir")
     p.add_argument('--all', action='store_true',
                     help='Return all data regardlesss of completeness')
+
+    p.add_argument('--record-id', help="record id, i.e., NCANDA Import ID as defined in Pre Youth Report 2", default=None )        
 
     date_range = p.add_mutually_exclusive_group(required=False)
     date_range.add_argument('--last-month',
@@ -153,10 +155,11 @@ def _setup(args: argparse.Namespace) -> Tuple[rc.Project]:
 
 
 def load_data(
-    api: rc.Project,
-    date_begin: datetime = None,
-    all: bool = False,
-    verbose: bool = False
+        api: rc.Project,
+        date_begin: datetime = None,
+        all: bool = False,
+        record_id: str= None,
+        verbose: bool = False
 ) -> pd.DataFrame:
     """
     Load data based on target start date
@@ -173,12 +176,16 @@ def load_data(
         df_kwargs=dict(dtype=str)
     )
     try:
+        # According to pycap only returns entries that were created after date_begin 
         data = _load_data(date_begin=date_begin)
     except TypeError:
         if verbose:
             print("redcap.export_records lacks a date_begin param, skipping")
         data = _load_data()
 
+    if record_id :
+        data = data[data['record_id'] == record_id]
+    
     # Grabbing necessary reports by default, but return all if --all was passed
     if all is False:
         dates = data['record_id'].str.extract(r'(?P<date>\d{4}-\d{2}-\d{2})$')
@@ -420,6 +427,9 @@ def feed_to_csv2redcap(
     """
     Invoke csv2redcap with the list of newly written files.
     """
+    if files == [] :
+        return "feed_to_csv2redcap:files is empty - nothing to upload!"
+    
     additional_args: List[str] = []
     if verbose:
         additional_args.append('-v')
