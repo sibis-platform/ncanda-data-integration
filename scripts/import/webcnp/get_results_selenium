@@ -22,6 +22,8 @@ def parse_args(input_args: List[str] = None):
     period.add_argument( "--last-year", help="Retrieve only records of the last year.", action="store_true" )
 
     parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
+    parser.add_argument("--show-browser", help="Show browser", action="store_true")
+    
     parser.add_argument("-t","--time-log-dir",
                         help="If set then time logs are written to that directory",
                         action="store",
@@ -69,8 +71,7 @@ if not sibis_session.configure() :
 config_parser, err = sibis_session.get_config_sys_parser()
 cnp_config = config_parser.get_category('session').get('penncnp')
 
-
-with sibis_session.connect_server('browser_penncnp', True) as browser:
+with sibis_session.connect_server('browser_penncnp', True, not args.show_browser) as browser:
     if not browser: 
         slog.info("get_results_selenium","Error: could not connect to penncnp")
         sys.exit()
