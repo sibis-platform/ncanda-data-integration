@@ -10,7 +10,7 @@ if [ `echo $?` != 0 ]; then
 fi
 
 if [ $num_scripts -gt 0 ]; then 
-    echo "INFO:${SCRIPT_LABEL}:Not running front-hourly as instance(s) of it are already running! "
+    # echo "INFO:${SCRIPT_LABEL}:Not running front-hourly as instance(s) of it are already running! "
     exit 0
 fi
 
@@ -36,6 +36,6 @@ elif [ -e  $RUN_LOG ]; then
 fi
 
 echo "$hour" >> $RUN_LOG
-timeout 5h /sibis-software/ncanda-data-integration/scripts/crond/front-hourly-script $qa_args && exit 0
-echo "ERROR:${SCRIPT_LABEL}: front hourly at hour ${hour}h did not complete within 5 hours !"
+timeout 8h /sibis-software/ncanda-data-integration/scripts/crond/front-hourly-script $qa_args && exit 0
+echo "ERROR:${SCRIPT_LABEL}: front hourly at hour ${hour}h did not complete within 8 hours !"
 exit 1
