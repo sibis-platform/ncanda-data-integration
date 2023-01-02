@@ -1,15 +1,41 @@
 #!/bin/bash -l
 # to make sure that it does not
-DATE=`date`
-timeout 58m /sibis-software/ncanda-data-integration/scripts/crond/front-hourly-script && exit 0
-echo "ERROR:front hourly did not complete within an hour !  $DATE"
-exit 1
+export SCRIPT_LABEL="front-hourly"
 
-# this makes no sense to run in ourly 
-#n=0
-#until [ "$n" -ge 3 ]
-#do
-#   timeout 5h /sibis-software/ncanda-data-integration/scripts/crond/front-hourly-script && break
- #  n=$((n+1)) 
-#    sleep 15s
-#done
+# if on instance is running then it is at least has a count of 2 !
+num_scripts=`ps -ef | grep [c]rond/front-hourly-script | grep /bin/bash | wc -l `
+if [ `echo $?` != 0 ]; then
+    echo ":WARNING:${SCRIPT_LABEL}:Something is wrong with check for existing front-hourly-script run!"
+    exit 1
+fi
+
+if [ $num_scripts -gt 0 ]; then 
+    echo "INFO:${SCRIPT_LABEL}:Not running front-hourly as instance(s) of it are already running! "
+    exit 0
+fi
+
+# Check that script ran 
+RUN_LOG=/tmp/front-hourly-run.log
+
+hour=$(date +%H)
+qa_args="-p"
+if [ ${hour} -eq 0 ]; then
+    qa_args+=" -t"
+    if [ -e  $RUN_LOG ]; then
+	echo "INFO:${SCRIPT_LABEL}:Script ran `wc -l $RUN_LOG | cut -d' ' -f1` time in the last 24h!"
+	rm -f $RUN_LOG
+    else
+	echo "ERROR:${SCRIPT_LABEL}:Script did not run in the last 24h !"
+    fi
+elif [ -e  $RUN_LOG ]; then
+    # if it does not run at midnight still have to delete it if it already ran on this hour!
+    if [ `grep $hour ${RUN_LOG} 2> /dev/null | wc -l` -gt 0 ]; then
+	rm -f $RUN_LOG
+        echo "INFO:${SCRIPT_LABEL}:removed $RUN_LOG  at hour ${hour}h! Most likely did not run at midnight."
+    fi
+fi
+
+echo "$hour" >> $RUN_LOG
+timeout 5h /sibis-software/ncanda-data-integration/scripts/crond/front-hourly-script $qa_args && exit 0
+echo "ERROR:${SCRIPT_LABEL}: front hourly at hour ${hour}h did not complete within 5 hours !"
+exit 1
