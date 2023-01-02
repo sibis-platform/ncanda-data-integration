@@ -4,7 +4,6 @@
 ##  See COPYING file distributed along with the ncanda-data-integration package
 ##  for the copyright and license terms
 ##
-
 qa_args="$*"
 # Set the SIBIS environment variable to the data integration repo
 export SIBIS=`realpath $(dirname $0)/../../`
@@ -16,6 +15,8 @@ IMPORT_FLAG=1
 
 # Import some useful functions
 . $(dirname $0)/crontools.sh
+
+hour=$(date +%H)
 
 # if no Log Dir is defined after -t option simply add default
 LOG_DIR=${SIBIS_ANALYSIS_DIR}log/front-hourly
