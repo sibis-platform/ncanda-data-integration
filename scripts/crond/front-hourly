@@ -1,41 +1,36 @@
 #!/bin/bash -l
-# to make sure that it does not
-export SCRIPT_LABEL="front-hourly"
 
 # if on instance is running then it is at least has a count of 2 !
 num_scripts=`ps -ef | grep [c]rond/front-hourly-script | grep /bin/bash | wc -l `
 if [ `echo $?` != 0 ]; then
-    echo ":WARNING:${SCRIPT_LABEL}:Something is wrong with check for existing front-hourly-script run!"
+    echo "WARNING:front-hourly:Something is wrong with check for existing front-hourly-script run!"
     exit 1
-fi
-
-if [ $num_scripts -gt 0 ]; then 
-    # echo "INFO:${SCRIPT_LABEL}:Not running front-hourly as instance(s) of it are already running! "
-    exit 0
 fi
 
 # Check that script ran 
 RUN_LOG=/tmp/front-hourly-run.log
-
-hour=$(date +%H)
-qa_args="-p"
-if [ ${hour} -eq 0 ]; then
-    qa_args+=" -t"
-    if [ -e  $RUN_LOG ]; then
-	echo "INFO:${SCRIPT_LABEL}:Script ran `wc -l $RUN_LOG | cut -d' ' -f1` time in the last 24h!"
-	rm -f $RUN_LOG
-    else
-	echo "ERROR:${SCRIPT_LABEL}:Script did not run in the last 24h !"
+Hour=$(date +%H)
+if [ $num_scripts -gt 0 ]; then 
+    if [ `grep $Hour ${RUN_LOG} 2> /dev/null | wc -l` -gt 0 ]; then
+        echo "INFO:front-hourly:Skipping ${Hour}h run even though it did not run in the last 24h as other process still active!"
     fi
-elif [ -e  $RUN_LOG ]; then
-    # if it does not run at midnight still have to delete it if it already ran on this hour!
-    if [ `grep $hour ${RUN_LOG} 2> /dev/null | wc -l` -gt 0 ]; then
-	rm -f $RUN_LOG
-        echo "INFO:${SCRIPT_LABEL}:removed $RUN_LOG  at hour ${hour}h! Most likely did not run at midnight."
-    fi
+    # echo "INFO:front-hourly:Not running front-hourly as instance(s) of it are already running! "
+    exit 0
 fi
 
-echo "$hour" >> $RUN_LOG
+hour=$(date +%-H)
+# intially want to make sure it always runs at midnight unless midnight is skipped
+if [ ${hour} -eq 0 ] || [ ${hour} -lt 6 -a `grep $Hour ${RUN_LOG} 2> /dev/null | wc -l` -gt 0 ]; then 
+    echo "INFO:front-hourly:Script ran `wc -l $RUN_LOG 2> /dev/null | cut -d' ' -f1` time in the last 24h!"
+    mv  $RUN_LOG ${RUN_LOG}_
+    qa_args="-p -i"
+elif [ ${hour} -gt 19 -a  `grep "\-e"  ${RUN_LOG} 2> /dev/null | wc -l` -eq 0  ]; then
+    qa_args="-p -e"
+else
+    qa_args="-p"
+fi
+
+echo "$Hour $qa_args" >> $RUN_LOG
 timeout 8h /sibis-software/ncanda-data-integration/scripts/crond/front-hourly-script $qa_args && exit 0
 echo "ERROR:${SCRIPT_LABEL}: front hourly at hour ${hour}h did not complete within 8 hours !"
 exit 1

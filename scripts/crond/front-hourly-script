@@ -14,15 +14,29 @@ IMPORT_FLAG=1
 [ -r $HOME/.bashrc ] && . $HOME/.bashrc
 
 # Import some useful functions
+export SCRIPT_LABEL="front-hourly"
 . $(dirname $0)/crontools.sh
 
-hour=$(date +%H)
-
-# if no Log Dir is defined after -t option simply add default
 LOG_DIR=${SIBIS_ANALYSIS_DIR}log/front-hourly
-if  [ "`echo "$qa_args" | sed -e 's/\ *$//g' | rev | cut -d' ' -f1 | rev`" == "-t" ]; then
-    qa_args="$qa_args $LOG_DIR"
-fi
+
+qa_args=""
+# Clean this up later
+initDayFlag=false
+endDayFlag=false
+while getopts :pie opt; do
+    case $opt in	
+	p) qa_args="${qa_args} -p";;       
+	e) #end of day
+	   endDayFlag=true;;
+	i) #init day
+	   initDayFlag=true
+	   qa_args="${qa_args} -t $LOG_DIR";;
+	?) echo "script usage: $(basename $0) [-p] [-e] [-i]" >&2
+	   exit 1;;
+    esac
+done
+shift "$(($OPTIND -1))"
+# echo "INFO:${SCRIPT_LABEL}:Parameter setting $qa_args $initDayFlag $endDayFlag"
 
 # Run QA on fBIRN and ADNI phantom scans
 if [ ${XNAT_FLAG} == 1 ]; then
@@ -33,7 +47,7 @@ fi
 if [ ${IMPORT_FLAG} == 1 ]; then
    lastWeek=""
    # do that so that if the script was interrupted the svn update is performed again - otherwise would loose data 
-   if [ ${hour} -eq 20 ]; then
+   if $endDayFlag; then
 	lastWeek="--last-week"
    fi	
    catch_output_email "${SCRIPT_LABEL}:Import Laptop: Data Stage 1 (harvester)" ${SIBIS}/scripts/import/laptops/harvester --only-converter-post-to-github ${qa_args} ${lastWeek}
@@ -41,7 +55,7 @@ if [ ${IMPORT_FLAG} == 1 ]; then
    catch_output_email "${SCRIPT_LABEL}:Import Self-Report (selfreport2csv)" \
       ${SIBIS}/scripts/import/laptops/selfreport2csv /fs/storage/laptops/imported --no-output ${qa_args}
 else
-   if [ ${hour} -eq 0 ]; then
+   if $initDayFlag; then
       echo "${SCRIPT_LABEL}: Warning: Import from laptops  disabled !"
    fi
 fi
@@ -52,7 +66,7 @@ fi
 
 # REDCap updates
 update_args=""
-if [ ${hour} -eq 0 ]; then
+if $initDayFlag; then
     update_args+="--update-all"
 fi
 catch_output_email "${SCRIPT_LABEL}:REDCap: Update Scores (redcap_update_summary_scores)" $SIBIS_PYTHON_PATH/sibispy/cmds/redcap_update_summary_scores.py ${update_args} ${qa_args}
