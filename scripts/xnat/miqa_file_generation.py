@@ -1,4 +1,5 @@
 from dateutil.parser import parse
+import datetime
 import json
 import os
 import re
@@ -57,7 +58,7 @@ def convert_json_to_check_new_sessions_df(
                 if experiment["notes"] is not None and experiment["notes"] != "":
                     data["experiment_note"] = experiment["notes"]
 
-                if ('last_decision' in scan.keys()) and  (scan["last_decision"] is not None):
+                if ('last_decision' in scan.keys()) and (scan["last_decision"] is not None):
                     data["decision"] = MIQA2CNSDecisionCodes[scan["last_decision"]["decision"]]
 
                     if scan["last_decision"]["note"] != "":
@@ -65,7 +66,7 @@ def convert_json_to_check_new_sessions_df(
 
                 if "decisions" in scan and scan["decisions"] is not None and len(scan["decisions"]) > 0:
                     decisions = scan["decisions"]
-                    decisions.sort(key=lambda x: parse(x["created"]))
+                    decisions.sort(key=lambda x: parse(x["created"]) if x['created'] else datetime.datetime(1, 1, 1))
 
                     data["decision"] = decisions[-1]["decision"]
                     data["scan_note"] = '; '.join([f'{d["creator"][:3]}: {d["note"]}' for d in decisions])
