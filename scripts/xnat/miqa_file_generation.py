@@ -69,7 +69,16 @@ def convert_json_to_check_new_sessions_df(
                     decisions.sort(key=lambda x: parse(x["created"]) if x['created'] else datetime.datetime(1, 1, 1))
 
                     data["decision"] = decisions[-1]["decision"]
-                    data["scan_note"] = '; '.join([f'{d["creator"][:3]}: {d["note"]}' for d in decisions])
+                    data["scan_note"] = '; '.join(
+                        [
+                            f'{d["creator"][:3]}({d["created"]}): {d["note"]}'
+                            if (
+                                d['creator'] and d['created'] and
+                                not re.findall(r"([A-Z])+\(([\d\/-]+)\):", d["note"])
+                             ) else d["note"]
+                            for d in decisions
+                        ]
+                    )
 
                 df = pd.DataFrame.from_records([data], columns=dataframe_cols)
                 all_scans.append(df)
