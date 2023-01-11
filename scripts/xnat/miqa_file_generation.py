@@ -71,8 +71,11 @@ def convert_json_to_check_new_sessions_df(
                     data["decision"] = decisions[-1]["decision"]
                     data["scan_note"] = '; '.join(
                         [
-                            f'{d["creator"][:3] if d["creator"] else "ANON"}({d["created"] or "ND"}): {d["note"]}'
-                            if not re.findall(r"([A-Z])+\(([\d\/-]+)\):", d["note"]) else d["note"]
+                            f'{d["creator"][:3]}({d["created"]}): {d["note"]}'
+                            if (
+                                d['creator'] and d['created'] and
+                                not re.findall(r"([A-Z])+\(([\d\/-]+)\):", d["note"])
+                             ) else d["note"]
                             for d in decisions
                         ]
                     )
