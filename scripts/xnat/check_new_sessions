@@ -146,11 +146,11 @@ expected_images["SIEMENS"] = {
 frame_check_siemens = {
     "ncanda-mprage-v1": "160",
     "ncanda-t2fse-v1": "160",
-    "ncanda-dti6b500pepolar-v1": "7",
-    "ncanda-dti30b400-v1": "32",
-    "ncanda-dti60b1000-v1": "62",
+    "ncanda-dti6b500pepolar-v1": ["7","8","448"],
+    "ncanda-dti30b400-v1": ["32","2048"],
+    "ncanda-dti60b1000-v1": ["62","3968"],
     "ncanda-grefieldmap-v1": [["64", "128"]],
-    "ncanda-rsfmri-v1": ["275", "330"],
+    "ncanda-rsfmri-v1": ["275", "330","10560"],
 }
 
 frame_check_ge = {
@@ -168,16 +168,16 @@ frame_check_ge = {
 #
 
 # this is how it used to be but causes issues when uploading to xnat
+# \d* is important so that any difference in digits afterwards are ignored
 voxelres_siemens = {
-    "ncanda-mprage-v1": "x=0.9375 y=0.9375 z=1.2",
-    "ncanda-t2fse-v1": ["x=0.46875 y=0.46875 z=1.2","x=0.4688 y=0.4688 z=1.2"] , 
-    "ncanda-dti6b500pepolar-v1": "x=2.5 y=2.5 z=2.5",
-    "ncanda-dti30b400-v1": "x=2.5 y=2.5 z=2.5",
-    "ncanda-dti60b1000-v1": "x=2.5 y=2.5 z=2.5",
-    "ncanda-grefieldmap-v1": "x=2.5 y=2.5 z=2.5",
-    "ncanda-rsfmri-v1": "x=3.75 y=3.75 z=5.0"
+    "ncanda-mprage-v1": ['x="0.9375\d*" y="0.9375\d*" z="1.2\d*"'],
+    "ncanda-t2fse-v1": ['x="0.46875\d*" y="0.46875\d*" z="1.2\d*"','x="0.4688\d*" y="0.4688\d*" z="1.2'],
+    "ncanda-dti6b500pepolar-v1": ['x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
+    "ncanda-dti30b400-v1": ['x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
+    "ncanda-dti60b1000-v1": ['x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
+    "ncanda-grefieldmap-v1": ['x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
+    "ncanda-rsfmri-v1": ['x="3.75\d*" y="3.75\d*" z="5.0\d*"'],
 }
-
 
 voxelres_ge = {
     "ncanda-t1spgr-v1": 'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"',
@@ -188,7 +188,6 @@ voxelres_ge = {
     "ncanda-grefieldmap-v1": 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
     "ncanda-rsfmri-v1": 'x="3.75\d*" y="3.75\d*" z="5.0\d*"',
 }
-
 
 physio = [
     "PPGData_epiRT",
@@ -459,16 +458,17 @@ def voxelRes_check(experiment, manufacturer, scan_list):
 
     if manufacturer == "GE":
         for v in voxel_res:
-            if v[0] in scan_type_dictionary["GE"]:
+            if v[0] in scan_type_dictionary["GE"]:                
                 try:
                     match = re.match(voxelres_ge[v[0]], v[1], flags=re.DOTALL)
                     if not match:
+                        # remove special characters as othewise includes a lot of other characters when uploaded to xnat
                         error.append(
                             {
                                 "field": "Voxel Resolution",
                                 "scan_type": v[0],
                                 "voxel_res": v[1],
-                                "expected_voxel_res": voxelres_ge[v[0]],
+                                "expected_voxel_res": str(voxelres_ge[v[0]]).replace('\\', '').replace('d*', '').replace('"',''),
                                 "scan_id": v[2],
                             }
                         )
@@ -478,7 +478,7 @@ def voxelRes_check(experiment, manufacturer, scan_list):
                             "field": "Could not check voxel resolution",
                             "scan_type": str(v[0]),
                             "voxel_res": str(v[1]),
-                            "expected_voxel_res": voxelres_ge[v[0]],
+                            "expected_voxel_res": str(voxelres_ge[v[0]]).replace('\\', '').replace('d*', '').replace('"',''),
                             "scan_id": str(v[2]),
                             "err_msg": str(err_msg),
                         }
@@ -488,16 +488,19 @@ def voxelRes_check(experiment, manufacturer, scan_list):
         for v in voxel_res:
             if v[0] in scan_type_dictionary["SIEMENS"]:
                 try:
-                    res_scan=v[1].replace('"',"")
-                    res_expected=voxelres_siemens[v[0]]
-                    # match = re.match(str(res_expected), str(res_scan), flags=re.DOTALL)
-                    if res_scan not in res_expected:
+                    match=None
+                    for res_expected in voxelres_siemens[v[0]] :
+                        match=re.match(res_expected, v[1],flags=re.DOTALL)
+                        if match:
+                            break
+
+                    if not match :
                         error.append(
                             {
                                 "field": "Voxel Resolution",
                                 "scan_type": v[0],
-                                "voxel_res": res_scan,
-                                "expected_voxel_res": res_expected,
+                                "voxel_res": v[1],
+                                "expected_voxel_res": str(voxelres_siemens[v[0]]).replace('\\', '').replace('d*', '').replace('"',''),
                                 "scan_id": v[2],
                             }
                         )
@@ -507,7 +510,7 @@ def voxelRes_check(experiment, manufacturer, scan_list):
                             "field": "Could not check voxel resolution",
                             "scan_type": str(v[0]),
                             "voxel_res": str(v[1]),
-                            "expected_voxel_res": voxelres_ge[v[0]],
+                            "expected_voxel_res": str(voxelres_siemens[v[0]]).replace('\\', '').replace('d*', '').replace('"',''),
                             "scan_id": str(v[2]),
                             "err_msg": str(err_msg),
                         }
@@ -570,19 +573,6 @@ def frame_check(experiment, manufacturer, scan_list):
 
         for f in frames:
             if f[0] not in scan_type_dictionary["SIEMENS"]:
-                continue
-
-            if f[0] == "ncanda-dti6b500pepolar-v1":
-                # Tim Trio contains '7' and prisma '8' frames
-                if not f[1] in ("7", "8"):
-                    error.append(
-                        {
-                            "scan_type": f[0],
-                            "frames": f[1],
-                            "expected_frames": frame_check_siemens[f[0]],
-                            "scan_id": f[2],
-                        }
-                    )
                 continue
 
             if f[1] not in frame_check_siemens[f[0]]:
@@ -1522,7 +1512,7 @@ for (
         error_string = dict_to_string(smaller_error)
         scan_id = str(error["scan_id"])
         # Avoide adding the same error message over and over again
-        if  (len(errors_by_scan[scan_id]) < 255) and (error_string not in errors_by_scan[scan_id]): 
+        if  (len(errors_by_scan[scan_id]) < 240) and (error_string not in errors_by_scan[scan_id]): 
             errors_by_scan[scan_id] = errors_by_scan[scan_id] + error_string
 
     # "unset" (i.e., uninspected) mandatory scantypes
