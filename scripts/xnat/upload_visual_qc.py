@@ -86,8 +86,9 @@ def upload_data_to_xnat(
             if isinstance(scan_note,str) :
                 scan_note_len=len(scan_note)
                 if  scan_note_len :
-                    if scan_note_len > 254 :
-                        uploaded_note= scan_note[:254]
+                    # cut off a little bit more than 255 as sometimes hidden characters are added - see issue #12794
+                    if scan_note_len > 240 :
+                        uploaded_note= scan_note[:240]
 
                         import hashlib
                         eLabel=row['xnat_experiment_id'] + "-" + str(row['scan_id']) + "-" + hashlib.sha1(scan_note.encode()).hexdigest()[0:6]
@@ -97,7 +98,7 @@ def upload_data_to_xnat(
                                   scan_id= row['scan_id'],
                                   original_scan_note=scan_note,
                                   uploaded_scan_note=uploaded_note,
-                                  info="XNAT  resticts scan notes to less than 255 characters. If uploaded_scan_note misses important details,  edit scan note in xnat directly so that you stay under the character count.  Close issue afterwards or when nothing needs to be edit")
+                                  info="XNAT resticts scan notes to less than 255 characters. If uploaded_scan_note misses important details,  edit scan note in xnat directly so that you stay under the character count.  Close issue afterwards or when nothing needs to be edit")
 
                     else :
                         uploaded_note=scan_note
