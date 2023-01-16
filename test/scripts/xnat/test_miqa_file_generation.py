@@ -28,11 +28,6 @@ import upload_visual_qc
 data_dir=os.path.join(current_dir,"data")
 
 @pytest.fixture
-def project_list():
-     return ["DUKE", "OHSU", "SRI", "UCSD", "UPMC"]
-
-
-@pytest.fixture
 def sibis_session():
     sibispy.sibislogger.init_log(verbose=True)
 
@@ -122,7 +117,7 @@ def test_json_convert_check_new_sessions_df(file_prefix):
                         [
                             "test_miqa_file_generation_write.json"
                         ])
-def test_write_to_json_(file_name,project_list):
+def test_write_to_json_(file_name):
 
 
     #
@@ -145,10 +140,11 @@ def test_write_to_json_(file_name,project_list):
     rows_cols = [row.replace('\n', '').split(',') for row in scans_to_qc]
     df = pd.DataFrame(rows_cols[1:], columns=rows_cols[0])    
     new_df = miqa_file_generation.convert_dataframe_to_new_format(df,None, subject_mapping)
-    scans_to_qc_json_dict = miqa_file_generation.import_dataframe_to_dict(new_df,project_list)
+    scans_to_qc_json_dict = miqa_file_generation.import_dataframe_to_dict(new_df)
 
     # Test that each project exists in dictionary
-    for PRJ in project_list :
+    assert scans_to_qc_json_dict != {}
+    for PRJ in miqa_file_generation.project_list :
         assert PRJ in scans_to_qc_json_dict['projects'].keys(), "Could not find " + PRJ + "!"   
 
     #
@@ -157,6 +153,9 @@ def test_write_to_json_(file_name,project_list):
     successFlag = miqa_file_generation.write_miqa_import_file(scans_to_qc_json_dict, file_name, "/tmp", True)
     assert successFlag == True, "Writing Json file should have been successsfull "
 
-    # os.remove(os.path.join("/tmp",file_name))
+    json_dict = miqa_file_generation.read_miqa_import_file(file_name,"/tmp")
+    assert set(json_dict['projects'].keys()) & set( miqa_file_generation.project_list), "Read in project list deviates from expected list"
+        
+    os.remove(os.path.join("/tmp",file_name))
 
     

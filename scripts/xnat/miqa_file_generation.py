@@ -9,6 +9,7 @@ from schema import Optional, Or, Schema, SchemaError, Use
 
 project_name_pattern = re.compile("([a-z]+)_incoming")
 
+project_list=["DUKE", "OHSU", "SRI", "UCSD", "UPMC"] 
 
 MIQADecisionCodes = {
     "0": "Q?",
@@ -175,7 +176,7 @@ def convert_dataframe_to_new_format(
     return new_df
 
 
-def import_dataframe_to_dict(df,project_list: list):
+def import_dataframe_to_dict(df):
     if df.empty :
         return {}
 
