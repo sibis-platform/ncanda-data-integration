@@ -7,7 +7,6 @@ import pathlib
 import pandas as pd
 from schema import Optional, Or, Schema, SchemaError, Use
 
-
 project_name_pattern = re.compile("([a-z]+)_incoming")
 
 
@@ -176,13 +175,21 @@ def convert_dataframe_to_new_format(
     return new_df
 
 
-def import_dataframe_to_dict(df):
-    if df.empty:
+def import_dataframe_to_dict(df,project_list: list):
+    if df.empty :
         return {}
 
+    # Initialize dictionary 
     ingest_dict = {"projects": {}}
+    for project_name in project_list: 
+        ingest_dict["projects"][project_name] = {}
+        
+        
     for project_name, project_df in df.groupby("project_name"):
-        project_dict = {"experiments": {}}
+        if project_name not in project_list:
+            return {}
+            
+        project_dict = {"experiments": {}}        
         if list(project_df["experiment_name"].unique()) != [""]:
             for experiment_name, experiment_df in project_df.groupby("experiment_name"):
                 experiment_dict = {"scans": {}}
@@ -233,12 +240,12 @@ def import_dataframe_to_dict(df):
     return ingest_dict
 
 
-def validate_import_data(import_dict):
+def validate_import_data(import_dict,verboseFlag=False):
     import_schema = Schema(
         {
             'projects': {
                 Optional(Use(str)): {
-                    'experiments': {
+                    Optional('experiments'): {
                         Optional(Use(str)): {
                             Optional('notes'): Optional(str, None),
                             'scans': {
@@ -279,7 +286,10 @@ def validate_import_data(import_dict):
     )
     try:
         import_schema.validate(import_dict)
-    except SchemaError:
+    except SchemaError as error:
+        if verboseFlag :
+            print("Error:validate_import_data:data is not a MiQa schema!")
+            print(error)
         return False
     return True
 
@@ -288,10 +298,11 @@ def write_miqa_import_file(
     data: {},
     filename: str,
     log_dir: str,
+    verboseFlag=False
 ):
     """Write MIQA Import JSON from input dictionary"""
 
-    if not validate_import_data(data):
+    if not validate_import_data(data,verboseFlag):
         return False
     target_file = os.path.join(log_dir, filename)
     with open(target_file, "w") as fp:
