@@ -85,24 +85,23 @@ def upload_data_to_xnat(
             scan_note=row['scan_note']
             if isinstance(scan_note,str) :
                 scan_note_len=len(scan_note)
-                if  scan_note_len :
-                    # cut off a little bit more than 255 as sometimes hidden characters are added - see issue #12794
-                    if scan_note_len > 240 :
-                        uploaded_note= scan_note[:240]
+                # cut off a little bit more than 255 as sometimes hidden characters are added - see issue #12794
+                if scan_note_len > 240 :
+                    uploaded_note= scan_note[:240]
 
-                        import hashlib
-                        eLabel=row['xnat_experiment_id'] + "-" + str(row['scan_id']) + "-" + hashlib.sha1(scan_note.encode()).hexdigest()[0:6]
-                        slog.info(eLabel,
-                                  'Could not upload complete scan notes',
-                                  experiment= row['xnat_experiment_id'] ,
-                                  scan_id= row['scan_id'],
-                                  original_scan_note=scan_note,
-                                  uploaded_scan_note=uploaded_note,
-                                  info="XNAT resticts scan notes to less than 255 characters. If uploaded_scan_note misses important details,  edit scan note in xnat directly so that you stay under the character count.  Close issue afterwards or when nothing needs to be edit")
+                    import hashlib
+                    eLabel=row['xnat_experiment_id'] + "-" + str(row['scan_id']) + "-" + hashlib.sha1(scan_note.encode()).hexdigest()[0:6]
+                    slog.info(eLabel,
+                              'Could not upload complete scan notes',
+                              experiment= row['xnat_experiment_id'] ,
+                              scan_id= row['scan_id'],
+                              original_scan_note=scan_note,
+                              uploaded_scan_note=uploaded_note,
+                              info="XNAT resticts scan notes to less than 255 characters. If uploaded_scan_note misses important details,  edit scan note in xnat directly so that you stay under the character count.  Close issue afterwards or when nothing needs to be edit")
 
-                    else :
-                        uploaded_note=scan_note
-                   
+                else :
+                    uploaded_note=scan_note
+                    
                 scan.set('note',uploaded_note)
 
         except Exception as e:
@@ -139,7 +138,7 @@ def upload_csv_to_xnat(
 ) -> int:
     
     if verbose:
-        print(f"Uploading decisions from {qc_csv_file} to xnat")
+        print(f"INFO:Uploading decisions from {qc_csv_file} to xnat")
     fData=read_csf_file(qc_csv_file)
     return upload_data_to_xnat(sibis_session, fData, qc_csv_file,sendEmailFlag, verbose)
 
@@ -151,7 +150,7 @@ def upload_2nd_tier_to_xnat(
 ) -> int:
 
     if verbose:
-        print(f"Uploading decisions from {qc_file} to xnat")
+        print(f"INFO:Uploading decisions from {qc_file} to xnat")
 
     qc_dict=miqa_file_generation.read_miqa_import_file(qc_file,"", verbose,format=miqa_file_generation.MIQAFileFormat.JSON)
         

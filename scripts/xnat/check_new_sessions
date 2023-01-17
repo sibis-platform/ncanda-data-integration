@@ -796,7 +796,7 @@ def write_scans_to_file(
             fi.writelines(scans_with_header)
 
         if verbose:
-            print(f"Created {target_file} with {len(scans_with_header)} lines")
+            print(f"INFO: Created {target_file} with {len(scans_with_header)} lines")
     elif len(scans_with_header) == 1:
         with open(target_file, "w") as fi:
             fi.writelines(scans_with_header)
@@ -841,10 +841,16 @@ def upload_qc_file(sibis_session, qc_file_name, file_extension, file_flag,  send
         archive_base_name = os.path.join(reviewed_path, "qc_reviewed_" + now_str[0:10] + "_")
         
     elif file_extension == ".json" :
+        if args.verbose:
+            print(f"INFO:Uploading decisions from {qc_file} to xnat")
+        
         json_dict=miqa_file_generation.read_miqa_import_file(qc_file ,"/.")
-        json_df: pd.DataFrame = miqa_file_generation.convert_json_to_check_new_sessions_df(json_dict)
-
-        uploaded_scan_count = upload_visual_qc.upload_data_to_xnat(sibis_session, json_df, qc_file, sendEmailFlag,  verbose)
+        json_df: pd.DataFrame = miqa_file_generation.convert_json_to_check_new_sessions_df(json_dict,True)
+        if json_df.empty :
+            uploaded_scan_count=0
+        else :
+            uploaded_scan_count = upload_visual_qc.upload_data_to_xnat(sibis_session, json_df, qc_file, sendEmailFlag,  verbose)
+            
         # Create a name for the archived file
         archive_base_name = os.path.join(reviewed_path, "qc_2nd_tier_review_" + now_str[0:10] + "_")
         
@@ -1008,7 +1014,7 @@ with open(os.path.join(sibis_config, "special_cases.yml"), "r") as fi:
 # Check the file exists, since we're now moving it after the upload, not only
 # when there's more questionable scans to be written to it
 if True:
-    upload_qc_file(sibis_session, os.path.join(log_dir, "scans_to_question_v2_debug"),".json", args.qc_json,False,args.verbose)
+    upload_qc_file(sibis_session, os.path.join(log_dir, "scans_to_question"),".json", args.qc_json,False,args.verbose)
     upload_qc_file(sibis_session, os.path.join(log_dir, "scans_to_review"),".csv", args.qc_csv,(True if args.send_mail_to else False),args.verbose)
 else :
     print("WARNING:Skipping uploading!")
@@ -1731,7 +1737,7 @@ elif args.verbose:
 # Write the scans to QC csv file.
 if args.qc_csv : 
     write_scans_to_file(scans_to_qc, "scans_to_review.csv", args.verbose)
-    write_scans_to_file(scans_to_question, "scans_to_question.csv", args.verbose)
+    # write_scans_to_file(scans_to_question, "scans_to_question.csv", args.verbose)
 
     
 subject_mapping = {
@@ -1743,28 +1749,28 @@ subject_mapping = {
 if args.qc_json:
     rows_cols = [row.replace('\n', '').split(',') for row in scans_to_qc]
     df = pd.DataFrame(rows_cols[1:], columns=rows_cols[0])
-    if len(df) :  
-        new_df = miqa_file_generation.convert_dataframe_to_new_format(df,sibis_session,subject_mapping)
-        scans_to_qc_json_dict = miqa_file_generation.import_dataframe_to_dict(new_df)
     
-        if miqa_file_generation.write_miqa_import_file(
-                scans_to_qc_json_dict,
-                "scans_to_review_v2.json",
-                log_dir) == False :
-            print("ERROR:Failed to write scans_to_review_v2.json")
+    new_df = miqa_file_generation.convert_dataframe_to_new_format(df,sibis_session,subject_mapping)
+    scans_to_qc_json_dict = miqa_file_generation.import_dataframe_to_dict(new_df)
+    
+    if miqa_file_generation.write_miqa_import_file(
+            scans_to_qc_json_dict,
+            "scans_to_review.json",
+            log_dir, args.verbose) == False :
+        print("ERROR:Failed to write scans_to_review.json")
 
-    # "scans_to_question.csv",
+    # "scans_to_question.json",
     rows_cols = [row.replace('\n', '').split(',') for row in scans_to_question]
     df = pd.DataFrame(rows_cols[1:], columns=rows_cols[0])
-    if len(df) : 
-        new_df = miqa_file_generation.convert_dataframe_to_new_format(df,sibis_session,subject_mapping)
-        scans_to_question_json_dict = miqa_file_generation.import_dataframe_to_dict(new_df)
     
-        if miqa_file_generation.write_miqa_import_file(
-                scans_to_question_json_dict,
-                "scans_to_question_v2.json",
-                log_dir) == False :
-            print("ERROR:Failed to write scans_to_question_v2.json")
+    new_df = miqa_file_generation.convert_dataframe_to_new_format(df,sibis_session,subject_mapping)
+    scans_to_question_json_dict = miqa_file_generation.import_dataframe_to_dict(new_df)
+
+    if miqa_file_generation.write_miqa_import_file(
+            scans_to_question_json_dict,
+            "scans_to_question.json",
+            log_dir, args.verbose) == False :
+        print("ERROR:Failed to write scans_to_question.json")
     
 
 # Finally, update config stored on the server to have current date/time as the

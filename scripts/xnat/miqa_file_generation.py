@@ -18,11 +18,18 @@ MIQADecisionCodes = {
     "3": "UN",
 }
 
-MIQA2CNSDecisionCodes = {MIQADecisionCodes[key]: int(key) for key in MIQADecisionCodes.keys()}
+MIQA2SIBISDecisionCodes = {MIQADecisionCodes[key]: int(key) for key in MIQADecisionCodes.keys()}
 
+def convert_MIQA2SIBIS_DecisionCode(val: str) -> str:
+    if len(str(val)):      
+        return MIQA2SIBISDecisionCodes[str(val)]
+    else :
+        return ''
+                    
 
 def convert_json_to_check_new_sessions_df(
-    json_dict: dict
+        json_dict: dict,
+    verbose = False
 ) -> pd.DataFrame:
 
     dataframe_cols = [
@@ -59,7 +66,13 @@ def convert_json_to_check_new_sessions_df(
                     data["experiment_note"] = experiment["notes"]
 
                 if ('last_decision' in scan.keys()) and (scan["last_decision"] is not None):
-                    data["decision"] = MIQA2CNSDecisionCodes[scan["last_decision"]["decision"]]
+                    try:
+                        data["decision"] = convert_MIQA2SIBIS_DecisionCode(scan["last_decision"]["decision"])
+                    except:
+                        if verbose:
+                            print("ERROR:convert_json_to_check_new_sessions_df:No translation for decision '" + str(scan["last_decision"]["decision"]) + "'")
+                            
+                        return pd.DataFrame()
 
                     if scan["last_decision"]["note"] != "":
                         data["scan_note"] = scan["last_decision"]["note"]
@@ -68,22 +81,35 @@ def convert_json_to_check_new_sessions_df(
                     decisions = scan["decisions"]
                     decisions.sort(key=lambda x: parse(x["created"]) if x['created'] else datetime.datetime(1, 1, 1))
 
-                    data["decision"] = decisions[-1]["decision"]
+                    try:
+                        data["decision"] = convert_MIQA2SIBIS_DecisionCode(decisions[-1]["decision"])
+                    except:
+                        if verbose:
+                            print("ERROR:convert_json_to_check_new_sessions_df:No translation for decision '" + str(decisions[-1]["decision"]) + "'")
+                            
+                        return pd.DataFrame()
+
                     data["scan_note"] = '; '.join(
                         [
                             f'{d["creator"][:3]}({d["created"]}): {d["note"]}'
                             if (
                                 d['creator'] and d['created'] and
                                 not re.findall(r"([A-Z])+\(([\d\/-]+)\):", d["note"])
-                             ) else d["note"]
+                             ) else str(d["note"] or '')
                             for d in decisions
                         ]
                     )
+                    # Match csv
+                    if not len(data["scan_note"]):
+                        data["scan_note"] = float('NaN')
 
                 df = pd.DataFrame.from_records([data], columns=dataframe_cols)
                 all_scans.append(df)
 
-    return pd.concat(all_scans, ignore_index=True)
+    if len(all_scans):
+        return pd.concat(all_scans, ignore_index=True)
+
+    return pd.DataFrame()
 
 
 def convert_dataframe_to_new_format(
@@ -177,14 +203,10 @@ def convert_dataframe_to_new_format(
 
 
 def import_dataframe_to_dict(df):
-    if df.empty :
-        return {}
-
     # Initialize dictionary 
     ingest_dict = {"projects": {}}
     for project_name in project_list: 
-        ingest_dict["projects"][project_name] = {}
-        
+        ingest_dict["projects"][project_name] = {"experiments": {}}        
         
     for project_name, project_df in df.groupby("project_name"):
         if project_name not in project_list:
@@ -216,10 +238,12 @@ def import_dataframe_to_dict(df):
                         if "scan_link" in scan_df.columns:
                             scan_dict["scan_link"] = scan_df["scan_link"].iloc[0]
                         if "last_decision" in scan_df.columns and scan_df["last_decision"].iloc[0]:
+                            # note should be replaced with "" so you get same result out with import and exporting files form MIQA
+                            # however needs to be done somewhere else bc still writes it out as null instead of ""
                             decision_dict = {
                                 "decision": scan_df["last_decision"].iloc[0],
                                 "creator": scan_df["last_decision_creator"].iloc[0],
-                                "note": scan_df["last_decision_note"].iloc[0],
+                                "note": str(scan_df["last_decision_note"].iloc[0] or ''),
                                 "created": str(scan_df["last_decision_created"].iloc[0])
                                 if scan_df["last_decision_created"].iloc[0]
                                 else None,
@@ -246,7 +270,7 @@ def validate_import_data(import_dict,verboseFlag=False):
         {
             'projects': {
                 Optional(Use(str)): {
-                    Optional('experiments'): {
+                    'experiments': {
                         Optional(Use(str)): {
                             Optional('notes'): Optional(str, None),
                             'scans': {
@@ -306,8 +330,14 @@ def write_miqa_import_file(
     if not validate_import_data(data,verboseFlag):
         return False
     target_file = os.path.join(log_dir, filename)
+    if verboseFlag :
+        print(f"INFO: Created {target_file}")
+
     with open(target_file, "w") as fp:
         json.dump(data, fp)
+
+    # so that miqa can overwrite it 
+    os.chmod(target_file, 0o666)
 
     return True
 
