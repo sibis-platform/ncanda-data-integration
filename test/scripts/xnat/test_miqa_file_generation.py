@@ -16,6 +16,7 @@ from tabnanny import verbose
 import pandas as pd
 from unittest.mock import patch
 import pytest
+import numpy as np
 import sibispy
 from sibispy.tests.utils import get_session
 
@@ -81,11 +82,17 @@ def test_json_convert_check_new_sessions(file_prefix):
     orig_file=os.path.join(data_dir,file_name)
     assert(os.path.exists(str(orig_file)))
     json_dict = miqa_file_generation.read_miqa_import_file(file_name, data_dir)
-    json_df: pd.DataFrame = miqa_file_generation.convert_json_to_check_new_sessions_df(json_dict)
-    # print(json_df[['xnat_experiment_id','scan_id', 'scan_type','decision']])
-    # sys.exit(1)
+    json_df: pd.DataFrame = miqa_file_generation.convert_json_to_check_new_sessions_df(json_dict,True)
+    if False:
+        pd.options.display.max_colwidth = 200
+        print(json_df[['xnat_experiment_id','scan_id', 'scan_type','nifti_folder']])
 
-# 
+    # for MIQA we define scan_id in json file with leading 0 for single diget scan ids so order of scans is correctly displayed
+    # even with leading 0 this test will pass as prior function turned it into int even without my changes
+    assert np.issubdtype(json_df['scan_id'].dtype, np.int), "Not all scan ids are integer"
+    # this test does not 
+    assert len(json_df.loc[json_df['nifti_folder'].str.contains("nii.gz", case=False)]) == 0, "Folder name is actually a image file name !" 
+
 @pytest.mark.parametrize("file_prefix",
                         [ "test_miqa_file_generation",  
                           "test_miqa_file_generation_2"
@@ -167,6 +174,9 @@ def test_write_to_json_(file_name):
     #
     df = pd.DataFrame(rows_cols[1:], columns=rows_cols[0])    
     new_df = miqa_file_generation.convert_dataframe_to_new_format(df,None, subject_mapping)
+    if False:
+        print(new_df[['experiment_name','scan_name']])
+        
     scans_to_qc_json_dict = miqa_file_generation.import_dataframe_to_dict(new_df)
 
     # Test that each project exists in dictionary
@@ -182,7 +192,8 @@ def test_write_to_json_(file_name):
 
     json_dict = miqa_file_generation.read_miqa_import_file(file_name,"/tmp")
     assert set(json_dict['projects'].keys()) & set( miqa_file_generation.project_list), "Read in project list deviates from expected list"
-        
-    os.remove(os.path.join("/tmp",file_name))
+
+    if True: 
+        os.remove(os.path.join("/tmp",file_name))
 
     

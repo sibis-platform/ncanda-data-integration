@@ -50,6 +50,9 @@ def convert_json_to_check_new_sessions_df(
             for scan_name_id in experiment["scans"].keys():
                 scan = experiment["scans"][scan_name_id]
 
+                # in MIQA scan_name_id has leading 0 so it is displayed correctly 
+                xnat_scan_name_id=scan_name_id.lstrip('0')
+                
                 # initilize record
                 data = {}
                 for col in dataframe_cols:
@@ -57,8 +60,12 @@ def convert_json_to_check_new_sessions_df(
 
                 # fill out fields
                 data['xnat_experiment_id'] = xnat_experiment_id
-                data['nifti_folder'] = re.sub(f"/{scan_name_id}/.*$", "", scan["frames"]["0"]["file_location"])
-                data['scan_id'], _ = scan_name_id.split('_', maxsplit=1)
+                # this is the folder name up to scan directory -
+                # eg. /fs/storage/XNAT/archive/upmc_incoming/arc001/A-00047-F-9-20221111/RESOURCES/nifti
+                data['nifti_folder'] = re.sub(f"/{xnat_scan_name_id}/.*$", "", scan["frames"]["0"]["file_location"])
+                
+                # Selects the first item in xnat_scan_name_id 
+                data['scan_id'], _ = xnat_scan_name_id.split('_', maxsplit=1)
                 data['scan_id'] = int(data['scan_id'])
                 data['scan_type'] = scan["type"]
 
@@ -162,7 +169,7 @@ def convert_dataframe_to_new_format(
                 [
                     project_name,  # project_name
                     experiment,  # experiment_name
-                    f"{row['scan_id']}_{row['scan_type']}",  # scan_name
+                    f"{row['scan_id'].zfill(2)}_{row['scan_type']}",  # scan_name - so it is ordered correctly in miqa add 0 for single digit numbers ! 
                     scan_type,  # scan_type
                     frame_number,  # frame_number
                     str(frame_location),  # file_location
