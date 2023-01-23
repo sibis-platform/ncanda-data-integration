@@ -1,0 +1,60 @@
+#!/bin/bash
+
+##
+##  See COPYING file distributed along with the ncanda-data-integration package
+##  for the copyright and license terms
+##
+
+bindir=`dirname $0`
+csv="$1"
+manual_dir="/fs/ncanda-share/beta/webcnp_manual_import/"
+
+# Read specific flags
+original_args="$*"
+selected_args=""
+# Sort out argument options starting with -p, -v, -h, -t and ignore everything else 
+# : means that t has a required argument afterwards 
+options=$(getopt -o pt:vh -- "$@" 2> /dev/null) ;
+eval set -- "$options"
+helpFlag=false
+verboseFlag=false
+while true; do
+     case ${1} in
+         -p)  selected_args+="${1} " ;;
+	 -v)  selected_args+="${1} "; verboseFlag=true ;;
+	 -h)  selected_args+="${1} "; helpFlag=true ;;
+         -t)  shift; selected_args+="-t ${1} " ;;
+         --)  break;; 
+     esac
+     shift 
+done
+# reset input to original 
+eval set -- "$original_args"
+
+if ${helpFlag}; then
+    exit 0 
+fi  
+
+#
+# First, upload CSV file to REDCap
+#
+
+cmd="${bindir}/csv2redcap ${selected_args} --import-all ${manual_dir}/${csv}"
+if $verboseFlag; then
+    echo "$cmd"
+fi
+    
+if ! $cmd; then
+	# if it fails with exit 1 than network connection is instable
+	echo "Error: csv2redcap step failed!" 
+	exit 1
+fi
+
+
+# Second, update summary records
+#
+
+CMD="${bindir}/update_summary_forms ${selected_args} --max-days-after-visit 120"
+echo "Starting update_summary_forms: ${CMD}"
+$CMD 
+
