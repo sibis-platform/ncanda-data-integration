@@ -1174,7 +1174,8 @@ for (
             if args.verbose:
                 sys.stdout.write("Ignoring %s\n" % (eid))
                 sys.stdout.flush()
-                continue
+                
+            continue
             
     if args.verbose:
         sys.stdout.write(
