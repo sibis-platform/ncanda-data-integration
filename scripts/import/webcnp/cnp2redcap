@@ -8,61 +8,23 @@
 bindir=`dirname $0`
 tmpdir=`mktemp -d`
 
-
-# Read specific flags
-original_args="$*"
-selected_args=""
-# Sort out argument options starting with -p, -v, -h, -t and ignore everything else 
-# : means that t has a required argument afterwards 
-options=$(getopt -o pt:vh -- "$@" 2> /dev/null) ;
-eval set -- "$options"
-helpFlag=false
-verboseFlag=false
-while true; do
-     case ${1} in
-         -p)  selected_args+="${1} " ;;
-	 -v)  selected_args+="${1} "; verboseFlag=true ;;
-	 -h)  selected_args+="${1} "; helpFlag=true ;;
-         -t)  shift; selected_args+="-t ${1} " ;;
-         --)  break;; 
-     esac
-     shift 
-done
-# reset input to original 
-eval set -- "$original_args"
-
 #
 # First, retrieve XLS file from Penn via Selenium
 #
 CMD="${bindir}/get_results_selenium $* ${tmpdir}"
 $CMD
 
-if ${helpFlag}; then
+# exit if run with help flag -h
+if [ `echo "$*" | grep -c "\-h "` -eq 1 ]; then
+    echo "INFO: run with help flag so not running rest of script" 
     exit 0 
 fi  
 
-#
-# Second, upload CSV file to REDCap
-#
-for csv in `cd ${tmpdir}; ls | fgrep .csv`; do
-    cmd="${bindir}/csv2redcap ${selected_args} --import-all ${tmpdir}/${csv}"
-    if $verboseFlag; then
-	echo "$cmd"
-    fi
-    
-    if ! $cmd; then
-	# if it fails with exit 1 than network connection is instable - stop loop so you do not get lots of these errors 
-	# generally only one file in the loop anyway
-	#echo "failed" 
-	# rm -rf  $tmpdir
-	break 
-    fi
-done
-#
-# Third, update summary records
-#
-CMD="${bindir}/update_summary_forms ${selected_args} --max-days-after-visit 120"
-$CMD 
+echo "WARNING:ONCE SELENIUM WORKS AGAIN PLEASE EXPLCITLY TEST"
+
+# upload to redcap and update summary scores 
+${bindir}/complete_csv2redcap_import $tmpdir $*
+
 #
 # Finally, clean up
 #
