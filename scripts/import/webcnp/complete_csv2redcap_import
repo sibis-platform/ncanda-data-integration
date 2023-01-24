@@ -7,7 +7,10 @@
 
 bindir=`dirname $0`
 csv_dir=${1}
-shift
+
+if [ "$csv_dir" != "-h" ]; then
+    shift
+fi
 
 # Read specific flags
 # original_args="$*"
