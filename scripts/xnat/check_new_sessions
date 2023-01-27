@@ -117,9 +117,11 @@ required_fbirn = {"ncanda-rsfmri-v1": 1}
 # The nifti image count per session
 #
 expected_images = dict()
+
+# Was originaly in GE  not sure why 
+#    "ncanda-mprage-v1": [1],
 expected_images["GE"] = {
     "ncanda-t1spgr-v1": [1],
-    "ncanda-mprage-v1": [1],
     "ncanda-t2fse-v1": [1],
     "ncanda-dti6b500pepolar-v1": [8],
     "ncanda-dti30b400-v1": [32],
@@ -128,8 +130,9 @@ expected_images["GE"] = {
     "ncanda-rsfmri-v1": [274, 275, 330],
 }
 
+# Was originaly listed under Siemens  not sure why 
+#    "ncanda-t1spgr-v1": [1],
 expected_images["SIEMENS"] = {
-    "ncanda-t1spgr-v1": [1],
     "ncanda-mprage-v1": [1],
     "ncanda-t2fse-v1": [1],
     "ncanda-dti6b500pepolar-v1": [7],
@@ -445,12 +448,12 @@ def voxelres_get(experiment, scan):
         return re.sub("\s*<!--.*?-->\s*", "", match.group(1), flags=re.DOTALL)
 
 
-def voxelRes_check(experiment, manufacturer, scan_list):
+def voxelRes_check(experiment, manufacturer, scan_and_type_list):
     voxel_res = []
     error = []
-    for scan in scan_list:
+    for (scan,scantype) in scan_and_type_list:
         scan_res = [
-            experiment.scans[scan].get("type"),
+            scantype,
             voxelres_get(experiment, scan),
             scan,
         ]
@@ -519,13 +522,13 @@ def voxelRes_check(experiment, manufacturer, scan_list):
     return error
 
 
-def frame_check(experiment, manufacturer, scan_list):
+def frame_check(experiment, manufacturer, scan_and_type_list):
     frames = []
     error = []
 
-    for scan in scan_list:
+    for (scan,scan_type) in scan_and_type_list:
         util = XNATSessionElementUtil(experiment.scans[scan])
-        frame = util.mget(["type", "frames"])
+        frame = [util.mget(["frames"]),scan_type]
         frame.append(scan)
         frames.append(frame)
 
@@ -589,16 +592,10 @@ def frame_check(experiment, manufacturer, scan_list):
 
 
 # Make sure we have the right number of volumes for a given series
-def image_check(experiment, session_dir, manufacturer, scan_list):
+def image_check(experiment, session_dir, manufacturer, scan_and_type_list):
     error = []
 
-    for scan_id in scan_list:
-        scan_type = experiment.scans[scan_id].get("type")
-
-        # Nothing to do
-        if scan_type not in list(expected_images[manufacturer].keys()):
-            continue
-
+    for (scan_id,scan_type) in scan_and_type_list:
         imgrange = expected_images[manufacturer][scan_type]
         searchString = "%s/%s_%s/*.nii.gz" % (session_dir, scan_id, scan_type)
         imageCount = len(glob.glob(searchString))
@@ -626,7 +623,7 @@ def mri_quality_check(
     session_label,
     eid,
     xnat_url,
-    scan_list,
+    scan_and_type_list,
     incorrect_formatting_map,
 ):
     # only use first part of string so GE Manufacturer is turned into GE
@@ -664,9 +661,13 @@ def mri_quality_check(
                 str(incorrect_formatting_list),
             )
 
-        no_exception_list = list(set(scan_list).difference(incorrect_formatting_list))
+        no_exception_list = [
+            (scan,scantype)
+            for (scan, scantype) in scan_and_type_list
+            if scan not in incorrect_formatting_list
+        ]
     else:
-        no_exception_list = scan_list
+        no_exception_list = scan_and_type_list
 
     for e in image_check(experiment, session_dir, manufacturer, no_exception_list):
         if e:
@@ -1212,7 +1213,6 @@ for (
 
         exp_util = XNATExperimentUtil(experiment)
         scan_types = exp_util.summarize("scans/scan", "type")
-        scan_id_list = exp_util.summarize("scans/scan", "id")
 
     except Exception as err_msg:
         info = sys.exc_info()
@@ -1289,6 +1289,11 @@ for (
             [scan, scantype, quality]
             for (scan, scantype, quality) in scantype_and_quality
             if scantype in list(required_series.keys())
+        ]
+        mri_check_scans = [
+            (scan,scantype)
+            for (scan, scantype, quality) in all_scans
+            if  quality != "unusable"
         ]
         dti_scans = [
             (scan, scantype)
@@ -1423,7 +1428,7 @@ for (
                     session_label,
                     eid,
                     xnat_url,
-                    scan_id_list,
+                    mri_check_scans,
                     incorrect_formatting_map,
                 )
                 if mriErrorsFlag:
