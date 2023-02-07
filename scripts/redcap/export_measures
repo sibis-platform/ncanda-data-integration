@@ -196,7 +196,7 @@ for ( subject_label, subject_id, projects ) in subject_project_list:
 baseline_events = ['baseline_visit_arm_1', 'baseline_visit_arm_4']
 subject_fields = ['study_id', 'dob', 'exclude', 'enroll_exception',
                   'siblings_enrolled', 'siblings_id1', 'family_id',
-                  'hispanic', 'race', 'race_other_code']
+                  'hispanic', 'race', 'race_other_code','ndar_guid_id','ndar_consent']
 subject_data = redcap_project.export_records(fields=subject_fields,
                                              events=baseline_events,
                                              event_name='unique',
