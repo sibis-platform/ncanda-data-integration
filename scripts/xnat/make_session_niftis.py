@@ -91,8 +91,8 @@ def export_to_nifti(experiment, subject, session, session_label, scan, scantype,
     # Turn dicoms into niftis 
     #
     temp_dir = tempfile.mkdtemp()
-
-    args = '--tolerance 1e-3 --write-single-slices --no-progress -rvxO %s/%s_%s/image%%n.nii %s 2>&1' % (temp_dir, scan, scantype, dicom_path)
+    #--strict-xml    
+    args = '--tolerance 1e-3 --write-single-slices --no-progress  --include-ndar  -rvxO %s/%s_%s/image%%n.nii %s 2>&1' % (temp_dir, scan, scantype, dicom_path)
     (ecode, sout, eout) = sutils.dcm2image(args)
     if ecode:  
         error_msg.append("The following command failed: %s" % (sutils.dcm2image_cmd + args + " ! msg : " + str(eout)))
