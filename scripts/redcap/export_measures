@@ -288,6 +288,8 @@ if args.verbose:
     print("Exporting %d REDCap records." % len( visit_log_redcap ))
 
 # Iterate over all remaining rows
+prior_subject=''
+prior_visit_ignore=False
 for [key, row] in tqdm(visit_log_redcap.iterrows(),  # the actual iterator
                        total=visit_log_redcap.shape[0],
                        unit="subjects",
@@ -304,10 +306,12 @@ for [key, row] in tqdm(visit_log_redcap.iterrows(),  # the actual iterator
             print("Missing XNAT ID for subject",redcap_subject)
         continue
  
-    # only do sessions that are not ignored
+    # only do sessions that are not ignore
     if row['visit_ignore___yes'] :
+        prior_subject=redcap_subject
+        prior_visit_ignore=True
         continue
-
+       
     visit_date = str(row['visit_date'])
     if visit_date == 'nan':
         if args.verbose:
@@ -366,7 +370,14 @@ for [key, row] in tqdm(visit_log_redcap.iterrows(),  # the actual iterator
           siblings_enrolled_yn_subject=-1
 
     siblings_id_first_subject = siblings_id_first_correction.get(subject_pipeline_id)
-           
+
+    # Only relavent for midyear visits so that they are updated if main visits was skipped
+    # the demographics of main visits are always updated but not of mid year visits so that they do not overwrite main visits demographics 
+    if  prior_visit_ignore and prior_subject == redcap_subject:
+        force_demo_flag=True  
+    else :
+        force_demo_flag=False
+        
     # Export measures from RECap into the pipeline.
     red2cas.export_subject_all_forms(redcap_project,
                        site,
@@ -384,8 +395,12 @@ for [key, row] in tqdm(visit_log_redcap.iterrows(),  # the actual iterator
                        siblings_enrolled_yn_subject,
                        siblings_id_first_subject,
                        select_exports=select_exports,
+                       force_demo_flag=force_demo_flag,  
                        verbose=args.verbose)
     
+    prior_subject=redcap_subject
+    prior_visit_ignore=False
+        
     # Write report of forms locked for this subject, arm,
     # visit
     if args.locked_form_report and arm_code == 'standard':
