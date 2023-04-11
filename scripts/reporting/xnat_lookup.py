@@ -91,7 +91,7 @@ if __name__ == "__main__":
     import argparse
 
     # Setup command line parser
-    parser = argparse.ArgumentParser( description="Lookup subjects or MR sessions in XNAT.")
+    parser = argparse.ArgumentParser( description="Lookup subjects or MR sessions in XNAT based on Redcap ID (e.g. B-00149-M-0) .")
     parser.add_argument('-c', '--config',
                         default=os.path.join( os.path.expanduser("~"), '.server_config/ncanda.cfg'),
                         help="Path to configuration file in pyxnat format.")
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--print-project",
                         help="Print project name.", action="store_true")
     parser.add_argument("-r", "--reverse-lookup",
-                        help="Lookup by REDCap ID.", action="store_true")
+                        help="Lookup by XNAT ID (e.g. NCANDA_S00236).", action="store_true")
     parser.add_argument("-k", "--print-keys",
                         help="Print search keys in addition to search result.", action="store_true")
     parser.add_argument("-v", "--verbose",
