@@ -133,6 +133,19 @@ def process_form(form, complete_field_names, study_id, event):
 
         records[complete_field_names] = "2"
         return records[complete_field_names], previous[complete_field_names]
+    elif args.force_abbr_ssaga and form == "limesurvey_ssaga_youth":
+        # force lssaga_youth subform parts 2-4 to have empty status
+        # then set part 1 status and whole form status to complete
+        previous = records[complete_field_names]
+        for field in complete_field_names:
+            form_num = int(re.search(r'\d+', field).group())
+            if form_num == 1:
+                records[field] = 2
+            else:
+                records[field] = math.nan
+        records[form_complete_field] = 2
+        return records[complete_field_names], previous[complete_field_names]
+            
     else:
         # Unless we force complete update, drop already-Complete records for speed
         if not args.update_all:
@@ -240,6 +253,12 @@ parser.add_argument(
     help="Only process a specific event (e.g. baseline_visit_arm_1 or 1y_visit_arm_1)",
     action="store",
     default=None,
+)
+parser.add_argument(
+    "--force_abbr_ssaga",
+    help="Force ssaga subfrom parts 2-4 status to be Null for abbreviated lssaga youth forms",
+    action="store_true",
+    default=False,
 )
 
 
