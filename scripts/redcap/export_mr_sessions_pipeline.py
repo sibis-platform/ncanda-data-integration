@@ -132,7 +132,7 @@ def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_
         if timer_label :
             slog.startTimer2() 
 
-        args= '--tolerance 1e-3 --write-single-slices --no-progress -rxO %s %s 2>&1' % ( tmp_path_pattern, ' '.join( dicom_path_list ))
+        args= '--tolerance 1e-3 --write-single-slices  --include-ndar --strict-xml --no-progress -rxO %s %s 2>&1' % ( tmp_path_pattern, ' '.join( dicom_path_list ))
         (ecode, sout, eout) = sutils.dcm2image(args)
         if ecode :
             slog.info(redcap_visit_id + "_" + scan,"Error: Unable to create dicom file",
