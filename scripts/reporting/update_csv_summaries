@@ -142,7 +142,7 @@ if [ "$structuralFlag" == "1" ]; then
     for subject in `ls -d --color=no $PATTERN*`; do
       # only include those that have a baseline scan 
       if [ -d $subject/standard/baseline/structural/volumetry ]; then 
-	  sList=`ls -d1 --color=no $subject/standard/*/structural/volumetry | grep -e baseline -e followup_1y -e followup_2y -e followup_3y -e followup_4y -e followup_5y -e followup_6y -e followup_7y`
+	  sList=`ls -d1 --color=no $subject/standard/*/structural/volumetry | grep -e baseline -e followup_1y -e followup_2y -e followup_3y -e followup_4y -e followup_5y -e followup_6y -e followup_7y -e followup_8y`
 	  last=`echo ${sList} | rev | cut -d' ' -f1  | rev | cut -d'/' -f1-3`
 	  last_list="${last_list} $last"
       fi 
