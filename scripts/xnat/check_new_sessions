@@ -1171,7 +1171,7 @@ for (
         print("==== ", index, eid)
 
     # those that are ignored by the system 
-    if  session_label in ignore_xnat_session :
+    if ignore_xnat_session and session_label in ignore_xnat_session :
             if args.verbose:
                 sys.stdout.write("Ignoring %s\n" % (eid))
                 sys.stdout.flush()
