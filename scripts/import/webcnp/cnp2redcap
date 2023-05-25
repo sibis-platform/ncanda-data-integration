@@ -20,8 +20,6 @@ if [ `echo "$*" | grep -c "\-h "` -eq 1 ]; then
     exit 0 
 fi  
 
-echo "WARNING:ONCE SELENIUM WORKS AGAIN PLEASE EXPLCITLY TEST"
-
 # upload to redcap and update summary scores 
 ${bindir}/complete_csv2redcap_import $tmpdir $*
 
