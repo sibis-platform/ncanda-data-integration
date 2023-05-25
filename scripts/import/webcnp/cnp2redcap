@@ -11,7 +11,7 @@ tmpdir=`mktemp -d`
 #
 # First, retrieve XLS file from Penn via Selenium
 #
-CMD="${bindir}/get_results_selenium $* ${tmpdir}"
+CMD="${bindir}/get_results_api.py $* ${tmpdir}"
 $CMD
 
 # exit if run with help flag -h
