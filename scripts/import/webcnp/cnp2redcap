@@ -11,7 +11,7 @@ tmpdir=`mktemp -d`
 #
 # First, retrieve XLS file from Penn via Selenium
 #
-CMD="${bindir}/get_results_selenium $* ${tmpdir}"
+CMD="${bindir}/get_results_api.py $* ${tmpdir}"
 $CMD
 
 # exit if run with help flag -h
@@ -19,8 +19,6 @@ if [ `echo "$*" | grep -c "\-h "` -eq 1 ]; then
     echo "INFO: run with help flag so not running rest of script" 
     exit 0 
 fi  
-
-echo "WARNING:ONCE SELENIUM WORKS AGAIN PLEASE EXPLCITLY TEST"
 
 # upload to redcap and update summary scores 
 ${bindir}/complete_csv2redcap_import $tmpdir $*
