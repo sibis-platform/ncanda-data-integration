@@ -99,7 +99,7 @@ def get_penn_data(args):
     try:
         token = cfg.get_category('penncnp')['token']
     except:
-        slog.info("get_results_api","Error: sibis-general-config file was not found")
+        slog.info("get_results_api","Error: sibis-general-config file was not found or token was not found")
         sys.exit()
     
     # get full data dump
