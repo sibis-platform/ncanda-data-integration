@@ -345,4 +345,4 @@ if [ "$restingstateFlag" == "1" ]; then
 fi 
 popd > /dev/null
 # cd ${srcdir}
-# ${currdir}/${bindir}/xnat_lookup.py -k -r -o ${dstdir}/subject_ids.csv NCANDA_S0*
+# ${bindir}/../xnat/xnat_lookup.py -k -r -o ${dstdir}/subject_ids.csv NCANDA_S0*
