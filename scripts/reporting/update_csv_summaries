@@ -165,7 +165,7 @@ if [ "$structuralFlag" == "1" ]; then
     # structural sri24 measures
     #
     parc="icv parc116 suptent ventricles wm400 postfossa_dmid inftent"
-    for TYPE in atropos atropos_hs atropos_masked; do 
+    for TYPE in atropos atropos_masked; do 
       VolMeasType=volumetry/sri24_padded/$TYPE
       for p in ${parc}; do
         # cross-sectional
