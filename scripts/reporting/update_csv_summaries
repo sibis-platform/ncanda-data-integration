@@ -15,6 +15,7 @@
 
 if [ $# -lt 2 ]; then
   echo "Please provide source (e.g. /fs/ncanda-share/cases) and destination directories (e.g. /fs/ncanda-share/summaries)."
+  echo "Destingation directory must be an absolute path." 
   echo "Optional: if followed by "
   echo "0 or 1 = redcap summaries are created (1) or not (0) - default they are created" 
   echo "0 or 1 = structural summaries are created (1) or not (0) - default they are created" 
@@ -28,8 +29,14 @@ srcdir=$1
 if [ ! -e $srcdir ]; then
     echo "ERROR:$srcdir does not exist!"
     exit 1
-fi     
+fi
+
 dstdir=$2
+
+if [[ "$dstdir" != /* ]]; then
+    echo "ERROR:Destination $dstdir needs to be an absolute path!"
+    exit 1
+fi
 
 redcapFlag=$3
 if [ "$redcapFlag" == "" ]; then
@@ -165,7 +172,7 @@ if [ "$structuralFlag" == "1" ]; then
     # structural sri24 measures
     #
     parc="icv parc116 suptent ventricles wm400 postfossa_dmid inftent"
-    for TYPE in atropos atropos_masked; do 
+    for TYPE in atropos atropos_masked; do
       VolMeasType=volumetry/sri24_padded/$TYPE
       for p in ${parc}; do
         # cross-sectional
