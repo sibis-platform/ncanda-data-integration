@@ -41,7 +41,7 @@ def get_year_set(year_int):
     Only allows for full-year standard-arm events.
     """
     events = ["baseline"]
-    events.extend([str(i) + "y" for i in range(1, 10)])
+    events.extend([str(i) + "y" for i in range(1, 20)])
     events = [e + "_visit_arm_1" for e in events]
     return events[0:(year_int + 1)]
 
