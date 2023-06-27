@@ -339,6 +339,8 @@ if [ "$restingstateFlag" == "1" ]; then
   concat_csv ${dstdir}/restingstate_/rs_qa.csv ${PATTERN}*/*/*/restingstate/measures/rs_qa.csv 
   concat_csv ${dstdir}/restingstate_/sri24_parc116_gm_roi2roi_correlations.csv  ${PATTERN}*/*/*/restingstate/measures/sri24_epi/sri24_parc116_gm_roi2roi_correlations.csv
   concat_csv ${dstdir}/restingstate_/sri24_parc116_gm_roi2roi_partial_correlations.csv  ${PATTERN}*/*/*/restingstate/measures/sri24_epi/sri24_parc116_gm_roi2roi_partial_correlations.csv
+  concat_csv ${dstdir}/restingstate_/sri24_parc215_gm_roi2roi_correlations.csv  ${PATTERN}*/*/*/restingstate/measures/sri24_epi/sri24_parc215_gm_roi2roi_correlations.csv
+  concat_csv ${dstdir}/restingstate_/sri24_parc215_gm_roi2roi_partial_correlations.csv  ${PATTERN}*/*/*/restingstate/measures/sri24_epi/sri24_parc215_gm_roi2roi_partial_correlations.csv
 
   [ -d ${dstdir}/restingstate ] && rm -rf ${dstdir}/restingstate 
   mv ${dstdir}/restingstate_ ${dstdir}/restingstate
