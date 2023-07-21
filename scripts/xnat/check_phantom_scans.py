@@ -213,7 +213,7 @@ def check_experiment(session, ifc, sibis_config, args, email, eid, xnat_url, exp
     if subject_label_match:
         # This is a dictionary that maps subjects who changed sites to the correct phantom.
         with open(os.path.join(sibis_config, "special_cases.yml"), "r") as fi:
-            site_change_map = yaml.load(fi).get("site_change")
+            site_change_map = yaml.safe_load(fi).get("site_change")
             phantom_scan_map = site_change_map.get("check_phantom_scans")
 
         changed_sites_phantom = phantom_scan_map.get(experiment_label)

@@ -9,7 +9,7 @@ def pytest_addoption(parser):
 def pytest_generate_tests(metafunc):
   option_value = metafunc.config.option.config_file
   print("opt_val: >{0}<".format(option_value))
-  general_cfg = yaml.load(option_value)
+  general_cfg = yaml.safe_load(option_value)
   if 'config' in metafunc.fixturenames and general_cfg is not None:
     metafunc.parametrize("config", [general_cfg])
   if 'config_file' in metafunc.fixturenames and general_cfg is not None:

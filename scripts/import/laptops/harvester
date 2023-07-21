@@ -127,7 +127,7 @@ if not os.path.exists(os.path.join(sibis_config, 'special_cases.yml')):
 
 # load exceptions for QC check 
 with open(os.path.join(sibis_config, 'special_cases.yml'), 'r') as fi:
-    complete_file = yaml.load(fi)
+    complete_file = yaml.safe_load(fi)
     harvster_setting = complete_file.get('harvester')
     fi.close()
 

@@ -1004,7 +1004,7 @@ open(lock_file_path, "a").close()
 
 # load exceptions for QC check
 with open(os.path.join(sibis_config, "special_cases.yml"), "r") as fi:
-    complete_file = yaml.load(fi)
+    complete_file = yaml.safe_load(fi)
     incorrect_formatting_map = complete_file.get("incorrect_format")
     missing_scan_map = complete_file.get("incomplete_sessions")
     more_of_type_map = complete_file.get("more_of_type")

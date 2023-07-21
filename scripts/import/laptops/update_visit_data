@@ -513,7 +513,7 @@ if not os.path.isfile(special_cases_file):
 
 # Get a list of cases outside the visit window that should be included.
 with open(os.path.join(sibis_config, "special_cases.yml")) as fi:
-    special_cases = yaml.load(fi)
+    special_cases = yaml.safe_load(fi)
     exceptions_data = special_cases.get("update_visit_data", {})
 
 if args.forms:

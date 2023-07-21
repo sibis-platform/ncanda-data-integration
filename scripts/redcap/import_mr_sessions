@@ -647,7 +647,7 @@ if not os.path.isfile(special_cases_file) :
               
 # Get a list of cases outside the visit window that should be included.
 with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
-    special_cases = yaml.load(fi)
+    special_cases = yaml.safe_load(fi)
     export_measures_map = special_cases.get('site_change').get('export_measures')
     exceptions_window = special_cases.get('outside_visit_window')
     exceptions_num_type = special_cases.get('more_of_type')
