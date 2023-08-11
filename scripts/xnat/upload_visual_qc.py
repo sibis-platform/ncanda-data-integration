@@ -12,6 +12,11 @@ from sibispy import sibislogger as slog
 import os
 import miqa_file_generation
 
+def sanitize_string_for_csv(string: str) -> str:
+    tmp_string=string.replace("\r", "").replace("\n", " ").replace(",", " -").replace('\'','').replace('"','').replace('&',"").replace('quot;','').replace('amp;','')
+    return ' '.join(tmp_string.split())
+
+
 def read_csf_file(qc_csv_file: str) -> pd.DataFrame:
 
     if not os.path.exists(qc_csv_file):
@@ -83,10 +88,14 @@ def upload_data_to_xnat(
                 
             # comment - always upload
             scan_note=row['scan_note']
-            if isinstance(scan_note,str) :
+
+            if isinstance(scan_note,str):
+                scan_note=sanitize_string_for_csv(scan_note)
                 scan_note_len=len(scan_note)
+
                 # cut off a little bit more than 255 as sometimes hidden characters are added - see issue #12794
                 if scan_note_len > 240 :
+                    
                     uploaded_note= scan_note[:240]
 
                     import hashlib
