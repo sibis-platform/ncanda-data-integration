@@ -30,7 +30,7 @@ ${cmd}
 Environment:
 $(set)
 End-Of-Content
-
+    # echo "mailx parameters: -r ${SIBIS_ADMIN_EMAIL} -s ${subject}"
     eval "mailx -r ${SIBIS_ADMIN_EMAIL} -s \"${subject}\" ${mailto} < ${tmpfile}"
 	# Issues are now directly posted to github by program - os if their is an issue with github do not post it again as it gets confusing 
         # eval "python ${SIBIS_PYTHON_PATH}/sibispy/post_issues_to_github.py --title \"${subject}\" --body ${tmpfile}"
@@ -41,7 +41,7 @@ End-Of-Content
 
 get_sibis_variable()
 {
-    python $SIBIS_PYTHON_PATH/sibispy/session.py get_${1}
+    python3 $SIBIS_PYTHON_PATH/sibispy/session.py get_${1}
 }
 
 #
@@ -72,6 +72,11 @@ if [ "${SIBIS_CONFIG}" == "" ]; then
 fi 
 
 export SIBIS_ADMIN_EMAIL=`get_sibis_variable email`
+if [ "$SIBIS_ADMIN_EMAIL" == "" ]; then
+    echo "ERROR:crontools.sh:Failed to retrieve email!"
+    exit 1
+fi
+    
 export SIBIS_PROJECT_NAME=`get_sibis_variable project_name`
 export SIBIS_LOG_DIR=`get_sibis_variable log_dir`
 export SIBIS_CASES_DIR=`get_sibis_variable cases_dir`
@@ -83,3 +88,5 @@ export SIBIS_DATADICT_DIR=`get_sibis_variable datadict_dir`
 export SIBIS_ANALYSIS_DIR=`grep analysis_dir: ${SIBIS_CONFIG} | cut -d ' ' -f2`
 #make sure the following directory is accessible on the cluster !
 export SIBIS_IMAGE_SCRIPTS_DIR=${SIBIS_ANALYSIS_DIR}/scripts/image_processing
+
+# catch_output_email blubber echo blubber
