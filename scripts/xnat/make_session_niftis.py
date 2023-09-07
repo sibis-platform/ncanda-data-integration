@@ -16,56 +16,106 @@ import re
 import time 
 import sys 
 
+import sibispy
 from sibispy import sibislogger as slog
 from sibispy import utils as sutils
 from sibispy.xnat_util import XNATSessionElementUtil, XNATResourceUtil, XNATExperimentUtil
 
 #
 # Export experiment files to NIFTI
-#
-def export_to_nifti(experiment, subject, session, session_label, scan, scantype, xnat_dir, verbose=False):
-    if verbose:
-        print("Start export of nifti files for ", subject, session, session_label, scan, scantype,xnat_dir)
+# Note only checks ones scanPtr as t2w only has one ! 
+def dcm2niftiWifthCheck(dcmDirList, niftiPrefix, project,eid, scanPtr, logFileFlag=False,verbose=False):
+    numDCMFiles=0
+    #temp_dir = tempfile.mkdtemp()
+    # niftiPrefix='%s/%s_%s/image' %(temp_dir, scan, scantype)
+    # print("dcm2nifti:",dcmDirList, niftiPrefix, project,eid, scanPtr,verbose)
+    if project == "sri_incoming" and scanPtr.type == "ncanda-t2fse-v1" and eid > "NCANDA_E11968" and scanPtr.fulldata['data_fields']['parameters/voxelRes/z'] == 2.4 :
+       if verbose :
+           print("INFO:only using half the dicom files in " + dcmDirList[0])
+       numDCMFiles=int(scanPtr.fulldata['children'][0]['items'][0]['data_fields']['file_count']/2)
 
-    error_msg = []
+    return dcm2nifti(dcmDirList, str(niftiPrefix), numDCMFiles, logFileFlag,verbose)
 
-    # logfile_resource = '%s_%s/dcm2image.log' % (scan, scantype)
-    # xnat_log = interface.select.project(project).subject(subject).experiment(session).resource('nifti').file(logfile_resource)
-    # To test gradient directions without having to delete nifti files in xnat just uncomment this line 
-    # and comment out the proceeding one 
-    # if not xnat_log.exists() or 'dti60b1000' in scantype:
-    # if not xnat_log.exists():
-    match = re.match('.*('+ xnat_dir + '/.*)scan_.*_catalog.xml.*',XNATSessionElementUtil(experiment.scans[scan]).xml,re.DOTALL)
+ 
+def dcm2nifti(dcmDirList, niftiPrefix, numDCMFiles=0, logFileFlag=False,verbose=False):
+    argsTemplate = '--tolerance 1e-3 --write-single-slices --no-progress  --include-ndar --strict-xml  -rvxO %s ' % (niftiPrefix)
+    
+    if numDCMFiles > 0  :
+        if  len(dcmDirList) != 1:
+            return str("Creating a nifti from a subset of dicom is currently only implemented for single dicom dir !")
+    
+        argsCMTK=argsTemplate
+        (ecode, sout, eout) = sutils.subset_dcm2image(argsTemplate,dcmDirList[0],numDCMFiles,verbose)
+
+    else :
+        #
+        # Turn dicoms into niftis 
+        #
+        argsCMTK=argsTemplate +  ' '.join( dcmDirList ) + " 2>&1"
+        (ecode, sout, eout) = sutils.dcm2image(argsCMTK,verbose)
+        
+    if ecode:  
+        return str("The following command failed: %s" % (sutils.dcm2image_cmd +  argsCMTK + " ! msg : " + str(eout)))
+        
+    # Needed as we check for dcm2image.log when rerunning the case - should come up with better mechanism
+    if  logFileFlag :
+        logFileName = '%s/dcm2image.log' % (os.path.dirname(niftiPrefix))
+        output_file = open(logFileName, 'w')
+        try:
+            output_file.writelines(sout.decode('utf-8'))
+        finally:
+            output_file.close()
+
+    return ""
+
+def find_dicom_path(xnat_dir,xnat_scan):
+    match = re.match('.*('+ xnat_dir + '/.*)scan_.*_catalog.xml.*',XNATSessionElementUtil(xnat_scan).xml,re.DOTALL)
     if not match:
-        error_msg.append("XNAT scan info fails to contain catalog.xml location! SID:""%s EID:%s Label: %s SCAN: %s" % (subject, session,session_label,scan))
-        return error_msg,0
-
+        errMSG="XNAT scan info fails to contain catalog.xml location!" 
+        return (errMSG , 0)
+ 
     dicom_path = match.group(1)
     if not os.path.exists(dicom_path):
         #try another description
         dicom_path = re.sub('storage/XNAT', 'ncanda-xnat', dicom_path)
         if not os.path.exists(dicom_path):
-            error_msg.append("Path %s does not exist - export_to_nifti failed for SID:%s EID:%s Label: %s!" % (dicom_path, subject, session,session_label))
-            return error_msg,0
+            errMSG = ("Path %s does not exist - export_to_nifti failed!" % (dicom_path))
+            return (errorMSG,0)
 
+    return ("",dicom_path)
+        
+def export_to_nifti(experiment, scanID, xnat_dir, verbose=False):
+    subject = experiment.subject_id
+    sessionEid = experiment.id
+    sessionLabel = experiment.label
+    scanPtr=experiment.scans[scanID]
+    scanType=scanPtr.type
+    if verbose:
+        print("Export nifti files for ", subject, sessionEid, sessionLabel, scanID, scanType,xnat_dir)
 
-    nifti_log_search = glob.glob(re.sub('/DICOM/','_%s/dcm2image.log' % (scantype),re.sub( '/SCANS/', '/RESOURCES/nifti/', dicom_path)))
+    error_msg = []
+    (errMSG,dicomDir)= find_dicom_path(xnat_dir,scanPtr)
+    if errMSG != "":
+        error_msg.append(errMSG + " SID:%s EID:%s Label: %s SCAN: %s" % (subject, sessionEid,sessionLabel,scanID))
+        return error_msg,0
+    
+    nifti_log_search = glob.glob(re.sub('/DICOM/','_%s/dcm2image.log' % (scanType),re.sub( '/SCANS/', '/RESOURCES/nifti/', dicomDir)))
 
     # if nifti files were created make sure that they are newer than dicom file otherwise recreate them  
     if  nifti_log_search != [] :
         # we changed code here from *.* to avoid getting errors of not finding dicom files for sessions such as
         # NCANDA_E01386 / B-00454-M-9-20140214 - scan 1 /ncanda-localizer-v1
-        dicom_file_pattern = dicom_path + '*'
+        dicom_file_pattern = dicomDir + '*'
         dicom_file_list = glob.glob(dicom_file_pattern)
         # ommit xml file - so that only dicom  files are left - xml file is updated every time somebody changes something in the gui for that session - which has no meaning for xml file 
         dicom_file_list =  [x for x in dicom_file_list if '.xml' not in x ]
         # if dicom file is not there something odd is going on
         if dicom_file_list == [] :
-            slog.info(session_label, "Error: could not find dicom files ",
-                      session=session,
+            slog.info(sessionLabel, "Error: could not find dicom files ",
+                      session=sessionEid,
                       subject=subject,
-                      scan_number=scan,
-                      scan_type=scantype,
+                      scan_number=scanID,
+                      scan_type=scanType,
                       dicom_log_file=dicom_file_pattern)
             return error_msg,0
 
@@ -79,36 +129,26 @@ def export_to_nifti(experiment, subject, session, session_label, scan, scantype,
             return error_msg,0
 
 
-        slog.info(session_label + "_" + scan, "Warning: nifti seem outdated (dicom > nifti time) so they are recreated!", 
-                  session=session,
+        slog.info(sessionLabel + "_" + scanID, "Warning: nifti seem outdated (dicom > nifti time) so they are recreated!", 
+                  session=sessionEid,
                   subject=subject,
                   check_nifti = str(nifti_time) + " " +  str(nifti_log_search[0]),
                   check_dicom = str(dicom_time) + " " + str(dicom_file_list[0]),
-                  info =  "If the issue reappears then simply open up the session in  XNAT, go to 'Manage Files', delete the directory 'Resources/nifti/" + scantype + "'. If the pop-up window does not say that it is deleting 'dicom.log' then most likely you will have to manually delete the directory from the hard drive. To find out, simply run the script again. If the error message still reappears then repeat the previous procedure and afterwards delete the directory that the log file in check_nifti is located!")
+                  info =  "If the issue reappears then simply open up the session in  XNAT, go to 'Manage Files', delete the directory 'Resources/nifti/" + scanType + "'. If the pop-up window does not say that it is deleting 'dicom.log' then most likely you will have to manually delete the directory from the hard drive. To find out, simply run the script again. If the error message still reappears then repeat the previous procedure and afterwards delete the directory that the log file in check_nifti is located!")
 
-
-    #
-    # Turn dicoms into niftis 
-    #
     temp_dir = tempfile.mkdtemp()
-    args = '--tolerance 1e-3 --write-single-slices --no-progress  --include-ndar --strict-xml  -rvxO %s/%s_%s/image%%n.nii %s 2>&1' % (temp_dir, scan, scantype, dicom_path)
-    (ecode, sout, eout) = sutils.dcm2image(args)
-    if ecode:  
-        error_msg.append("The following command failed: %s" % (sutils.dcm2image_cmd + args + " ! msg : " + str(eout)))
-        # Clean up - remove temp directory
+    niftiPrefix='%s/%s_%s/image%%n.nii' %(temp_dir, scanID, scanType)
+
+    errMsg=dcm2niftiWifthCheck([dicomDir], niftiPrefix,experiment.project,sessionEid, scanPtr,True,verbose)
+    # dcm2nifti(dicom_Path,niftiPrefix)
+    # Clean up - remove temp directory
+    if errMsg:
+        error_msg.append(errMsg)
         shutil.rmtree(temp_dir)
         return error_msg,0
-
-    # Needed as we check for dcm2image.log when rerunning the case - should come up with better mechanism
-    log_filename = '%s/%s_%s/dcm2image.log' % (temp_dir, scan, scantype)
-    output_file = open(log_filename, 'w')
-    try:
-        output_file.writelines(sout.decode('utf-8'))
-    finally:
-        output_file.close()
-
+    
     # Zipping directory with nifti files
-    zip_file_name = '%s_%s.zip' % (scan, scantype)
+    zip_file_name = '%s_%s.zip' % (scanID, scanType)
     zip_path = '%s/%s' % (temp_dir, zip_file_name)
     
     try:
@@ -135,10 +175,10 @@ def export_to_nifti(experiment, subject, session, session_label, scan, scantype,
         resource_util.detailed_upload(zip_path, zip_file_name, extract=True, overwrite=True)
 
     except Exception as e:
-        error_msg.append("Unable to upload ZIP file %s to experiment %s" % (zip_path, session))
-        print("ERROR",str(e))
-        print("DEBUG",error_msg) 
-        exit(0)
+        error_msg.append("Unable to upload ZIP file %s to experiment %s" % (zip_path, sessionEid))
+        #print("ERROR",str(e))
+        #print("DEBUG",error_msg) 
+        # sys.exit(0)
         # Clean up - remove temp directory
         shutil.rmtree(temp_dir)
         return error_msg,0
@@ -148,3 +188,85 @@ def export_to_nifti(experiment, subject, session, session_label, scan, scantype,
     # images_created = len(glob.glob('%s/*/*.nii.gz' % temp_dir))
     shutil.rmtree(temp_dir)
     return error_msg,1
+
+def init_session(verbose=False) :
+    slog.init_log(verbose, False,'make_session_nifti', 'make_session_nifti')
+    session = sibispy.Session()
+    session.configure()
+    session.connect_server('xnat', True)
+    return session
+
+#============================================================
+# Main
+#============================================================
+if __name__ == "__main__": 
+    import argparse
+    parser = argparse.ArgumentParser(description="Turn DICOM into niftis - define '-d and -n'  or '-e, -s, and -n or -u'." )
+    parser.add_argument("-d", "--dcmDirList",help="Dicom dir, e.g, /fs/ncanda-xnat/archive/sri_incoming/arc001/B-80447-M-4-20230724/SCANS/3/DICOM. Multiple path can be eperated via ', ' !",action="store")
+    parser.add_argument("-e","--eid", help="eid, e.g. NCANDA_E12213",action="store")
+    parser.add_argument("-n", "--niftiPrefix",help="nifti prefix, e.g. /tmp/image%n.nii",action="store")
+    parser.add_argument("-s","--scan", help="scan number , e.g. 3 . several scans should be seperated with ',' ! can only be used with -n option ",action="store")
+    parser.add_argument("-u","--upload", help="After creating nifti, upload to xnat (requireds -e  -s )",action="store_true")
+    parser.add_argument("-v", "--verbose", help="Verbose operation", action="store_true")
+    args = parser.parse_args()
+
+    if args.eid :
+        sibis_session=init_session(args.verbose)
+        if not sibis_session:
+            print("ERROR:Could not connect to xnat!")
+            sys.exit(1)
+
+        xnat_dir = sibis_session.get_xnat_dir()
+        if not os.path.exists(xnat_dir):
+            print("Please ensure {} exists!".format(xnat_dir))
+            sys.exit(1)
+            
+        exp = sibis_session.xnat_get_experiment(args.eid)
+        if not exp:
+            print("ERROR:Could not find experiment!")
+            sys.exit(1)
+
+        if args.upload:
+            if len(args.scan.split(',')) != 1 :
+                print("ERROR:Exactly define one scan !")
+                sys.exit(1)
+            
+            (errMSG,sucessFlag) = export_to_nifti(exp, args.scan, xnat_dir, args.verbose)
+
+        else:
+            subject = exp.subject_id
+            project = exp.project
+            if args.niftiPrefix == "" :
+                print("ERROR: Need to define niftiPrefix")
+                sys.exit(1)
+
+            if not args.scan:
+                print("ERROR:scan id  needs to be defined !")
+                sys.exit(1)
+            
+            dcmDirList=[]
+            for scan in args.scan.split(',') :                
+                scan_ptr=exp.scans[scan]
+                if not scan_ptr:
+                    print("ERROR:Could not find scan!")
+                    sys.exit(1)
+    
+                (errMSG, dcmDir) = find_dicom_path(xnat_dir,scan_ptr)
+                if errMSG!= "" :
+                    print("ERROR:",errMSG)
+                    sys.exit(1)
+                    
+                dcmDirList.append(dcmDir)
+
+            errMSG=dcm2niftiWifthCheck(dcmDirList, args.niftiPrefix, project,args.eid, scan_ptr,True,args.verbose)
+    
+            # xnat_para = util.mget(scan_attrs)
+    elif args.dcmDir != "" :
+        errMSG=dcm2nifti(args.dcmDir.split(','), args.niftiPrefix, 0, True, args.verbose)
+
+    else:
+        errMSG("ERROR: dcmDir or eid and scan have to be defined!")
+    
+    if errMSG :
+        print("ERROR:", errMSG)
+        sys.exit(1)
