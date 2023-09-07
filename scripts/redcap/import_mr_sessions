@@ -756,7 +756,12 @@ if args.site:
 
 # Limit export by site id (e.g., A-00000-F-1)
 if args.study_id:
-    visit_log_redcap = visit_log_redcap.xs(args.study_id)
+    try : 
+        visit_log_redcap = visit_log_redcap.xs(args.study_id)
+    except:
+            print("ERROR: study_id " + args.study_id + " not found in redcap!")
+            sys.exit(1)
+            
     visit_log_redcap.reset_index(inplace=True)
     visit_log_redcap['study_id'] = args.study_id
     event="" 
