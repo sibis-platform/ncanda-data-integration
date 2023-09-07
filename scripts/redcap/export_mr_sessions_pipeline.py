@@ -18,6 +18,11 @@ from sibispy import utils as sutils
 
 from export_mr_sessions_spiral import export_spiral_files
 
+xnatBinDir = os.path.join( os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) ), 'xnat')
+sys.path.append(xnatBinDir)
+import make_session_niftis
+
+
 #
 # Checker whether an EID file exists and has the same experiment ID and (if applicable) scan number stored in it.
 #
@@ -82,6 +87,7 @@ def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_
     # Check if files are already created 
     pipeline_file_list= glob.glob(pipeline_file_pattern)
 
+    # We need to create loop here as gradient consists of two scans 
     dicom_path_list = []
     CreateDicomFlag=False
     for session_and_scan in session_and_scan_list.split( ' ' ):
@@ -109,8 +115,8 @@ def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_
         return False
 
 
+    [ session, scan ] = session_and_scan_list.split( ' ' )[0].split('/')
     if len(pipeline_file_list)  :
-        [ session, scan ] = session_and_scan_list.split( ' ' )[0].split('/')
         slog.info(redcap_visit_id  + "_" + scan,"Warning: existing MR images of the pipeline are updated",
                       file = to_path_pattern,
                       experiment_xnat_id=session,
@@ -132,9 +138,13 @@ def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_
         if timer_label :
             slog.startTimer2() 
 
-        args= '--tolerance 1e-3 --write-single-slices  --include-ndar --strict-xml --no-progress -rxO %s %s 2>&1' % ( tmp_path_pattern, ' '.join( dicom_path_list ))
-        (ecode, sout, eout) = sutils.dcm2image(args)
-        if ecode :
+        exp=xnat.select.experiments[ session ]
+
+        eout=make_session_niftis.dcm2niftiWifthCheck(dicom_path_list , tmp_path_pattern,exp.project,session, exp.scans[ scan ], False,verbose)
+        
+        # args= '--tolerance 1e-3 --write-single-slices  --include-ndar --strict-xml --no-progress -rxO %s %s 2>&1' % ( , ' '.join( dicom_path_list ))
+        # (ecode, sout, eout) = sutils.dcm2image(args)
+        if eout != "":
             slog.info(redcap_visit_id + "_" + scan,"Error: Unable to create dicom file",
                       experiment_site_id=session,
                       cmd=sutils.dcm2image_cmd + " " + args,
