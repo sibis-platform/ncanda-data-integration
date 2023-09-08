@@ -29,6 +29,8 @@ ${cmd}
 
 Environment:
 $(set)
+
+$(python --version)
 End-Of-Content
     # echo "mailx parameters: -r ${SIBIS_ADMIN_EMAIL} -s ${subject}"
     eval "mailx -r ${SIBIS_ADMIN_EMAIL} -s \"${subject}\" ${mailto} < ${tmpfile}"
