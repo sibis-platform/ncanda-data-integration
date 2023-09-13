@@ -463,6 +463,8 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     elif 'mprage' in list(scans_by_type.keys()):
         t1w_experiment_data = xnat_sessions_dict[scans_by_type['mprage'][0]]
     else:
+        if verbose :
+            print("INFO: no T1w-MRI found for session so QA status will be set to incomplete (0)!") 
         t1w_experiment_data = None
 
     if t1w_experiment_data:
@@ -944,7 +946,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
 
                 # Check if pipeline directory given and export imaging series there
                 if args.pipeline_root_dir and (this_subject_data['exclude'] != 1):
-                    if mrpipeline.export_and_queue(red2cas, redcap_visit_id, xnat, xnat_data, key, args.pipeline_root_dir, xnat_dir, run_pipeline_script=args.run_pipeline_script,stroop=(stroop_eid,stroop_resource,stroop_file), verbose=args.verbose , timerFlag = runTimerForImportToPipeline) :
+                    if mrpipeline.export_and_queue(red2cas, redcap_visit_id, xnat, xnat_data, key, args.pipeline_root_dir, xnat_dir, row['mr_session_report_complete'],run_pipeline_script=args.run_pipeline_script,stroop=(stroop_eid,stroop_resource,stroop_file), verbose=args.verbose , timerFlag = runTimerForImportToPipeline) :
                         # only run timer once - otherwise collect too much data
                         runTimerForImportToPipeline = False
 
