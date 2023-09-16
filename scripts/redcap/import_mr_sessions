@@ -168,9 +168,10 @@ def get_usable_scans_list( session, xnat_eid_list, redcap_visit_id, xnat_sid):
 def get_scans_by_type( red2cas, usable_scans_list, visit_date, redcap_visit_id):
     result = dict()
     for type in ncanda_scan_types:
-          # Get list of scans for this type; as we go, compute and sort by number of days between visit date and scan date
+        # Get list of scans for this type; as we go, compute and sort by number of days between visit date and scan date
+        # scan type has to end with -v1 otherwise it is ignored 
         scans = sorted( [ (eid, xnat_url, scan, red2cas.days_between_dates(visit_date,xnat_sessions_dict[eid][0])) for (scan_type,eid,xnat_url,scan) in usable_scans_list if re.match( '^ncanda-%s-v1$' % type, scan_type ) ], key=lambda x: abs(x[3]) )
-
+ 
         # Changed logic here should generally just be one scan across all sessions
         # if (len( scans ) == 1) or (len( scans ) > 1 and scans[0][2] < scans[1][2]): 
         if (len( scans ) == 1) :
@@ -396,8 +397,6 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     if match:
         scannerMfc = match.group(1).upper().split(" ",1)[0]
         result['mri_scanner'] = match.group(1) + " " + match.group(2) + " " + str(xnat.select.experiments[first_eid].get('scanner'))
-
-
 
     # For all experiments we have found, get list of all "usable" scans
     [usable_scans_list,errFlag] = get_usable_scans_list(session, xnat_eid_list, redcap_visit_id, xnat_sid)
