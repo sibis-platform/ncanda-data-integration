@@ -15,6 +15,7 @@ import numpy
 import re
 import time 
 import sys 
+import datetime
 
 import sibispy
 from sibispy import sibislogger as slog
@@ -24,7 +25,7 @@ from sibispy.xnat_util import XNATSessionElementUtil, XNATResourceUtil, XNATExpe
 #
 # Export experiment files to NIFTI
 # Note only checks ones scanPtr as t2w only has one ! 
-def dcm2niftiWifthCheck(dcmDirList, niftiPrefix, project,eid, scanPtr, logFileFlag=False,verbose=False):
+def dcm2niftiWithCheck(dcmDirList, niftiPrefix, project,eid, scanPtr, logFileFlag=False,verbose=False):
     numDCMFiles=0
     #temp_dir = tempfile.mkdtemp()
     # niftiPrefix='%s/%s_%s/image' %(temp_dir, scan, scantype)
@@ -122,13 +123,16 @@ def export_to_nifti(experiment, scanID, xnat_dir, verbose=False):
         # check time stamp - if newer than there is nothing to do
         nifti_time = time.strftime('%Y-%m-%d %H:%m:%S',time.gmtime(os.path.getmtime(nifti_log_search[0])))
         dicom_time = time.strftime('%Y-%m-%d %H:%m:%S',time.gmtime(os.path.getmtime(dicom_file_list[0])))
-
         if nifti_time > dicom_time  :
             if verbose:
                 print("... nothing to do as nifti files are up to date")
             return error_msg,0
 
-
+        if (nifti_time < str(datetime.datetime.now() - datetime.timedelta(365)).split('.')[0]):            
+            if verbose:
+                print("INFO:Nifti of " + sessionLabel + "_" + scanID + " seems outdated by more than a year ! If correct, delete nifti in xnat and rerun script for this subject . Nifti: "+ str(nifti_time) +" " + str(nifti_log_search[0]) + ", Dicom: " + str(dicom_time) +" "+ str(dicom_file_list[0]))
+            return error_msg,0
+        
         slog.info(sessionLabel + "_" + scanID, "Warning: nifti seem outdated (dicom > nifti time) so they are recreated!", 
                   session=sessionEid,
                   subject=subject,
@@ -139,7 +143,7 @@ def export_to_nifti(experiment, scanID, xnat_dir, verbose=False):
     temp_dir = tempfile.mkdtemp()
     niftiPrefix='%s/%s_%s/image%%n.nii' %(temp_dir, scanID, scanType)
 
-    errMsg=dcm2niftiWifthCheck([dicomDir], niftiPrefix,experiment.project,sessionEid, scanPtr,True,verbose)
+    errMsg=dcm2niftiWithCheck([dicomDir], niftiPrefix,experiment.project,sessionEid, scanPtr,True,verbose)
     # dcm2nifti(dicom_Path,niftiPrefix)
     # Clean up - remove temp directory
     if errMsg:
@@ -258,7 +262,7 @@ if __name__ == "__main__":
                     
                 dcmDirList.append(dcmDir)
 
-            errMSG=dcm2niftiWifthCheck(dcmDirList, args.niftiPrefix, project,args.eid, scan_ptr,True,args.verbose)
+            errMSG=dcm2niftiWithCheck(dcmDirList, args.niftiPrefix, project,args.eid, scan_ptr,True,args.verbose)
     
             # xnat_para = util.mget(scan_attrs)
     elif args.dcmDir != "" :
