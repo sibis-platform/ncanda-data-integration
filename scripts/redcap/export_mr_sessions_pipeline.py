@@ -404,8 +404,8 @@ def copy_manual_pipeline_files( redcap_visit_id, xnat, xnat_eid, to_directory ):
 
 def delete_workdir(workdir, redcap_visit_id, mr_session_report_complete, missing_mri,verbose=False): 
     if os.path.exists(workdir):
-        if mr_session_report_complete :
-            slog.info(redcap_visit_id,"Error: Deletion of directory " + workdir + " violates MRI Session Report being in status 'Complete'!",
+        if mr_session_report_complete >1:
+            slog.info(redcap_visit_id,"Error:Deletion of directory " + workdir + " violates MRI Session Report being in status 'Complete'!",
                       workdir = workdir,
                       mri_missing_in_xnat = missing_mri, 
                       info = "If those MRIs are missing in XNAT, then set the status of the MRI Session Report to 'Incomplete' and run script again with -f option.  If they are not missing, check that the names of the scans in XNAT are correct!")
