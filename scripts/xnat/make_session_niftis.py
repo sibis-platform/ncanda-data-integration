@@ -128,9 +128,13 @@ def export_to_nifti(experiment, scanID, xnat_dir, verbose=False):
                 print("... nothing to do as nifti files are up to date")
             return error_msg,0
 
-        if (nifti_time < str(datetime.datetime.now() - datetime.timedelta(365)).split('.')[0]):            
-            if verbose:
-                print("INFO:Nifti of " + sessionLabel + "_" + scanID + " seems outdated by more than a year ! If correct, delete nifti in xnat and rerun script for this subject . Nifti: "+ str(nifti_time) +" " + str(nifti_log_search[0]) + ", Dicom: " + str(dicom_time) +" "+ str(dicom_file_list[0]))
+        if (nifti_time < str(datetime.datetime.now() - datetime.timedelta(31)).split('.')[0]):
+            slog.info(sessionLabel + "_" + scanID, "Error: nifti seems outdated by more than a month (dicom > nifti time)!", 
+                  session=sessionEid,
+                  subject=subject,
+                  check_nifti = str(nifti_time) + " " +  str(nifti_log_search[0]),
+                  check_dicom = str(dicom_time) + " " + str(dicom_file_list[0]),
+                  info =  "If correct, delete nifti in xnat and rerun script for this subject. If incorrect set time stamp of the Dicom file earlier than the  nifti file. Rerun script to make sure that error is resolved !" )
             return error_msg,0
         
         slog.info(sessionLabel + "_" + scanID, "Warning: nifti seem outdated (dicom > nifti time) so they are recreated!", 
