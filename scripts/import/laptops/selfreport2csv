@@ -167,11 +167,16 @@ def load_data(
     (and fail gracefully if library doesn't support it)
     """
     # TODO: Limit to a single subject?
+
+    selfrep_forms = ['pre_youth_report_2', 'youth_report_2', 'mri_report', 
+                     'participant_last_use_summary_plusnp',
+                     'fitbit_intake_form']
+
     _load_data = partial(
         api.export_records,
         export_data_access_groups=True,
         export_survey_fields=True,
-        forms=['pre_youth_report_2', 'youth_report_2'],
+        forms=selfrep_forms,
         format='df',
         df_kwargs=dict(dtype=str)
     )
