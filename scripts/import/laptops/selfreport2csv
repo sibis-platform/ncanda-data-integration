@@ -43,13 +43,19 @@ def main():
     # 2. Transform checkbox names to "normal" name
     data = rename_columns(data)
 
+    # 3. Translate binary vars (0,1) to text (Y,N)
+    data = convert_bin_vars(data)
+
     # 3. Drop the auxiliary columns not available in Import records
     upload = drop_columns_absent_from_target(data, import_api, args.verbose)
 
     # 4. Set completion fields
     # TODO: Check if any Youth Report 1B fields are non-empty first, then
     # decide whether to set completion status on it
-    completion_fields = ['youth_report_1b_complete', 'youth_report_2_complete']
+    completion_fields = ['youth_report_1b_complete', 'youth_report_2_complete',
+                         'fitbit_intake_form_complete',
+                         'mri_report_complete',
+                         'participant_last_use_summary_complete']
     for field in completion_fields:
         upload[field] = '1'
 
@@ -316,6 +322,8 @@ def rename_columns(data: pd.DataFrame) -> pd.DataFrame:
 
     Additionally, we rename the survey-specific Redcap fields to map onto
     previously established LimeSurvey metadata.
+
+    {Imported from Laptops Var}: {Selfreport Var}
     """
     data.rename(columns=lambda x: re.sub('___', '_', x), inplace=True)
     data.rename(columns={
@@ -361,10 +369,33 @@ def rename_columns(data: pd.DataFrame) -> pd.DataFrame:
         'youthreport2_measures_acc': 'youthreport2_measures_37',
         'redcap_survey_identifier': 'youthreport2_token',
         'youth_report_2_timestamp': 'youthreport2_completed',
+        'participant_last_use_summary_complete': 'participant_last_use_summary_plusnp_complete',
     }, inplace=True)
 
     return data
 
+def map_yn_to_binary(yn):
+    if (yn == "Y") or (yn == "1"):
+        return "Y"
+    elif (yn == "N") or (yn == "2") or (yn == "0"):
+        return "N"
+    else:
+        return ""
+
+def convert_bin_vars(data):
+    """
+    Convert binary (0, 1) variables to text based (N, Y).
+    This is to match expected data format by the Imported from Laptops Project
+    """
+
+    vars_to_convert = ['plus_np_set5_nplu9av2', 'plus_np_set5_nplu11av2',
+                       'mrireport_mri_set5_mrilu9av2', 'mrireport_mri_set5_mrilu11av2']
+
+    for var in vars_to_convert:
+        if data[var].any():
+            data[var] = map_yn_to_binary(data[var].values[0])
+        
+    return data
 
 def drop_columns_absent_from_target(
     data: pd.DataFrame,
