@@ -50,14 +50,8 @@ def main():
     upload = drop_columns_absent_from_target(data, import_api, args.verbose)
 
     # 4. Set completion fields
-    # TODO: Check if any Youth Report 1B fields are non-empty first, then
-    # decide whether to set completion status on it
-    completion_fields = ['youth_report_1b_complete', 'youth_report_2_complete',
-                         'fitbit_intake_form_complete',
-                         'mri_report_complete',
-                         'participant_last_use_summary_complete']
-    for field in completion_fields:
-        upload[field] = '1'
+    upload = set_completion_fields(upload)
+    
 
     # 5. Write out data
     written_files = write_records(upload,
@@ -374,6 +368,7 @@ def rename_columns(data: pd.DataFrame) -> pd.DataFrame:
 
     return data
 
+
 def map_yn_to_binary(yn):
     if (yn == "Y") or (yn == "1"):
         return "Y"
@@ -381,6 +376,7 @@ def map_yn_to_binary(yn):
         return "N"
     else:
         return ""
+
 
 def convert_bin_vars(data):
     """
@@ -396,6 +392,7 @@ def convert_bin_vars(data):
             data[var] = map_yn_to_binary(data[var].values[0])
         
     return data
+
 
 def drop_columns_absent_from_target(
     data: pd.DataFrame,
@@ -422,6 +419,43 @@ def drop_columns_absent_from_target(
 
     return upload
 
+
+def set_completion_fields(upload):
+    """
+    For each form (other than youth report 2), check that the form is 
+    non-empty prior to setting it's completion status.
+    If the form is empty, leave the status as empty so it isn't created in imports project.
+    """
+    field_to_form_map = {
+        'youthreport1': 'youth_report_1b_complete', 
+        'youthreport2': 'youth_report_2_complete',
+        'fitbit': 'fitbit_intake_form_complete',
+        'mrireport': 'mri_report_complete',
+        'plus': 'participant_last_use_summary_complete'
+    }
+    
+    # break it up by forms to see if form is empty (init w/ 1 to force form population)
+    non_empty_count = {
+        'mrireport': 0,
+        'youthreport1': 0,
+        'youthreport2': 1,
+        'plus': 0,
+        'fitbit': 0,
+    }
+    
+    # if a value in the form is non-empty, add to non-empty count for form
+    for field in upload:
+        form_name = upload[field].name.split('_')[0]
+        field_val = upload[field].values[0]
+        if form_name in non_empty_count.keys() and pd.notna(field_val):
+            non_empty_count[form_name] += 1
+        
+    for form in non_empty_count.keys():
+        if non_empty_count[form] > 0:
+            # set completion field
+            upload[field_to_form_map[form]] = '1'
+
+    return upload
 
 def write_records(
     upload: pd.DataFrame,
