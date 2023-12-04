@@ -6,6 +6,6 @@
 ##
 
 bindir=`dirname $0`
-$bindir/transmit_xnat
-$bindir/transmit_dbs
-$bindir/transmit_svn
+$bindir/transmit_xnat || echo "transmit_xnat failed"
+$bindir/transmit_dbs || echo "transmit_dbs failed"
+$bindir/transmit_svn || echo "transmit_svn failed"
