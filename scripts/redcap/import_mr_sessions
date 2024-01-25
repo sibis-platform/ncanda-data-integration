@@ -794,8 +794,32 @@ for redcap_event in redcap_project.events:
 
 # Have pipeline feeder check for "excluded" subjects that might have previously entered the pipeline
 if args.pipeline_root_dir:
-    excluded_subjects = mr_sessions_redcap[ mr_sessions_redcap.index.map( lambda key: subject_data['exclude'][key[0]] == 1 ) ]['mri_xnat_sid'].dropna().tolist()
-    mrpipeline.check_excluded_subjects( excluded_subjects, args.pipeline_root_dir )
+    try:
+        excluded_subjects = mr_sessions_redcap[ mr_sessions_redcap.index.map( lambda key: subject_data['exclude'][key[0]] == 1 ) ]['mri_xnat_sid'].dropna().tolist()
+    except KeyError as key_err:
+        bad_key = key_err.args[0]
+        err_row = mr_sessions_redcap.loc[(bad_key, slice(None)), :]
+        index_values = err_row.index.get_level_values('study_id').tolist()
+        index_values += err_row.index.get_level_values('redcap_event_name').tolist()
+        header = '-'.join(index_values)
+        slog.info(
+            header,
+            "Subject exists in REDCap that is not apart of Arm 1.",
+            info="There is a subject that exists in Redcap that is not apart of subject_data, currently \
+            identified cause of the discrepancy is a new subject has been created in an arm that doesn't \
+            also exist in arm 1.", 
+            site_resolution="1. Identify what the intended subject ID was. \n \
+            2. Input any information that was entered under the incorrect subject ID to the correct \
+            location. \n \
+            3. Once entered, post on this issue that the incorrectly created subject can be removed."
+        )
+        # drop the offending key error from the mr_sessions_redcap dataframe
+        mr_sessions_redcap = mr_sessions_redcap[mr_sessions_redcap.index.get_level_values('study_id') != bad_key]
+        if mr_sessions_redcap.empty:
+            excluded_subjects = None
+        else:
+            excluded_subjects = mr_sessions_redcap[ mr_sessions_redcap.index.map( lambda key: subject_data['exclude'][key[0]] == 1 ) ]['mri_xnat_sid'].dropna().tolist()
+            mrpipeline.check_excluded_subjects( excluded_subjects, args.pipeline_root_dir )
 
 # Filter out all records marked as "Complete", unless user instructed otherwise
 if not args.force_update:
