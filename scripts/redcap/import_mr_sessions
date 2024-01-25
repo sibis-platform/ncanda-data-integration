@@ -804,8 +804,8 @@ if args.pipeline_root_dir:
         header = '-'.join(index_values)
         slog.info(
             header,
-            "Subject exists in REDCap that is not apart of Arm 1.",
-            info="There is a subject that exists in Redcap that is not apart of subject_data, currently \
+            "Subject exists in REDCap that does not exist in Arm 1.",
+            info="There is a subject that exists in Redcap that is not part of subject_data, currently \
             identified cause of the discrepancy is a new subject has been created in an arm that doesn't \
             also exist in arm 1.", 
             site_resolution="1. Identify what the intended subject ID was. \n \
