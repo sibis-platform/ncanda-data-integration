@@ -14,17 +14,25 @@ if [ $num_scripts -gt 0 ]; then
     if [ `grep $Hour ${RUN_LOG} 2> /dev/null | wc -l` -gt 0 ]; then
         echo "INFO:front-hourly:Skipping ${Hour}h run even though it did not run in the last 24h as other process still active!"
     fi
-    # echo "INFO:front-hourly:Not running front-hourly as instance(s) of it are already running! "
     exit 0
 fi
 
+# do not pad hour with 0 even though it should not make a difference
 hour=$(date +%-H)
-# intially want to make sure it always runs at midnight unless midnight is skipped
-if [ ${hour} -eq 0 ] || [ ${hour} -lt 6 -a `grep $Hour ${RUN_LOG} 2> /dev/null | wc -l` -gt 0 ]; then 
+
+# Do not run during the night - nothing needs updating
+if [ ${hour} -lt 4 ] || [ ${hour} -gt 19 ]; then
+    exit 0
+fi
+
+# intially want to make sure it always runs at 4 am unless 4 am is skipped
+if [ ${hour} -eq 4 ] || [ ${hour} -lt 9 -a `grep $Hour ${RUN_LOG} 2> /dev/null | wc -l` -gt 0 ]; then
     echo "INFO:front-hourly:Script ran `wc -l $RUN_LOG 2> /dev/null | cut -d' ' -f1` time in the last 24h!"
     mv  $RUN_LOG ${RUN_LOG}_
+    # Beginning of day 
     qa_args="-p -i"
-elif [ ${hour} -gt 19 -a  `grep "\-e"  ${RUN_LOG} 2> /dev/null | wc -l` -eq 0  ]; then
+elif [ ${hour} -gt 16 -a  `grep "\-e"  ${RUN_LOG} 2> /dev/null | wc -l` -eq 0  ]; then
+    # end of day 
     qa_args="-p -e"
 else
     qa_args="-p"
@@ -32,5 +40,5 @@ fi
 
 echo "$Hour $qa_args" >> $RUN_LOG
 timeout 8h /sibis-software/ncanda-data-integration/scripts/crond/front-hourly-script $qa_args && exit 0
-echo "ERROR:${SCRIPT_LABEL}: front hourly at hour ${hour}h did not complete within 8 hours !"
+echo "ERROR:front-hourly: script at hour ${hour}h did not complete within 8 hours or another error occured!"
 exit 1
