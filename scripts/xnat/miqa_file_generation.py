@@ -160,14 +160,6 @@ def convert_dataframe_to_new_format(
             for location in scan_dir.glob("*.nii.gz")
         ]
         if len(frame_locations) == 0:
-            # setup logging
-            slog.init_log(
-                args.verbose,
-                args.post_to_github,
-                "NCANDA XNAT",
-                "miqa_file_generation",
-                None, # no timing log
-            )
             pattern = r'/([A-Z]-\d+-[MF]-\d+-\d{8})/'
             match = re.search(pattern, str(row['nifti_folder']))
             if match:
