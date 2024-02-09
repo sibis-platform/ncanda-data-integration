@@ -124,7 +124,6 @@ def convert_dataframe_to_new_format(
     df,
     session=None,
     subject_mapping=None,
-    args=None,
 ):
     new_rows = []
     for _index, row in df.iterrows():

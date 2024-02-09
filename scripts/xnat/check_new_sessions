@@ -1737,7 +1737,7 @@ if args.qc_json:
     rows_cols = [row.replace('\n', '').split(',') for row in scans_to_qc]
     df = pd.DataFrame(rows_cols[1:], columns=rows_cols[0])
     
-    new_df = miqa_file_generation.convert_dataframe_to_new_format(df,sibis_session,subject_mapping,args)
+    new_df = miqa_file_generation.convert_dataframe_to_new_format(df,sibis_session,subject_mapping)
     scans_to_qc_json_dict = miqa_file_generation.import_dataframe_to_dict(new_df)
     
     if miqa_file_generation.write_miqa_import_file(
@@ -1750,7 +1750,7 @@ if args.qc_json:
     rows_cols = [row.replace('\n', '').split(',') for row in scans_to_question]
     df = pd.DataFrame(rows_cols[1:], columns=rows_cols[0])
     
-    new_df = miqa_file_generation.convert_dataframe_to_new_format(df,sibis_session,subject_mapping,args)
+    new_df = miqa_file_generation.convert_dataframe_to_new_format(df,sibis_session,subject_mapping)
     scans_to_question_json_dict = miqa_file_generation.import_dataframe_to_dict(new_df)
 
     if miqa_file_generation.write_miqa_import_file(
