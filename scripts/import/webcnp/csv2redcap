@@ -93,12 +93,28 @@ data = pd.read_csv(args.infile, low_memory=False)
 # Replace periods in column labels with underscores
 data.rename(columns=lambda s: s.replace(".", "_").lower(), inplace=True)
 
-## New Survey->Evioni renames
+## New Survey->Evioni renames + dataset id updates
 # Store current varnames for reference
 _current_varnames = [x["field_name"] for x in redcap.metadata]
 
 this_dir = Path(__file__).parent.resolve()
 renames = pd.read_csv(this_dir / "NCANDA_Survey_Codebook.csv")
+
+# map the new datasetid's to the old values if applicable
+datasetid_map = pd.read_csv(this_dir / "ncanda_datasetid_curr_prev.csv")
+mapping_dict = dict(zip(datasetid_map['current_datasetid'], datasetid_map['prev_datasetid']))
+data['test_sessions_datasetid'] = data['test_sessions_datasetid'].map(mapping_dict).fillna(data['test_sessions_datasetid']).astype(int)
+
+# find all {test_name}_status variables
+all_status_vars = [col for col in data.columns if '_status' in col]
+non_sys_vars = [col for col in all_status_vars if '_system_' not in col]
+# additional new cols to drop
+non_sys_vars.append('test_sessions_v_system_status')
+
+# drop non-system vars from the data and replace w/ system status vars
+data = data.drop(columns=non_sys_vars)
+data = data.rename(columns=lambda x: x.replace('_system', ''))
+
 for _var in ["survey_var", "evioni_var"]:  # fit the previous data file rename
     renames[_var] = renames[_var].str.lower().str.replace(r"\.", "_")
 
@@ -241,11 +257,9 @@ status_variables = [
     "pvrt_status",
     "svdelay_status",
 ]
-old_default = "^C$"
+old_defaults = ["^C$", "^Complete$"]
 new_default = "C1"
-data[status_variables] = data[status_variables].apply(
-    lambda x: x.str.replace(old_default, new_default, regex=True)
-)
+data[status_variables] = data[status_variables].replace(old_defaults, new_default, regex=True)
 
 
 # Bring original "siteid" column back to assign each record to the correct data access group
