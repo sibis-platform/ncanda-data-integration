@@ -187,10 +187,10 @@ if args.verbose:
 
 # From the index, extract the original subject ID and date from each imported record IO and use these wherever not overridden by manually-entered values
 imported_records['test_sessions_subid'] = imported_records['test_sessions_subid'].map( nan_to_empty )
-imported_records['test_sessions_subid'] = imported_records.apply( lambda row: row['test_sessions_subid'] if row['test_sessions_subid']!='' else row.name[0:-17], axis=1 )
+imported_records['test_sessions_subid'] = imported_records.apply( lambda row: row['test_sessions_subid'] if row['test_sessions_subid']!='' else row.name[:11], axis=1 )
 
 imported_records['test_sessions_dotest'] = imported_records['test_sessions_dotest'].map( nan_to_empty )
-imported_records['test_sessions_dotest'] = imported_records.apply( lambda row: row['test_sessions_dotest'] if row['test_sessions_dotest']!='' else row.name[-16:-6], axis=1 )
+imported_records['test_sessions_dotest'] = imported_records.apply( lambda row: row['test_sessions_dotest'] if row['test_sessions_dotest']!='' else row.name[12:22], axis=1 )
 
 #    
 # Go over all summary records (i.e., the visit log) and find corresponding imported records
@@ -294,7 +294,8 @@ summary_records = summary_records.drop( [ 'dob', 'exclude', 'visit_date' ], axis
 # Since redcap expects int values for this field
 summary_records['cnp_exam_location'] = pandas.to_numeric(summary_records['cnp_exam_location']).astype('Int64')
 summary_records['cnp_input_device'] = pandas.to_numeric(summary_records['cnp_input_device']).astype('Int64')
-
+complete_vars = [val for val in summary_records.columns if 'cnp_instruments_' in val]
+summary_records[complete_vars] = summary_records[complete_vars].apply(pandas.to_numeric).astype('Int64')
 
 uploaded_count = 0
 
