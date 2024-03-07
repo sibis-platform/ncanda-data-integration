@@ -48,7 +48,7 @@ def compute_lssaga_youth_complete_status(row, field_names, form_complete_field,e
     event_year=float(event.split('y',1)[0])
     age=float(row['age'])
 
-    if  math.isnan(age) or age <= 23 or event_year < 4 :
+    if  math.isnan(age) or age <= 22 or event_year < 4 :
         return compute_bulk_status(row, field_names, form_complete_field)
 
     # abreviated ssaga 
