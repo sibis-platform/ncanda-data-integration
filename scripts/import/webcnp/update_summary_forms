@@ -149,7 +149,7 @@ for cnpvar in cnp_copy_variables:
     summary_records['cnp_%s' % cnpvar] = summary_records['cnp_%s' % cnpvar].map( str )
 
 # If we update all records, make sure to reset everything, so stuff can be made disappear in the summary, if it was removed from the imported project
-if args.update_all:
+if args.update_all or args.force:
     summary_records['cnp_datasetid'] = ''
 
     for cnpvar in cnp_copy_variables:
@@ -269,14 +269,15 @@ for key, row in summary_records.iterrows():
             
             try:
                 curr_summmary_complete = pandas.to_numeric(summary_records.at[key, 'cnp_summary_complete']).astype(int)
-                if args.update_all:
+                
+                if args.force:
+                    summary_records.at[key, 'cnp_summary_complete'] = new_summary_complete
+                elif args.update_all:
                     # only update summary complete score if new value is > old
                     if curr_summmary_complete < new_summary_complete:
                         summary_records.at[key, 'cnp_summary_complete'] = new_summary_complete
                     else:
                         summary_records.at[key, 'cnp_summary_complete'] = curr_summmary_complete
-                elif args.force:
-                    summary_records.at[key, 'cnp_summary_complete'] = new_summary_complete
                 else:
                     summary_records.at[key, 'cnp_summary_complete'] = curr_summmary_complete
             except:
