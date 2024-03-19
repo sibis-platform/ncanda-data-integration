@@ -361,7 +361,7 @@ else:
         print("Successfully uploaded %d/%d records to REDCap." % ( uploaded_count, len( summary_records ) ))
 
     # Update location and device as these are entered manually later 
-    if summary_records_secondary:
+    if isinstance(summary_records_secondary, pandas.DataFrame) and not summary_records_secondary.empty:
         update_record= imported_records.loc[summary_records_secondary['cnp_datasetid']]
         summary_records_secondary['cnp_exam_location']=update_record['exam_location'].tolist()
         summary_records_secondary['cnp_input_device']=update_record['input_device'].tolist()
