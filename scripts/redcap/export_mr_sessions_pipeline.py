@@ -150,7 +150,7 @@ def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_
 
         exp=xnat.select.experiments[ session ]
 
-        eout=make_session_niftis.dcm2niftiWifthCheck(dicom_path_list , tmp_path_pattern,exp.project,session, exp.scans[ scan ], False,verbose)
+        eout=make_session_niftis.dcm2niftiWithCheck(dicom_path_list , tmp_path_pattern,exp.project,session, exp.scans[ scan ], False,verbose)
         
         # args= '--tolerance 1e-3 --write-single-slices  --include-ndar --strict-xml --no-progress -rxO %s %s 2>&1' % ( , ' '.join( dicom_path_list ))
         # (ecode, sout, eout) = sutils.dcm2image(args)
