@@ -70,7 +70,7 @@ fi
 # Set Variables
 #
 if [ "${SIBIS_CONFIG}" == "" ]; then
-  export SIBIS_CONFIG=~/.sibis-general-config.yml
+  export SIBIS_CONFIG=/fs/storage/share/operations/secrets/.sibis/.sibis-general-config.yml
 fi 
 
 export SIBIS_ADMIN_EMAIL=`get_sibis_variable email`
