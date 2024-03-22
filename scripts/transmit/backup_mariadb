@@ -21,7 +21,7 @@ function remove_lock() {
   exit 0
 }
 
-trap "remove_lock" EXIT SIGKILL
+trap "remove_lock" EXIT
 
 date_file=$backup_src/mysql/ARCHIVE_DATE.txt
 if [[ -e "$date_file" ]]; then
