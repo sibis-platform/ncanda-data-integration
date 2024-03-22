@@ -1,6 +1,6 @@
 #!/bin/bash -l 
 cur_dir=`dirname $0`
-config="${HOME}/.sibis/.sibis-general-config.yml"
+config="/fs/storage/share/operations/secrets/.sibis/.sibis-general-config.yml"
 backup_tmp=/fs/snapshots
 retain_local_copy=0
 

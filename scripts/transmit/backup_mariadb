@@ -1,6 +1,6 @@
 #!/bin/bash -l 
 cur_dir=`dirname $0`
-config="${HOME}/.sibis/.sibis-general-config.yml"
+config="/fs/storage/share/operations/secrets/.sibis/.sibis-general-config.yml"
 backup_tmp=/fs/snapshots
 backup_src=/fs/storage/mariadb-redcap-archive
 backup_lock=/fs/storage/ncanda_redcap_backup.lock

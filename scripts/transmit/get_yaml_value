@@ -1,5 +1,5 @@
 #!/bin/bash -l
-CFG=${1:-'~/.sibis/.sibis-general-config.yml'}
+CFG=${1:-/fs/storage/share/operations/secrets/.sibis/.sibis-general-config.yml'}
 PROP=${2:-''}
 PYTHON=$(which python3)
 
