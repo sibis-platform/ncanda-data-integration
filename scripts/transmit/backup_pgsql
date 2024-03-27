@@ -1,0 +1,31 @@
+#!/bin/bash -l 
+cur_dir=`dirname $0`
+config="/fs/storage/share/operations/secrets/.sibis/.sibis-general-config.yml"
+backup_tmp=/fs/snapshots
+retain_local_copy=0
+
+## Load common utils
+source $cur_dir/transmit_utils
+
+## credentials from .sibis-general-config.yml
+db_host=$(get_val "['xnat-postgres']['host']")
+db_port=$(get_val "['xnat-postgres']['port']")
+db_login=$(get_val "['xnat-postgres']['user']")
+db_passwd=$(get_val "['xnat-postgres']['password']")
+db_schema=$(get_val "['xnat-postgres']['db']")
+
+## create a PostgreSQL credential file from .sibis-general-config.yml
+## overwrite any that exists.
+pwd_file="${HOME}/.pgpass"
+if [[ -f $pwd_file ]]; then
+    rm -f $pwd_file
+fi
+echo "${db_host}:${db_port}:${db_schema}:${db_login}:${db_passwd}" > $HOME/.pgpass
+chmod 600 $HOME/.pgpass
+
+## backup xnat postgres db
+pg_dump --host=${db_host} --port=${db_port} --dbname=${db_schema} --user=${db_login} | xz |  aespipe -P ${HOME}/aes/keys -e aes256 > ${backup_tmp}/pgsql.sql.xz.aes
+upload_to_s3 ${backup_tmp}/pgsql.sql.xz.aes ${retain_local_copy}
+
+
+

@@ -5,6 +5,7 @@
 ##  for the copyright and license terms
 ##
 
+MAILTO="ncanda-admin@sri.com,jim.klo@sri.com"
 bindir=`dirname $0`
 $bindir/transmit_xnat || echo "transmit_xnat failed"
 $bindir/transmit_dbs || echo "transmit_dbs failed"

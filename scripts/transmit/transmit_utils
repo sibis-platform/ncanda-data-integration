@@ -1,0 +1,27 @@
+cur_dir=`dirname $0`
+
+get_val()
+{
+    $cur_dir/get_yaml_value "$config" "$1"
+}
+
+# Upload file to S3
+upload_to_s3()
+{
+    local fname=`basename $1`
+    local rm_on_success=${2:-0}
+
+    # Get last digit of day-of-year to rotate file names around and keep 10 copies
+    local file_date=$(stat -c '%x' $1)
+    local day=`date -d "$file_date" +%j | sed 's/^..//g'`
+
+    if ! s4cmd put --force  ${1} s3://ncanda/db/${day}/${fname} --API-ServerSideEncryption=AES256; then
+        echo "FAILURE: unable to upload database archive ${1} to S3"
+    else
+        if [[ $rm_on_success == 0 ]]; then
+            rm ${1}
+        else
+            echo "Retaining $1"
+        fi
+    fi
+}

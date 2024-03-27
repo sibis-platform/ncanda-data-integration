@@ -3,7 +3,9 @@ from __future__ import absolute_import, print_function
 import os, yaml
 
 def pytest_addoption(parser):
-  parser.addoption("--config-file", action="store", default=os.path.expanduser("~/.sibis-general-config.yml"), help="Path to SIBIS General Configuration File")
+  parser.addoption("--general-config-file", dest="config_file", action="store",
+                   default=os.path.join(*"/fs/storage/share/operations/secrets/.sibis/.sibis-general-config.yml".split('/')),
+                   help="Path to SIBIS General Configuration File")
   parser.addoption("--cluster-job", action="store_true", default=False, help="Running as cluster job")
 
 def pytest_generate_tests(metafunc):
