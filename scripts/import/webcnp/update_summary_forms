@@ -268,18 +268,18 @@ for key, row in summary_records.iterrows():
                     new_summary_complete = 0
             
             try:
-                curr_summmary_complete = pandas.to_numeric(summary_records.at[key, 'cnp_summary_complete']).astype(int)
+                curr_summary_complete = pandas.to_numeric(summary_records.at[key, 'cnp_summary_complete']).astype(int)
                 
                 if args.force:
                     summary_records.at[key, 'cnp_summary_complete'] = new_summary_complete
                 elif args.update_all:
                     # only update summary complete score if new value is > old
-                    if curr_summmary_complete < new_summary_complete:
+                    if curr_summary_complete < new_summary_complete:
                         summary_records.at[key, 'cnp_summary_complete'] = new_summary_complete
                     else:
-                        summary_records.at[key, 'cnp_summary_complete'] = curr_summmary_complete
+                        summary_records.at[key, 'cnp_summary_complete'] = curr_summary_complete
                 else:
-                    summary_records.at[key, 'cnp_summary_complete'] = curr_summmary_complete
+                    summary_records.at[key, 'cnp_summary_complete'] = curr_summary_complete
             except:
                 # if fails, then assume current summary complete status is blank
                 summary_records.at[key, 'cnp_summary_complete'] = new_summary_complete
