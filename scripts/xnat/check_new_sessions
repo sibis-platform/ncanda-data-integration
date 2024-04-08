@@ -986,6 +986,7 @@ with open(os.path.join(sibis_config, "special_cases.yml"), "r") as fi:
     missing_scan_map = complete_file.get("incomplete_sessions")
     more_of_type_map = complete_file.get("more_of_type")
     ignore_xnat_session = complete_file.get("ignore_xnat_session")
+    scanner_model_override = complete_file.get("scanner_model_override")
     fi.close()
 
 # Upload new QC results
@@ -1190,6 +1191,10 @@ for (
         # gradient table changed for SRI at this point 
         if project == "sri_incoming" and eid > "NCANDA_E11968" :
             scanner_model = "SRI"
+
+        # check for scanner_model overrides:
+        if eid in scanner_model_override:
+            scanner_model = scanner_model_override[eid]
 
         exp_util = XNATExperimentUtil(experiment)
         scan_types = exp_util.summarize("scans/scan", "type")
