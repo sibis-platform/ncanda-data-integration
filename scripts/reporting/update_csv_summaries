@@ -69,7 +69,7 @@ pushd ${srcdir} > /dev/null
 [ -d ${dstdir} ] || mkdir -p ${dstdir}
 
 PATTERN=NCANDA_S0
-visitNameList="-e baseline -e followup_1y -e followup_2y -e followup_3y -e followup_4y -e followup_5y -e followup_6y -e followup_7y -e followup_8y"
+visitNameList="-e baseline -e followup_3y -e followup_2y -e followup_3y -e followup_4y -e followup_5y -e followup_6y -e followup_7y -e followup_8y -e followup_9y"
 
 
 
