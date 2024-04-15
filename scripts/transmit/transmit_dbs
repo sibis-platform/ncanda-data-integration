@@ -4,32 +4,18 @@
 ##  See COPYING file distributed along with the ncanda-data-integration package
 ##  for the copyright and license terms
 ##
-
-# Upload file to S3
-upload_to_s3()
-{
-    local fname=`basename $1`
-
-    # Get last digit of day-of-year to rotate file names around and keep 10 copies
-    local day=`date +%j | sed 's/^..//g'`
-
-    if ! s4cmd put ${1} s3://ncanda/db/${day}/${fname} --API-ServerSideEncryption=AES256; then
-	echo "FAILURE: unable to upload database archive ${1} to S3"
-    else
-	rm ${1}
-    fi
-}
-
+script_dir=`dirname $0`
 backup_tmp=/fs/snapshots
+retain_local_redcap=0
 
-# MySQL first - this can be run as root
-mysqldump --single-transaction --quick --routines --triggers --all-databases --events | xz |  aespipe -P ${HOME}/aes/keys -e aes256 > ${backup_tmp}/mysql.sql.xz.aes
-upload_to_s3 ${backup_tmp}/mysql.sql.xz.aes
+# Load common transmit utils
+source $script_dir/transmit_utils
 
-# PostgreSQL need to be run as user "postgres", at least the DB dump part of it
-/bin/su -l postgres -c pg_dumpall | xz |  aespipe -P ${HOME}/aes/keys -e aes256 > ${backup_tmp}/pgsql.sql.xz.aes
-upload_to_s3 ${backup_tmp}/pgsql.sql.xz.aes
+# MariaDB first - this can be run as root
+#${script_dir}/backup_mariadb
 
-# Files uploaded to REDCap
-gtar -cf - /fs/storage/redcap | xz | aespipe -P ${HOME}/aes/keys -e aes256 > ${backup_tmp}/redcap-files.tar.xz.aes
-upload_to_s3 ${backup_tmp}/redcap-files.tar.xz.aes
+# PostgreSQL backup for XNAT
+${script_dir}/backup_pgsql
+
+# REDCap file uploads backup
+${script_dir}/backup_redcap_files

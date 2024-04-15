@@ -43,6 +43,7 @@ parser.add_argument( "-v", "--verbose", help="Verbose operation", action="store_
 parser.add_argument( "--max-days-after-visit", help="Maximum number of days the scan session can be after the entered 'visit date' in REDCap to be assigned to a given event.", action="store", default=120, type=int)
 parser.add_argument( "-a", "--update-all", help="Update all summary records, regardless of current completion status (otherwise, only update records where cnp_datasetid is empty)",
                      action="store_true")
+parser.add_argument( "-f", "--force", help="Force update up of everything from import, including overwriting summary score status (otherwise only max score between the two is used)", action="store_true")
 parser.add_argument( "--records-per-upload", help="Maximum number of records to upload to REDCap using a single HTTP request. This limits the request size and prevents upload problems.", action="store", default=30, type=int)
 parser.add_argument( "-n", "--no-upload", help="Do not upload any data to REDCap server; instead write to CSV file with given path.", action="store")
 parser.add_argument("-p", "--post-to-github", help="Post all issues to GitHub instead of std out.", action="store_true")
@@ -148,8 +149,7 @@ for cnpvar in cnp_copy_variables:
     summary_records['cnp_%s' % cnpvar] = summary_records['cnp_%s' % cnpvar].map( str )
 
 # If we update all records, make sure to reset everything, so stuff can be made disappear in the summary, if it was removed from the imported project
-if args.update_all:
-    summary_records['cnp_summary_complete'] = ''
+if args.update_all or args.force:
     summary_records['cnp_datasetid'] = ''
 
     for cnpvar in cnp_copy_variables:
@@ -187,10 +187,10 @@ if args.verbose:
 
 # From the index, extract the original subject ID and date from each imported record IO and use these wherever not overridden by manually-entered values
 imported_records['test_sessions_subid'] = imported_records['test_sessions_subid'].map( nan_to_empty )
-imported_records['test_sessions_subid'] = imported_records.apply( lambda row: row['test_sessions_subid'] if row['test_sessions_subid']!='' else row.name[0:-17], axis=1 )
+imported_records['test_sessions_subid'] = imported_records.apply( lambda row: row['test_sessions_subid'] if row['test_sessions_subid']!='' else row.name[:11], axis=1 )
 
 imported_records['test_sessions_dotest'] = imported_records['test_sessions_dotest'].map( nan_to_empty )
-imported_records['test_sessions_dotest'] = imported_records.apply( lambda row: row['test_sessions_dotest'] if row['test_sessions_dotest']!='' else row.name[-16:-6], axis=1 )
+imported_records['test_sessions_dotest'] = imported_records.apply( lambda row: row['test_sessions_dotest'] if row['test_sessions_dotest']!='' else row.name[12:22], axis=1 )
 
 #    
 # Go over all summary records (i.e., the visit log) and find corresponding imported records
@@ -258,16 +258,32 @@ for key, row in summary_records.iterrows():
 
             # Check completion status of the CNP instruments
             for [k,v] in cnp.instruments.items():
-                summary_complete = 1
+                new_summary_complete = 1
                 if cnp_data['%s_complete' % v] > 0:
                     column_name = 'cnp_instruments___%s' % k.replace('_','')
                     summary_records.at[key, column_name] = '1'
                 else:
                     column_name = 'cnp_instruments___%s' % k.replace('_','')
                     summary_records.at[key, column_name] = '0'
-                    summary_complete = 0
+                    new_summary_complete = 0
+            
+            try:
+                curr_summary_complete = pandas.to_numeric(summary_records.at[key, 'cnp_summary_complete']).astype(int)
+                
+                if args.force:
+                    summary_records.at[key, 'cnp_summary_complete'] = new_summary_complete
+                elif args.update_all:
+                    # only update summary complete score if new value is > old
+                    if curr_summary_complete < new_summary_complete:
+                        summary_records.at[key, 'cnp_summary_complete'] = new_summary_complete
+                    else:
+                        summary_records.at[key, 'cnp_summary_complete'] = curr_summary_complete
+                else:
+                    summary_records.at[key, 'cnp_summary_complete'] = curr_summary_complete
+            except:
+                # if fails, then assume current summary complete status is blank
+                summary_records.at[key, 'cnp_summary_complete'] = new_summary_complete
 
-            summary_records.at[key, 'cnp_summary_complete'] = summary_complete
         elif summary_records['cnp_summary_complete'][key] != '' and float( summary_records['cnp_summary_complete'][key] ) > 0 and ( summary_records['cnp_missing'][key] != 1 ):
             error = ("WARNING: Previously assigned WebCNP data for subject {}, "
                      "event {} appears to have disappeared.").format(key[0], key[1])
@@ -294,7 +310,8 @@ summary_records = summary_records.drop( [ 'dob', 'exclude', 'visit_date' ], axis
 # Since redcap expects int values for this field
 summary_records['cnp_exam_location'] = pandas.to_numeric(summary_records['cnp_exam_location']).astype('Int64')
 summary_records['cnp_input_device'] = pandas.to_numeric(summary_records['cnp_input_device']).astype('Int64')
-
+complete_vars = [val for val in summary_records.columns if 'cnp_instruments_' in val]
+summary_records[complete_vars] = summary_records[complete_vars].apply(pandas.to_numeric).astype('Int64')
 
 uploaded_count = 0
 
@@ -344,18 +361,19 @@ else:
         print("Successfully uploaded %d/%d records to REDCap." % ( uploaded_count, len( summary_records ) ))
 
     # Update location and device as these are entered manually later 
-    update_record= imported_records.loc[summary_records_secondary['cnp_datasetid']]
-    summary_records_secondary['cnp_exam_location']=update_record['exam_location'].tolist()
-    summary_records_secondary['cnp_input_device']=update_record['input_device'].tolist()
-    summary_records_secondary= summary_records_secondary[['cnp_input_device','cnp_exam_location']]
-    summary_records_secondary=summary_records_secondary[summary_records_secondary['cnp_exam_location'] != '']
-    summary_records_secondary=summary_records_secondary[summary_records_secondary['cnp_input_device'] != '']
-    if len(summary_records_secondary):
-        if args.verbose:
-            print("Uploading records", summary_records_secondary)
-            
-        summary_records_secondary['cnp_exam_location'] = pandas.to_numeric(summary_records_secondary['cnp_exam_location']).astype('Int64')
-        summary_records_secondary['cnp_input_device'] = pandas.to_numeric(summary_records_secondary['cnp_input_device']).astype('Int64')
-        session.redcap_import_record(error_label, "", "", "UploadRecords",summary_records_secondary)
+    if isinstance(summary_records_secondary, pandas.DataFrame) and not summary_records_secondary.empty:
+        update_record= imported_records.loc[summary_records_secondary['cnp_datasetid']]
+        summary_records_secondary['cnp_exam_location']=update_record['exam_location'].tolist()
+        summary_records_secondary['cnp_input_device']=update_record['input_device'].tolist()
+        summary_records_secondary= summary_records_secondary[['cnp_input_device','cnp_exam_location']]
+        summary_records_secondary=summary_records_secondary[summary_records_secondary['cnp_exam_location'] != '']
+        summary_records_secondary=summary_records_secondary[summary_records_secondary['cnp_input_device'] != '']
+        if len(summary_records_secondary):
+            if args.verbose:
+                print("Uploading records", summary_records_secondary)
+                
+            summary_records_secondary['cnp_exam_location'] = pandas.to_numeric(summary_records_secondary['cnp_exam_location']).astype(int)
+            summary_records_secondary['cnp_input_device'] = pandas.to_numeric(summary_records_secondary['cnp_input_device']).astype(int)
+            session.redcap_import_record(error_label, "", "", "UploadRecords",summary_records_secondary)
 
 slog.takeTimer1("script_time","{'records': " + str(len(summary_records)) + ", 'uploads': " +  str(uploaded_count) + "}")

@@ -1,0 +1,12 @@
+#!/bin/bash -l
+CFG=${1:-/fs/storage/share/operations/secrets/.sibis/.sibis-general-config.yml'}
+PROP=${2:-''}
+PYTHON=$(which python3)
+
+function get_value_from_file() {
+    CMD="import yaml; obj=yaml.safe_load(open('$1', 'r')); exec(\"print(obj$2, end='')\")"
+    $PYTHON -c "$CMD"
+}
+
+
+get_value_from_file $CFG $PROP

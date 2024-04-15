@@ -1,0 +1,13 @@
+##
+##  Backup REDCap uploads and transfer to AWS
+##
+
+script_dir=`dirname $0`
+backup_tmp=/fs/snapshots
+retain_local_redcap=0
+
+source $script_dir/transmit_utils
+
+# Files uploaded to REDCap
+gtar -cf - /fs/storage/redcap | xz | aespipe -P ${HOME}/aes/keys -e aes256 > ${backup_tmp}/redcap-files.tar.xz.aes
+upload_to_s3 ${backup_tmp}/redcap-files.tar.xz.aes ${retain_local_redcap}

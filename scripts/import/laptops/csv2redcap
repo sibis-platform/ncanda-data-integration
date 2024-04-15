@@ -239,7 +239,7 @@ def get_dag_from_df(df, dag_field_regex=r'_[sS]ite\d?', site_lookup=None,
         }
 
     varnames = [col for col in df.columns if re.search(dag_field_regex, col)]
-    if len(varnames) != 1:
+    if len(varnames) < 1:
         if verbose:
             print("Regex %s found %d columns, expected 1" % (dag_field_regex,
                                                              len(varnames)))

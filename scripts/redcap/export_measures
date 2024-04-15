@@ -99,7 +99,7 @@ if not os.path.isfile(special_cases_file) :
 
 # Get a map of subjects that changed sited
 with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
-    special_cases_map=yaml.load(fi)
+    special_cases_map=yaml.safe_load(fi)
     site_change_map = special_cases_map.get('site_change')
     export_measures_map = site_change_map.get('export_measures')
 
@@ -196,7 +196,7 @@ for ( subject_label, subject_id, projects ) in subject_project_list:
 baseline_events = ['baseline_visit_arm_1', 'baseline_visit_arm_4']
 subject_fields = ['study_id', 'dob', 'exclude', 'enroll_exception',
                   'siblings_enrolled', 'siblings_id1', 'family_id',
-                  'hispanic', 'race', 'race_other_code','ndar_guid_id',
+                  'hispanic', 'race', 'race_other_code','ndar_guid_id', 'ndar_guid_pseudo_id',
                   'ndar_consent', 'ndar_guid_anomaly', 'ndar_guid_anomaly_visit',
                   'ndar_guid_aud_dx_followup', 'ndar_guid_aud_dx_initial']
 subject_data = redcap_project.export_records(fields=subject_fields,

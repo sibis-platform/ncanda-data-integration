@@ -168,9 +168,10 @@ def get_usable_scans_list( session, xnat_eid_list, redcap_visit_id, xnat_sid):
 def get_scans_by_type( red2cas, usable_scans_list, visit_date, redcap_visit_id):
     result = dict()
     for type in ncanda_scan_types:
-          # Get list of scans for this type; as we go, compute and sort by number of days between visit date and scan date
+        # Get list of scans for this type; as we go, compute and sort by number of days between visit date and scan date
+        # scan type has to end with -v1 otherwise it is ignored 
         scans = sorted( [ (eid, xnat_url, scan, red2cas.days_between_dates(visit_date,xnat_sessions_dict[eid][0])) for (scan_type,eid,xnat_url,scan) in usable_scans_list if re.match( '^ncanda-%s-v1$' % type, scan_type ) ], key=lambda x: abs(x[3]) )
-
+ 
         # Changed logic here should generally just be one scan across all sessions
         # if (len( scans ) == 1) or (len( scans ) > 1 and scans[0][2] < scans[1][2]): 
         if (len( scans ) == 1) :
@@ -397,8 +398,6 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
         scannerMfc = match.group(1).upper().split(" ",1)[0]
         result['mri_scanner'] = match.group(1) + " " + match.group(2) + " " + str(xnat.select.experiments[first_eid].get('scanner'))
 
-
-
     # For all experiments we have found, get list of all "usable" scans
     [usable_scans_list,errFlag] = get_usable_scans_list(session, xnat_eid_list, redcap_visit_id, xnat_sid)
     if errFlag : 
@@ -463,6 +462,8 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     elif 'mprage' in list(scans_by_type.keys()):
         t1w_experiment_data = xnat_sessions_dict[scans_by_type['mprage'][0]]
     else:
+        if verbose :
+            print("INFO: no T1w-MRI found for session so QA status will be set to incomplete (0)!") 
         t1w_experiment_data = None
 
     if t1w_experiment_data:
@@ -647,7 +648,7 @@ if not os.path.isfile(special_cases_file) :
               
 # Get a list of cases outside the visit window that should be included.
 with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
-    special_cases = yaml.load(fi)
+    special_cases = yaml.safe_load(fi)
     export_measures_map = special_cases.get('site_change').get('export_measures')
     exceptions_window = special_cases.get('outside_visit_window')
     exceptions_num_type = special_cases.get('more_of_type')
@@ -756,7 +757,12 @@ if args.site:
 
 # Limit export by site id (e.g., A-00000-F-1)
 if args.study_id:
-    visit_log_redcap = visit_log_redcap.xs(args.study_id)
+    try : 
+        visit_log_redcap = visit_log_redcap.xs(args.study_id)
+    except:
+            print("ERROR: study_id " + args.study_id + " not found in redcap!")
+            sys.exit(1)
+            
     visit_log_redcap.reset_index(inplace=True)
     visit_log_redcap['study_id'] = args.study_id
     event="" 
@@ -788,8 +794,32 @@ for redcap_event in redcap_project.events:
 
 # Have pipeline feeder check for "excluded" subjects that might have previously entered the pipeline
 if args.pipeline_root_dir:
-    excluded_subjects = mr_sessions_redcap[ mr_sessions_redcap.index.map( lambda key: subject_data['exclude'][key[0]] == 1 ) ]['mri_xnat_sid'].dropna().tolist()
-    mrpipeline.check_excluded_subjects( excluded_subjects, args.pipeline_root_dir )
+    try:
+        excluded_subjects = mr_sessions_redcap[ mr_sessions_redcap.index.map( lambda key: subject_data['exclude'][key[0]] == 1 ) ]['mri_xnat_sid'].dropna().tolist()
+    except KeyError as key_err:
+        bad_key = key_err.args[0]
+        err_row = mr_sessions_redcap.loc[(bad_key, slice(None)), :]
+        index_values = err_row.index.get_level_values('study_id').tolist()
+        index_values += err_row.index.get_level_values('redcap_event_name').tolist()
+        header = '-'.join(index_values)
+        slog.info(
+            header,
+            "Subject exists in REDCap that does not exist in Arm 1.",
+            info="There is a subject that exists in Redcap that is not part of subject_data, currently \
+            identified cause of the discrepancy is a new subject has been created in an arm that doesn't \
+            also exist in arm 1.", 
+            site_resolution="1. Identify what the intended subject ID was. \n \
+            2. Input any information that was entered under the incorrect subject ID to the correct \
+            location. \n \
+            3. Once entered, post on this issue that the incorrectly created subject can be removed."
+        )
+        # drop the offending key error from the mr_sessions_redcap dataframe
+        mr_sessions_redcap = mr_sessions_redcap[mr_sessions_redcap.index.get_level_values('study_id') != bad_key]
+        if mr_sessions_redcap.empty:
+            excluded_subjects = None
+        else:
+            excluded_subjects = mr_sessions_redcap[ mr_sessions_redcap.index.map( lambda key: subject_data['exclude'][key[0]] == 1 ) ]['mri_xnat_sid'].dropna().tolist()
+            mrpipeline.check_excluded_subjects( excluded_subjects, args.pipeline_root_dir )
 
 # Filter out all records marked as "Complete", unless user instructed otherwise
 if not args.force_update:
@@ -939,7 +969,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
 
                 # Check if pipeline directory given and export imaging series there
                 if args.pipeline_root_dir and (this_subject_data['exclude'] != 1):
-                    if mrpipeline.export_and_queue(red2cas, redcap_visit_id, xnat, xnat_data, key, args.pipeline_root_dir, xnat_dir, run_pipeline_script=args.run_pipeline_script,stroop=(stroop_eid,stroop_resource,stroop_file), verbose=args.verbose , timerFlag = runTimerForImportToPipeline) :
+                    if mrpipeline.export_and_queue(red2cas, redcap_visit_id, xnat, xnat_data, key, args.pipeline_root_dir, xnat_dir, row['mr_session_report_complete'],run_pipeline_script=args.run_pipeline_script,stroop=(stroop_eid,stroop_resource,stroop_file), verbose=args.verbose , timerFlag = runTimerForImportToPipeline) :
                         # only run timer once - otherwise collect too much data
                         runTimerForImportToPipeline = False
 

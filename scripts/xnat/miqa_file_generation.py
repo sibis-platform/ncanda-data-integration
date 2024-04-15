@@ -5,6 +5,7 @@ import os
 import re
 import pathlib
 import pandas as pd
+from sibispy import sibislogger as slog
 from schema import Optional, Or, Schema, SchemaError, Use
 
 project_name_pattern = re.compile("([a-z]+)_incoming")
@@ -158,9 +159,21 @@ def convert_dataframe_to_new_format(
             for location in scan_dir.glob("*.nii.gz")
         ]
         if len(frame_locations) == 0:
-            raise Exception(
-                f"Could not find any image files under {scan_dir}. Failed to write any frames for this scan."
+            pattern = r'/([A-Z]-\d+-[MF]-\d+-\d{8})/'
+            match = re.search(pattern, str(row['nifti_folder']))
+            if match:
+                subj_id = match.group(1)
+            else:
+                subj_id = row['xnat_experiment_id']
+            slog.info(
+                subj_id,
+                "Could not find any image files under scan dir.",
+                scan_dir=str(scan_dir),
+                scan_type=row['scan_type'],
+                eid=row['xnat_experiment_id'],
+                error="Failed to write any frames for this scan."
             )
+            continue
 
         frame_locations.sort(key=lambda path: path.name)
         for index, frame_location in enumerate(frame_locations):

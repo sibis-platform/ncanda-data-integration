@@ -41,14 +41,13 @@ def compute_clinical_complete_status(row, field_names, form_complete_field):
 
 
 # Compute limesurvey_ssaga_youth  complete status of a record based on component status values
-# account for abbreviated ssaga (4y or later and 22 years or younger) : only part 1 needs to be complete 
+# account for abbreviated ssaga (4y or later) : only part 1 needs to be complete 
 def compute_lssaga_youth_complete_status(row, field_names, form_complete_field,event):
     status=""
     # baseline does not have lssaga so this function is ony called for followup visits
     event_year=float(event.split('y',1)[0])
-    age=float(row['age'])
 
-    if  math.isnan(age) or age >= 23 or event_year < 4 :
+    if event_year < 4 :
         return compute_bulk_status(row, field_names, form_complete_field)
 
     # abreviated ssaga 

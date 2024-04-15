@@ -183,13 +183,13 @@ voxelres_siemens = {
 }
 
 voxelres_ge = {
-    "ncanda-t1spgr-v1": 'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"',
-    "ncanda-t2fse-v1": 'x="0.4688\d*" y="0.4688\d*" z="1.2\d*"',
-    "ncanda-dti6b500pepolar-v1": 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
-    "ncanda-dti30b400-v1": 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
-    "ncanda-dti60b1000-v1": 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
-    "ncanda-grefieldmap-v1": 'x="1.875\d*" y="1.875\d*" z="2.5\d*"',
-    "ncanda-rsfmri-v1": 'x="3.75\d*" y="3.75\d*" z="5.0\d*"',
+    "ncanda-t1spgr-v1": ['x="0.9375\d*" y="0.9375\d*" z="1.2\d*"'],
+    "ncanda-t2fse-v1": ['x="0.4688\d*" y="0.4688\d*" z="1.2\d*"','x="0.4688\d*" y="0.4688\d*" z="2.4'],
+    "ncanda-dti6b500pepolar-v1": ['x="1.875\d*" y="1.875\d*" z="2.5\d*"'],
+    "ncanda-dti30b400-v1": ['x="1.875\d*" y="1.875\d*" z="2.5\d*"'],
+    "ncanda-dti60b1000-v1": ['x="1.875\d*" y="1.875\d*" z="2.5\d*"'],
+    "ncanda-grefieldmap-v1": ['x="1.875\d*" y="1.875\d*" z="2.5\d*"'],
+    "ncanda-rsfmri-v1": ['x="3.75\d*" y="3.75\d*" z="5.0\d*"'],
 }
 
 physio = [
@@ -323,7 +323,8 @@ def check_dti(
     if len(parameters) > 1:
         te0, fovx0, fovy0, pixx0, pixy0, scan0 = parameters[0]
         for te, fovx, fovy, pixx, pixy, scan in parameters[1:]:
-            if te != te0:
+            # small variations do not matter
+            if abs(float(te) - float(te0)) > 2.0:
                 errors.append(
                     "TE mismatch (Scan %s: %s; Scan %s: %s)" % (scan0, te0, scan, te)
                 )
@@ -459,51 +460,28 @@ def voxelRes_check(experiment, manufacturer, scan_and_type_list):
         ]
         voxel_res.append(scan_res)
 
-    if manufacturer == "GE":
-        for v in voxel_res:
-            if v[0] in scan_type_dictionary["GE"]:                
-                try:
-                    match = re.match(voxelres_ge[v[0]], v[1], flags=re.DOTALL)
-                    if not match:
-                        # remove special characters as othewise includes a lot of other characters when uploaded to xnat
-                        error.append(
-                            {
-                                "field": "Voxel Resolution",
-                                "scan_type": v[0],
-                                "voxel_res": v[1],
-                                "expected_voxel_res": str(voxelres_ge[v[0]]).replace('\\', '').replace('d*', '').replace('"',''),
-                                "scan_id": v[2],
-                            }
-                        )
-                except Exception as err_msg:
-                    error.append(
-                        {
-                            "field": "Could not check voxel resolution",
-                            "scan_type": str(v[0]),
-                            "voxel_res": str(v[1]),
-                            "expected_voxel_res": str(voxelres_ge[v[0]]).replace('\\', '').replace('d*', '').replace('"',''),
-                            "scan_id": str(v[2]),
-                            "err_msg": str(err_msg),
-                        }
-                    )
 
-    elif manufacturer == "SIEMENS":
-        for v in voxel_res:
-            if v[0] in scan_type_dictionary["SIEMENS"]:
+    for v in voxel_res:
+            if v[0] in scan_type_dictionary[manufacturer]:
                 try:
                     match=None
-                    for res_expected in voxelres_siemens[v[0]] :
+                    if manufacturer == "SIEMENS":
+                        voxelres_man=voxelres_siemens[v[0]]
+                    else :
+                        voxelres_man=voxelres_ge[v[0]]
+                        
+                    for res_expected in voxelres_man:
                         match=re.match(res_expected, v[1],flags=re.DOTALL)
                         if match:
                             break
-
+                        
                     if not match :
                         error.append(
                             {
                                 "field": "Voxel Resolution",
-                                "scan_type": v[0],
-                                "voxel_res": v[1],
-                                "expected_voxel_res": str(voxelres_siemens[v[0]]).replace('\\', '').replace('d*', '').replace('"',''),
+                                "scan_type": str(v[0]),
+                                "voxel_res": str(v[1]).replace('\\', '').replace('d*', 'X').replace('"',''),
+                                "expected_voxel_res": str(voxelres_man).replace('\\', '').replace('d*', 'X').replace('"',''),
                                 "scan_id": v[2],
                             }
                         )
@@ -512,13 +490,12 @@ def voxelRes_check(experiment, manufacturer, scan_and_type_list):
                         {
                             "field": "Could not check voxel resolution",
                             "scan_type": str(v[0]),
-                            "voxel_res": str(v[1]),
-                            "expected_voxel_res": str(voxelres_siemens[v[0]]).replace('\\', '').replace('d*', '').replace('"',''),
+                            "voxel_res": str(v[1]).replace('\\', '').replace('d*', 'X').replace('"',''),
+                            "expected_voxel_res": str(voxelres_man).replace('\\', '').replace('d*', 'X').replace('"',''),
                             "scan_id": str(v[2]),
                             "err_msg": str(err_msg),
                         }
                     )
-
     return error
 
 
@@ -778,7 +755,7 @@ def get_custom_variable(experiment, field_name):
 
 
 def sanitize_string_for_csv(string: str) -> str:
-    return string.replace("\r", "").replace("\n", " ").replace(",", " -")
+    return string.replace("\r", "").replace("\n", " ").replace(",", " -").replace('\'','').replace('"','')
 
 
 def write_scans_to_file(
@@ -1004,11 +981,12 @@ open(lock_file_path, "a").close()
 
 # load exceptions for QC check
 with open(os.path.join(sibis_config, "special_cases.yml"), "r") as fi:
-    complete_file = yaml.load(fi)
+    complete_file = yaml.safe_load(fi)
     incorrect_formatting_map = complete_file.get("incorrect_format")
     missing_scan_map = complete_file.get("incomplete_sessions")
     more_of_type_map = complete_file.get("more_of_type")
     ignore_xnat_session = complete_file.get("ignore_xnat_session")
+    scanner_model_override = complete_file.get("scanner_model_override")
     fi.close()
 
 # Upload new QC results
@@ -1210,6 +1188,13 @@ for (
         manufacturer = experiment.get(manufacturer_str).split(' ',1)[0].upper()  or ""
         scanner_model_str = "scanner/model"
         scanner_model = experiment.get(scanner_model_str) or ""
+        # gradient table changed for SRI at this point 
+        if project == "sri_incoming" and eid > "NCANDA_E11968" :
+            scanner_model = "SRI"
+
+        # check for scanner_model overrides:
+        if eid in scanner_model_override:
+            scanner_model = scanner_model_override[eid]
 
         exp_util = XNATExperimentUtil(experiment)
         scan_types = exp_util.summarize("scans/scan", "type")
@@ -1338,11 +1323,7 @@ for (
                         niftisWereCreatedFlag,
                     ) = make_session_niftis.export_to_nifti(
                         experiment,
-                        subject,
-                        eid,
-                        session_label,
                         scanID,
-                        scantype,
                         xnat_dir,
                         verbose=args.verbose,
                     )
@@ -1455,14 +1436,15 @@ for (
                         )
                     )
 
+            # 9/6/2023 : Physio is not checked anymore
             # missing physio data
-            if not isPhantom and len(fmri_scans):
-                physio_ok = check_physio(experiment, ifc, eid, xnat_url)
-                if not physio_ok:
-                    errorFlag = True
-                    htmlphys.append(session_html_link)
-            else :   
-                physio_ok = True
+            #if not isPhantom and len(fmri_scans):
+            #   physio_ok = check_physio(experiment, ifc, eid, xnat_url)
+            #   if not physio_ok:
+            #        errorFlag = True
+            #        htmlphys.append(session_html_link)
+            # else :   
+            physio_ok = True
 
             # If no error is detected write flag to data drive
             if not errorFlag:
@@ -1505,13 +1487,13 @@ for (
     # if nifti_export_ok and not os.path.exists(qc_file_tmp):
     else:
         # we know qc_file_tmp needs to exists otherwise would not gotten here
-        # in other words eid already passed all checks 
+        # in other words eid already passed all checks
+        physio_ok = True
         if nifti_export_ok :
-            physio_ok = True
             rename_file(session_label, qc_file_tmp, qc_file)
-        else :
-            #Physio was not checked so just setting it to False right now 
-            physio_ok = False
+        # else :
+        #    #Physio was not checked so just setting it to False right now 
+        #   physio_ok = False
 
         if args.verbose:
             sys.stdout.write("Skipping QC...")
@@ -1521,11 +1503,15 @@ for (
     errors_by_scan = defaultdict(str)
     for error in scan_errors:
         smaller_error = exclude_keys(error, keys_to_exclude)
-        error_string = dict_to_string(smaller_error)
+        error_string = sanitize_string_for_csv(dict_to_string(smaller_error))
+
         scan_id = str(error["scan_id"])
         # Avoide adding the same error message over and over again
-        if  (len(errors_by_scan[scan_id]) < 240) and (error_string not in errors_by_scan[scan_id]): 
-            errors_by_scan[scan_id] = errors_by_scan[scan_id] + error_string
+        if  (error_string not in errors_by_scan[scan_id]):
+            len_current_error=len(errors_by_scan[scan_id])
+            len_new_error=len(error_string)
+            if (len_current_error + len_new_error < 240) :
+                errors_by_scan[scan_id] = errors_by_scan[scan_id] + error_string
 
     # "unset" (i.e., uninspected) mandatory scantypes
     if nifti_export_ok and len(unseen_scans):

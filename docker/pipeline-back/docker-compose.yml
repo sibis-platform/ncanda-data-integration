@@ -11,10 +11,11 @@ services:
       - ${SGE_QUEUE_INFO:-node00:192.168.71.160}
     volumes:
       # Secrets to mount into the container
-      - ../secrets/.sibis:/root/.sibis
-      - ../secrets/.sibis:/home/ncanda/.sibis
-      - ../secrets/.sibis/aws:/home/ncanda/.aws
-      - ../secrets/.sibis/aes:/root/aes
+# should no longer be needed by default, moved to /data/storage/share/operations/secrets/
+#      - ../secrets/.sibis:/root/.sibis
+#      - ../secrets/.sibis:/home/ncanda/.sibis
+#      - ../secrets/.sibis/aws:/home/ncanda/.aws
+#      - ../secrets/.sibis/aes:/root/aes
 
       # These are additional resource dirs to customize the container for ncanda
       - ../backend/sibis-init:/sibis-init

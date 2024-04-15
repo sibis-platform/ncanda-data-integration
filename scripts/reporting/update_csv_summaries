@@ -69,6 +69,9 @@ pushd ${srcdir} > /dev/null
 [ -d ${dstdir} ] || mkdir -p ${dstdir}
 
 PATTERN=NCANDA_S0
+visitNameList="-e baseline -e followup_1y -e followup_2y -e followup_3y -e followup_4y -e followup_5y -e followup_6y -e followup_7y -e followup_8y"
+
+
 
 concat_csv() {
    OUTPUT_FILE=$1
@@ -77,6 +80,7 @@ concat_csv() {
    # echo "First: $FIRST_CSV"
    shift
    REST_CSV=$@
+   
    if [ "$FIRST_CSV" == "" ]; then
        echo "ERROR: Incomplete input to define $OUTPUT_FILE !"
        return
@@ -150,7 +154,7 @@ if [ "$structuralFlag" == "1" ]; then
     for subject in `ls -d --color=no $PATTERN*`; do
       # only include those that have a baseline scan 
       if [ -d $subject/standard/baseline/structural/volumetry ]; then 
-	  sList=`ls -d1 --color=no $subject/standard/*/structural/volumetry | grep -e baseline -e followup_1y -e followup_2y -e followup_3y -e followup_4y -e followup_5y -e followup_6y -e followup_7y -e followup_8y`
+	  sList=`ls -d1 --color=no $subject/standard/*/structural/volumetry | grep $visitNameList`
 	  last=`echo ${sList} | rev | cut -d' ' -f1  | rev | cut -d'/' -f1-3`
 	  last_list="${last_list} $last"
       fi 
@@ -176,25 +180,35 @@ if [ "$structuralFlag" == "1" ]; then
     for TYPE in atropos atropos_masked; do
       VolMeasType=volumetry/sri24_padded/$TYPE
       for p in ${parc}; do
-        # cross-sectional
-        concat_csv ${cross_dir}_/${TYPE}_${p}.csv */*/*/structural/${VolMeasType}/${p}.csv
-        concat_csv ${cross_dir}_/${TYPE}_${p}_scale.csv */*/*/structural/${VolMeasType}/${p}_scale.csv
+          # cross-sectional
+	  # for postfix  in .csv _scale.csv; do
+	  # scale is only defined for visit up to followup_3y so omit right now 
+	  for postfix  in .csv; do 
+	      parcPattern="${PATTERN}*/*/*/structural/${VolMeasType}/${p}$postfix"
+	 
+	      patternList=`ls -1 --color=no  $parcPattern 2>/dev/null`
+	      # echo $patternList
+	      if [ `echo $patternList | wc -w` -gt 0  ]; then
+		  concat_csv ${cross_dir}_/${TYPE}_${p}.csv $patternList
+	      else
+		  echo "INFO:No files found for ${parcPattern}!"
+	      fi
+	 done
         # longitudinal
-  
         csv_list=
         csv_scale_list=
         for l in ${last_list}; do
           visit=`echo ${l} | cut -d "/" -f3`
           if [ "${visit}" == "baseline" ]; then
             csv_list="${csv_list} `ls --color=no ${l}/structural/${VolMeasType}/${p}.csv 2> /dev/null`"
-            csv_scale_list="${csv_scale_list} `ls --color=no ${l}/structural/${VolMeasType}/${p}_scale.csv 2> /dev/null`"
+            # csv_scale_list="${csv_scale_list} `ls --color=no ${l}/structural/${VolMeasType}/${p}_scale.csv 2> /dev/null`"
           else
             csv_list="${csv_list} `ls --color=no ${l}/structural/longitudinal/${VolMeasType}/*/${p}.csv 2> /dev/null`"
-            csv_scale_list="${csv_scale_list} `ls --color=no ${l}/structural/longitudinal/${VolMeasType}/*/${p}_scale.csv 2> /dev/null`"
+            # csv_scale_list="${csv_scale_list} `ls --color=no ${l}/structural/longitudinal/${VolMeasType}/*/${p}_scale.csv 2> /dev/null`"
           fi
         done
         concat_csv ${long_dir}_/${TYPE}_${p}.csv ${csv_list}
-        concat_csv ${long_dir}_/${TYPE}_${p}_scale.csv ${csv_scale_list}
+        # concat_csv ${long_dir}_/${TYPE}_${p}_scale.csv ${csv_scale_list}
       done
     done
     [ -d ${cross_dir} ] && rm -rf ${cross_dir}
@@ -342,13 +356,38 @@ fi
 if [ "$restingstateFlag" == "1" ]; then
   # echo "Run Restingstate Reports" 
   [ -d ${dstdir}/restingstate_ ] && rm -rf ${dstdir}/restingstate_ 
-  mkdir -p ${dstdir}/restingstate_ 
-  concat_csv ${dstdir}/restingstate_/rs_qa.csv ${PATTERN}*/standard/*/restingstate/measures/rs_qa.csv
-  concat_csv ${dstdir}/restingstate_/sri24_parc116_gm_roi2roi_correlations.csv  ${PATTERN}*/standard/*/restingstate/measures/sri24_epi/sri24_parc116_gm_roi2roi_correlations.csv
-  concat_csv ${dstdir}/restingstate_/sri24_parc116_gm_roi2roi_partial_correlations.csv  ${PATTERN}*/standard/*/restingstate/measures/sri24_epi/sri24_parc116_gm_roi2roi_partial_correlations.csv
-  concat_csv ${dstdir}/restingstate_/sri24_parc215_gm_roi2roi_correlations.csv  ${PATTERN}*/standard/*/restingstate/measures/sri24_epi/sri24_parc215_gm_roi2roi_correlations.csv
-  concat_csv ${dstdir}/restingstate_/sri24_parc215_gm_roi2roi_partial_correlations.csv  ${PATTERN}*/standard/*/restingstate/measures/sri24_epi/sri24_parc215_gm_roi2roi_partial_correlations.csv
+  mkdir -p ${dstdir}/restingstate_
 
+  # Longitudinal Network Analysis
+  ica_list=""
+
+  for subject in `ls -d --color=no $PATTERN*`; do
+      vList=`ls -d1 --color=no $subject/standard/*/restingstate/measures/longitudinal/subject_efficiency.csv 2> /dev/null | grep $visitNameList`
+      if [ "$vList" == "" ]; then
+	  continue
+      fi
+      
+      last=`echo ${vList} | rev | cut -d' ' -f1  | rev | cut -d'/' -f1-6`
+      vFile=$last/visit_efficiency.csv
+      if [ -e $vFile ]; then 
+	  ica_list="${ica_list}$vFile "
+      else
+	  ica_list="${ica_list}$last/subject_efficiency.csv "
+      fi 
+  done
+  # echo "ica list $ica_list"
+  concat_csv ${dstdir}/restingstate_/longitudinal_ica_efficiency.csv ${ica_list}
+  
+  #ROI To ROI Metric
+  if true; then 
+      concat_csv ${dstdir}/restingstate_/rs_qa.csv ${PATTERN}*/standard/*/restingstate/measures/rs_qa.csv
+      concat_csv ${dstdir}/restingstate_/sri24_parc116_gm_roi2roi_correlations.csv  ${PATTERN}*/standard/*/restingstate/measures/sri24_epi/sri24_parc116_gm_roi2roi_correlations.csv
+      concat_csv ${dstdir}/restingstate_/sri24_parc116_gm_roi2roi_partial_correlations.csv  ${PATTERN}*/standard/*/restingstate/measures/sri24_epi/sri24_parc116_gm_roi2roi_partial_correlations.csv
+      concat_csv ${dstdir}/restingstate_/sri24_parc215_gm_roi2roi_correlations.csv  ${PATTERN}*/standard/*/restingstate/measures/sri24_epi/sri24_parc215_gm_roi2roi_correlations.csv
+      concat_csv ${dstdir}/restingstate_/sri24_parc215_gm_roi2roi_partial_correlations.csv  ${PATTERN}*/standard/*/restingstate/measures/sri24_epi/sri24_parc215_gm_roi2roi_partial_correlations.csv
+  fi
+  
+  
   [ -d ${dstdir}/restingstate ] && rm -rf ${dstdir}/restingstate 
   mv ${dstdir}/restingstate_ ${dstdir}/restingstate
 fi 

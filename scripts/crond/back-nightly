@@ -27,8 +27,9 @@ export SCRIPT_LABEL="back-nightly"
 LOG_DIR=${SIBIS_LOG_DIR}/back-nightly
 
 # Over the weekend run full version
+# 01/24/2024, JD: Start runnning full version on Thursday
 Day=$(date +%a)
-if [ "$Day" == "Fri" ]; then 
+if [ "$Day" == "Thu" ]; then 
     update_args=""
     echo "${SCRIPT_LABEL}:Info: update_visit_data checks all forms"
 else 
@@ -99,7 +100,7 @@ fi
 ######################################
 
 # Import data from UPenn into REDCap
-catch_output_email "${SCRIPT_LABEL}:Import WebCNP: Ingest to REDCap (cnp2redcap)" ${SIBIS}/scripts/import/webcnp/cnp2redcap -p -t ${LOG_DIR} --last-3-months
+# catch_output_email "${SCRIPT_LABEL}:Import WebCNP: Ingest to REDCap (cnp2redcap)" ${SIBIS}/scripts/import/webcnp/cnp2redcap -p -t ${LOG_DIR} --last-3-months
 
 # Check whether subject birth dates and gender match checksum digit, plus whether all subjects on study arms appear in main arm also
 catch_output_email "${SCRIPT_LABEL}:REDCap: Subject ID Checks (check_subject_ids)" ${SIBIS}/scripts/redcap/check_subject_ids -p -t ${LOG_DIR}

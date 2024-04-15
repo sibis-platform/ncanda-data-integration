@@ -45,7 +45,7 @@ def main(args):
     # Identify special cases that switched sites (important for xnat check) 
     special_subject_list = []
     with open(args.special_cases) as fi:
-        export_measures_map = yaml.load(fi).get('site_change').get('export_measures')
+        export_measures_map = yaml.safe_load(fi).get('site_change').get('export_measures')
         for sub in export_measures_map.keys():
             sub_map = export_measures_map.get(sub)
             
