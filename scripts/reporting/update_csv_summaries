@@ -77,6 +77,7 @@ concat_csv() {
    OUTPUT_FILE=$1
    shift
    FIRST_CSV=$1
+   # echo "First: $FIRST_CSV"
    shift
    REST_CSV=$@
    
@@ -379,11 +380,11 @@ if [ "$restingstateFlag" == "1" ]; then
   
   #ROI To ROI Metric
   if true; then 
-      concat_csv ${dstdir}/restingstate_/rs_qa.csv ${PATTERN}*/*/*/restingstate/measures/rs_qa.csv 
-      concat_csv ${dstdir}/restingstate_/sri24_parc116_gm_roi2roi_correlations.csv  ${PATTERN}*/*/*/restingstate/measures/sri24_epi/sri24_parc116_gm_roi2roi_correlations.csv
-      concat_csv ${dstdir}/restingstate_/sri24_parc116_gm_roi2roi_partial_correlations.csv  ${PATTERN}*/*/*/restingstate/measures/sri24_epi/sri24_parc116_gm_roi2roi_partial_correlations.csv
-      concat_csv ${dstdir}/restingstate_/sri24_parc215_gm_roi2roi_correlations.csv  ${PATTERN}*/*/*/restingstate/measures/sri24_epi/sri24_parc215_gm_roi2roi_correlations.csv
-      concat_csv ${dstdir}/restingstate_/sri24_parc215_gm_roi2roi_partial_correlations.csv  ${PATTERN}*/*/*/restingstate/measures/sri24_epi/sri24_parc215_gm_roi2roi_partial_correlations.csv
+      concat_csv ${dstdir}/restingstate_/rs_qa.csv ${PATTERN}*/standard/*/restingstate/measures/rs_qa.csv
+      concat_csv ${dstdir}/restingstate_/sri24_parc116_gm_roi2roi_correlations.csv  ${PATTERN}*/standard/*/restingstate/measures/sri24_epi/sri24_parc116_gm_roi2roi_correlations.csv
+      concat_csv ${dstdir}/restingstate_/sri24_parc116_gm_roi2roi_partial_correlations.csv  ${PATTERN}*/standard/*/restingstate/measures/sri24_epi/sri24_parc116_gm_roi2roi_partial_correlations.csv
+      concat_csv ${dstdir}/restingstate_/sri24_parc215_gm_roi2roi_correlations.csv  ${PATTERN}*/standard/*/restingstate/measures/sri24_epi/sri24_parc215_gm_roi2roi_correlations.csv
+      concat_csv ${dstdir}/restingstate_/sri24_parc215_gm_roi2roi_partial_correlations.csv  ${PATTERN}*/standard/*/restingstate/measures/sri24_epi/sri24_parc215_gm_roi2roi_partial_correlations.csv
   fi
   
   
