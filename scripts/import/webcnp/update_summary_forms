@@ -171,7 +171,7 @@ else:
     summary_records_secondary =  summary_records_secondary[(summary_records_secondary['cnp_exam_location'] == 'nan')  | (summary_records_secondary['cnp_input_device'] == 'nan')  ]
 
 # For now, get the "complete" fields for each instrument as well as record ID, subject ID, and date of test
-fields_imported = ['record_id', 'test_sessions_subid', 'cnp_exclude'] + cnp_copy_variables
+fields_imported = ['record_id', 'test_sessions_subid', 'cnp_exclude'] + cnp_copy_variables + list(cnp.old_to_new_pvrt_vars.values())
 for i in list(cnp.instruments.values()):
     fields_imported.append( '%s_complete' % i )
 imported_records = rc_import.export_records( fields=fields_imported, format='df', df_kwargs={'low_memory': False}).set_index('record_id')
@@ -191,6 +191,9 @@ imported_records['test_sessions_subid'] = imported_records.apply( lambda row: ro
 
 imported_records['test_sessions_dotest'] = imported_records['test_sessions_dotest'].map( nan_to_empty )
 imported_records['test_sessions_dotest'] = imported_records.apply( lambda row: row['test_sessions_dotest'] if row['test_sessions_dotest']!='' else row.name[12:22], axis=1 )
+
+# Convert any data in the new PVRT variables to the original column names
+imported_records = cnp.merge_columns(imported_records, cnp.old_to_new_pvrt_vars)
 
 #    
 # Go over all summary records (i.e., the visit log) and find corresponding imported records
