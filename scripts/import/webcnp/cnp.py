@@ -58,4 +58,27 @@ mean_sdev_by_field_dict = { 'cpf_ifac_tot'          : 'cpf-a_cr',
                             'spcptnl_scpt_tp'       : 'spcptnl_t_tp',
                             'spcptnl_scpt_tprt'     : 'spcptnl_t_tprt' }
 
+def merge_columns(df, col_dict):
+    """
+    Given a dataframe and a dictionary that maps between two columns that represent
+    the same data, do a left merge equivalent that fills in left col and removes right
+    """
+    for old_col, new_col in col_dict.items():
+        if old_col in df.columns and new_col in df.columns:
+            # Handle empty strings in old_col by replacing them with NaN
+            df[old_col].replace('', pandas.NA, inplace=True)
+            # Combine the columns, prioritizing the old column
+            df[old_col] = df[old_col].combine_first(df[new_col])
+            # Drop the new column
+            df.drop(columns=[new_col], inplace=True)
+    return df
 
+# This table maps the former and currently used primary PVRT form variables
+old_to_new_pvrt_vars = { 
+    'pvrt_pvrtcr': 'spvrt_a_spvrta_cr',
+    'pvrt_pvrt_pc': 'spvrt_a_spvrta_pc',
+    'pvrt_pvrtrtto': 'spvrt_a_spvrta_rtto', 
+    'pvrt_pvrtrtcr': 'spvrt_a_spvrta_rtcr', 
+    'pvrt_pvrtrter': 'spvrt_a_spvrta_rter', 
+    'pvrt_pvrt_eff': 'spvrt_a_spvrta_eff'
+}
