@@ -80,7 +80,7 @@ def find_dicom_path(xnat_dir,xnat_scan):
         #try another description
         dicom_path = re.sub('storage/XNAT', 'ncanda-xnat', dicom_path)
         if not os.path.exists(dicom_path):
-            errMSG = ("Path %s does not exist - export_to_nifti failed!" % (dicom_path))
+            errorMSG = ("Path %s does not exist - export_to_nifti failed!" % (dicom_path))
             return (errorMSG,0)
 
     return ("",dicom_path)

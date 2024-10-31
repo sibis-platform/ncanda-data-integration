@@ -1330,9 +1330,9 @@ for (
                 except Exception as err_msg_raw:
                     info = sys.exc_info()
                     details =traceback.format_exception(*info)
-                    err_msg=str(err_msg_raw)
-                    if len(err_msg) == 0:
-                        err_msg="No specific error msg!"
+                    error_msg=str(err_msg_raw)
+                    if len(error_msg) == 0:
+                        error_msg="No specific error msg!"
                         
                 if len(error_msg) :
                     # Remove qc_file as session has to be checked again
@@ -1361,8 +1361,7 @@ for (
                                 [
                                     session_html_link,
                                     session_dir_link,
-                                    ", ".join([scanID, scantype, "ERROR:"]),
-                                    ", ERROR:".join(error_msg),
+                                    ", ".join([scanID, scantype, "ERROR: " + str(error_msg)])
                                 ]
                             )
                         )
