@@ -309,6 +309,9 @@ summary_records = summary_records[ summary_records['cnp_datasetid'] != '' ]
 # Drop all (logically) read-only columns from the summary data - these are the ones that are neither index-related (subject, event), nor part of the data imported from WebCNP
 summary_records = summary_records.drop( [ 'dob', 'exclude', 'visit_date' ], axis=1 )
 
+# Convert "Skipped" form status to incomplete ungraded data ("I")
+status_cols = [col for col in summary_records.columns if col.endswith('_status')]
+summary_records[status_cols] = summary_records[status_cols].replace("Skipped", "I")
 
 # Since redcap expects int values for this field
 summary_records['cnp_exam_location'] = pandas.to_numeric(summary_records['cnp_exam_location']).astype('Int64')
