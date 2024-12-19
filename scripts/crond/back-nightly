@@ -100,7 +100,7 @@ fi
 ######################################
 
 # Import data from UPenn into REDCap
-# catch_output_email "${SCRIPT_LABEL}:Import WebCNP: Ingest to REDCap (cnp2redcap)" ${SIBIS}/scripts/import/webcnp/cnp2redcap -p -t ${LOG_DIR} --last-3-months
+catch_output_email "${SCRIPT_LABEL}:Import WebCNP: Ingest to REDCap (cnp2redcap)" ${SIBIS}/scripts/import/webcnp/cnp2redcap -p -t ${LOG_DIR} --last-3-months
 
 # Check whether subject birth dates and gender match checksum digit, plus whether all subjects on study arms appear in main arm also
 catch_output_email "${SCRIPT_LABEL}:REDCap: Subject ID Checks (check_subject_ids)" ${SIBIS}/scripts/redcap/check_subject_ids -p -t ${LOG_DIR}
@@ -127,6 +127,11 @@ if [ ${PIPELINE_UPDATE_FLAG} == 1 ]; then
 
     # Update CSV summary files for the working pipeline
     catch_output_email "${SCRIPT_LABEL}:Reporting: Pipeline Summaries (update_csv_summaries)" ${SIBIS}/scripts/reporting/update_csv_summaries ${SIBIS_CASES_DIR}/ ${SIBIS_SUMMARIES_DIR}
+
+    # Check which cases haven't been touched by export_measures (Only running on weekly basis)
+    if [ -z "$update_args" ]; then
+        catch_output_email "${SCRIPT_LABEL}: REDCap: Export Measures Check (check_updated_cases)" ${SIBIS_PYTHON_PATH}/sibispy/cmds/check_updated_cases.py -p -d ${SIBIS_CASES_DIR}
+    fi 
 else 
     echo "back-nightly: Warning: Pipeline is not updated !"   
 fi 
