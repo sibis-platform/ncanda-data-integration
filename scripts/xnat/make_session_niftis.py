@@ -30,10 +30,13 @@ def dcm2niftiWithCheck(dcmDirList, niftiPrefix, project,eid, scanPtr, logFileFla
     #temp_dir = tempfile.mkdtemp()
     # niftiPrefix='%s/%s_%s/image' %(temp_dir, scan, scantype)
     # print("dcm2nifti:",dcmDirList, niftiPrefix, project,eid, scanPtr,verbose)
-    if project == "sri_incoming" and scanPtr.type == "ncanda-t2fse-v1" and eid > "NCANDA_E11968" and scanPtr.fulldata['data_fields']['parameters/voxelRes/z'] == 2.4 :
-       if verbose :
-           print("INFO:only using half the dicom files in " + dcmDirList[0])
-       numDCMFiles=int(scanPtr.fulldata['children'][0]['items'][0]['data_fields']['file_count']/2)
+    if project == "sri_incoming" :
+        if scanPtr.type == "ncanda-t2fse-v1" and scanPtr.fulldata['data_fields']['parameters/voxelRes/z'] == 2.4 :
+            # check if NCANDA0X  that means it comes after NCANDA_ ...
+            if  eid > "NCANDA_E11968" or eid.split('_')[0] != "NCANDA" :
+                if verbose :
+                    print("INFO:only using half the dicom files in " + dcmDirList[0])
+                numDCMFiles=int(scanPtr.fulldata['children'][0]['items'][0]['data_fields']['file_count']/2)
 
     return dcm2nifti(dcmDirList, str(niftiPrefix), numDCMFiles, logFileFlag,verbose)
 
@@ -272,7 +275,7 @@ if __name__ == "__main__":
     
             # xnat_para = util.mget(scan_attrs)
     elif args.dcmDir != "" :
-        errMSG=dcm2nifti(args.dcmDir.split(','), args.niftiPrefix, 0, True, args.verbose)
+        errMSG=dcm2niftiWithCheck(args.dcmDir.split(','), args.niftiPrefix, 0, True, args.verbose)
 
     else:
         errMSG("ERROR: dcmDir or eid and scan have to be defined!")
