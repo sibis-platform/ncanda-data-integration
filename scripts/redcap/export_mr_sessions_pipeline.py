@@ -90,6 +90,7 @@ def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_
     # We need to create loop here as gradient consists of two scans 
     dicom_path_list = []
     CreateDicomFlag=False
+    xnat_file_search = []
     for session_and_scan in session_and_scan_list.split( ' ' ):
         [ session, scan ] = session_and_scan.split( '/' )
         match = re.match( '.*(' + xnat_dir +'/.*)scan_.*_catalog.xml.*', xnat.raw_text(xnat.select.experiments[ session ].scans[ scan ]), re.DOTALL )
@@ -117,12 +118,18 @@ def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_
 
     [ session, scan ] = session_and_scan_list.split( ' ' )[0].split('/')
     if len(pipeline_file_list)  :
-        if mr_session_report_complete > 1: 
+        if mr_session_report_complete > 1:
+            if len(xnat_file_search) > 0 : 
+                info_txt = "File date of " + pipeline_file_list[0] + " was older than " + xnat_file_search[0] 
+            else :
+                info_txt = pipeline_file_list[0] + " is supposed to be updated (maybe bc other file in series is missing, e.g. fieldmap files)" 
+            info_txt += ". If the files should not be updated simply ignore issue.  If it should be update please set the 'complete status' of MRI Session Report to 'Incomplete' and run script again! " 
+
             slog.info(redcap_visit_id  + "_" + scan,"INFO: MRI of pipeline seem outdated",
                       file = to_path_pattern,
                       experiment_xnat_id=session,
                       session_scan_list = session_and_scan_list,
-                      info = "File date of " + pipeline_file_list[0] + " was older than " + xnat_file_search[0] + ". If the files should not be updated simply ignore issue.  If it should be update please set the 'complete status' of MRI Session Report to 'Incomplete' and run script again! " 
+                      info = info_txt
             )
             return False
             
@@ -143,14 +150,14 @@ def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_
 
     if len( dicom_path_list ):
         temp_dir = tempfile.mkdtemp()
-        # to_path_pattern = os.path.join( to_directory, filename_pattern )
         tmp_path_pattern = os.path.join(temp_dir, filename_pattern )
         if timer_label :
             slog.startTimer2() 
 
         exp=xnat.select.experiments[ session ]
+        scanPtr=exp.scans[ scan ]
 
-        eout=make_session_niftis.dcm2niftiWithCheck(dicom_path_list , tmp_path_pattern,exp.project,session, exp.scans[ scan ], False,verbose)
+        eout=make_session_niftis.dcm2niftiWithCheck(dicom_path_list , tmp_path_pattern,exp.project,session, scanPtr, False,verbose)
         
         # args= '--tolerance 1e-3 --write-single-slices  --include-ndar --strict-xml --no-progress -rxO %s %s 2>&1' % ( , ' '.join( dicom_path_list ))
         # (ecode, sout, eout) = sutils.dcm2image(args)
@@ -176,22 +183,61 @@ def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_
                       experiment_site_id=session,
                       eid_file_path = eid_file_path)
 
-        try: 
+        # check if new DTI of sri with higher  voxel resolution was created - if so resample to original one   
+        if  (scanPtr.type == "ncanda-dti6b500pepolar-v1" or  scanPtr.type == "ncanda-dti60b1000-v1" or scanPtr.type == "ncanda-dti30b400-v1")  and scanPtr.fulldata['data_fields']['parameters/voxelRes/x'] == 0.9375  and scanPtr.fulldata['data_fields']['parameters/voxelRes/y'] == 0.9375  and scanPtr.fulldata['data_fields']['parameters/voxelRes/z'] == 2.5:
+            if verbose:
+                print("INFO:resample nifti for", to_directory, "to 1.875x1.875x2.5 voxel resolution!")
+            
             for f in os.listdir(temp_dir):
-                shutil.move(os.path.join(temp_dir,f),to_directory)
+                fext = os.path.splitext(f)[1]
+                if fext == ".xml" :
+                    # rewrite xml file
+                    output=os.path.join(to_directory,f)
+                    cmd="sed 's/PixelSpacing>0.9375\\\\0.9375/PixelSpacing>1.875\\\\1.875/g' " + os.path.join(temp_dir,f) + " > " +  output +"; sed -i 's/Columns>256/Columns>128/g' " +  output +"; sed -i 's/Rows>256/Rows>128/g' " +  output
+                    (ecode, sout, eout) = sutils.call_shell_program(cmd)
+                    if ecode:
+                        error = "ERROR: unable to rewrite xml file"
+                        slog.info(redcap_visit_id + "_" + scan,error,
+                              experiment_site_id = session,
+                              src_dir = temp_dir ,
+                              dest_dir = to_directory,
+                              err_msg = str(eout))
+                        shutil.rmtree(temp_dir)
+                        return False
+                elif  fext == ".gz" :
+                    (ecode, sout, eout) = sutils.call_shell_program("cmtk convertx --downsample-average 2,2,1 " +  os.path.join(temp_dir,f) + " " +  os.path.join(to_directory,f))
+                    if ecode:
+                        error = "ERROR: unable to reample nifti file"
+                        slog.info(redcap_visit_id + "_" + scan,error,
+                              experiment_site_id = session,
+                              src_dir = temp_dir ,
+                              dest_dir = to_directory,
+                              err_msg = str(eout))
+                        shutil.rmtree(temp_dir)
+                        return False
+                else :
+                    if verbose:
+                        print("INFO:", f, " was just moved to", to_directory, "!")
+                    shutil.move(os.path.join(temp_dir,f),to_directory)
+                
+        else :
+            try: 
+                for f in os.listdir(temp_dir):
+                    shutil.move(os.path.join(temp_dir,f),to_directory)
 
-        except Exception as err_msg: 
-            error = "ERROR: unable to move files"
-            slog.info(redcap_visit_id + "_" + scan,error,
-                      experiment_site_id = session,
-                      src_dir = temp_dir ,
-                      dest_dir = to_directory,
-                      err_msg = str(err_msg))
-            shutil.rmtree(temp_dir)
-            return False
+            except Exception as err_msg: 
+                error = "ERROR: unable to move files"
+                slog.info(redcap_visit_id + "_" + scan,error,
+                          experiment_site_id = session,
+                          src_dir = temp_dir ,
+                          dest_dir = to_directory,
+                          err_msg = str(err_msg))
+                shutil.rmtree(temp_dir)
+                return False
 
         shutil.rmtree(temp_dir)
         return True
+    
     return False
 
 #
