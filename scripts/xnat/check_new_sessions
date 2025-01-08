@@ -1189,9 +1189,9 @@ for (
         scanner_model_str = "scanner/model"
         scanner_model = experiment.get(scanner_model_str) or ""
         # gradient table changed for SRI at this point 
-        if project == "sri_incoming" and eid > "NCANDA_E11968" :
+        if project == "sri_incoming" and (eid.split('_')[0] > "NCANDA" or eid > "NCANDA_E11968")  :
             scanner_model = "SRI"
-
+ 
         # check for scanner_model overrides:
         if eid in scanner_model_override:
             scanner_model = scanner_model_override[eid]
