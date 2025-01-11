@@ -29,6 +29,14 @@ from settings import XNAT_DATE_FORMAT
 
 PHANTOM_DAY_LIMIT = 7
 
+map_project_to_site ={
+     "upmc_incoming": "A",
+     "sri_incoming": "B",
+     "duke_incoming": "C" ,
+     "ohsu_incoming": "D",
+     "ucsd_incoming": "E"
+}
+    
 # Find a phantom scan within 24h of the given experiment
 def find_phantom_scan_24h(
     prj,
@@ -211,9 +219,11 @@ def check_experiment(session, ifc, sibis_config, args, email, eid, xnat_url, exp
         session.xnat_get_subject_attribute(prj, sid, "label")[0],
     )
     if subject_label_match:
+        
         # This is a dictionary that maps subjects who changed sites to the correct phantom.
         with open(os.path.join(sibis_config, "special_cases.yml"), "r") as fi:
             site_change_map = yaml.safe_load(fi).get("site_change")
+            # should not be needed anymore 
             phantom_scan_map = site_change_map.get("check_phantom_scans")
 
         changed_sites_phantom = phantom_scan_map.get(experiment_label)
@@ -224,7 +234,7 @@ def check_experiment(session, ifc, sibis_config, args, email, eid, xnat_url, exp
                 if args.verbose:
                     print("Phantom switched sites - checking ", phantom_label)
             else:
-                phantom_label = "%s-99999-P-9" % subject_label_match.group(1)
+                phantom_label = "%s-99999-P-9" % map_project_to_site[prj]
 
             [phantom_id, issue_url] = session.xnat_get_subject_attribute(
                 prj, phantom_label, "ID"
