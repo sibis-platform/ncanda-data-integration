@@ -389,12 +389,13 @@ def MissingFormChecks(
         session_id,
         "WARNING: Previously assigned form '"
         + form_name
-        + "' seems to have disappered. Not sure what happened - most likely the visit date has changed so that entrie does not fall within window anymore!",
+        + "' seems to have disappered due to difference between Data Entry and Import form status.",
         entry_subject_id=subject_id,
         form_name=form_name,
         event_id=event_id,
         redcap_url=redcap_url,
         import_visit_dates=records_this_subject[date_label].to_string(),
+        info="There are two common causes, either the visit date has changed so that entry isn't in window anymore or form was hand entered in D.E. and doesn't exist in Import!",
         target_visit_date=vdate,
     )
 
