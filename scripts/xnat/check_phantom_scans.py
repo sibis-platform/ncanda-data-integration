@@ -221,20 +221,20 @@ def check_experiment(session, ifc, sibis_config, args, email, eid, xnat_url, exp
     if subject_label_match:
         
         # This is a dictionary that maps subjects who changed sites to the correct phantom.
-        with open(os.path.join(sibis_config, "special_cases.yml"), "r") as fi:
-            site_change_map = yaml.safe_load(fi).get("site_change")
-            # should not be needed anymore 
-            phantom_scan_map = site_change_map.get("check_phantom_scans")
-
-        changed_sites_phantom = phantom_scan_map.get(experiment_label)
-        try:
-            # If the subject changed sites, then use the correct site phantom ID.
-            if changed_sites_phantom:
-                phantom_label = changed_sites_phantom
-                if args.verbose:
-                    print("Phantom switched sites - checking ", phantom_label)
-            else:
-                phantom_label = "%s-99999-P-9" % map_project_to_site[prj]
+        # with open(os.path.join(sibis_config, "special_cases.yml"), "r") as fi:
+        #    site_change_map = yaml.safe_load(fi).get("site_change")
+        #    # should not be needed anymore 
+        #    phantom_scan_map = site_change_map.get("check_phantom_scans")
+        #
+        #changed_sites_phantom = phantom_scan_map.get(experiment_label)
+        try:            # If the subject changed sites, then use the correct site phantom ID.
+            # if changed_sites_phantom:
+            #    phantom_label = changed_sites_phantom
+            #    if args.verbose:
+            #         print("Phantom switched sites - checking ", phantom_label)
+            # else:
+            
+            phantom_label = "%s-99999-P-9" % map_project_to_site[prj]
 
             [phantom_id, issue_url] = session.xnat_get_subject_attribute(
                 prj, phantom_label, "ID"
@@ -303,14 +303,15 @@ def check_experiment(session, ifc, sibis_config, args, email, eid, xnat_url, exp
                 error,
                 site_id=sid,
                 project=prj,
-                changed_sites_phantom=str(changed_sites_phantom),
                 subject_experiment_id=seid,
                 xnat_url=xnat_url,
                 info="Most likely entry missing for this visit in section 'check_phantom_scans' of file 'special_cases.yml'",
                 error_msg=str(e),
             )
 
+            # changed_sites_phantom=str(changed_sites_phantom),
 
+                
 def _parse_args(input_args: Sequence[str] = None) -> argparse.Namespace:
     """
     Parse CLI arguments.
