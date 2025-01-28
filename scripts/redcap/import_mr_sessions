@@ -40,6 +40,14 @@ today = time.strftime(sutils.date_format_ymd)
 
 ncanda_scan_types = [ 't1spgr', 'mprage', 't2fse', 'dti6b500pepolar', 'dti30b400', 'dti60b1000', 'rsfmri' ]
 
+site_map = {
+    'A': 'upmc',
+    'B': 'sri',
+    'C': 'duke',
+    'D': 'ohsu',
+    'E': 'ucsd',
+}
+
 #
 # Functions 
 # 
@@ -846,13 +854,6 @@ mr_sessions_redcap = mr_sessions_redcap[ ~(mr_sessions_redcap['mri_missing'] > 0
 if args.verbose:
     print("Checking %d REDCap records." % len( mr_sessions_redcap ))
 
-site_map = {
-    'A': 'upmc',
-    'B': 'sri',
-    'C': 'duke',
-    'D': 'ohsu',
-    'E': 'ucsd',
-}
 
 # Iterate over all remaining rows
 records_uploaded = 0
@@ -916,33 +917,22 @@ for [key, row] in mr_sessions_redcap.iterrows():
         if str( this_subject_data['dob'] ) == 'nan':
             print("Missing birthdate for subject %s" % key[0])
         else:
-            # Check if subject has more than one project in xnat
+            # Collect all projects subject has been uploaded under
             proj_list = {projects: xnat_sid for ncanda_sid, xnat_sid, projects in subject_project_list if ncanda_sid == subject_label}
+            
+            default_site = site_map[subject_label[0]]   # default site based on first char in NCANDA ID
+            visit_site = this_visit_data[0]             # visit_site from visit notes redcap form
 
-            if len(proj_list) > 1:
-                # Subject has switched sites at some point, set xnat subject id to default
-                # Check that visit site matches subject default site (based on NCANDA subj. ID)
-                default_site = site_map[subject_label[0]]
-                visit_site = this_visit_data[0]
-
-                if pd.isna(visit_site):
-                    pid = f'{default_site}_incoming'
-                    sid = proj_list[pid]
-                elif default_site != visit_site:
-                    # subject site change for current visit, use according xnat id and proj for data pull
-                    pid = f'{visit_site}_incoming'
-                    sid = proj_list[pid]
-                else:
-                    # site change was in different visit, use default values
-                    pid = f'{default_site}_incoming'
-                    sid = proj_list[pid]
-
-                # either way pipe_id has to be default xnat subj id
-                pipe_id = proj_list[f'{default_site}_incoming']
-
-            else :
-                sid, pid = subject_project_dict[subject_label]
-                pipe_id = sid
+            if pd.isna(visit_site):
+                # if visit_notes is empty, first try default based on NCANDA ID
+                pid = f'{default_site}_incoming'
+                sid = proj_list[pid]
+            else:
+                pid = f'{visit_site}_incoming'
+                sid = proj_list[pid]
+            
+            # either way pipe_id has to be default xnat subj id
+            pipe_id = proj_list[f'{default_site}_incoming']
 
             visit_age = round(old_div(red2cas.days_between_dates( this_subject_data['dob'], visit_date ), 365.242),10)
             next_visit_date = get_subject_next_visit_date(key[0], visit_date)
@@ -958,32 +948,40 @@ for [key, row] in mr_sessions_redcap.iterrows():
                                       row['mri_inspection___completed'],
                                       row['mr_session_report_complete'],
                                       verbose=args.verbose)
-
-            if not xnat_data and len(proj_list) == 2 and pd.isna(visit_site):
-                # Couldn't find xnat session based on default values, have to try other
+            if not xnat_data and len(proj_list) > 1 and pd.isna(visit_site):
+                # Couldn't find xnat session based on default values, test if session is under different project
                 print("INFO: Found no XNAT Session Data with default subject values.")
                 print("Retrying with other available subject xnat-project")
-                retry_pid, retry_sid = next((key, value) for key, value in proj_list.items() if key != pid)
-                [xnat_data,errFlag] = get_xnat_data(session,red2cas,
-                                      key,
-                                      xnat,
-                                      retry_sid,
-                                      retry_pid,
-                                      pipe_id,
-                                      visit_date,
-                                      this_subject_data['dob'],
-                                      next_visit_date,
-                                      row['mri_inspection___completed'],
-                                      row['mr_session_report_complete'],
-                                      verbose=args.verbose)
-            elif not xnat_data and len(proj_list) > 2 and pd.isna(visit_site):
-                error_header = f"{key[0]}_{key[1]}-visit_site"
-                error = "Subject has switched between more than 2 sites and visit_site in Visit Notes is empty."
-                slog.info(error_header, error,
+                found_data = False
+                for retry_pid, retry_sid in proj_list.items():
+                    if retry_pid != pid:
+                        xnat_data, errFlag = get_xnat_data(
+                        session, red2cas, key, xnat, retry_sid, retry_pid, pipe_id,
+                        visit_date, this_subject_data['dob'], next_visit_date,
+                        row['mri_inspection___completed'], row['mr_session_report_complete'],
+                        verbose=args.verbose
+                    )
+
+                    if xnat_data:
+                        found_data = True
+                        # If subject changed site without visit_site being filled in, throw an error.
+                        error_header = f"{key[0]}_{key[1]}-visit_site"
+                        error = "Failed to get scan, visit_site is empty."
+                        slog.info(
+                            error_header, error,
+                            Info="Failed to find XNAT session for subject based on default XNAT subject ID, "
+                                "but found a result for the same NCANDA ID under a different project. This typically "
+                                "occurs because a subject changed site for the scan.",
                             site_forward=row.get('redcap_data_access_group'),
-                            resolution="Fill in the visit_site variable in the Visit Notes form "
-                            "with the correct DAG/site at that timepoint.")
-                continue
+                            Resolution="Fill in the visit_site variable in the Visit Notes form "
+                                    "with the correct DAG/site at that timepoint. The actual returned result holds the site "
+                                    "where a scan was found within the window of the visit date for the given subject.",
+                            default_project_searched=f'{default_site}_incoming',
+                            actual_returned_results=f'{retry_pid}, {retry_sid}'
+                        )
+                        break  # Exit loop as data is found
+                if not found_data:
+                    print("INFO: No XNAT session data found after checking all available projects.")
 
             if errFlag:   
                 if args.verbose: 
