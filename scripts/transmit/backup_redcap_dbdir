@@ -1,4 +1,6 @@
-#!/bin/bash -l
+#!/bin/bash
+
+# ^^^ removed `-l` flag to prevent 'mesg: ttyname failed: Inappropriate ioctl for device'
 
 docker_instance_name=mariadb_redcap
 backup_src=/data/mariadb
@@ -90,10 +92,10 @@ printf "\n\n### Acquiring lock\n"
 acquire_lock_or_exit "$backup_lock" "$START_TIME"
 
 # remove existing date file
-printf "\n\n### Remove date file\n"
-if [[ -e "$date_file" ]]; then
-  rm -f "$date_file"
-fi
+##printf "\n\n### Remove date file\n"
+##if [[ -e "$date_file" ]]; then
+##  rm -f "$date_file"
+##fi
 
 # perform an initial rsync while db if running
 printf "\n\n### Performing hot rsync\n"
@@ -107,10 +109,11 @@ BACKUP_TIME=$(current_timestamp)
 # perform cold rsync while db is down
 printf "\n\n### Performing cold rsync\n"
 rsync -av --delete --recursive $backup_src/mysql $backup_tgt/
+COMPLETE_TIME=$(current_timestamp)
 
 #add date file
 printf "\n\n### Adding Date File\n"
-printf '%s' "$BACKUP_TIME" > "$date_file"
+printf 'Start: %s End: %s\n' "$BACKUP_TIME" "$COMPLETE_TIME" >> "$date_file"
 
 # docker container should have started
 printf "\n\n### Completed archive, starting container and removing lock file.\n"
