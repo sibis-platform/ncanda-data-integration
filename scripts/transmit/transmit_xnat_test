@@ -1,0 +1,16 @@
+#!/bin/bash
+
+. ./transmit_xnat_utils
+
+count=0
+XNAT_PROJECTS=`cd ${XNAT_DATA_ROOT}/archive/; ls`
+set -x
+for prj in ${XNAT_PROJECTS}; do
+    count+=1
+    echo ${prj}
+    update_project ${prj}
+    if [[ $count -eq 2 ]]; then
+	    exit 1
+    fi
+done
+upload_db
