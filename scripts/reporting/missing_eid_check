@@ -198,7 +198,7 @@ def main(args):
 
     comply_list = False
     for TYPE in [ 't1spgr', 'mprage', 't2fse', 'dti6b500pepolar', 'dti60b1000', 'dti30b400', 'rsfmri', 'grefieldmap' ]:
-        comply_list = comply_list | (xnat_list['scan_type'] == 'ncanda-' + TYPE + '-v1' )
+        comply_list = comply_list | (xnat_list['scan_type'] == 'ncanda-' + TYPE + '-v1' ) | (xnat_list['scan_type'] == 'ncanda-' + TYPE + '-v1_bad')
 
     #
     # Step 2: Check that all XNAT sessions are in REDCap that complied with naming convention and were part of subject list (including those that switched sites) 
