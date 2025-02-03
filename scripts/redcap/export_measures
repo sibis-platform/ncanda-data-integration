@@ -39,19 +39,62 @@ def get_subject_next_visit_date( subject, after_visit_date ):
     else:
         return None
 
-def get_subject_site_for_visit(redcap_subject,visit_code,export_measures_map):
-    # Handle mapping demographic info for subjects that changed site
-    if redcap_subject in iter(export_measures_map.keys()):
-         # Only set for visits in the past
-         _visit_case_id_map = export_measures_map.get(redcap_subject)
-         if visit_code in iter(_visit_case_id_map.keys()):
-             _case_id_map = _visit_case_id_map.get(visit_code)
-         else : 
-             _case_id_map = _visit_case_id_map.get('default')
-             
-         return _case_id_map.get('site')
+def get_subject_site_for_visit(redcap_subject, visit_code, row):
+    """
+    Determines the site character from subject ID or REDCap data.
 
+    Args:
+    - redcap_subject (str): Subject's NCANDA ID (format: X-99999-X-9)
+    - visit_code (str): Follow-up year visit code
+    - row (pd.Series): Data row containing 'visit_site' and 'mri_site' from REDCap
+
+    Returns:
+    - str: First character of NCANDA subject ID indicating site (e.g., 'D'), or None if error.
+    """
+    visit_site = row.get('visit_site')
+    mri_site = row.get('mri_site')
+
+    visit_site_na = pandas.isna(visit_site)
+    mri_site_na = pandas.isna(mri_site)
+
+    # Case 1: Both visit site and MRI site are available
+    if not visit_site_na and not mri_site_na:
+        if visit_site != mri_site:
+            slog.info(
+                f"export_measures-{redcap_subject}-{visit_code}",
+                "ERROR: Visit Site and MRI Site don't match.",
+                info="Visit_site (Visit Notes) and mri_site (MRI Session Report) must match.",
+                visit_site=visit_site,
+                mri_site=mri_site,
+                resolution="Check XNAT for incoming project and update variables accordingly.",
+            )
+            return None
+        return site_map.get(visit_site, None)
+
+    # Case 2: Only visit site is available (just return visit site)
+    if not visit_site_na:
+        return site_map.get(visit_site, None)
+
+    # Case 3: Only MRI site is available
+    if not mri_site_na:
+        default_site = redcap_subject[0]
+        mapped_mri_site = site_map.get(mri_site, None)
+        # If MRI site doesn't match the default, throw an error
+        if mapped_mri_site and mapped_mri_site != default_site:
+            slog.info(
+                f"export_measures-{redcap_subject}-{visit_code}",
+                "ERROR: MRI Site and default site don't match.",
+                info="MRI site (MRI Session Report) does not match expected default site.",
+                mri_site=mapped_mri_site,
+                default_site=default_site,
+                resolution="Verify in XNAT and update visit_site in Visit Notes.",
+            )
+            return None
+
+    # Case 4: Both are missing, use default from subject ID
     return redcap_subject[0]
+
+
 #
 # Main 
 #
@@ -100,8 +143,6 @@ if not os.path.isfile(special_cases_file) :
 # Get a map of subjects that changed sited
 with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
     special_cases_map=yaml.safe_load(fi)
-    site_change_map = special_cases_map.get('site_change')
-    export_measures_map = site_change_map.get('export_measures')
 
     exceeds_criteria_baseline = special_cases_map.get('exceeds_criteria_baseline')
     siblings_enrolled_yn_correction = special_cases_map.get('siblings_enrolled_yn')
@@ -178,11 +219,15 @@ except:
     sys.exit( "ERROR: retrieving subject list from XNAT failed." )
 
 subject_label_to_sid_dict = dict()
-# Always assign it to lowest subject number as this is the first - no need to look up 
+# Always assign it to lowest subject number as this is the first (also length must be 13 chars) - no need to look up 
 for ( subject_label, subject_id, projects ) in subject_project_list:
     if subject_label not in list(subject_label_to_sid_dict.keys()):         
         subject_label_to_sid_dict[subject_label] = subject_id
-    elif subject_id < subject_label_to_sid_dict[subject_label] :
+    elif (
+        len(subject_id) == 13 and
+        subject_id < subject_label_to_sid_dict[subject_label] and
+        len(subject_label_to_sid_dict[subject_label]) == 13
+    ):
         if args.verbose :
             print('INFO: Modified link for',subject_label,'from', subject_label_to_sid_dict[subject_label], 'to', subject_id, '!')
         subject_label_to_sid_dict[subject_label] = subject_id
@@ -192,7 +237,7 @@ for ( subject_label, subject_id, projects ) in subject_project_list:
 #
 # Main program loop
 #
-# NCANDA SPICIFIC 
+# NCANDA SPECIFIC 
 baseline_events = ['baseline_visit_arm_1', 'baseline_visit_arm_4']
 subject_fields = ['study_id', 'dob', 'exclude', 'enroll_exception',
                   'siblings_enrolled', 'siblings_id1', 'family_id',
@@ -222,11 +267,20 @@ subject_data['siblings_id1'] = subject_data['siblings_id1'].map( lambda x: subje
 
 visit_log_fields = ['study_id', 'visit_date',
                     'mri_qa_completed', 'mri_t1_age', 'mri_dti_age',
-                    'mri_rsfmri_age', 'mri_scanner', 'visit_ignore']
+                    'mri_rsfmri_age', 'mri_scanner', 'visit_ignore', 
+                    'mri_site', 'visit_site']
 visit_log_redcap = redcap_project.export_records(fields=visit_log_fields,
                                                  event_name='unique',
                                                  export_data_access_groups=True,
                                                  format='df')
+
+site_map = {
+    'upmc': 'A',
+    'sri': 'B',
+    'duke': 'C',
+    'ohsu': 'D',
+    'ucsd': 'E',
+}
 
 # check that all subjects listed in visit_log are also part of baseline
 visit_log_subject_list=visit_log_redcap.index.get_level_values(0).drop_duplicates()
@@ -357,7 +411,9 @@ for [key, row] in tqdm(visit_log_redcap.iterrows(),  # the actual iterator
     
     subject_datadir = os.path.join(args.pipelinedir,subject_datadir_rel)
 
-    site = get_subject_site_for_visit(redcap_subject,visit_code,export_measures_map)
+    site = get_subject_site_for_visit(redcap_subject,visit_code,row)
+    if not site:
+        continue
 
     exceeds_criteria_subject = exceeds_criteria_baseline.get(subject_pipeline_id)
     if exceeds_criteria_subject == None:
