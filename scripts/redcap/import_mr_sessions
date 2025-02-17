@@ -40,14 +40,6 @@ today = time.strftime(sutils.date_format_ymd)
 
 ncanda_scan_types = [ 't1spgr', 'mprage', 't2fse', 'dti6b500pepolar', 'dti30b400', 'dti60b1000', 'rsfmri' ]
 
-site_map = {
-    'A': 'upmc',
-    'B': 'sri',
-    'C': 'duke',
-    'D': 'ohsu',
-    'E': 'ucsd',
-}
-
 #
 # Functions 
 # 
@@ -291,7 +283,6 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     result['mri_series_rsfmri'] = ''
     result['mri_series_rsfmri_fieldmap'] = ''
     result['mri_scanner'] = ''
-    result['mri_site'] = ''
 
     # First, see if this subject is in the XNAT database and has a scan session
     # for the given date or later
@@ -518,9 +509,6 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     else:
         result['mri_qa_completed'] = '0'
 
-    # Set scan site to project from xnat
-    result['mri_site'] = xnat_session_data[0][1].split('_incoming>')[0].strip('<')
-
     # Set completion status of REDCap form based on whether QA is done (all sessions/scans looked at and no showstoppers in clinical reading)
     all_sessions_and_scans_used = [ sscn for sscn in [ result['mri_series_t1'], result['mri_series_t2'], result['mri_series_dti6b500pepolar'], result['mri_series_dti30b400'], result['mri_series_dti60b1000'],
                                                        result['mri_series_dti_fieldmap'], result['mri_series_rsfmri'], result['mri_series_rsfmri_fieldmap'] ] if sscn != '' ]
@@ -732,7 +720,6 @@ if xnat_phantom_sessions_list  == None :
 baseline_events = ['baseline_visit_arm_1', 'baseline_visit_arm_4']
 
 subject_data = session.redcap_export_records("subject_data",fields=['study_id','dob','exclude','enroll_exception','siblings_enrolled','siblings_id1'], events = baseline_events, event_name='unique', format='df')
-visit_data = session.redcap_export_records("subject_data",fields=['visit_site'], format='df')
 
 if type(subject_data) == type(None) or subject_data.empty:
     if verbose: 
@@ -854,7 +841,6 @@ mr_sessions_redcap = mr_sessions_redcap[ ~(mr_sessions_redcap['mri_missing'] > 0
 if args.verbose:
     print("Checking %d REDCap records." % len( mr_sessions_redcap ))
 
-
 # Iterate over all remaining rows
 records_uploaded = 0
 index = 0
@@ -912,27 +898,41 @@ for [key, row] in mr_sessions_redcap.iterrows():
         redcap_visit_id=subject_label+"-"+visit_date
 
         this_subject_data = subject_data.loc[key[0]]
-        this_visit_data = visit_data.loc[key]
-
         if str( this_subject_data['dob'] ) == 'nan':
             print("Missing birthdate for subject %s" % key[0])
         else:
-            # Collect all projects subject has been uploaded under
-            proj_list = {projects: xnat_sid for ncanda_sid, xnat_sid, projects in subject_project_list if ncanda_sid == subject_label}
-            
-            default_site = site_map[subject_label[0]]   # default site based on first char in NCANDA ID
-            visit_site = this_visit_data[0]             # visit_site from visit notes redcap form
+            # Update XNAT SID and PID for subjects that changed sites
+            if subject_label in iter(export_measures_map.keys()):
+                sub_map = export_measures_map.get(subject_label)
+                sub_event = key[1]
+                
+                id_map_def = sub_map.get('default')
+                sid = id_map_def.get('subject')
+                pipe_id = sid
 
-            if pd.isna(visit_site):
-                # if visit_notes is empty, first try default based on NCANDA ID
-                pid = f'{default_site}_incoming'
-                sid = proj_list[pid]
-            else:
-                pid = f'{visit_site}_incoming'
-                sid = proj_list[pid]
-            
-            # either way pipe_id has to be default xnat subj id
-            pipe_id = proj_list[f'{default_site}_incoming']
+                [year,arm] = sub_event.split('_',1)
+
+                if year == 'baseline' :
+                    id_map=sub_map.get('baseline')
+                    if arm == 'visit_arm_4':
+                        arm='visit_arm_1'
+                else : 
+                    id_map = sub_map.get('followup_' + year)
+                    
+                # if a visit has a specific xnat_subject_id defined then this overwrites the subject id defined under default 
+                if (arm == 'visit_arm_1') and id_map:
+                    xnat_id=id_map.get('xnat_subject_id')
+                    if xnat_id:
+                        sid = xnat_id
+                else :
+                    id_map = sub_map.get('default')
+                    sid = id_map.get('xnat_subject_id')
+
+                pid = id_map.get('project')
+                
+            else :
+                sid, pid = subject_project_dict[subject_label]
+                pipe_id = sid
 
             visit_age = round(old_div(red2cas.days_between_dates( this_subject_data['dob'], visit_date ), 365.242),10)
             next_visit_date = get_subject_next_visit_date(key[0], visit_date)
@@ -948,46 +948,13 @@ for [key, row] in mr_sessions_redcap.iterrows():
                                       row['mri_inspection___completed'],
                                       row['mr_session_report_complete'],
                                       verbose=args.verbose)
-            if not xnat_data and len(proj_list) > 1 and pd.isna(visit_site):
-                # Couldn't find xnat session based on default values, test if session is under different project
-                print("INFO: Found no XNAT Session Data with default subject values.")
-                print("Retrying with other available subject xnat-project")
-                found_data = False
-                for retry_pid, retry_sid in proj_list.items():
-                    if retry_pid != pid:
-                        xnat_data, errFlag = get_xnat_data(
-                        session, red2cas, key, xnat, retry_sid, retry_pid, pipe_id,
-                        visit_date, this_subject_data['dob'], next_visit_date,
-                        row['mri_inspection___completed'], row['mr_session_report_complete'],
-                        verbose=args.verbose
-                    )
-
-                    if xnat_data:
-                        found_data = True
-                        # If subject changed site without visit_site being filled in, throw an error.
-                        error_header = f"{key[0]}_{key[1]}-visit_site"
-                        error = "Failed to get scan, visit_site is empty."
-                        slog.info(
-                            error_header, error,
-                            Info="Failed to find XNAT session for subject based on default XNAT subject ID, "
-                                "but found a result for the same NCANDA ID under a different project. This typically "
-                                "occurs because a subject changed site for the scan.",
-                            site_forward=row.get('redcap_data_access_group'),
-                            Resolution="Fill in the visit_site variable in the Visit Notes form "
-                                    "with the correct DAG/site at that timepoint. The actual returned result holds the site "
-                                    "where a scan was found within the window of the visit date for the given subject.",
-                            default_project_searched=f'{default_site}_incoming',
-                            actual_returned_results=f'{retry_pid}, {retry_sid}'
-                        )
-                        break  # Exit loop as data is found
-                if not found_data:
-                    print("INFO: No XNAT session data found after checking all available projects.")
 
             if errFlag:   
                 if args.verbose: 
                     print("ERROR: Failed to get xnat data for ", red2cas, "(" +  sid + ")!")
                 continue 
                 
+
             if xnat_data['mri_xnat_eids'] != '':
                 # Check whether this MR session also has Stroop data
                 (stroop_eid,stroop_resource,stroop_file) = (None, None, None)
@@ -1032,7 +999,6 @@ for [key, row] in mr_sessions_redcap.iterrows():
                 if 'records' in list(import_response.keys()):
                     for r in import_response['records']:
                         print("\t Import Response from REDCap: ", r)
-
 
 if args.verbose:
     if not args.no_upload:
