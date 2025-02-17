@@ -46,16 +46,18 @@ def get_subject_site_for_visit(redcap_subject, visit_code, row):
     Args:
     - redcap_subject (str): Subject's NCANDA ID (format: X-99999-X-9)
     - visit_code (str): Follow-up year visit code
-    - row (pd.Series): Data row containing 'visit_site' and 'mri_site' from REDCap
+    - row (pd.Series): Data row containing 'visit_site', 'mri_site', and 'mrireport_site' from REDCap
 
     Returns:
     - str: First character of NCANDA subject ID indicating site (e.g., 'D'), or None if error.
     """
     visit_site = row.get('visit_site')
     mri_site = row.get('mri_site')
+    mrireport_site = row.get('mrireport_site')
 
     visit_site_na = pandas.isna(visit_site)
     mri_site_na = pandas.isna(mri_site)
+    mrireport_site_na = pandas.isna(mrireport_site)
 
     # Case 1: Both visit site and MRI site are available
     if not visit_site_na and not mri_site_na:
@@ -74,6 +76,20 @@ def get_subject_site_for_visit(redcap_subject, visit_code, row):
 
     # Case 2: Only visit site is available (just return visit site)
     if not visit_site_na:
+        # If mrireport_site is populated, check it also matches visit_site
+        if not mrireport_site_na:
+            mrireport_site = mrireport_site.upper()
+            if mrireport_site != visit_site:
+                slog.info(
+                    f"export_measures-{redcap_subject}-{visit_code}",
+                    "ERROR: Visit Site and Mrireport Site don't match.",
+                    info="Visit_site (Visit Notes) and mrireport_site (MRI Report (Limesurvey)) should match.",
+                    visit_site=visit_site,
+                    mrireport_site=mrireport_site,
+                    resolution="Check that  confirm site with RA's, and update variables accordingly.",
+                )
+                return None
+
         return site_map.get(visit_site, None)
 
     # Case 3: Only MRI site is available
@@ -268,7 +284,7 @@ subject_data['siblings_id1'] = subject_data['siblings_id1'].map( lambda x: subje
 visit_log_fields = ['study_id', 'visit_date',
                     'mri_qa_completed', 'mri_t1_age', 'mri_dti_age',
                     'mri_rsfmri_age', 'mri_scanner', 'visit_ignore', 
-                    'mri_site', 'visit_site']
+                    'mri_site', 'visit_site', 'mrireport_site']
 visit_log_redcap = redcap_project.export_records(fields=visit_log_fields,
                                                  event_name='unique',
                                                  export_data_access_groups=True,
