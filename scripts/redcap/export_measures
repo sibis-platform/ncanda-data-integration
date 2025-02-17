@@ -79,7 +79,7 @@ def get_subject_site_for_visit(redcap_subject, visit_code, row):
         # If mrireport_site is populated, check it also matches visit_site
         if not mrireport_site_na:
             mrireport_site = mrireport_site.upper()
-            if mrireport_site != visit_site:
+            if mrireport_site != site_map.get(visit_site, None):
                 slog.info(
                     f"export_measures-{redcap_subject}-{visit_code}",
                     "ERROR: Visit Site and Mrireport Site don't match.",
