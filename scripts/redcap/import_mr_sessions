@@ -950,8 +950,6 @@ for [key, row] in mr_sessions_redcap.iterrows():
                                       verbose=args.verbose)
             if not xnat_data and len(proj_list) > 1 and pd.isna(visit_site):
                 # Couldn't find xnat session based on default values, test if session is under different project
-                print("INFO: Found no XNAT Session Data with default subject values.")
-                print("Retrying with other available subject xnat-project")
                 found_data = False
                 for retry_pid, retry_sid in proj_list.items():
                     if retry_pid != pid:
