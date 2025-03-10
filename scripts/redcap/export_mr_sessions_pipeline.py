@@ -457,15 +457,11 @@ def delete_workdir(workdir, redcap_visit_id, mr_session_report_complete, missing
                       info = "If those MRIs are missing in XNAT, then set the status of the MRI Session Report to 'Incomplete' and run script again with -f option.  If they are not missing, check that the names of the scans in XNAT are correct!")
             return False
         
-        if verbose :
-            print("Deleting " + workdir +" because " + missing_mri)
-        try :
-            shutil.rmtree(workdir)            
-        except Exception as err_msg:  
-            slog.info(redcap_visit_id,"Error: Could not delete directory " + workdir, 
-                      err_msg = str(err_msg))
-            return False
-
+        
+        slog.info(redcap_visit_id,"INFO:Deletion of directory " + workdir + " required.",
+                      workdir = workdir,
+                      mri_missing_in_xnat = missing_mri, 
+                      info = "If those MRIs are missing in XNAT, then update the scan in the MRI Session Report and remove from cases directory. If they are not missing, check that the names of the scans in XNAT are correct!")
     return True 
         
 
