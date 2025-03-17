@@ -76,6 +76,10 @@ def export_t1t2_to_zip( experiment, experiment_label,xnat_dir):
         # Remove common prefix to make archive more flat
         if len( scan_dirs ) > 1:
             basedir = os.path.commonprefix( scan_dirs )
+
+            if not os.path.exists(basedir):
+                # commonprefix gathered incorrect base dir, walk back up to parent directory
+                basedir = os.path.dirname(basedir) + '/'
             scan_dirs_rel = [ re.sub( basedir, '', sdir ) for sdir in scan_dirs ]
         else:
             basedir = re.sub( 'SCANS/.*', 'SCANS/', scan_dirs[0] )
