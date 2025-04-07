@@ -257,6 +257,12 @@ status_variables = [
     "pvrt_status",
     "svdelay_status",
 ]
+
+# Strip leading/trailing whitespace from all status values
+data[status_variables] = data[status_variables].applymap(
+    lambda x: x.strip() if isinstance(x, str) else x
+)
+
 old_defaults = ["^C$", "^Complete$"]
 new_default = "C1"
 data[status_variables] = data[status_variables].replace(old_defaults, new_default, regex=True)
