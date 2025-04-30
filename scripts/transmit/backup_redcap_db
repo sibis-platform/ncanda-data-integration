@@ -16,6 +16,8 @@ function current_timestamp() {
     printf "%s" "$cur_time"
 }
 
+set -x
+set -e
 docker exec -t ${REDCAP_MARIA_CONTAINER_NAME} mysqldump -u root -p${REDCAP_MYSQL_ROOT_PASSWORD} ${REDCAP_MYSQL_BACKUP_IGNORE} --quick --compress --verbose --debug-info --single-transaction --databases ${REDCAP_MYSQL_DATABASE} | gzip > "${DST_GZIP_FILE}"
 
 COMPLETE_TIME=$(current_timestamp)
