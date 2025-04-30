@@ -1,10 +1,10 @@
 #!/bin/bash -l 
 cur_dir=`dirname $0`
 config="/fs/storage/share/operations/secrets/.sibis/.sibis-general-config.yml"
-backup_tmp=/fs/snapshots
 backup_src=/fs/storage/mariadb-redcap-archive
 backup_lock=/fs/storage/ncanda_redcap_backup.lock
 retain_local_copy=${1:-1}
+backup_src_spec="${backup_src}/*.sql.gz"
 
 ## Load common utils
 source $cur_dir/transmit_utils
@@ -23,39 +23,10 @@ function remove_lock() {
 
 trap "remove_lock" EXIT
 
-date_file=$backup_src/mysql/ARCHIVE_DATE.txt
-if [[ -e "$date_file" ]]; then
-  ARCHIVE_DATE=$(cat $date_file 2> /dev/null)
-  if [[ -z "$ARCHIVE_DATE" ]]; then
-    printf 'ERROR: Backup date could not be determined. Date not detected in %s' "$date_file"
-    exit 1
-  fi
-else
-  printf 'ERROR: Backup date could not be determined. Missing %s' "$date_file"
+archive_file=$(ls -t "${backup_src_spec}" | head -n 1)
+if [[ -z "$archive_file" ]]; then
+  printf 'ERROR: Backup date could not be determined. Date not detected in %s' "$date_file"
   exit 1
 fi
 
-# compress directory into an archive
-archive_file="${backup_tmp}/mariadb-${ARCHIVE_DATE}.tar.xz.aes"
-tar -Jcvf - -C /fs/storage/mariadb-redcap-archive . | aespipe -P ${HOME}/aes/keys -e aes256 > $archive_file
 upload_to_s3 $archive_file ${retain_local_copy}
-
-
-## delete old logs created by API access
-#${cur_dir}/redcap-dbmaint -c ${config} -k 14
-
-###
-### ALL BELOW IS LEGACY - keeping unless we figure out a more robust way to make this work again.
-###
-#mysql_host=$(get_val "['redcap-mysql']['hostname']")
-#mysql_port=$(get_val "['redcap-mysql']['port']")
-#mysql_login=$(get_val "['redcap-mysql']['user']")
-#mysql_passwd=$(get_val "['redcap-mysql']['passwd']")
-
-
-# MySQL first - this can be run as root
-#mariabackup --backup --target-dir ${backup_tmp} --host ${mysql_host} --port ${mysql_port} --user ${mysql_login} --password="${mysql_passwd}"
-#mariabackup --backup --host ${mysql_host} --port ${mysql_port} --user ${mysql_login} --password="${mysql_passwd}" --stream=xbstream | xz |  aespipe -P ${HOME}/aes/keys -e aes256 > ${backup_tmp}/mariadb.sql.xz.aes
-#mysqldump --host ${mysql_host} --port ${mysql_port} --single-transaction --skip-lock-tables --quick --compress --routines --triggers --all-databases --events --password="${mysql_passwd}" | xz |  aespipe -P ${HOME}/aes/keys -e aes256 > ${backup_tmp}/mysql.sql.xz.aes
-#upload_to_s3 ${backup_tmp}/mariadb.sql.xz.aes ${retain_local_copy}
-
