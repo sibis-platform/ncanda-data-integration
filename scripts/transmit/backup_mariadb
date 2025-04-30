@@ -23,7 +23,7 @@ function remove_lock() {
 
 trap "remove_lock" EXIT
 
-archive_file=$(ls -t "${backup_src_spec}" | head -n 1)
+archive_file=$(ls -t ${backup_src_spec} | head -n 1)
 if [[ -z "$archive_file" ]]; then
   printf 'ERROR: Backup date could not be determined. Date not detected in %s' "$date_file"
   exit 1
