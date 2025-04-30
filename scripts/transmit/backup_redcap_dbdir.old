@@ -1,0 +1,121 @@
+#!/bin/bash
+
+# ^^^ removed `-l` flag to prevent 'mesg: ttyname failed: Inappropriate ioctl for device'
+
+docker_instance_name=mariadb_redcap
+backup_src=/data/mariadb
+backup_tgt=/data/mariadb-redcap-archive
+backup_lock=/data/ncanda_redcap_backup.lock
+
+date_file=$backup_tgt/mysql/ARCHIVE_DATE.txt
+
+
+function current_timestamp() {
+    # 20240321T034445+0000
+    local cur_time
+    cur_time=$(date --utc "+%Y%m%dT%H%M%S%z")
+    printf "%s" "$cur_time"
+}
+
+function remove_lock() {
+  if [[ -e "$backup_lock" ]]; then
+    printf "INFO: Removing lockfile - %s\n" "${backup_lock}"
+    rm -rf "$backup_lock"
+  fi
+}
+
+function acquire_lock_or_exit() {
+  local lock_file
+  local existing_pid
+  local lock_time
+
+  lock_file=$1
+  lock_time=$2
+
+  if [[ -e "$lock_file" ]]; then
+    existing_pid=$(tail -n 1 $lock_file)
+    printf "WARNING Lockfile exists for process %s, aborting!\n\t\\--> see lockfile: %s\n" "$existing_pid" "$lock_file"
+    exit 0
+  else
+    printf "%s" "$$" > "$lock_file"
+    printf '%s\n%s\n' "$lock_time" "$$" > $backup_lock
+    trap "remove_lock" ERR EXIT
+  fi
+}
+declare -f -t acquire_lock_or_exit # needed to add trap declared in function
+
+function stop_docker_if_running() {
+  local instance_name
+  local running_id
+  local trap_cmd
+  instance_name=$1
+
+  printf -v trap_cmd 'start_stopped_docker "%s"; remove_lock' "$instance_name"
+  trap "$trap_cmd" ERR EXIT
+
+
+  running_id=$(docker ps --filter="name=${instance_name}" -q)
+  printf 'INFO: Running Docker [%s] %s\n' "${instance_name}" "${running_id}"
+  if [[ -n "${running_id}" ]]; then
+    printf 'INFO: Stopping container [%s] %s\n' "${instance_name}" "${running_id}"
+    docker stop "${running_id}"
+  else
+    printf 'WARNING: Expected container [%s] is not running.\n' "${instance_name}"
+  fi
+}
+declare -f -t stop_docker_if_running # needed to add trap declared in function
+
+function start_stopped_docker() {
+  local instance_name
+  local running_id
+
+  instance_name=$1
+  running_id=$(docker ps --filter="name=${instance_name}" -q)
+  if [[ -z "${running_id}" ]]; then
+    printf 'INFO: Starting container [%s]\n' "${instance_name}"
+    docker start "${instance_name}"
+  fi
+
+  running_id=$(docker ps --filter="name=${instance_name}" -q)
+  if [[ -n "${running_id}" ]]; then
+    printf 'INFO: Started container [%s] %s\n' "${instance_name}" "${running_id}"
+  else
+    printf 'ERROR: Container [%s] did not start!\n' "${instance_name}"
+    exit 1
+  fi
+}
+
+
+START_TIME=$(current_timestamp)
+# check if lock exists, if it does exit, if it does not create lock
+printf "\n\n### Acquiring lock\n"
+acquire_lock_or_exit "$backup_lock" "$START_TIME"
+
+# remove existing date file
+##printf "\n\n### Remove date file\n"
+##if [[ -e "$date_file" ]]; then
+##  rm -f "$date_file"
+##fi
+
+# perform an initial rsync while db if running
+printf "\n\n### Performing hot rsync\n"
+rsync -av $backup_src/mysql $backup_tgt/
+
+# stop db, force db restart on error
+printf "\n\n### Stopping docker container\n"
+stop_docker_if_running "$docker_instance_name"
+BACKUP_TIME=$(current_timestamp)
+
+# perform cold rsync while db is down
+printf "\n\n### Performing cold rsync\n"
+rsync -av --delete --recursive $backup_src/mysql $backup_tgt/
+COMPLETE_TIME=$(current_timestamp)
+
+#add date file
+printf "\n\n### Adding Date File\n"
+printf 'Start: %s End: %s\n' "$BACKUP_TIME" "$COMPLETE_TIME" >> "$date_file"
+
+# docker container should have started
+printf "\n\n### Completed archive, starting container and removing lock file.\n"
+
+
