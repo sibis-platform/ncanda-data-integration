@@ -17,6 +17,7 @@ upload_to_s3()
 
     if ! s4cmd put --force  ${1} s3://ncanda/db/${day}/${fname} --API-ServerSideEncryption=AES256; then
         echo "FAILURE: unable to upload database archive ${1} to S3"
+        return 1
     else
         if [[ $rm_on_success == 0 ]]; then
             rm ${1}
@@ -24,4 +25,5 @@ upload_to_s3()
             echo "Retaining $1"
         fi
     fi
+    return 0
 }
