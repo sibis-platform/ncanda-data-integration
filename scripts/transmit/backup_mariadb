@@ -24,7 +24,7 @@ function remove_lock() {
 trap "remove_lock" EXIT
 
 # get most recent archive
-archive_file=$(ls -t ${backup_src_spec} | head -n 1)
+archive_file=$(ls -t ${backup_src_spec} 2> /dev/null | head -n 1)
 archive_file_aes="${archive_file}.aes"
 
 if [[ -z "${archive_file}" ]]; then
@@ -36,8 +36,9 @@ if [ -f "${archive_file_aes}" ]; then
   printf 'INFO: latest archive already has encrypted version. It should have been backed up already. Retrying.'
 else
   set -e
+  printf 'INFO: encrypting archive before upload.'
   aespipe -P ${HOME}/aes/keys -e aes256 < "${archive_file}" > "${archive_file_aes}"
   set +e
 fi
 
-upload_to_s3 $archive_file ${retain_local_copy} && rm "${archive_file}"
+upload_to_s3 $archive_file_aes ${retain_local_copy} && rm "${archive_file}"
