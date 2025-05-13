@@ -12,7 +12,7 @@ retain_local_redcap=0
 source $script_dir/transmit_utils
 
 # MariaDB first - this can be run as root
-#${script_dir}/backup_mariadb
+${script_dir}/backup_mariadb
 
 # PostgreSQL backup for XNAT
 ${script_dir}/backup_pgsql
