@@ -5,6 +5,7 @@ backup_src=/fs/storage/mariadb-redcap-archive
 backup_lock=/fs/storage/ncanda_redcap_backup.lock
 retain_local_copy=${1:-1}
 backup_src_spec="${backup_src}/redcap_mariadb_backup-*.sql.gz"
+mariadb_subdir=redcap-mariadb
 
 ## Load common utils
 source $cur_dir/transmit_utils
@@ -41,4 +42,4 @@ else
   set +e
 fi
 
-upload_to_s3 $archive_file_aes ${retain_local_copy} && rm "${archive_file}"
+upload_to_s3_subdir $archive_file_aes ${retain_local_copy} ${mariadb_subdir} && rm "${archive_file}"

@@ -27,3 +27,23 @@ upload_to_s3()
     fi
     return 0
 }
+
+# Upload file to S3
+upload_to_s3_subdir()
+{
+    local fname=`basename $1`
+    local rm_on_success=${2:-0}
+    local subdir=${3}
+
+    if ! s4cmd put --force  ${1} s3://ncanda/db/${subdir}/${fname} --API-ServerSideEncryption=AES256; then
+        echo "FAILURE: unable to upload database archive ${1} to S3"
+        return 1
+    else
+        if [[ $rm_on_success == 0 ]]; then
+            rm ${1}
+        else
+            echo "Retaining $1"
+        fi
+    fi
+    return 0
+}
