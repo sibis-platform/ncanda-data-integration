@@ -979,7 +979,8 @@ for [key, row] in mr_sessions_redcap.iterrows():
                         )
                         break  # Exit loop as data is found
                 if not found_data:
-                    print("INFO: No XNAT session data found after checking all available projects.")
+                    if args.verbose: 
+                        print("INFO: No XNAT session data found after checking all available projects.")
 
             if errFlag:   
                 if args.verbose: 

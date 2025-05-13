@@ -20,6 +20,7 @@ import os
 import re
 import sys
 import yaml
+import time
 import datetime
 import argparse
 
@@ -734,16 +735,40 @@ for form_prefix, form_name in forms.items():
     returned_records = []
 
     for record_batch in batch(records, n=100):
-        returned_records.append(
-            session.redcap_export_records_from_api(
+        # First attempt
+        df = session.redcap_export_records_from_api(
+            time_label=None,
+            api_type="import_laptops",
+            records=record_batch,
+            forms=forms,
+            format=return_format,
+            df_kwargs=df_kwargs,
+        )
+
+        if df.empty:
+            if args.verbose:
+                print("No REDCap data records found from export, retrying in one minute")
+            time.sleep(60)  # Wait 1 minute and try again
+            df = session.redcap_export_records_from_api(
                 time_label=None,
                 api_type="import_laptops",
                 records=record_batch,
                 forms=forms,
                 format=return_format,
                 df_kwargs=df_kwargs,
-            ).applymap(nan_to_empty)
-        )
+            )
+
+            if df.empty:
+                error_id = f"{form_name}_{datetime.now().strftime('%m/%d/%Y')}"
+                
+                slog.info(
+                    error_id,
+                    "ERROR: REDCap connection issue or no data returned after retry",
+                    info="Tried twice to fetch data from REDCap and failed. Please verify connectivity.",
+                )
+                sys.exit(1)
+
+    returned_records.append(df.applymap(nan_to_empty))
     imported_records = pandas.concat(returned_records)
 
     if args.verbose:
