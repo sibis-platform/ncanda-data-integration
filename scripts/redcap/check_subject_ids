@@ -17,7 +17,7 @@ import sibispy
 from sibispy import sibislogger as slog
 
 # Events that have the "demographics" form (could get that from form-event-mapping directly, but don't feel like it) :)
-demographics_events = ['baseline_visit_arm_1','baseline_visit_arm_4']
+demographics_events = ['baseline_visit_arm_1'] #,'baseline_visit_arm_4']
 
 def validate_subject_id(project_interface):
     """
@@ -75,8 +75,9 @@ def check_subjects_study_arms( project_interface ):
         arm_subjects = [ record['study_id'] for record in project_interface.export_records( fields=[field], events=[event], event_name='unique') ]
         not_found_in_standard += [ (s,arm) for s in arm_subjects if s not in standard_subjects ]
 
-    maltreated_subjects = [ record['study_id'] for record in project_interface.export_records( fields=["exclude"], events=["baseline_visit_arm_4"], event_name='unique') ]
-    standard_and_maltreated = [ s for s in maltreated_subjects if s in standard_subjects ]
+    #maltreated_subjects = [ record['study_id'] for record in project_interface.export_records( fields=["exclude"], events=["baseline_visit_arm_4"], event_name='unique') ]
+    #standard_and_maltreated = [ s for s in maltreated_subjects if s in standard_subjects ]
+    standard_and_maltreated = []
 
     return (not_found_in_standard,standard_and_maltreated)
 

@@ -254,7 +254,7 @@ for ( subject_label, subject_id, projects ) in subject_project_list:
 # Main program loop
 #
 # NCANDA SPECIFIC 
-baseline_events = ['baseline_visit_arm_1', 'baseline_visit_arm_4']
+baseline_events = ['baseline_visit_arm_1'] #, 'baseline_visit_arm_4']
 subject_fields = ['study_id', 'dob', 'exclude', 'enroll_exception',
                   'siblings_enrolled', 'siblings_id1', 'family_id',
                   'hispanic', 'race', 'race_other_code','ndar_guid_id', 'ndar_guid_pseudo_id',
