@@ -666,7 +666,7 @@ with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
     exceptions_num_type = special_cases.get('more_of_type')
     merge_xnat_sessions = special_cases.get('merge_xnat_sessions')
 
-form_event_mapping = redcap_project.export_fem( format='df' )
+form_event_mapping = redcap_project.export_instrument_event_mappings( format_type='df' )
 form_key = session.get_redcap_form_key()
 
 # Organize REDCap metadata, e.g., filter all confidential fields out of export lists, and make code-to-label lookup dictionaries
@@ -731,8 +731,8 @@ if xnat_phantom_sessions_list  == None :
 # these are the "baseline" events of the study arms that have them
 baseline_events = ['baseline_visit_arm_1'] #, 'baseline_visit_arm_4']
 
-subject_data = session.redcap_export_records("subject_data",fields=['study_id','dob','exclude','enroll_exception','siblings_enrolled','siblings_id1'], events = baseline_events, event_name='unique', format='df')
-visit_data = session.redcap_export_records("subject_data",fields=['visit_site'], format='df')
+subject_data = session.redcap_export_records("subject_data",fields=['study_id','dob','exclude','enroll_exception','siblings_enrolled','siblings_id1'], events = baseline_events, event_name='unique', format_type='df')
+visit_data = session.redcap_export_records("subject_data",fields=['visit_site'], format_type='df')
 
 if type(subject_data) == type(None) or subject_data.empty:
     if verbose: 
@@ -756,7 +756,7 @@ visit_log_redcap = session.redcap_export_records("visit_log",
                                                          'mri_missing'],
                                                  event_name='unique',
                                                  export_data_access_groups=True,
-                                                 format='df')
+                                                 format_type='df')
 
 if type(visit_log_redcap) == type(None) or visit_log_redcap.empty:
     if verbose: 

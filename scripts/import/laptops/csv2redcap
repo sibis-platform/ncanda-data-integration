@@ -136,7 +136,7 @@ def process_file(fname):
     # records from new data that are "Complete"
     if complete_field:
         existing_data = project.export_records(fields=[complete_field],
-                                               format='df')
+                                               format_type='df')
 
     # Make list of dicts for REDCap import
     record_list = []

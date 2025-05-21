@@ -88,7 +88,7 @@ def process_form(form, complete_field_names, study_id, event):
                 events=events_this_form,
                 fields=redcap_fields,
                 event_name="unique",
-                format="df",
+                format_type="df",
                 df_kwargs={
                     "index_col": [rc_entry.def_field, "redcap_event_name"],
                     "dtype": "object",
@@ -100,7 +100,7 @@ def process_form(form, complete_field_names, study_id, event):
                 events=events_this_form,
                 fields=redcap_fields,
                 event_name="unique",
-                format="df",
+                format_type="df",
                 df_kwargs={
                     "index_col": [rc_entry.def_field, "redcap_event_name"],
                     "dtype": "object",
@@ -299,7 +299,7 @@ if not rc_entry:
         print("ERROR: Failed to connect to server!")
     sys.exit(1)
 
-form_event_mapping = rc_entry.export_fem(format="df")
+form_event_mapping = rc_entry.export_instrument_event_mappings(format_type="df")
 form_key = session.get_redcap_form_key()
 
 # If list of forms given, only update those

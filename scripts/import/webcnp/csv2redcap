@@ -157,7 +157,7 @@ data = data[data["test_sessions_datasetid"] >= 22000]
 
 records_in_redcap = redcap.export_records(
     fields=["record_id", "test_sessions_datasetid", "test_sessions_complete"],
-    format="df",
+    format_type="df",
 ).reset_index()
 
 # See what's already on the server

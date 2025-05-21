@@ -60,11 +60,11 @@ def main(args=None):
     mri_form = project_entry.export_records(forms=['mr_session_report'],
                                             events=[event],
                                             fields=['subject_id'],
-                                            format='df')
+                                            format_type='df')
     visit_form = project_entry.export_records(forms=['visit'],
                                               events=[event],
                                               fields=['visit_ignore', 'visit_ignore_why'],
-                                              format='df')
+                                              format_type='df')
     # These are subject ids from the list that are in REDCap.
     rc_filter = mri_form.mri_xnat_sid.isin(csv.subject_id)
     rc_cases = mri_form[rc_filter]

@@ -23,7 +23,7 @@ from datetime import datetime
 
 # Label translation function - LimeSurvey to SRI/REDCap style
 def label_to_sri( prefix, ls_label ):
-    return "%s_%s" % (prefix, re.sub( '_$', '', re.sub( '[_\W]+', '_', re.sub( 'subjid', 'subject_id', ls_label.lower() ) ) ) )
+    return "%s_%s" % (prefix, re.sub( '_$', '', re.sub( r'[_\W]+', '_', re.sub( 'subjid', 'subject_id', ls_label.lower() ) ) ) )
 
 # Dictionary of survey types
 surveys = { 
@@ -108,10 +108,10 @@ def compute_survey_date( row, this_survey ):
 # Fix date format from "MM/DD/YYYY" to "YYYY-MM-DD", if necessary.
 def fix_dates( date, this_survey ):
     new_date = date
-    match_mdy = re.match( '([0-9]{1,2})/([0-9]{1,2})/([0-9]{4})\s*(.*)', date )
+    match_mdy = re.match( r'([0-9]{1,2})/([0-9]{1,2})/([0-9]{4})\s*(.*)', date )
     if match_mdy:
         new_date = match_mdy.group(3) + '-' + ('0' + match_mdy.group(1))[-2:] + '-' + ('0' + match_mdy.group(2))[-2:]
-        match_hm = re.match( '([0-9]{1,2}:[0-9]{2})\s*$', match_mdy.group(4) )
+        match_hm = re.match( r'([0-9]{1,2}:[0-9]{2})\s*$', match_mdy.group(4) )
         if match_hm:
             new_date += (' 0' + match_hm.group(1))[-6:] + ':00'
     return new_date
@@ -152,7 +152,7 @@ def handle_survey(subject_label, survey_id, data, verbose ):
 
         # Fix up some data from older versions of some surveys
         if survey_id == '11584':
-            newLabel = re.sub( 'yfhi_4b', 'yfhi4b', newLabel )
+            newLabel = re.sub( r'yfhi_4b', 'yfhi4b', newLabel )
         elif survey_id == '82312':
             # Some "evening" surveys also accidentally contained the "presleep" questions. Drop these fields here - they should come from separate presleep survey
             if 'presleep' in newLabel:
@@ -206,7 +206,7 @@ def handle_survey(subject_label, survey_id, data, verbose ):
     if survey_id == '11584': 
         data['youth_report_1b_complete'] = 1
         for label in data.columns:
-            label_postfix = re.sub( '%s_' % this_survey, '', label )
+            label_postfix = re.sub( r'%s_' % this_survey, '', label )
             if label_postfix in survey_admin_fields:
                 data['youthreport1b_' + label_postfix] = data[label]
 
@@ -215,7 +215,7 @@ def handle_survey(subject_label, survey_id, data, verbose ):
         this_survey_unique = 'youthreport1b'
         columns = []
         for label in data.columns:
-            label_postfix = re.sub( '%s_' % this_survey, '', label )
+            label_postfix = re.sub( r'%s_' % this_survey, '', label )
             if label_postfix in survey_admin_fields:
                 columns.append( this_survey_unique + '_' + label_postfix )
             else:
@@ -269,7 +269,7 @@ parser.add_argument("--dry-run",
 args = parser.parse_args()
 
 # Figure out which survey type this is - bail if unknown
-match = re.match( '.*survey_([0-9]{5})_subjid_([^_]*)_([0-9]{8})_([0-9]{10})\.csv', args.infile )
+match = re.match( r'.*survey_([0-9]{5})_subjid_([^_]*)_([0-9]{8})_([0-9]{10})\.csv', args.infile )
 subject_label = str(args.infile).split('/')[-2]
 if not match:
     post_issue_and_exit("ERROR: file " + str(args.infile) + " cannot be parsed!", info="File name does not follow naming convention, i.e., *survey_<5 dig num>_subjid_<id>_<8 dig num>_<10 dig num>.csv")

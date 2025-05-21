@@ -345,7 +345,7 @@ def check_dti(
 
 
 def check_for_phantom(label):
-    phantom = [".-9999\d", ".-00000"]
+    phantom = [r".-9999\d", r".-00000"]
     match = re.match(phantom[0], label, flags=re.DOTALL)
     if match:
         return match
@@ -443,10 +443,10 @@ def incomplete_scan_check(
 
 def voxelres_get(experiment, scan):
     scan_info = XNATSessionElementUtil(experiment.scans[scan]).xml
-    field_regex = ".*<xnat:voxelRes (.*?)/>"
+    field_regex = r".*<xnat:voxelRes (.*?)/>"
     match = re.match(field_regex, scan_info, flags=re.DOTALL)
     if match:
-        return re.sub("\s*<!--.*?-->\s*", "", match.group(1), flags=re.DOTALL)
+        return re.sub(r"\s*<!--.*?-->\s*", "", match.group(1), flags=re.DOTALL)
 
 
 def voxelRes_check(experiment, manufacturer, scan_and_type_list):
@@ -749,7 +749,7 @@ def get_custom_variable(experiment, field_name):
         field_regex, XNATSessionElementUtil(experiment).xml, flags=re.DOTALL
     )
     if match:
-        return re.sub("\s*<!--.*?-->\s*", "", match.group(1), flags=re.DOTALL)
+        return re.sub(r"\s*<!--.*?-->\s*", "", match.group(1), flags=re.DOTALL)
     else:
         return None
 
@@ -1283,12 +1283,12 @@ for (
         dti_scans = [
             (scan, scantype)
             for (scan, scantype, quality) in scantype_and_quality
-            if re.match("^ncanda-dti.*-v1$", scantype) and quality != "unusable"
+            if re.match(r"^ncanda-dti.*-v1$", scantype) and quality != "unusable"
         ]
         fmri_scans = [
             (scan, scantype)
             for (scan, scantype, quality) in scantype_and_quality
-            if re.match("^ncanda-.*fmri.*-v1$", scantype) and quality != "unusable"
+            if re.match(r"^ncanda-.*fmri.*-v1$", scantype) and quality != "unusable"
         ]
 
     except Exception as err_msg:
@@ -1315,7 +1315,7 @@ for (
     nifti_export_ok = True
     if creatingNiftiFlag:
         for (scanID, scantype, quality) in scantype_and_quality:
-            if re.match("^ncanda-.*-v[0-9]$", scantype):
+            if re.match(r"^ncanda-.*-v[0-9]$", scantype):
                 details=""
                 try:
                     (

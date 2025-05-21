@@ -42,7 +42,7 @@ def get_project(args):
                                      forms=['mr_session_report', 'visit_date',
                                             'demographics'],
                                      events=args.event.split(","),
-                                     format='df')
+                                     format_type='df')
     return mri
 
 def mri_filter_dataframe(dataframe):
