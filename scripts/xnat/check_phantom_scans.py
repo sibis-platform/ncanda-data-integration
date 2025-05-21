@@ -213,7 +213,7 @@ def check_experiment(session, ifc, sibis_config, args, email, eid, xnat_url, exp
         return False
 
     # RegExp pattern for subject IDs
-    subject_id_pattern_nophantom = "^([A-F])-[0-9]{5}-[MF]-[0-9]$"
+    subject_id_pattern_nophantom = r"^([A-F])-[0-9]{5}-[MF]-[0-9]$"
     subject_label_match = re.match(
         subject_id_pattern_nophantom,
         session.xnat_get_subject_attribute(prj, sid, "label")[0],

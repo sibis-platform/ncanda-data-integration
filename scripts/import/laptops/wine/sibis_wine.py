@@ -38,7 +38,7 @@ def manipula(exedir,bdb_file) :
     manipulaExe =  os.path.join(manipulaPath, 'Manipula.exe' )
 
     for suffix in ['bdb', 'bdm', 'bfi', 'bjk', 'bla', 'bmi', 'bpk', 'bxi']:
-        shutil.copy( re.sub( 'bdb$', suffix,bdb_file), exedir )
+        shutil.copy( re.sub( r'bdb$', suffix,bdb_file), exedir )
 
     for suffix in ['man', 'msu', 'msx']:
         if not os.path.exists(os.path.join(exedir,'crtNSSAGA_v3.%s' % suffix)) :

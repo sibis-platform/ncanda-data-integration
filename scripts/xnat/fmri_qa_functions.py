@@ -88,7 +88,7 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
     # Step through QA output, line by line, and check for measures for which we have thresholds defined.
     for line in script_output:
         # Parse current line into key=value pairs
-        match = re.match( '^#([A-Za-z]+)=(.*)$', line )
+        match = re.match( r'^#([A-Za-z]+)=(.*)$', line )
 
         # Is this key in the list of thresholds?
         if match and (match.group(1) in list(QA_thresholds.keys())):
@@ -138,9 +138,9 @@ def process_phantom_session( interface, project, subject, session, label, xnat_d
             # Check only 'usable' scans with the proper name
             scan_type = scan.type
             quality = scan.quality
-            if re.match( '.*-rsfmri-.*', scan_type ):
+            if re.match( r'.*-rsfmri-.*', scan_type ):
                 # Extract the DICOM file directory from the XML representation
-                match = re.match( '.*(' + xnat_dir + '/.*)scan_.*_catalog.xml.*', interface.raw_text(scan), re.DOTALL )
+                match = re.match( r'.*(' + xnat_dir + '/.*)scan_.*_catalog.xml.*', interface.raw_text(scan), re.DOTALL )
                 if match:
                     dicom_path = match.group(1)
 
@@ -204,9 +204,9 @@ def process_subject_session( interface, project, subject, session, xnat_dir, for
         # Check only 'usable' scans with the proper name
         scan_type = scan.type
         quality = scan.quality
-        if re.match( '.*fmri.*', scan_type ):
+        if re.match( r'.*fmri.*', scan_type ):
             # Extract the DICOM file directory from the XML representation
-            match = re.match( '.*('+ xnat_dir + '/.*)scan_.*_catalog.xml.*', interface.raw_text(scan), re.DOTALL )
+            match = re.match( r'.*('+ xnat_dir + '/.*)scan_.*_catalog.xml.*', interface.raw_text(scan), re.DOTALL )
             if match:
                 # If we found a matching scan, run the QA
                 run_subject_qa( interface, project, subject, session, scan.id, match.group(1) )

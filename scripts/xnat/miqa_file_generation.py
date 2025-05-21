@@ -8,7 +8,7 @@ import pandas as pd
 from sibispy import sibislogger as slog
 from schema import Optional, Or, Schema, SchemaError, Use
 
-project_name_pattern = re.compile("([a-z]+)_incoming")
+project_name_pattern = re.compile(r"([a-z]+)_incoming")
 
 project_list=["DUKE", "OHSU", "SRI", "UCSD", "UPMC"] 
 

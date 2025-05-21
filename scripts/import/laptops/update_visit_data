@@ -259,7 +259,7 @@ def add_to_upload(
             else:
                 if key in summary_fields_yn:
                     strval = map_yn_to_binary(strval)
-                record[key] = re.sub("&quot;", '"', re.sub("\.0$", "", strval))
+                record[key] = re.sub(r"&quot;", '"', re.sub(r"\.0$", "", strval))
 
     # Set actual age - do this after everything else, because some surveys have "age" fields; we want to overwrite those
     record["%s_age" % form_prefix] = subject_age

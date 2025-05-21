@@ -2,9 +2,9 @@ from subprocess import run
 import re
 import issues
 
-STUDY_ID_REGEX = "[A-EX]-\d{5}-[FMTX]-\d"
-YEAR_EVENT_REGEX = "(?:baseline|[0-9]{1,2}y)_visit"
-MIDYEAR_EVENT_REGEX = "[0-9]{1,3}month_followup"
+STUDY_ID_REGEX = r"[A-EX]-\d{5}-[FMTX]-\d"
+YEAR_EVENT_REGEX = r"(?:baseline|[0-9]{1,2}y)_visit"
+MIDYEAR_EVENT_REGEX = r"[0-9]{1,3}month_followup"
 EVENT_REGEX = f"(?:{YEAR_EVENT_REGEX}|{MIDYEAR_EVENT_REGEX})_arm_[123]"
 
 
