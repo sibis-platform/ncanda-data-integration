@@ -138,7 +138,7 @@ def chunked_form_export(project, forms, events=None, include_dag=False, chunk_si
                                                           forms=forms,
                                                           events=events,
                                                           export_data_access_groups=include_dag,
-                                                          format='df',
+                                                          format_type='df',
                                                           df_kwargs={'low_memory': False})
             except pd.errors.EmptyDataError:
                 print("Empty DataFrame error for event {}, fields {}, forms {}"

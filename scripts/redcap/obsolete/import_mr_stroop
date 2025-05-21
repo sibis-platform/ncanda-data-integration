@@ -130,7 +130,7 @@ if not redcap_project :
 
     sys.exit()
 
-form_event_mapping = redcap_project.export_fem( format='df' )
+form_event_mapping = redcap_project.export_instrument_event_mappings( format_type='df' )
 
 # Open connection with XNAT server
 xnat = session.connect_server('xnat') 
@@ -143,7 +143,7 @@ if not xnat :
 #
 # Main program loop
 #
-visit_log_redcap = redcap_project.export_records(fields=['dob', 'exclude', 'visit_date', 'mri_xnat_eids', 'mr_session_report_complete', 'mri_stroop_complete'], event_name='unique', format='df' )
+visit_log_redcap = redcap_project.export_records(fields=['dob', 'exclude', 'visit_date', 'mri_xnat_eids', 'mr_session_report_complete', 'mri_stroop_complete'], event_name='unique', format_type='df' )
 
 # Select only events that have the "MRI Session Report" form
 mri_events_list = form_event_mapping[form_event_mapping['form_name'] == 'mr_session_report' ]['unique_event_name'].tolist()

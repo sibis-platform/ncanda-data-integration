@@ -37,12 +37,12 @@ redcap_token_file = open( redcap_token_path, 'r' )
 redcap_token = redcap_token_file.read().strip()
 
 redcap_project = redcap.Project( 'https://ncanda.sri.com/redcap/api/', redcap_token, verify_ssl=False)
-form_event_mapping = redcap_project.export_fem( format='df' )
+form_event_mapping = redcap_project.export_instrument_event_mappings( format_type='df' )
 
 #
 # Main program loop
 #
-visit_log_redcap = redcap_project.export_records(fields=[ 'exclude', 'sri24_icv_timestamp', 'sri24_suptent_timestamp', 'sri24_parc116_timestamp' ], event_name='unique', format='df' )
+visit_log_redcap = redcap_project.export_records(fields=[ 'exclude', 'sri24_icv_timestamp', 'sri24_suptent_timestamp', 'sri24_parc116_timestamp' ], event_name='unique', format_type='df' )
 subject_data = visit_log_redcap.xs( 'baseline_visit_arm_1', level=1 )[['exclude']]
 
 # Select only events that have the "MRI Session Report" form

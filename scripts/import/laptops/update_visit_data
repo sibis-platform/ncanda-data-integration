@@ -585,7 +585,7 @@ summary_fields_yn = [
 ]
 
 # What forms are at what event?
-form_event_mapping = redcap_project.export_fem(format="df")
+form_event_mapping = redcap_project.export_instrument_event_mappings(format_type="df")
 
 # What "form_name" is form_event_mapping using?
 form_key = session.get_redcap_form_key()
@@ -617,7 +617,7 @@ if args.study_id:
         records=args.study_id.split(","),
         fields=entry_data_fields,
         event_name="unique",
-        format="df",
+        format_type="df",
         export_data_access_groups=True,
     )
 else:
@@ -626,7 +626,7 @@ else:
         api_type="data_entry",
         fields=entry_data_fields,
         event_name="unique",
-        format="df",
+        format_type="df",
         export_data_access_groups=True,
     )
 
@@ -675,7 +675,7 @@ for form_prefix, form_name in forms.items():
 
     # ==> Export data from laptops for this form from REDCap.
     import_complete_records = session.redcap_export_records_from_api(
-        time_label=None, api_type="import_laptops", fields=fields_list, format="df"
+        time_label=None, api_type="import_laptops", fields=fields_list, format_type="df"
     )
 
     # First, get "complete" and "exclude" fields for this form for all records to

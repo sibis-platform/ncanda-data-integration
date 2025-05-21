@@ -86,7 +86,7 @@ if not rc_summary :
 cnp_copy_variables = cnp.get_copy_variables( rc_import, rc_summary )
 
 # Get the event-form mapping so we can select the events that should have CNP data
-form_event_mapping = rc_summary.export_fem( format='df' )
+form_event_mapping = rc_summary.export_instrument_event_mappings( format_type='df' )
 form_key = session.get_redcap_form_key()
 cnp_events_list = form_event_mapping[form_event_mapping[form_key] == 'cnp_summary' ]['unique_event_name'].tolist()
 
@@ -99,7 +99,7 @@ baseline_events = ['baseline_visit_arm_1'] #,'baseline_visit_arm_4'] # these are
 summary_records = rc_summary.export_records(
     fields=fields_summary,
     event_name='unique',
-    format='df',
+    format_type='df',
     export_data_access_groups=True,
     df_kwargs={'low_memory': False})
 summary_records = summary_records.set_index(['study_id', 'redcap_event_name'])
@@ -174,7 +174,7 @@ else:
 fields_imported = ['record_id', 'test_sessions_subid', 'cnp_exclude'] + cnp_copy_variables + list(cnp.old_to_new_pvrt_vars.values())
 for i in list(cnp.instruments.values()):
     fields_imported.append( '%s_complete' % i )
-imported_records = rc_import.export_records( fields=fields_imported, format='df', df_kwargs={'low_memory': False}).set_index('record_id')
+imported_records = rc_import.export_records( fields=fields_imported, format_type='df', df_kwargs={'low_memory': False}).set_index('record_id')
 for cnpvar in cnp_copy_variables:
     imported_records[cnpvar] = imported_records[cnpvar].map( nan_to_empty )
 

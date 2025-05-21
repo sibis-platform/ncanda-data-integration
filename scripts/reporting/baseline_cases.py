@@ -28,7 +28,7 @@ def get_project(args):
                                                'visit_ignore___yes'],
                                        forms=['mr_session_report','visit_date'],
                                        events=['baseline_visit_arm_1'],
-                                       format='df')
+                                       format_type='df')
     return visit
 
 def np_filter_dataframe(dataframe):

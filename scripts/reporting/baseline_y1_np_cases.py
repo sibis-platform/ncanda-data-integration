@@ -27,7 +27,7 @@ def get_project(args):
     visit  = rc_summary.export_records(fields=['study_id', 'exclude', 'visit_ignore___yes'],
                                        forms=['mr_session_report','visit_date'],
                                        events=['baseline_visit_arm_1', '1y_visit_arm_1'],
-                                       format='df')
+                                       format_type='df')
 
 def np_filter_dataframe(dataframe):
     # Create filters for cases that are included

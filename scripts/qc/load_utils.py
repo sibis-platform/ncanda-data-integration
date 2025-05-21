@@ -1,5 +1,7 @@
 import pandas as pd
 import redcap as rc
+from pandas.errors import EmptyDataError
+
 
 # Taken from http://pycap.readthedocs.io/en/latest/deep.html#dealing-with-large-exports
 # and adapted to scope down to forms
@@ -19,7 +21,7 @@ def chunked_export(project, form, chunk_size=100, verbose=True, export_data_acce
                 records=record_chunk,
                 fields=[project.def_field],
                 forms=[form],
-                format='df',
+                format_type='df',
                 export_data_access_groups=export_data_access_groups,
                 df_kwargs={'low_memory': False}.update(kwargs))
             if response is not None:
@@ -34,7 +36,7 @@ def chunked_export(project, form, chunk_size=100, verbose=True, export_data_acce
 
 
 def load_all_forms(api, arm='1', export_data_access_groups=False):
-    fem = api.export_fem(format='df', arms=arm)
+    fem = api.export_instrument_event_mappings(format_type='df', arms=arm)
     forms = fem['form'].unique().tolist()
     form_n = len(forms)
     dfs = []
@@ -46,7 +48,7 @@ def load_all_forms(api, arm='1', export_data_access_groups=False):
 
 
 def all_forms_exist_in_redcap(form_names, api):
-    meta = api.export_metadata(format='df')
+    meta = api.export_metadata(format_type='df')
     available_forms = meta['form_name'].unique().tolist()
     for form in form_names:
         if form not in available_forms:
@@ -63,7 +65,7 @@ def load_form(api, form_name, verbose=True, export_data_access_groups=False):
             print("Trying chunked export, 5000 records at a time")
         return chunked_export(api, form_name, 5000,
                               export_data_access_groups=export_data_access_groups)
-    except (ValueError, rc.RedcapError, pd.io.common.EmptyDataError):
+    except (ValueError, rc.RedcapError, EmptyDataError):
         pass
     
     # 2. Chunked load with chunk size of 1000
@@ -72,7 +74,7 @@ def load_form(api, form_name, verbose=True, export_data_access_groups=False):
             print("Trying chunked export, 1000 records at a time")
         return chunked_export(api, form_name, 1000,
                               export_data_access_groups=export_data_access_groups)
-    except (ValueError, rc.RedcapError, pd.io.common.EmptyDataError):
+    except (ValueError, rc.RedcapError, EmptyDataError):
         pass
     
     # 2. Chunked load with default chunk size
@@ -81,7 +83,7 @@ def load_form(api, form_name, verbose=True, export_data_access_groups=False):
             print("Trying chunked export, default chunk size (100)")
         return chunked_export(api, form_name, 100,
                               export_data_access_groups=export_data_access_groups)
-    except (ValueError, rc.RedcapError, pd.io.common.EmptyDataError):
+    except (ValueError, rc.RedcapError, EmptyDataError):
         pass
     
     # 3. Chunked load with tiny chunk
@@ -90,7 +92,7 @@ def load_form(api, form_name, verbose=True, export_data_access_groups=False):
             print("Trying chunked export with tiny chunks (10)")
         return chunked_export(api, form_name, 10,
                               export_data_access_groups=export_data_access_groups)
-    except (ValueError, rc.RedcapError, pd.io.common.EmptyDataError):
+    except (ValueError, rc.RedcapError, EmptyDataError):
         print("Giving up")
         return None
 

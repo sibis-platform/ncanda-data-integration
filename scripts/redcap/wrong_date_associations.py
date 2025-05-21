@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-1. For arm of choice, retrieve associated date variables via export_fem.
+1. For arm of choice, retrieve associated date variables via export_instrument_event_mappings.
 2. Select comparison date variable - by default, visit_date, although other
    arms have other fields?
 3. Retrieve the date variables from given arm
@@ -87,9 +87,9 @@ def get_events(api, events=None, arm=None):
 
 def get_date_vars_for_arm(api, events, datevar_pattern=r'_date$'):
     # Given a list of events, retrieve a list of date variables
-    fem = api.export_fem(format='df')
+    fem = api.export_instrument_event_mappings(format_type='df')
     available_forms = fem[fem['unique_event_name'].isin(events)]['form'].unique()
-    meta = api.export_metadata(format='df')
+    meta = api.export_metadata(format_type='df')
     meta_subset = meta.loc[
             meta['form_name'].isin(available_forms) &
             meta.index.str.contains(datevar_pattern)]
@@ -105,7 +105,7 @@ def retrieve_date_data(api, fields, events=None, records=None):
     # output should have pandas.Datetime dtype
     data = api.export_records(fields=fields, events=events, records=records,
                               export_data_access_groups=True,
-                              format='df',
+                              format_type='df',
                               df_kwargs={
                                   'index_col': [api.def_field, 'redcap_event_name'],
                                   'dtype': object,
@@ -246,7 +246,7 @@ def main(api, args):
     else:
         comparison_date_var = datevars[0]
 
-    meta = api.export_metadata(format='df')
+    meta = api.export_metadata(format_type='df')
     lookup = get_form_lookup_for_vars(datevars, meta)
     data = retrieve_date_data(api, fields=datevars, events=events,
                               records=args.subjects)

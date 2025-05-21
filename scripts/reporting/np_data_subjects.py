@@ -58,7 +58,7 @@ def data_entry_fields(forms,project,arm):
 	Gets the dataframe containing a specific arm from REDCap
 	"""
 	# Get a dataframe of fields
-	data_entry_raw = project.export_records(forms = forms, format='df',
+	data_entry_raw = project.export_records(forms = forms, format_type='df',
 											events=arm)
 	return data_entry_raw
 

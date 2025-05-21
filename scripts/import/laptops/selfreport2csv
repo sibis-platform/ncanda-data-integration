@@ -177,7 +177,7 @@ def load_data(
         export_data_access_groups=True,
         export_survey_fields=True,
         forms=selfrep_forms,
-        format='df',
+        format_type='df',
         df_kwargs=dict(dtype=str)
     )
     try:
