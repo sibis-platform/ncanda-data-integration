@@ -154,7 +154,9 @@ def chunked_form_export(project, forms, events=None, include_dag=False, chunk_si
         raise ValueError(msg)
     else:
         if project.is_longitudinal:
-            response.set_index([project.def_field, 'redcap_event_name'], inplace=True)
+            desired_index = [project.def_field, 'redcap_event_name']
+            if list(response.index.names) != desired_index:
+                response = response.set_index(desired_index)
         else:
             response.set_index([project.def_field], inplace=True)
             
