@@ -61,10 +61,11 @@ def main(args):
 
     api = session.connect_server(args.api, timeFlag=True)
 
+    # get form event mappings
     if args.arm:
-        fem = api.export_fem(format='df', arms=[args.arm])
+        fem = api.export_instrument_event_mappings(format_type='df', arms=[args.arm])
     else:
-        fem = api.export_fem(format='df')
+        fem = api.export_instrument_event_mappings(format_type='df')
 
     if args.events:
         fem = fem.loc[fem['unique_event_name'].isin(args.events)]
