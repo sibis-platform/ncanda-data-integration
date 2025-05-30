@@ -86,7 +86,7 @@ if not rc_summary :
 cnp_copy_variables = cnp.get_copy_variables( rc_import, rc_summary )
 
 # Get the event-form mapping so we can select the events that should have CNP data
-form_event_mapping = rc_summary.export_fem( format='df' )
+form_event_mapping = rc_summary.export_instrument_event_mappings(format_type="df")
 form_key = session.get_redcap_form_key()
 cnp_events_list = form_event_mapping[form_event_mapping[form_key] == 'cnp_summary' ]['unique_event_name'].tolist()
 
@@ -200,7 +200,7 @@ imported_records = cnp.merge_columns(imported_records, cnp.old_to_new_pvrt_vars)
 #
 for key, row in summary_records.iterrows():
     event = key[1]
-    arm_num = int(re.search('arm_(\d*)', event).group(1))
+    arm_num = int(re.search(r'arm_(\d*)', event).group(1))
 
     # Select imported records for this subject
     records_this_subject = imported_records[ imported_records['test_sessions_subid'] == key[0] ]

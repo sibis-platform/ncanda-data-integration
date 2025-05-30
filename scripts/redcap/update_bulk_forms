@@ -299,7 +299,7 @@ if not rc_entry:
         print("ERROR: Failed to connect to server!")
     sys.exit(1)
 
-form_event_mapping = rc_entry.export_fem(format="df")
+form_event_mapping = rc_entry.export_instrument_event_mappings(format_type="df")
 form_key = session.get_redcap_form_key()
 
 # If list of forms given, only update those

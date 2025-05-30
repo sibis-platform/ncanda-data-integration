@@ -185,7 +185,7 @@ def run_converter(site, subject_label, command, verbose, infer_dag=False):
             return filesProcessed 
 
         for fi in added_files.strip().split('\n'):
-            if re.match('.*\.csv$', fi):
+            if re.match(r'.*\.csv$', fi):
                 if os.path.normpath(fi) in ignore_processed:
                     if verbose:
                         print("Destination {} is ignored per configuration.".format(fi))
@@ -277,12 +277,12 @@ def handle_file(path, site, filename, verbose, infer_dag=False):
 
     subject_label = path.split('/')[-2]
     # Is this a LimeSurvey file?
-    if re.match( '^survey.*\.csv$', filename ):
+    if re.match(r'^survey.*\.csv$', filename ):
         # Never post to github as ou otherwise get two error messages - one from harvester and one from lime2csv 
         run_converter( site, subject_label, [ os.path.join( bindir, "lime2csv" ) ] + overwrite + post_to_github + [ path, os.path.join(outdir, site, "limesurvey" ) ], verbose, infer_dag=infer_dag)
     # Is this a Stroop file (Note: the "_100SD-" is signifigant as some MRI
     # Stroop files will include "_100SDMirror" in the filename)?
-    elif re.match('^NCANDAStroopMtS_3cycles_7m53stask_100SD-[^/]*\.txt$', filename):
+    elif re.match(r'^NCANDAStroopMtS_3cycles_7m53stask_100SD-[^/]*\.txt$', filename):
         filesProcessed = run_converter(site, subject_label, [os.path.join( bindir, "stroop2csv")] + overwrite +  post_to_github + [path, os.path.join(outdir, site, "stroop")], verbose)
         # Only perform eprime2 redcap if anything was processed 
         if filesProcessed > 0 : 
@@ -302,13 +302,13 @@ def handle_file(path, site, filename, verbose, infer_dag=False):
         return
     # Is this a Delayed Discounting file?
     # ignoes the V12-All.txt file 
-    elif re.match( '.*V12\.txt$', filename ):
+    elif re.match(r'.*V12\.txt$', filename ):
         run_converter( site, subject_label, [ os.path.join( bindir, "dd2csv" ) ] + overwrite + post_to_github + [ path, os.path.join( outdir, site, "deldisc" ) ], verbose )
     # Is this a PASAT (Access) database?
-    elif re.match( '^PASAT_Stnd.*\.mdb$', filename ):
+    elif re.match(r'^PASAT_Stnd.*\.mdb$', filename ):
         run_converter( site, subject_label, [ os.path.join( bindir, "pasat2csv" ) ] + overwrite + [ path, os.path.join( outdir, site, "pasat" ) ], verbose )
     # Is this a SSAGA (Blaise) database?
-    elif re.match( '^NSSAGA_v3\.bdb$', filename ) or re.match( '.*\.[Aa][Ss][Cc]$', filename ):
+    elif re.match(r'^NSSAGA_v3\.bdb$', filename ) or re.match(r'.*\.[Aa][Ss][Cc]$', filename ):
         if args.no_blaise :
             return 
 
@@ -334,7 +334,7 @@ def handle_file_update(path, verbose, infer_dag=False):
     # FIXME: For special DAG handling, should take an additional
     # argument to pass along to handle_file
     # First, let's get the site ID from the path
-    match_site = re.search( 'ncanda/([A-Za-z]*)[^/]*/(.*)', path )
+    match_site = re.search(r'ncanda/([A-Za-z]*)[^/]*/(.*)', path )
 
     if match_site:
         # Get the site ID
@@ -343,7 +343,7 @@ def handle_file_update(path, verbose, infer_dag=False):
         if site == 'admin':
             return
 
-        filename = re.search( '(.*)/([^/].*)', path ).group( 2 );
+        filename = re.search(r'(.*)/([^/].*)', path ).group( 2 );
         handle_file(path, site, filename, verbose, infer_dag=infer_dag)
                             
 

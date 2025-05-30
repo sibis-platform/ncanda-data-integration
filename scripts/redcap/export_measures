@@ -187,7 +187,7 @@ if not session.connect_server('redcap_mysql_db', True) :
 #red.organize_metadata( redcap_project.metadata )
 # now done part as part of the configure statement 
 
-form_event_mapping = redcap_project.export_fem( format='df' )
+form_event_mapping = redcap_project.export_instrument_event_mappings(format_type="df")
 
 # Get the 'form'/'form_name' used by this version of Redcap
 form_key = session.get_redcap_form_key()
