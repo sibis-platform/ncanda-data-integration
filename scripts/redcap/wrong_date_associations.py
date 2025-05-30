@@ -87,7 +87,7 @@ def get_events(api, events=None, arm=None):
 
 def get_date_vars_for_arm(api, events, datevar_pattern=r'_date$'):
     # Given a list of events, retrieve a list of date variables
-    fem = api.export_instrument_event_mappings(format_type='df')
+    fem = api.export_instrument_event_mappings(format_type="df")
     available_forms = fem[fem['unique_event_name'].isin(events)]['form'].unique()
     meta = api.export_metadata(format_type='df')
     meta_subset = meta.loc[

@@ -768,7 +768,7 @@ for form_prefix, form_name in forms.items():
                 )
                 sys.exit(1)
 
-        returned_records.append(df.map(nan_to_empty))
+        returned_records.append(df.apply(lambda col: col.map(nan_to_empty)))
         imported_records = pandas.concat(returned_records)
 
     if args.verbose:

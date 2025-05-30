@@ -36,7 +36,7 @@ def chunked_export(project, form, chunk_size=100, verbose=True, export_data_acce
 
 
 def load_all_forms(api, arm='1', export_data_access_groups=False):
-    fem = api.export_instrument_event_mappings(format_type='df', arms=arm)
+    fem = api.export_instrument_event_mappings(format_type="df", arms=arm)
     forms = fem['form'].unique().tolist()
     form_n = len(forms)
     dfs = []

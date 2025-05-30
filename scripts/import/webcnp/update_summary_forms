@@ -86,7 +86,7 @@ if not rc_summary :
 cnp_copy_variables = cnp.get_copy_variables( rc_import, rc_summary )
 
 # Get the event-form mapping so we can select the events that should have CNP data
-form_event_mapping = rc_summary.export_instrument_event_mappings( format_type='df' )
+form_event_mapping = rc_summary.export_instrument_event_mappings(format_type="df")
 form_key = session.get_redcap_form_key()
 cnp_events_list = form_event_mapping[form_event_mapping[form_key] == 'cnp_summary' ]['unique_event_name'].tolist()
 

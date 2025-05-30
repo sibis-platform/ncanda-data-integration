@@ -67,17 +67,17 @@ if not os.path.exists( args.outdir ):
 import re
 for row_index, row in pasat.iterrows():
     # First, catch subject IDs with missing hyphens and fix.
-    match_id = re.search( '^([A-F])([0-9]{5})([MF])([0-9])$', row['pasat_subject_id'] )
+    match_id = re.search(r'^([A-F])([0-9]{5})([MF])([0-9])$', row['pasat_subject_id'] )
     if match_id:
         row['pasat_subject_id'] = "%s-%s-%s-%s" % ( match_id.group(1), match_id.group(2), match_id.group(3), match_id.group(4) )
 
     # Second, extract date and bring into YYYYMMDD format
-    match_date = re.search( '^([0-9]{2})/([0-9]{2})/([0-9]{2}) .*$', row['pasat_date'] )
+    match_date = re.search(r'^([0-9]{2})/([0-9]{2})/([0-9]{2}) .*$', row['pasat_date'] )
     if match_date:
         row['pasat_date'] = '20%s-%s-%s' % (match_date.group(3),match_date.group(1),match_date.group(2))
 
     # Third, extract time
-    match_time = re.search( '.* ([0-9]{2}):([0-9]{2}):([0-9]{2})$', row['pasat_time'] )
+    match_time = re.search(r'.* ([0-9]{2}):([0-9]{2}):([0-9]{2})$', row['pasat_time'] )
     if match_time:
         row['pasat_time'] = '%s:%s' % (match_time.group(1),match_time.group(2))
 

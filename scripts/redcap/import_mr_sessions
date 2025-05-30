@@ -666,7 +666,7 @@ with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
     exceptions_num_type = special_cases.get('more_of_type')
     merge_xnat_sessions = special_cases.get('merge_xnat_sessions')
 
-form_event_mapping = redcap_project.export_instrument_event_mappings( format_type='df' )
+form_event_mapping = redcap_project.export_instrument_event_mappings(format_type="df")
 form_key = session.get_redcap_form_key()
 
 # Organize REDCap metadata, e.g., filter all confidential fields out of export lists, and make code-to-label lookup dictionaries
