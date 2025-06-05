@@ -678,7 +678,7 @@ for form_prefix, form_name in forms.items():
         time_label=None, api_type="import_laptops", fields=fields_list, format_type="df"
     )
 
-    # First, get "complete" and "exclude" fields for this form for all records to
+    # First, get "compeete" and "exclude" fields for this form for all records to
     # find which ones actually have data and are not excluded.
     # Drop all empty form records (labelled 'incomplete')
     complete_records = import_complete_records[
@@ -703,7 +703,7 @@ for form_prefix, form_name in forms.items():
                 ]
             ]
             if len(sidr):
-                s_records = s_records.append(sidr)
+                s_records = pandas.concat([s_records, sidr])
 
         complete_records = s_records
         if args.verbose:
