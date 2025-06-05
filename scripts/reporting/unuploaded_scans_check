@@ -89,7 +89,7 @@ def extract_scan_event_ids(df, scan_fields):
                .apply(lambda x: " ".join(
                    [str(y) for y in x.drop_duplicates().tolist() if pd.notnull(y)]
                ), axis=1)
-               .str.replace(r'/\d{1,2} ?', ' ')  # remove scan specification
+               .str.replace(r'/\d{1,2} ?', ' ', regex=True)  # remove scan specification
                .apply(lambda x: list(set(x.strip().split(' ')))))
     return all_ids
 

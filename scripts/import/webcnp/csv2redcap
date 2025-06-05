@@ -116,7 +116,7 @@ data = data.drop(columns=non_sys_vars)
 data = data.rename(columns=lambda x: x.replace('_system', ''))
 
 for _var in ["survey_var", "evioni_var"]:  # fit the previous data file rename
-    renames[_var] = renames[_var].str.lower().str.replace(r"\.", "_")
+    renames[_var] = renames[_var].str.lower().str.replace(r"\.", "_", regex=True)
 
 rename_dict = renames.set_index("survey_var")["evioni_var"].dropna().to_dict()
 untranslated_vars = renames.loc[
@@ -259,9 +259,8 @@ status_variables = [
 ]
 
 # Strip leading/trailing whitespace from all status values
-data[status_variables] = data[status_variables].applymap(
-    lambda x: x.strip() if isinstance(x, str) else x
-)
+for col in status_variables:
+    data[col] = data[col].map(lambda x: x.strip() if isinstance(x, str) else x)
 
 old_defaults = ["^C$", "^Complete$"]
 new_default = "C1"
