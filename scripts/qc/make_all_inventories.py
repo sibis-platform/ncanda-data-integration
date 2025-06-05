@@ -41,7 +41,7 @@ def parse_args(input_args: List = None) -> argparse.Namespace:
 
 
 def main(args):
-    # 1. export_fem to get event-form connections
+    # 1. export_instrument_event_mappings to get event-form connections
     # 2. Optional: filter through the FEM based on CLI args
     # 3. for each event, create all needed subdirectories
     # 4. for each event/form, call make_redcap_inventory and write out full
@@ -62,9 +62,9 @@ def main(args):
     api = session.connect_server(args.api, timeFlag=True)
 
     if args.arm:
-        fem = api.export_fem(format='df', arms=[args.arm])
+        fem = api.export_instrument_event_mappings(format_type='df', arms=[args.arm])
     else:
-        fem = api.export_fem(format='df')
+        fem = api.export_instrument_event_mappings(format_type='df')
 
     if args.events:
         fem = fem.loc[fem['unique_event_name'].isin(args.events)]

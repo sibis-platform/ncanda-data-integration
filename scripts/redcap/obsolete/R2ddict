@@ -25,18 +25,18 @@ partial_line = None
 # Cleanup fieldname to canonical form
 def clean_field_name( fieldname ):
     fieldname = fieldname.lower()
-    fieldname = re.sub( ' ', '_', fieldname )
-    fieldname = re.sub( '_+', '_', fieldname )
-    fieldname = re.sub( '_$', '', fieldname )
+    fieldname = re.sub( r' ', '_', fieldname )
+    fieldname = re.sub( r'_+', '_', fieldname )
+    fieldname = re.sub( r'_$', '', fieldname )
     return fieldname
 
 # We first read the file and put all multi-line strings back together
 infile = open( args.Rfile, 'r' )
 for line in infile:
     # First, replace escaped double quotes with single quotes to distinguish from actual string delimiters
-    line = re.sub( '\\\\"', '\'', line )
+    line = re.sub( r'\\\\"', '\'', line )
     # Is there a single, unmatched double quote on this line?
-    if re.match( '^[^"]*"[^"]*$', line ):
+    if re.match( r'^[^"]*"[^"]*$', line ):
         # Yes - append to previous partial line if one exists, otherwise create a new partial line
         if partial_line:
             complete_lines.append( ''.join( [ partial_line, line ] ) )
@@ -59,7 +59,7 @@ datadict = pandas.DataFrame( index=[], columns=columns)
 
 mode = ''
 for line in complete_lines:
-    match = re.match( 'data\[,\s*([0-9]+)\]\s*<-\s*as\.(character|numeric)', line )
+    match = re.match( r'data\[,\s*([0-9]+)\]\s*<-\s*as\.(character|numeric)', line )
     if match:
         rowdict = dict()
         rowdict['type'] = 'text'
@@ -68,10 +68,10 @@ for line in complete_lines:
             rowdict['validation'] = 'number'
         datadict = pandas.concat( [datadict, pandas.DataFrame( rowdict, index=[match.group(1)] )] )
 
-    match = re.match( 'attributes\(data\)\$variable.labels\[([0-9]+)\]\s*<-\s*\"(.*)\"', line, flags=re.DOTALL )
+    match = re.match( r'attributes\(data\)\$variable.labels\[([0-9]+)\]\s*<-\s*\"(.*)\"', line, flags=re.DOTALL )
     if match:
         variable = match.group(1)
-        match_name_group = re.match( '^\[([^\|\]]*)(\|[^|\]]*)?(\|[^|\]]*)?\]\s*(.*)$', match.group(2), flags=re.DOTALL )
+        match_name_group = re.match( r'^\[([^\|\]]*)(\|[^|\]]*)?(\|[^|\]]*)?\]\s*(.*)$', match.group(2), flags=re.DOTALL )
         if match_name_group:
             datadict['label'][variable] = match_name_group.group(1).strip()
             datadict['section'][variable] = match_name_group.group(4).strip()
@@ -83,7 +83,7 @@ for line in complete_lines:
         else:
             datadict['label'][variable] = match.group(2).strip()
 
-    match = re.match( 'names\(data\)\[([0-9]*)\]\s*<-\s*\"(.*)\"', line )
+    match = re.match( r'names\(data\)\[([0-9]*)\]\s*<-\s*\"(.*)\"', line )
     if match:
         variable = match.group(1)
         datadict['field_name'][variable] = '%s%s' % (args.field_prefix, clean_field_name( match.group(2) ))
@@ -94,7 +94,7 @@ for line in complete_lines:
             else:
                 datadict['notes'][variable] = '[' + datadict['field_name'][variable] + '] ' + datadict['notes'][variable]
 
-    match = re.match( 'data\[,\s*([0-9]+)\]\s*<-\s*factor\(data\[,\s*([0-9])+\],\s*levels=c\(([^)]*)\),\s*labels=c\(((\"[^"]*\",)*(\"[^"]*\")*)\)', line )
+    match = re.match( r'data\[,\s*([0-9]+)\]\s*<-\s*factor\(data\[,\s*([0-9])+\],\s*levels=c\(([^)]*)\),\s*labels=c\(((\"[^"]*\",)*(\"[^"]*\")*)\)', line )
     if match:
         variable = match.group( 1 )
         datadict['type'][variable] = 'radio'
@@ -102,7 +102,7 @@ for line in complete_lines:
         datadict['validation_min'][variable] = ''
         datadict['validation_max'][variable] = ''
 
-        keys_and_values = [ re.sub( '\"', '', '%s, %s' % (key,value) ) for (key,value) in zip( match.group(3).split( ',' ), match.group(4).split( '\",\"' ) ) ]
+        keys_and_values = [ re.sub( r'\"', '', '%s, %s' % (key,value) ) for (key,value) in zip( match.group(3).split( ',' ), match.group(4).split( '\",\"' ) ) ]
         datadict['choices'][variable] = ' | '.join( keys_and_values )
 
         if not args.no_translate_yn:

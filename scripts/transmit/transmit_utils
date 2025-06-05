@@ -1,5 +1,7 @@
 cur_dir=`dirname $0`
 
+ROOT_FOLDER=s3://ncanda/db
+
 get_val()
 {
     $cur_dir/get_yaml_value "$config" "$1"
@@ -35,7 +37,7 @@ upload_to_s3_subdir()
     local rm_on_success=${2:-0}
     local subdir=${3}
 
-    if ! s4cmd put --force  ${1} s3://ncanda/db/${subdir}/${fname} --API-ServerSideEncryption=AES256; then
+    if ! s4cmd put --force  ${1} ${ROOT_FOLDER}/${subdir}/${fname} --API-ServerSideEncryption=AES256; then
         echo "FAILURE: unable to upload database archive ${1} to S3"
         return 1
     else
@@ -46,4 +48,16 @@ upload_to_s3_subdir()
         fi
     fi
     return 0
+}
+
+delete_oldest_files()
+{
+    local subdir=${1}
+    local filespec=${2}
+    local keep=${3}
+
+    fullspec=${ROOT_FOLDER}/${subdir}/${filespec}
+    # sort by date, keep the first ${keep} files, delete the rest
+    s4cmd ls ${fullspec} | sort -r | tail -n +${keep} | awk '{print $4}'
+    # to delete add: | xargs s4cmd del
 }

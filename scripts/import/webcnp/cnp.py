@@ -66,11 +66,11 @@ def merge_columns(df, col_dict):
     for old_col, new_col in col_dict.items():
         if old_col in df.columns and new_col in df.columns:
             # Handle empty strings in old_col by replacing them with NaN
-            df[old_col].replace('', pandas.NA, inplace=True)
+            df.loc[:, old_col] = df.loc[:, old_col].replace('', pandas.NA)
             # Combine the columns, prioritizing the old column
-            df[old_col] = df[old_col].combine_first(df[new_col])
+            df.loc[:, old_col] = df.loc[:, old_col].combine_first(df.loc[:, new_col])
             # Drop the new column
-            df.drop(columns=[new_col], inplace=True)
+            df = df.drop(columns=[new_col])
     return df
 
 # This table maps the former and currently used primary PVRT form variables

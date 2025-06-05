@@ -109,7 +109,7 @@ catch_output_email "${SCRIPT_LABEL}:REDCap: Subject ID Checks (check_subject_ids
 catch_output_email "${SCRIPT_LABEL}:REDCap: Undeclared Drinking Exceptions (check_exceptions)" ${SIBIS}/scripts/redcap/check_exceptions -p -t ${LOG_DIR} --update-fn
 
 # Generate SVN Reports
-catch_output_email "${SCRIPT_LABEL}:REDCap: SVN Reports Dashboards (svn_execute)" ${SIBIS}/scripts/dashboards/svn_execute.sh
+#catch_output_email "${SCRIPT_LABEL}:REDCap: SVN Reports Dashboards (svn_execute)" ${SIBIS}/scripts/dashboards/svn_execute.sh
 
 #
 # Original back-nightly
@@ -130,7 +130,8 @@ if [ ${PIPELINE_UPDATE_FLAG} == 1 ]; then
 
     # Check which cases haven't been touched by export_measures (Only running on weekly basis)
     if [ -z "$update_args" ]; then
-        catch_output_email "${SCRIPT_LABEL}: REDCap: Export Measures Check (check_updated_cases)" ${SIBIS_PYTHON_PATH}/sibispy/cmds/check_updated_cases.py -p -d ${SIBIS_CASES_DIR}
+    :
+#        catch_output_email "${SCRIPT_LABEL}: REDCap: Export Measures Check (check_updated_cases)" ${SIBIS_PYTHON_PATH}/sibispy/cmds/check_updated_cases.py -p -d ${SIBIS_CASES_DIR}
     fi 
 else 
     echo "back-nightly: Warning: Pipeline is not updated !"   

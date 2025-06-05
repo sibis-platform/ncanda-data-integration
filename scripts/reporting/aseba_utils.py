@@ -127,7 +127,7 @@ def api_result_to_release_format(api_df, id_lookup_dict=None, verbose=False):
         match = re.search(r'^(baseline|\dy)', event)
         if not match:
             return event
-        elif re.match('^\d', match.group(1)):
+        elif re.match(r'^\d', match.group(1)):
             return "followup_" + match.group(1)
         else:
             return match.group(1)
