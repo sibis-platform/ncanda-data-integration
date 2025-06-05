@@ -78,7 +78,7 @@ def get_events(api, events=None, arm=None):
     # Based on arguments that were passed, output Redcap-compatible event names
     # for further consumption
     event_names = []
-    for event in api.events:
+    for event in api.export_events():
         if (event["unique_event_name"] in events):
             if (event["arm_num"] == arm):
                 event_names.append(event["unique_event_name"])
@@ -121,8 +121,9 @@ def mark_lagging_dates(data, comparison_var, days_duration):
     data_long = df.stack().to_frame('date').reset_index(-1)
     data_comp = data_long.join(comparisons)
     # Maybe extract previous code into data prep?
-    data_comp['precedes'] = data_comp['date'] < data_comp[comparison_var]
-    data_comp['exceeds'] = data_comp['date'] > (
+    date_data_comp = pd.to_datetime(data_comp['date'])
+    data_comp['precedes'] = date_data_comp < data_comp[comparison_var]
+    data_comp['exceeds'] = date_data_comp > (
         data_comp[comparison_var] + pd.Timedelta(days=days_duration))
     data_comp['purgable'] = data_comp['precedes'] | data_comp['exceeds']
     return data_comp
@@ -234,7 +235,7 @@ def main(api, args):
     # Handling no events arg, so all events are chosen
     # Note: should it always pull from one arm when all forms or all arms?
     if (args.events is None):
-        for event in api.events:
+        for event in api.export_events():
             events.append(event["unique_event_name"])
     else:
         events = args.events

@@ -452,7 +452,7 @@ if __name__ == "__main__":
         experiment_ids.append(args.eid)
     else:
         # Get a list of all MR imaging sessions
-        experiment_ids = list(ifc.select.experiments)
+        experiment_ids = list(ifc.select.experiments.keys())
 
     for eid in experiment_ids:
         xnat_url = session.get_xnat_session_address(eid, 'html')
@@ -464,7 +464,7 @@ if __name__ == "__main__":
                 eid,
                 "ERROR: failed to retrieve experiment from XNAT",
                 info="Please check if eid still exists in xnat. If not ignore error and otherwise run ./check_phantom_scans -e "
-                + eid,
+                + str(eid),
                 xnat_url=xnat_url,
                 error_msg=str(e),
             )

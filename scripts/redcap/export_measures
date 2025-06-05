@@ -341,7 +341,7 @@ if args.events:
 visit_log_redcap = visit_log_redcap[ visit_log_redcap.index.map( lambda key: key[1] in list(red2cas.get_event_dictionary().keys()) ) ]
 
 forms_by_event_dict = dict()
-for event in redcap_project.events:
+for event in redcap_project.export_events():
     event_id = event['unique_event_name']
     forms_by_event_dict[event_id] = set( form_event_mapping[form_event_mapping['unique_event_name'] == event_id ][form_key].tolist() )
 

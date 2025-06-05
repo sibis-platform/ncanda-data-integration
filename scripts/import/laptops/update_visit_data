@@ -122,7 +122,7 @@ def to_redcap(
 
     error_label = subject_id + "-" + event + "-" + form_name
     import_response = session.redcap_import_record(
-        error_label, subject_id, event, timelabel, [upload_records], record_id
+        error_label, subject_id, event, timelabel, [upload_records], record_id, import_format="json",
     )
 
     if verbose:
@@ -741,11 +741,11 @@ for form_prefix, form_name in forms.items():
             api_type="import_laptops",
             records=record_batch,
             forms=forms,
-            format=return_format,
+            format_type=return_format,
             df_kwargs=df_kwargs,
         )
 
-        if df.empty:
+        if df is None or df.empty:
             if args.verbose:
                 print("No REDCap data records found from export, retrying in one minute")
             time.sleep(60)  # Wait 1 minute and try again
@@ -754,12 +754,12 @@ for form_prefix, form_name in forms.items():
                 api_type="import_laptops",
                 records=record_batch,
                 forms=forms,
-                format=return_format,
+                format_type=return_format,
                 df_kwargs=df_kwargs,
             )
 
-            if df.empty:
-                error_id = f"{form_name}_{datetime.now().strftime('%m/%d/%Y')}"
+            if df is None or df.empty:
+                error_id = f"{form_name}_{datetime.datetime.now().strftime('%m/%d/%Y')}"
                 
                 slog.info(
                     error_id,
@@ -768,7 +768,7 @@ for form_prefix, form_name in forms.items():
                 )
                 sys.exit(1)
 
-        returned_records.append(df.applymap(nan_to_empty))
+        returned_records.append(df.map(nan_to_empty))
         imported_records = pandas.concat(returned_records)
 
     if args.verbose:
@@ -994,9 +994,12 @@ for form_prefix, form_name in forms.items():
                 if args.verbose:
                     print("Exception:", exception_list)
                 for excep_date in exception_list.split(","):
-                    records_this_visit = records_this_visit.append(
-                        records_this_subject[
-                            records_this_subject[date_label] == excep_date
+                    records_this_visit = pandas.concat (
+                        [
+                            records_this_visit,
+                            records_this_subject[
+                                records_this_subject[date_label] == excep_date
+                            ],
                         ]
                     )
 

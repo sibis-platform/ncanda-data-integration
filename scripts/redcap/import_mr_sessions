@@ -147,12 +147,12 @@ def get_usable_scans_list( session, xnat_eid_list, redcap_visit_id, xnat_sid):
                       xnat_sid = xnat_sid)
             return [None,True]  
 
-        for scan in list(xnat_exp.scans):
+        for scan in xnat_exp.scans.keys():
             try : 
                 type = xnat_exp.scans[scan].type or ''
                 quality = xnat_exp.scans[scan].quality or ''
             except Exception as err_msg:
-                slog.info(redcap_visit_id + "-" + scan + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],
+                slog.info(redcap_visit_id + "-" + str(scan) + "-" + hashlib.sha1(str(err_msg).encode()).hexdigest()[0:6],
                           "ERROR: could not get type and quality of scan",
                           info="Most likely due to internet connection! Please rerun script for subject and visit", 
                           redcap_visit_id = redcap_visit_id,
@@ -801,7 +801,7 @@ columns = ['visit_date', 'visit_ignore___yes', 'mr_session_report_complete',
 mr_sessions_redcap = visit_log_redcap[events_filter][columns]
 
 forms_by_event_dict = dict()
-for redcap_event in redcap_project.events:
+for redcap_event in redcap_project.export_events():
     event_id = redcap_event['unique_event_name']
     forms_by_event_dict[event_id] = set( form_event_mapping[form_event_mapping['unique_event_name'] == event_id ][form_key].tolist() )
 
@@ -893,7 +893,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
 
             project_id = redcap_project.export_project_info()['project_id']
             try :
-                arm_num = int(re.search('arm_(\d*)', event).group(1))
+                arm_num = int(re.search(r'arm_(\d*)', event).group(1))
                 redcap_url = session.get_formattable_redcap_subject_address(project_id, arm_num, subject_label)
             except Exception as err_msg:
                 redcap_url = ""
@@ -921,7 +921,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
             proj_list = {projects: xnat_sid for ncanda_sid, xnat_sid, projects in subject_project_list if ncanda_sid == subject_label}
             
             default_site = site_map[subject_label[0]]   # default site based on first char in NCANDA ID
-            visit_site = this_visit_data[0]             # visit_site from visit notes redcap form
+            visit_site = this_visit_data.iloc[0]             # visit_site from visit notes redcap form
 
             if pd.isna(visit_site):
                 # if visit_notes is empty, first try default based on NCANDA ID
@@ -1018,7 +1018,7 @@ for [key, row] in mr_sessions_redcap.iterrows():
                 else :
                     timer_label = "mr_session_report"
 
-                import_response =  session.redcap_import_record( redcap_visit_id, subject_label, event, timer_label, [record]) 
+                import_response =  session.redcap_import_record( redcap_visit_id, subject_label, event, timer_label, [record], import_format="json") 
                 if not import_response : 
                     continue
 

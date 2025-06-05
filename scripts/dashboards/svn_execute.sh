@@ -3,7 +3,7 @@
 
 # Directories for: SVN script, directory for dashboards, and directory for csvs
 DASHBOARD_FILE=${1:-/sibis-software/ncanda-data-integration/scripts/dashboards/SVNReports.ipynb}
-SCRIPT_DIR=${2:-/fs/ncanda-share/beta/chris/ncanda-data-integration/scripts/reporting}
+SCRIPT_DIR=${2:-/sibis-software/ncanda-data-integration/scripts/reporting}
 SAVE_DIR=${3:-/fs/ncanda-share/log/status_reports/sla_dashboards}
 STATUS_DIR=${4:-/fs/ncanda-share/log/status_reports/sla_files}
 sites=()

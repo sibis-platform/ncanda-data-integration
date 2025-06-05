@@ -102,7 +102,9 @@ summary_records = rc_summary.export_records(
     format_type='df',
     export_data_access_groups=True,
     df_kwargs={'low_memory': False})
-summary_records = summary_records.set_index(['study_id', 'redcap_event_name'])
+if summary_records.index.names != ['study_id', 'redcap_event_name']:
+    summary_records = summary_records.reset_index(drop=False)
+    summary_records = summary_records.set_index(['study_id', 'redcap_event_name'])
 # Drop all records that don't have "visit_date", i.e., all events from arms other than Arm 1 (Standard Protocol)
 summary_records = summary_records[ summary_records['visit_date'].map( lambda x: str(x) != 'nan' ) ]
 
@@ -174,7 +176,12 @@ else:
 fields_imported = ['record_id', 'test_sessions_subid', 'cnp_exclude'] + cnp_copy_variables + list(cnp.old_to_new_pvrt_vars.values())
 for i in list(cnp.instruments.values()):
     fields_imported.append( '%s_complete' % i )
-imported_records = rc_import.export_records( fields=fields_imported, format_type='df', df_kwargs={'low_memory': False}).set_index('record_id')
+
+imported_records = rc_import.export_records( fields=fields_imported, format_type='df', df_kwargs={'low_memory': False})
+
+if imported_records.index.names != ['record_id']:
+    imported_records = imported_records.reset_index(drop=False).set_index('record_id')
+
 for cnpvar in cnp_copy_variables:
     imported_records[cnpvar] = imported_records[cnpvar].map( nan_to_empty )
 
@@ -200,7 +207,7 @@ imported_records = cnp.merge_columns(imported_records, cnp.old_to_new_pvrt_vars)
 #
 for key, row in summary_records.iterrows():
     event = key[1]
-    arm_num = int(re.search('arm_(\d*)', event).group(1))
+    arm_num = int(re.search(r'arm_(\d*)', event).group(1))
 
     # Select imported records for this subject
     records_this_subject = imported_records[ imported_records['test_sessions_subid'] == key[0] ]

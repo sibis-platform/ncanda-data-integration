@@ -354,15 +354,20 @@ for form in forms_list:
             else:
                 try:
                     import_response = rc_entry.import_records(
-                        form_status, overwrite="overwrite"
+                        form_status, overwrite="overwrite", import_format="df",
                     )
                 except Exception as e:
                     # for certain errors find out value
                     remaining_error = []
                     old_form_status = pandas.DataFrame(old_form_status_out)
 
-                    error_obj = eval(str(e))
-                    error_strings = error_obj["error"].split("\n")
+                    try:
+                        error_obj = eval(str(e))
+                        error_strings = error_obj["error"].split("\n")
+                    except:
+                        error_obj = e
+                        error_strings = [str(e)]
+
                     error_lists = []
                     for error_string in error_strings:
                         error_list = error_string.split(",")

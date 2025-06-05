@@ -173,23 +173,23 @@ frame_check_ge = {
 # this is how it used to be but causes issues when uploading to xnat
 # \d* is important so that any difference in digits afterwards are ignored
 voxelres_siemens = {
-    "ncanda-mprage-v1": ['x="0.9375\d*" y="0.9375\d*" z="1.2\d*"'],
-    "ncanda-t2fse-v1": ['x="0.46875\d*" y="0.46875\d*" z="1.2\d*"','x="0.4688\d*" y="0.4688\d*" z="1.2'],
-    "ncanda-dti6b500pepolar-v1": ['x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
-    "ncanda-dti30b400-v1": ['x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
-    "ncanda-dti60b1000-v1": ['x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
-    "ncanda-grefieldmap-v1": ['x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
-    "ncanda-rsfmri-v1": ['x="3.75\d*" y="3.75\d*" z="5.0\d*"'],
+    "ncanda-mprage-v1": [r'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"'],
+    "ncanda-t2fse-v1": [r'x="0.46875\d*" y="0.46875\d*" z="1.2\d*"',r'x="0.4688\d*" y="0.4688\d*" z="1.2'],
+    "ncanda-dti6b500pepolar-v1": [r'x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
+    "ncanda-dti30b400-v1": [r'x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
+    "ncanda-dti60b1000-v1": [r'x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
+    "ncanda-grefieldmap-v1": [r'x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
+    "ncanda-rsfmri-v1": [r'x="3.75\d*" y="3.75\d*" z="5.0\d*"'],
 }
 
 voxelres_ge = {
-    "ncanda-t1spgr-v1": ['x="0.9375\d*" y="0.9375\d*" z="1.2\d*"'],
-    "ncanda-t2fse-v1": ['x="0.4688\d*" y="0.4688\d*" z="1.2\d*"','x="0.4688\d*" y="0.4688\d*" z="2.4'],
-    "ncanda-dti6b500pepolar-v1": ['x="1.875\d*" y="1.875\d*" z="2.5\d*"','x="0.9375\d*" y="0.9375\d*" z="2.5\d*"'],
-    "ncanda-dti30b400-v1": ['x="1.875\d*" y="1.875\d*" z="2.5\d*"','x="0.9375\d*" y="0.9375\d*" z="2.5\d*"'],
-    "ncanda-dti60b1000-v1": ['x="1.875\d*" y="1.875\d*" z="2.5\d*"','x="0.9375\d*" y="0.9375\d*" z="2.5\d*"'],
-    "ncanda-grefieldmap-v1": ['x="1.875\d*" y="1.875\d*" z="2.5\d*"'],
-    "ncanda-rsfmri-v1": ['x="3.75\d*" y="3.75\d*" z="5.0\d*"'],
+    "ncanda-t1spgr-v1": [r'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"'],
+    "ncanda-t2fse-v1": [r'x="0.4688\d*" y="0.4688\d*" z="1.2\d*"',r'x="0.4688\d*" y="0.4688\d*" z="2.4'],
+    "ncanda-dti6b500pepolar-v1": [r'x="1.875\d*" y="1.875\d*" z="2.5\d*"',r'x="0.9375\d*" y="0.9375\d*" z="2.5\d*"'],
+    "ncanda-dti30b400-v1": [r'x="1.875\d*" y="1.875\d*" z="2.5\d*"',r'x="0.9375\d*" y="0.9375\d*" z="2.5\d*"'],
+    "ncanda-dti60b1000-v1": [r'x="1.875\d*" y="1.875\d*" z="2.5\d*"',r'x="0.9375\d*" y="0.9375\d*" z="2.5\d*"'],
+    "ncanda-grefieldmap-v1": [r'x="1.875\d*" y="1.875\d*" z="2.5\d*"'],
+    "ncanda-rsfmri-v1": [r'x="3.75\d*" y="3.75\d*" z="5.0\d*"'],
 }
 
 physio = [
@@ -1246,7 +1246,7 @@ for (
         scantype_and_quality = [
             [scan]
             + XNATSessionElementUtil(experiment.scans[scan]).mget(["type", "quality"])
-            for scan in list(experiment.scans)
+            for scan in experiment.scans.keys()
         ]
         final = [
             scantype

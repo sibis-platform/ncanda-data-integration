@@ -188,12 +188,15 @@ def load_data(
             print("redcap.export_records lacks a date_begin param, skipping")
         data = _load_data()
 
+    if 'record_id' in data.index.names:
+        data = data.reset_index(drop=False)
+
     if record_id :
-        data = data[data['record_id'] == record_id]
+        data = data.loc[data.loc[:, 'record_id'] == record_id]
     
     # Grabbing necessary reports by default, but return all if --all was passed
     if all is False:
-        dates = data['record_id'].str.extract(r'(?P<date>\d{4}-\d{2}-\d{2})$')
+        dates = data.loc[:,'record_id'].str.extract(r'(?P<date>\d{4}-\d{2}-\d{2})$')
         dates = pd.to_datetime(dates['date'], errors='coerce')
         failed_conversions = data.loc[pd.isnull(dates), 'record_id'].tolist()
         if verbose:
@@ -453,7 +456,10 @@ def set_completion_fields(upload):
     for form in non_empty_count.keys():
         if non_empty_count[form] > 0:
             # set completion field
-            upload[field_to_form_map[form]] = '1'
+            if field_to_form_map[form] not in upload.columns:
+                upload = pd.concat([upload, pd.DataFrame({field_to_form_map[form]:'1'}, index=upload.index)], axis=1)
+            else:
+                upload[field_to_form_map[form]] = '1'
 
     return upload
 

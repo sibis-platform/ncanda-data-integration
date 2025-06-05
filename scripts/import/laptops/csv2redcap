@@ -128,7 +128,7 @@ def process_file(fname):
     # records from overwriting
     complete_field = None
     for var in data.columns:
-        if re.match('.*_completed$', var) and \
+        if re.match(r'.*_completed$', var) and \
                 not var == 'visit_information_complete':
             complete_field = var
 
@@ -153,7 +153,7 @@ def process_file(fname):
             )
             return False
 
-        row['record_id'] = re.sub('(#|&|\+|\')', '?', row['record_id'])
+        row['record_id'] = re.sub(r'(#|&|\+|\')', '?', row['record_id'])
 
         record_id = row['record_id']
         if complete_field:
@@ -172,7 +172,7 @@ def process_file(fname):
                                              row['redcap_data_access_group']))
 
         # Prune and convert to dict
-        record = dict(row.dropna().apply(lambda s: re.sub('&quot;', '""', s)))
+        record = dict(row.dropna().apply(lambda s: re.sub(r'&quot;', '""', s)))
         record_list.append(record)
 
     # Upload new data to REDCap
