@@ -50,7 +50,11 @@ def add_entry_to_red_list(redcap_pipe_list,red_entry,missing_type,redcap_list_ba
     if red_visit != "baseline" :
         red_visit = "followup_" + red_visit
 
-    return redcap_pipe_list.append(pandas.DataFrame([[red_entry.study_id,xnat_sid,red_visit,missing_type]],columns=['study_id','case','event','type']),ignore_index=True)
+    return pandas.concat([
+        redcap_pipe_list,
+        pandas.DataFrame([[red_entry.study_id, xnat_sid, red_visit, missing_type]],
+                     columns=['study_id', 'case', 'event', 'type'])
+    ], ignore_index=True)
 
 
 def add_red_list(redcap_pipe_list,redcap_list_missing,missing_type,redcap_list_base):

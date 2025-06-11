@@ -71,7 +71,7 @@ def main(args):
                 hits = xnat[(xnat['experiment_id'] == experiment) & (xnat['scan_type'].str.contains(scan)) &
                             ((xnat['quality'] == 'usable-extra') | 
                                 ((xnat['quality'] == 'unusable') & ~xnat['has_note']))]
-                results = results.append(hits)  # handles empty data frames just fine
+                results = pd.concat([results, hits], ignore_index=True)
         mr_sessions.at[idx, "absent_scans"] = empty_scans
 
     return results.to_csv(args.outfile, index=False)
