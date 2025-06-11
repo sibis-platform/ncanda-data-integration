@@ -85,7 +85,11 @@ def main(args):
         else : 
             event = str(visit.split("_")[1]) + "_visit_arm_1"
 
-        pipe_list_missing = pipe_list_missing.append(pandas.DataFrame([[subject,redcap_sid,event]],columns=['xnat_sid','study_id','redcap_event_name']),ignore_index=True)
+        pipe_list_missing = pandas.concat([
+            pipe_list_missing,
+            pandas.DataFrame([[subject, redcap_sid, event]], columns=['xnat_sid', 'study_id', 'redcap_event_name'])
+        ], ignore_index=True)
+
 
     print(" ") 
     print("=======================")

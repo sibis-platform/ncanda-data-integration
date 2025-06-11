@@ -102,9 +102,9 @@ def main(args):
         for sid in redcap_list_base['study_id'].drop_duplicates():
             tmp_sub_event = tmp_list_event[tmp_list_event['study_id'] == sid]
             if tmp_sub_event["visit_ignore___yes"].values == 1 :
-                tmp_list_visit_date = tmp_list_visit_date.append([['']],ignore_index=True)
+                tmp_list_visit_date = pandas.concat([tmp_list_visit_date, pandas.DataFrame([['']])], ignore_index=True)
             else :
-                tmp_list_visit_date = tmp_list_visit_date.append([tmp_sub_event['visit_date'].values],ignore_index=True)
+                tmp_list_visit_date = pandas.concat([tmp_list_visit_date, pandas.DataFrame([tmp_sub_event['visit_date'].values])], ignore_index=True)
 
         tmp_list_visit_date.columns=[event]
 
