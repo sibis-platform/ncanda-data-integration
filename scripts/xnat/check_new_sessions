@@ -126,7 +126,7 @@ expected_images["GE"] = {
     "ncanda-dti6b500pepolar-v1": [8],
     "ncanda-dti30b400-v1": [32],
     "ncanda-dti60b1000-v1": [62],
-    "ncanda-grefieldmap-v1": [6],
+    "ncanda-grefieldmap-v1": [6, 9],
     "ncanda-rsfmri-v1": [274, 275, 330],
 }
 
