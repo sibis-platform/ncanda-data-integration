@@ -100,7 +100,7 @@ def export_t1t2_to_zip( experiment, experiment_label,xnat_dir):
         (ecode,sout,eout) = sutils.zip(basedir,zipfile,' '.join(scan_dirs_rel)) 
         if ecode: 
             error = 'ERROR: unable to create ZIP file from these directories'
-            slog.info(zipfile, error,scan_dirs = ' '.join( scan_dirs ), err_msg = str(eout), eid = str(experiment.id()))
+            slog.info(zipfile, error,scan_dirs = ' '.join( scan_dirs ), err_msg = str(eout), eid = str(experiment.id))
             try:
                 os.remove(zipfile)
             except:
@@ -114,7 +114,7 @@ def export_t1t2_to_zip( experiment, experiment_label,xnat_dir):
                 experiment.set( 'xnat:mrSessionData/fields/field[name=datetodvd]/field', date_today )
             except:
                 error = "ERROR: failed to set DateToDVD field on experiment - removing archive file"
-                slog.info(experiment_label,error,zipfile = zipfile,eid = str(experiment.id()))
+                slog.info(experiment_label,error,zipfile = zipfile,eid = str(experiment.id))
                 os.remove( zipfile )
 
     return len( scan_dirs ) > 0
@@ -310,7 +310,7 @@ if args.last_month:
 str_date_last_checked = time.strftime( xnat_date_format, date_last_checked )
 
 # Get a list of all MR imaging sessions
-project_ids = list(ifc.select.projects)
+project_ids = ifc.select.projects.keys()
 check_again = []
 for pid in project_ids:
     check_again += validate_new_and_outstanding( ifc, pid, objects_to_check, objects_force_write, str_date_last_checked,session.get_xnat_dir() )

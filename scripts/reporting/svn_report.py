@@ -80,7 +80,9 @@ def create_dataframe(three_sla, dead_sla):
                 'sla': laptop_sla,
                 'sla_percentage': sla_percentage
                 }
-            df = df.append(new_row, ignore_index=True)
+
+            df = pd.concat([df, pd.Series(new_row).to_frame().T], ignore_index=False)
+
 
     # Sort by descending SLA percentage
     df = df.sort_values(by=['sla_percentage'], ascending=False)

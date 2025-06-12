@@ -213,7 +213,7 @@ def check_experiment(session, ifc, sibis_config, args, email, eid, xnat_url, exp
         return False
 
     # RegExp pattern for subject IDs
-    subject_id_pattern_nophantom = "^([A-F])-[0-9]{5}-[MF]-[0-9]$"
+    subject_id_pattern_nophantom = r"^([A-F])-[0-9]{5}-[MF]-[0-9]$"
     subject_label_match = re.match(
         subject_id_pattern_nophantom,
         session.xnat_get_subject_attribute(prj, sid, "label")[0],
@@ -452,7 +452,7 @@ if __name__ == "__main__":
         experiment_ids.append(args.eid)
     else:
         # Get a list of all MR imaging sessions
-        experiment_ids = list(ifc.select.experiments)
+        experiment_ids = list(ifc.select.experiments.keys())
 
     for eid in experiment_ids:
         xnat_url = session.get_xnat_session_address(eid, 'html')
@@ -464,7 +464,7 @@ if __name__ == "__main__":
                 eid,
                 "ERROR: failed to retrieve experiment from XNAT",
                 info="Please check if eid still exists in xnat. If not ignore error and otherwise run ./check_phantom_scans -e "
-                + eid,
+                + str(eid),
                 xnat_url=xnat_url,
                 error_msg=str(e),
             )

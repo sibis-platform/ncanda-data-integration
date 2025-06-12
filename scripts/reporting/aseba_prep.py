@@ -101,7 +101,7 @@ if not args.demographics_file:
     demo_cols = ['study_id', 'redcap_event_name', 'sex', 'age', 'mri_xnat_sid']
     general_df = project_entry.export_records(fields=demo_cols,
                                               events=selected_events,
-                                              format='df')
+                                              format_type='df')
 
     # Need to recode Redcap sex labels because they're not meaningful
     general_df['sex'] = general_df['sex'].map({0: "F", 1: "M"})
@@ -132,7 +132,7 @@ if not args.input:
     aseba_df = project_entry.export_records(fields=['study_id'],
                                             events=selected_events,
                                             forms=[form_specifics.form],
-                                            format='df')
+                                            format_type='df')
     aseba_df = api_result_to_release_format(aseba_df, lookup)
 else:
     aseba_df = load_redcap_summaries(args.input)

@@ -120,13 +120,13 @@ def get_completion_status_in_redcap(redcap, forms=None, subjects=None):
     redcap - API handle provided by PyCap / sibispy.Session
     """
     if not forms:
-        forms = (redcap.export_metadata(format='df')
+        forms = (redcap.export_metadata(format_type='df')
                  .reset_index().form_name.unique()
                  .tolist())
     fields = [x + "_complete" for x in forms]
 
     status_df = redcap.export_records(fields=fields, records=subjects,
-                                      format='df')
+                                      format_type='df')
     status_df = status_df.stack()
     status_df.name = 'status'
     status_df.index.names = ['record_id', 'form']

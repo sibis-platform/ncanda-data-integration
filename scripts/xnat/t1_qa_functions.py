@@ -28,27 +28,27 @@ def check_xml_file( xml_file, project, session, label ):
             if 'fallbackOrientationCNR' in line:
                 warnings.append( "CNR spheres used for orientation - problem detecting 15mm spheres?" )
             if 'fallbackCentroidCNR' in line:
-                match = re.match( '^.*distance="([0-9]+\.[0-9]+)".*$', line )
+                match = re.match( r'^.*distance="([0-9]+\.[0-9]+)".*$', line )
                 distance = float( match.group(1) )
                 if distance > 3.0:
                     warnings.append( "CNR spheres used for centroid location (distance to SNR center = %f mm) - problem with the SNR sphere?" % distance )
 
             # Check number of landmarks
-            match = re.match( '<landmarkList.*count="([0-9]+)">', line )
+            match = re.match( r'<landmarkList.*count="([0-9]+)">', line )
             if match:
                 count = int( match.group(1) )
                 if ( count < 165 ):
                     warnings.append( "Landmark count=%d" % (project,session,count) )
 
             # Check SNR
-            match = re.match( '<snr>([0-9]*\.[0-9]*)</snr>', line )
+            match = re.match( r'<snr>([0-9]*\.[0-9]*)</snr>', line )
             if match:
                 snr = float( match.group(1) )
                 if ( snr < 50 ):
                     warnings.append( "Low SNR=%f" % (project,session,snr) )
 
             # Check scale
-            match = re.match( '<scale>([0-9]*\.[0-9]*)\s+([0-9]*\.[0-9]*)\s+([0-9]*\.[0-9]*)</scale>', line )
+            match = re.match( r'<scale>([0-9]*\.[0-9]*)\s+([0-9]*\.[0-9]*)\s+([0-9]*\.[0-9]*)</scale>', line )
             if match:
                 for idx in [0,1,2]:
                     scale = float( match.group( idx+1 ) )
@@ -56,7 +56,7 @@ def check_xml_file( xml_file, project, session, label ):
                         warnings.append( "Non-unit scale[%d]=%f" % (project,session,idx,scale) )
 
             # Check nonlinearity
-            match = re.match( '<nonlinear>([0-9]*\.[0-9]*)\s+([0-9]*\.[0-9]*)\s+([0-9]*\.[0-9]*)</nonlinear>', line )
+            match = re.match( r'<nonlinear>([0-9]*\.[0-9]*)\s+([0-9]*\.[0-9]*)\s+([0-9]*\.[0-9]*)</nonlinear>', line )
             if match:
                 for idx in [0,1,2]:
                     nonlinear = float( match.group( idx+1 ) )
@@ -156,7 +156,7 @@ def process_phantom_session( interface, project, subject, session, label, xnat_d
             quality = scan.quality
             if ('mprage' in scan_type) or ('t1spgr' in scan_type):
                 # Extract the DICOM file directory from the XML representation
-                match = re.match( '.*('+ xnat_dir + '/.*)scan_.*_catalog.xml.*', interface.raw_text(scan), re.DOTALL )
+                match = re.match( r'.*('+ xnat_dir + '/.*)scan_.*_catalog.xml.*', interface.raw_text(scan), re.DOTALL )
                 if match:
                     dicom_path = match.group(1)
 

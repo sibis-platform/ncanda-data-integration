@@ -146,7 +146,7 @@ class UpdateVisitDataIssue(Issue):
             self.form = field_row["form_name"].item()
             imports_form = self.form
             if "limesurvey_ssaga" in self.form:
-                lssaga_regex = "(lssaga[1234]_youth|lssaga[1234]_parent)"
+                lssaga_regex = r"(lssaga[1234]_youth|lssaga[1234]_parent)"
                 lssaga_matches = re.match(lssaga_regex, self.body["redcap_variable"])
                 if not lssaga_matches:
                     raise ValueError(
