@@ -353,8 +353,9 @@ for form in forms_list:
                 form_status.to_csv(csvFile)
             else:
                 try:
+                    records_to_import = form_status.fillna('').reset_index().to_dict('records')
                     import_response = rc_entry.import_records(
-                        form_status, overwrite="overwrite", import_format="df",
+                        records_to_import, overwrite="overwrite"
                     )
                 except Exception as e:
                     # for certain errors find out value

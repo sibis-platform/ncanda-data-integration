@@ -247,7 +247,7 @@ for key, row in summary_records.iterrows():
             date_of_birth = subject_dates_of_birth[key[0]]
             date_format_ymd = '%Y-%m-%d'
             age_in_years = old_div((datetime.datetime.strptime( cnp_data['test_sessions_dotest'], date_format_ymd ) - datetime.datetime.strptime( date_of_birth, date_format_ymd )).days, 365.242)
-            summary_records.at[key, 'cnp_age'] = str( age_in_years )
+            summary_records.at[key, 'cnp_age'] = str(round(age_in_years, 6))
 
             # Copy all variables that we want in the summary
             for cnpvar in cnp_copy_variables:
@@ -271,10 +271,10 @@ for key, row in summary_records.iterrows():
                 new_summary_complete = 1
                 if cnp_data['%s_complete' % v] > 0:
                     column_name = 'cnp_instruments___%s' % k.replace('_','')
-                    summary_records.at[key, column_name] = '1'
+                    summary_records.at[key, column_name] = 1
                 else:
                     column_name = 'cnp_instruments___%s' % k.replace('_','')
-                    summary_records.at[key, column_name] = '0'
+                    summary_records.at[key, column_name] = 0
                     new_summary_complete = 0
             
             try:
