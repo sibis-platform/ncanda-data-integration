@@ -20,7 +20,7 @@ def copy_sanitize(redcap_visit_id,eprime_in, eprime_out ):
             outfile = open( eprime_out, 'w' )
 
             for line in infile.readlines():
-                match = re.match( '^\s*([^:]+):.*$', line )
+                match = re.match( r'^\s*([^:]+):.*$', line )
                 if not (match and (match.group(1).lower() in banned_keys)):
                     outfile.write( line )
             

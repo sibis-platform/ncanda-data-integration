@@ -19,10 +19,10 @@ function current_timestamp() {
 START_TIME=$(current_timestamp)
 
 set -e
-set -x
+# set -x
 DST_FILE="${backup_tgt}/redcap_mariadb_backup-$(current_timestamp).sql.gz"
 docker exec -t ${REDCAP_MARIA_CONTAINER_NAME} ${MYSQL_DUMP} | gzip  > "${DST_FILE}"
-set +x
+# set +x
 
 COMPLETE_TIME=$(current_timestamp)
 

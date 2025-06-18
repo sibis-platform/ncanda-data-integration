@@ -48,7 +48,7 @@ def data_entry_fields(fields,project,arm):
     """
     # Get a dataframe of fields
     data_entry_raw = project.export_records(fields=fields, forms = forms,
-                                            format='df', events=arm)
+                                            format_type='df', events=arm)
     return data_entry_rawg
 
 def get_session_scan(scan_field):

@@ -49,7 +49,7 @@ def make_redcap_inventory(api: rc.Project,
                           include_dag: bool = False,
                           verbose: bool = False) -> pd.DataFrame:
     # Determine scope
-    meta = api.export_metadata(format='df')
+    meta = api.export_metadata(format_type='df')
     all_forms = meta['form_name'].unique().tolist()
     if forms is not None:
         all_forms = [form for form in all_forms if form in forms]

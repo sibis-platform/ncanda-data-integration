@@ -126,7 +126,7 @@ expected_images["GE"] = {
     "ncanda-dti6b500pepolar-v1": [8],
     "ncanda-dti30b400-v1": [32],
     "ncanda-dti60b1000-v1": [62],
-    "ncanda-grefieldmap-v1": [6],
+    "ncanda-grefieldmap-v1": [6, 9],
     "ncanda-rsfmri-v1": [274, 275, 330],
 }
 
@@ -173,23 +173,23 @@ frame_check_ge = {
 # this is how it used to be but causes issues when uploading to xnat
 # \d* is important so that any difference in digits afterwards are ignored
 voxelres_siemens = {
-    "ncanda-mprage-v1": ['x="0.9375\d*" y="0.9375\d*" z="1.2\d*"'],
-    "ncanda-t2fse-v1": ['x="0.46875\d*" y="0.46875\d*" z="1.2\d*"','x="0.4688\d*" y="0.4688\d*" z="1.2'],
-    "ncanda-dti6b500pepolar-v1": ['x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
-    "ncanda-dti30b400-v1": ['x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
-    "ncanda-dti60b1000-v1": ['x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
-    "ncanda-grefieldmap-v1": ['x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
-    "ncanda-rsfmri-v1": ['x="3.75\d*" y="3.75\d*" z="5.0\d*"'],
+    "ncanda-mprage-v1": [r'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"'],
+    "ncanda-t2fse-v1": [r'x="0.46875\d*" y="0.46875\d*" z="1.2\d*"',r'x="0.4688\d*" y="0.4688\d*" z="1.2'],
+    "ncanda-dti6b500pepolar-v1": [r'x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
+    "ncanda-dti30b400-v1": [r'x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
+    "ncanda-dti60b1000-v1": [r'x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
+    "ncanda-grefieldmap-v1": [r'x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
+    "ncanda-rsfmri-v1": [r'x="3.75\d*" y="3.75\d*" z="5.0\d*"'],
 }
 
 voxelres_ge = {
-    "ncanda-t1spgr-v1": ['x="0.9375\d*" y="0.9375\d*" z="1.2\d*"'],
-    "ncanda-t2fse-v1": ['x="0.4688\d*" y="0.4688\d*" z="1.2\d*"','x="0.4688\d*" y="0.4688\d*" z="2.4'],
-    "ncanda-dti6b500pepolar-v1": ['x="1.875\d*" y="1.875\d*" z="2.5\d*"','x="0.9375\d*" y="0.9375\d*" z="2.5\d*"'],
-    "ncanda-dti30b400-v1": ['x="1.875\d*" y="1.875\d*" z="2.5\d*"','x="0.9375\d*" y="0.9375\d*" z="2.5\d*"'],
-    "ncanda-dti60b1000-v1": ['x="1.875\d*" y="1.875\d*" z="2.5\d*"','x="0.9375\d*" y="0.9375\d*" z="2.5\d*"'],
-    "ncanda-grefieldmap-v1": ['x="1.875\d*" y="1.875\d*" z="2.5\d*"'],
-    "ncanda-rsfmri-v1": ['x="3.75\d*" y="3.75\d*" z="5.0\d*"'],
+    "ncanda-t1spgr-v1": [r'x="0.9375\d*" y="0.9375\d*" z="1.2\d*"'],
+    "ncanda-t2fse-v1": [r'x="0.4688\d*" y="0.4688\d*" z="1.2\d*"',r'x="0.4688\d*" y="0.4688\d*" z="2.4'],
+    "ncanda-dti6b500pepolar-v1": [r'x="1.875\d*" y="1.875\d*" z="2.5\d*"',r'x="0.9375\d*" y="0.9375\d*" z="2.5\d*"'],
+    "ncanda-dti30b400-v1": [r'x="1.875\d*" y="1.875\d*" z="2.5\d*"',r'x="0.9375\d*" y="0.9375\d*" z="2.5\d*"'],
+    "ncanda-dti60b1000-v1": [r'x="1.875\d*" y="1.875\d*" z="2.5\d*"',r'x="0.9375\d*" y="0.9375\d*" z="2.5\d*"'],
+    "ncanda-grefieldmap-v1": [r'x="1.875\d*" y="1.875\d*" z="2.5\d*"'],
+    "ncanda-rsfmri-v1": [r'x="3.75\d*" y="3.75\d*" z="5.0\d*"'],
 }
 
 physio = [
@@ -345,7 +345,7 @@ def check_dti(
 
 
 def check_for_phantom(label):
-    phantom = [".-9999\d", ".-00000"]
+    phantom = [r".-9999\d", r".-00000"]
     match = re.match(phantom[0], label, flags=re.DOTALL)
     if match:
         return match
@@ -443,10 +443,10 @@ def incomplete_scan_check(
 
 def voxelres_get(experiment, scan):
     scan_info = XNATSessionElementUtil(experiment.scans[scan]).xml
-    field_regex = ".*<xnat:voxelRes (.*?)/>"
+    field_regex = r".*<xnat:voxelRes (.*?)/>"
     match = re.match(field_regex, scan_info, flags=re.DOTALL)
     if match:
-        return re.sub("\s*<!--.*?-->\s*", "", match.group(1), flags=re.DOTALL)
+        return re.sub(r"\s*<!--.*?-->\s*", "", match.group(1), flags=re.DOTALL)
 
 
 def voxelRes_check(experiment, manufacturer, scan_and_type_list):
@@ -749,7 +749,7 @@ def get_custom_variable(experiment, field_name):
         field_regex, XNATSessionElementUtil(experiment).xml, flags=re.DOTALL
     )
     if match:
-        return re.sub("\s*<!--.*?-->\s*", "", match.group(1), flags=re.DOTALL)
+        return re.sub(r"\s*<!--.*?-->\s*", "", match.group(1), flags=re.DOTALL)
     else:
         return None
 
@@ -1246,7 +1246,7 @@ for (
         scantype_and_quality = [
             [scan]
             + XNATSessionElementUtil(experiment.scans[scan]).mget(["type", "quality"])
-            for scan in list(experiment.scans)
+            for scan in experiment.scans.keys()
         ]
         final = [
             scantype
@@ -1283,12 +1283,12 @@ for (
         dti_scans = [
             (scan, scantype)
             for (scan, scantype, quality) in scantype_and_quality
-            if re.match("^ncanda-dti.*-v1$", scantype) and quality != "unusable"
+            if re.match(r"^ncanda-dti.*-v1$", scantype) and quality != "unusable"
         ]
         fmri_scans = [
             (scan, scantype)
             for (scan, scantype, quality) in scantype_and_quality
-            if re.match("^ncanda-.*fmri.*-v1$", scantype) and quality != "unusable"
+            if re.match(r"^ncanda-.*fmri.*-v1$", scantype) and quality != "unusable"
         ]
 
     except Exception as err_msg:
@@ -1315,7 +1315,7 @@ for (
     nifti_export_ok = True
     if creatingNiftiFlag:
         for (scanID, scantype, quality) in scantype_and_quality:
-            if re.match("^ncanda-.*-v[0-9]$", scantype):
+            if re.match(r"^ncanda-.*-v[0-9]$", scantype):
                 details=""
                 try:
                     (

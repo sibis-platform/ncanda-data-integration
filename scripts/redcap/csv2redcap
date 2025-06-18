@@ -77,7 +77,7 @@ if not args.force:
 # Is there a "complete" field? Then get existing records and ditch all records from new data that are "Complete"
 existing_data=pandas.DataFrame
 if complete_field != '':
-    existing_data = project.export_records( fields=[complete_field], format='df', df_kwargs={"index_col":[project.def_field, "redcap_event_name"]} )
+    existing_data = project.export_records( fields=[complete_field], format_type='df', df_kwargs={"index_col":[project.def_field, "redcap_event_name"]} )
 
 # Make list of dicts for REDCap import
 record_list = []

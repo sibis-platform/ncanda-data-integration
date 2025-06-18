@@ -93,7 +93,7 @@ def main():
     except Exception as e:
         print(e.message)
 
-    metadata = redcap_api.export_metadata(format="df").reset_index()[
+    metadata = redcap_api.export_metadata(format_type="df").reset_index()[
         ["form_name", "field_name"]
     ]
 
