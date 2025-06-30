@@ -112,7 +112,7 @@ def main(args=None):
                 unknownScanDF = eid_df[eid_df['quality'] == 'unknown']
                 mandatoryCheck = unknownScanDF[unknownScanDF['scan_type'].isin(required_scans)]
                 if len(mandatoryCheck) : 
-                    scanCheckList = scanCheckList.append(mandatoryCheck)
+                    scanCheckList = pd.concat([scanCheckList, mandatoryCheck], ignore_index=True)
 
         print(" ") 
         print("Mandatory scans that have not yet been quality controlled (status unknown)")

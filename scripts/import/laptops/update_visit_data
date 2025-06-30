@@ -841,7 +841,7 @@ for form_prefix, form_name in forms.items():
     #TODO: See how to make this chunk more efficient
     index = 0
     
-    project_id = redcap_project.export_project_info()['project_id']
+    project_id = redcap_project.export_project_info(format_type="json")['project_id']
 
     for key, row in tqdm(
         entry_form_data.iterrows(),  # the actual iterator
