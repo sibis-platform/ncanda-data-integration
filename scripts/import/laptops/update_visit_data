@@ -122,7 +122,7 @@ def to_redcap(
 
     error_label = subject_id + "-" + event + "-" + form_name
     import_response = session.redcap_import_record(
-        error_label, subject_id, event, timelabel, [upload_records], record_id
+        error_label, subject_id, event, timelabel, [upload_records], record_id, import_format="json",
     )
 
     if verbose:
@@ -253,13 +253,14 @@ def add_to_upload(
 
     for key, value in dict(data).items():
         if (key in summary_field_names) or (key == "%s_complete" % form_name):
-            strval = str(value)
+            strval = str(value).strip()  # <-- strip whitespace
             if strval == "nan":
                 record[key] = ""
             else:
                 if key in summary_fields_yn:
                     strval = map_yn_to_binary(strval)
-                record[key] = re.sub("&quot;", '"', re.sub("\.0$", "", strval))
+                strval = re.sub(r"&quot;", '"', re.sub(r"\.0$", "", strval))
+                record[key] = strval.strip()  # <-- ensure final value is stripped
 
     # Set actual age - do this after everything else, because some surveys have "age" fields; we want to overwrite those
     record["%s_age" % form_prefix] = subject_age
@@ -585,7 +586,7 @@ summary_fields_yn = [
 ]
 
 # What forms are at what event?
-form_event_mapping = redcap_project.export_fem(format="df")
+form_event_mapping = redcap_project.export_instrument_event_mappings(format_type="df")
 
 # What "form_name" is form_event_mapping using?
 form_key = session.get_redcap_form_key()
@@ -617,7 +618,7 @@ if args.study_id:
         records=args.study_id.split(","),
         fields=entry_data_fields,
         event_name="unique",
-        format="df",
+        format_type="df",
         export_data_access_groups=True,
     )
 else:
@@ -626,7 +627,7 @@ else:
         api_type="data_entry",
         fields=entry_data_fields,
         event_name="unique",
-        format="df",
+        format_type="df",
         export_data_access_groups=True,
     )
 
@@ -675,10 +676,10 @@ for form_prefix, form_name in forms.items():
 
     # ==> Export data from laptops for this form from REDCap.
     import_complete_records = session.redcap_export_records_from_api(
-        time_label=None, api_type="import_laptops", fields=fields_list, format="df"
+        time_label=None, api_type="import_laptops", fields=fields_list, format_type="df"
     )
 
-    # First, get "complete" and "exclude" fields for this form for all records to
+    # First, get "compeete" and "exclude" fields for this form for all records to
     # find which ones actually have data and are not excluded.
     # Drop all empty form records (labelled 'incomplete')
     complete_records = import_complete_records[
@@ -703,7 +704,7 @@ for form_prefix, form_name in forms.items():
                 ]
             ]
             if len(sidr):
-                s_records = s_records.append(sidr)
+                s_records = pandas.concat([s_records, sidr])
 
         complete_records = s_records
         if args.verbose:
@@ -741,11 +742,11 @@ for form_prefix, form_name in forms.items():
             api_type="import_laptops",
             records=record_batch,
             forms=forms,
-            format=return_format,
+            format_type=return_format,
             df_kwargs=df_kwargs,
         )
 
-        if df.empty:
+        if df is None or df.empty:
             if args.verbose:
                 print("No REDCap data records found from export, retrying in one minute")
             time.sleep(60)  # Wait 1 minute and try again
@@ -754,12 +755,12 @@ for form_prefix, form_name in forms.items():
                 api_type="import_laptops",
                 records=record_batch,
                 forms=forms,
-                format=return_format,
+                format_type=return_format,
                 df_kwargs=df_kwargs,
             )
 
-            if df.empty:
-                error_id = f"{form_name}_{datetime.now().strftime('%m/%d/%Y')}"
+            if df is None or df.empty:
+                error_id = f"{form_name}_{datetime.datetime.now().strftime('%m/%d/%Y')}"
                 
                 slog.info(
                     error_id,
@@ -768,7 +769,7 @@ for form_prefix, form_name in forms.items():
                 )
                 sys.exit(1)
 
-        returned_records.append(df.applymap(nan_to_empty))
+        returned_records.append(df.map(nan_to_empty))
         imported_records = pandas.concat(returned_records)
 
     if args.verbose:
@@ -840,7 +841,7 @@ for form_prefix, form_name in forms.items():
     #TODO: See how to make this chunk more efficient
     index = 0
     
-    project_id = redcap_project.export_project_info()['project_id']
+    project_id = redcap_project.export_project_info(format_type="json")['project_id']
 
     for key, row in tqdm(
         entry_form_data.iterrows(),  # the actual iterator
@@ -994,9 +995,12 @@ for form_prefix, form_name in forms.items():
                 if args.verbose:
                     print("Exception:", exception_list)
                 for excep_date in exception_list.split(","):
-                    records_this_visit = records_this_visit.append(
-                        records_this_subject[
-                            records_this_subject[date_label] == excep_date
+                    records_this_visit = pandas.concat (
+                        [
+                            records_this_visit,
+                            records_this_subject[
+                                records_this_subject[date_label] == excep_date
+                            ],
                         ]
                     )
 

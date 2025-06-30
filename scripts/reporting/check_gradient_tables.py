@@ -37,7 +37,7 @@ def get_array(array_string):
     np.array
     """
     l = array_string.text.split(' ')
-    return np.fromiter(l, np.float)
+    return np.fromiter(l, float)
 
 def get_gradient_table(parsed_sidecar, decimals=None):
     """

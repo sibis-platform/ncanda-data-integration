@@ -20,14 +20,14 @@ def get_notnull_entries(row, ignore_always_notna=True):
     except:
         columns = row.index.tolist()
     if ignore_always_notna:
-        cols_complete = get_items_matching_regex("_complete$", columns)
-        cols_ignore = get_items_matching_regex("^visit_ignore", columns)
-        cols_missing = get_items_matching_regex("_missing(_why(_other)?)?$", 
+        cols_complete = get_items_matching_regex(r"_complete$", columns)
+        cols_ignore = get_items_matching_regex(r"^visit_ignore", columns)
+        cols_missing = get_items_matching_regex(r"_missing(_why(_other)?)?$", 
                                                 columns)
         #cols_clinical = get_items_matching_regex("^fh_|^ssq_", columns)
         # cols_missing_rationale = get_items_matching_regex("missing_why(_other)?$",
         #                                                   columns)
-        cols_checklist = get_items_matching_regex("___", columns)
+        cols_checklist = get_items_matching_regex(r"___", columns)
 
         non_nan_items = row.drop(cols_complete + cols_ignore + cols_missing +
                                  #cols_clinical +  # cols_missing_rationale +
@@ -138,7 +138,7 @@ def chunked_form_export(project, forms, events=None, include_dag=False, chunk_si
                                                           forms=forms,
                                                           events=events,
                                                           export_data_access_groups=include_dag,
-                                                          format='df',
+                                                          format_type='df',
                                                           df_kwargs={'low_memory': False})
             except pd.errors.EmptyDataError:
                 print("Empty DataFrame error for event {}, fields {}, forms {}"
@@ -154,7 +154,9 @@ def chunked_form_export(project, forms, events=None, include_dag=False, chunk_si
         raise ValueError(msg)
     else:
         if project.is_longitudinal:
-            response.set_index([project.def_field, 'redcap_event_name'], inplace=True)
+            # Only set index if not already
+            if response.index.names != [project.def_field, 'redcap_event_name']:
+                response.set_index([project.def_field, 'redcap_event_name'], inplace=True)
         else:
             response.set_index([project.def_field], inplace=True)
             

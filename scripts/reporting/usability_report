@@ -44,7 +44,7 @@ def data_entry_fields(fields,project,arm):
 	Gets the dataframe containing a specific arm from REDCap
 	"""
 	# Get a dataframe of fields
-	data_entry_raw = project.export_records(fields=fields, forms = forms, format='df', events=arm)
+	data_entry_raw = project.export_records(fields=fields, forms = forms, format_type='df', events=arm)
 	return data_entry_raw
 
 def check_missing_sessions(df,project_df,subject_ids):

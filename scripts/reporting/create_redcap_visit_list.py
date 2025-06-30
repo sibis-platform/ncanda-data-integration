@@ -25,13 +25,13 @@ def get_project(rc_summary,event_list):
                                          forms=['mr_session_report', 'visit_date',
                                                 'demographics'],
                                          events=event_list.split(","),
-                                         format='df')
+                                         format_type='df')
     else :
         mri  = rc_summary.export_records(fields=['study_id', 'exclude',
                                                  'visit_ignore___yes'],
                                          forms=['mr_session_report', 'visit_date',
                                                 'demographics'],
-                                         format='df')
+                                         format_type='df')
     return mri
 
 def main(args=None):

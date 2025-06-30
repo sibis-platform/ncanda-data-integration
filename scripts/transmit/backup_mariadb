@@ -4,8 +4,12 @@ config="/fs/storage/share/operations/secrets/.sibis/.sibis-general-config.yml"
 backup_src=/fs/storage/mariadb-redcap-archive
 backup_lock=/fs/storage/ncanda_redcap_backup.lock
 retain_local_copy=${1:-1}
-backup_src_spec="${backup_src}/redcap_mariadb_backup-*.sql.gz"
+backup_file_glob="redcap_mariadb_backup-*.sql.gz"
+fq_backup_src_spec="${backup_src}/${backup_file_glob}"
 mariadb_subdir=redcap-mariadb
+aes_extension=".aes"
+aes_backup_file_glob="${backup_file_glob}${aes_extension}"
+s3_backups_to_retain=10
 
 ## Load common utils
 source $cur_dir/transmit_utils
@@ -25,8 +29,8 @@ function remove_lock() {
 trap "remove_lock" EXIT
 
 # get most recent archive
-archive_file=$(ls -t ${backup_src_spec} 2> /dev/null | head -n 1)
-archive_file_aes="${archive_file}.aes"
+archive_file=$(ls -t ${fq_backup_src_spec} 2> /dev/null | head -n 1)
+archive_file_aes="${archive_file}${aes_extension}"
 
 if [[ -z "${archive_file}" ]]; then
   printf 'ERROR: No recent archives found\n' 
@@ -43,3 +47,5 @@ else
 fi
 
 upload_to_s3_subdir $archive_file_aes ${retain_local_copy} ${mariadb_subdir} && rm "${archive_file}"
+# s3://ncanda/db/redcap-mariadb/redcap*.aes
+delete_oldest_files ${mariadb_subdir} ${aes_backup_file_glob} ${s3_backups_to_retain}

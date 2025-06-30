@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-1. For arm of choice, retrieve associated date variables via export_fem.
+1. For arm of choice, retrieve associated date variables via export_instrument_event_mappings.
 2. Select comparison date variable - by default, visit_date, although other
    arms have other fields?
 3. Retrieve the date variables from given arm
@@ -78,7 +78,7 @@ def get_events(api, events=None, arm=None):
     # Based on arguments that were passed, output Redcap-compatible event names
     # for further consumption
     event_names = []
-    for event in api.events:
+    for event in api.export_events():
         if (event["unique_event_name"] in events):
             if (event["arm_num"] == arm):
                 event_names.append(event["unique_event_name"])
@@ -87,9 +87,9 @@ def get_events(api, events=None, arm=None):
 
 def get_date_vars_for_arm(api, events, datevar_pattern=r'_date$'):
     # Given a list of events, retrieve a list of date variables
-    fem = api.export_fem(format='df')
+    fem = api.export_instrument_event_mappings(format_type='df')
     available_forms = fem[fem['unique_event_name'].isin(events)]['form'].unique()
-    meta = api.export_metadata(format='df')
+    meta = api.export_metadata(format_type='df')
     meta_subset = meta.loc[
             meta['form_name'].isin(available_forms) &
             meta.index.str.contains(datevar_pattern)]
@@ -105,7 +105,7 @@ def retrieve_date_data(api, fields, events=None, records=None):
     # output should have pandas.Datetime dtype
     data = api.export_records(fields=fields, events=events, records=records,
                               export_data_access_groups=True,
-                              format='df',
+                              format_type='df',
                               df_kwargs={
                                   'index_col': [api.def_field, 'redcap_event_name'],
                                   'dtype': object,
@@ -121,8 +121,9 @@ def mark_lagging_dates(data, comparison_var, days_duration):
     data_long = df.stack().to_frame('date').reset_index(-1)
     data_comp = data_long.join(comparisons)
     # Maybe extract previous code into data prep?
-    data_comp['precedes'] = data_comp['date'] < data_comp[comparison_var]
-    data_comp['exceeds'] = data_comp['date'] > (
+    date_data_comp = pd.to_datetime(data_comp['date'])
+    data_comp['precedes'] = date_data_comp < data_comp[comparison_var]
+    data_comp['exceeds'] = date_data_comp > (
         data_comp[comparison_var] + pd.Timedelta(days=days_duration))
     data_comp['purgable'] = data_comp['precedes'] | data_comp['exceeds']
     return data_comp
@@ -234,7 +235,7 @@ def main(api, args):
     # Handling no events arg, so all events are chosen
     # Note: should it always pull from one arm when all forms or all arms?
     if (args.events is None):
-        for event in api.events:
+        for event in api.export_events():
             events.append(event["unique_event_name"])
     else:
         events = args.events
@@ -246,7 +247,7 @@ def main(api, args):
     else:
         comparison_date_var = datevars[0]
 
-    meta = api.export_metadata(format='df')
+    meta = api.export_metadata(format_type='df')
     lookup = get_form_lookup_for_vars(datevars, meta)
     data = retrieve_date_data(api, fields=datevars, events=events,
                               records=args.subjects)
