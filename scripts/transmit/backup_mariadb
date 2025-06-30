@@ -5,10 +5,10 @@ backup_src=/fs/storage/mariadb-redcap-archive
 backup_lock=/fs/storage/ncanda_redcap_backup.lock
 retain_local_copy=${1:-1}
 backup_file_glob="redcap_mariadb_backup-*.sql.gz"
-fq_backup_src_spec="${backup_src}/redcap_mariadb_backup-*.sql.gz"
+fq_backup_src_spec="${backup_src}/${backup_file_glob}"
 mariadb_subdir=redcap-mariadb
 aes_extension=".aes"
-aes_backup_file_glob="${fq_backup_src_spec}${aes_extension}"
+aes_backup_file_glob="${backup_file_glob}${aes_extension}"
 s3_backups_to_retain=10
 
 ## Load common utils
