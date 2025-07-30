@@ -73,7 +73,7 @@ def dcm2nifti(dcmDirList, niftiPrefix, numDCMFiles=0, logFileFlag=False,verbose=
     return ""
 
 def find_dicom_path(xnat_dir,xnat_scan):
-    match = re.match('.*('+ xnat_dir + '/.*)scan_.*_catalog.xml.*',XNATSessionElementUtil(xnat_scan).xml,re.DOTALL)
+    match = re.match(r'.*('+ xnat_dir + '/.*)scan_.*_catalog.xml.*',XNATSessionElementUtil(xnat_scan).xml,re.DOTALL)
     if not match:
         errMSG="XNAT scan info fails to contain catalog.xml location!" 
         return (errMSG , 0)
@@ -81,7 +81,7 @@ def find_dicom_path(xnat_dir,xnat_scan):
     dicom_path = match.group(1)
     if not os.path.exists(dicom_path):
         #try another description
-        dicom_path = re.sub('storage/XNAT', 'ncanda-xnat', dicom_path)
+        dicom_path = re.sub(r'storage/XNAT', 'ncanda-xnat', dicom_path)
         if not os.path.exists(dicom_path):
             errorMSG = ("Path %s does not exist - export_to_nifti failed!" % (dicom_path))
             return (errorMSG,0)
@@ -103,7 +103,7 @@ def export_to_nifti(experiment, scanID, xnat_dir, verbose=False):
         error_msg.append(errMSG + " SID:%s EID:%s Label: %s SCAN: %s" % (subject, sessionEid,sessionLabel,scanID))
         return error_msg,0
     
-    nifti_log_search = glob.glob(re.sub('/DICOM/','_%s/dcm2image.log' % (scanType),re.sub( '/SCANS/', '/RESOURCES/nifti/', dicomDir)))
+    nifti_log_search = glob.glob(re.sub(r'/DICOM/','_%s/dcm2image.log' % (scanType),re.sub( '/SCANS/', '/RESOURCES/nifti/', dicomDir)))
 
     # if nifti files were created make sure that they are newer than dicom file otherwise recreate them  
     if  nifti_log_search != [] :
@@ -167,7 +167,7 @@ def export_to_nifti(experiment, scanID, xnat_dir, verbose=False):
     try:
         fzip = zipfile.ZipFile(zip_path, 'w')
         for src in sorted(glob.glob('%s/*/*' % temp_dir)):
-            fzip.write(src, re.sub('%s/' % temp_dir, '', src))
+            fzip.write(src, re.sub(r'%s/' % temp_dir, '', src))
         fzip.close()
     except Exception as e:
         error_msg.append("Could not zip %s - err_msg: %s" % (zip_path,str(e)))

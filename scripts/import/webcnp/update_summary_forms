@@ -86,7 +86,7 @@ if not rc_summary :
 cnp_copy_variables = cnp.get_copy_variables( rc_import, rc_summary )
 
 # Get the event-form mapping so we can select the events that should have CNP data
-form_event_mapping = rc_summary.export_fem( format='df' )
+form_event_mapping = rc_summary.export_instrument_event_mappings( format_type='df' )
 form_key = session.get_redcap_form_key()
 cnp_events_list = form_event_mapping[form_event_mapping[form_key] == 'cnp_summary' ]['unique_event_name'].tolist()
 
@@ -99,10 +99,12 @@ baseline_events = ['baseline_visit_arm_1'] #,'baseline_visit_arm_4'] # these are
 summary_records = rc_summary.export_records(
     fields=fields_summary,
     event_name='unique',
-    format='df',
+    format_type='df',
     export_data_access_groups=True,
     df_kwargs={'low_memory': False})
-summary_records = summary_records.set_index(['study_id', 'redcap_event_name'])
+if summary_records.index.names != ['study_id', 'redcap_event_name']:
+    summary_records = summary_records.reset_index(drop=False)
+    summary_records = summary_records.set_index(['study_id', 'redcap_event_name'])
 # Drop all records that don't have "visit_date", i.e., all events from arms other than Arm 1 (Standard Protocol)
 summary_records = summary_records[ summary_records['visit_date'].map( lambda x: str(x) != 'nan' ) ]
 
@@ -174,7 +176,12 @@ else:
 fields_imported = ['record_id', 'test_sessions_subid', 'cnp_exclude'] + cnp_copy_variables + list(cnp.old_to_new_pvrt_vars.values())
 for i in list(cnp.instruments.values()):
     fields_imported.append( '%s_complete' % i )
-imported_records = rc_import.export_records( fields=fields_imported, format='df', df_kwargs={'low_memory': False}).set_index('record_id')
+
+imported_records = rc_import.export_records( fields=fields_imported, format_type='df', df_kwargs={'low_memory': False})
+
+if imported_records.index.names != ['record_id']:
+    imported_records = imported_records.reset_index(drop=False).set_index('record_id')
+
 for cnpvar in cnp_copy_variables:
     imported_records[cnpvar] = imported_records[cnpvar].map( nan_to_empty )
 
@@ -200,7 +207,7 @@ imported_records = cnp.merge_columns(imported_records, cnp.old_to_new_pvrt_vars)
 #
 for key, row in summary_records.iterrows():
     event = key[1]
-    arm_num = int(re.search('arm_(\d*)', event).group(1))
+    arm_num = int(re.search(r'arm_(\d*)', event).group(1))
 
     # Select imported records for this subject
     records_this_subject = imported_records[ imported_records['test_sessions_subid'] == key[0] ]
@@ -240,7 +247,7 @@ for key, row in summary_records.iterrows():
             date_of_birth = subject_dates_of_birth[key[0]]
             date_format_ymd = '%Y-%m-%d'
             age_in_years = old_div((datetime.datetime.strptime( cnp_data['test_sessions_dotest'], date_format_ymd ) - datetime.datetime.strptime( date_of_birth, date_format_ymd )).days, 365.242)
-            summary_records.at[key, 'cnp_age'] = str( age_in_years )
+            summary_records.at[key, 'cnp_age'] = str(round(age_in_years, 6))
 
             # Copy all variables that we want in the summary
             for cnpvar in cnp_copy_variables:
@@ -264,10 +271,10 @@ for key, row in summary_records.iterrows():
                 new_summary_complete = 1
                 if cnp_data['%s_complete' % v] > 0:
                     column_name = 'cnp_instruments___%s' % k.replace('_','')
-                    summary_records.at[key, column_name] = '1'
+                    summary_records.at[key, column_name] = 1
                 else:
                     column_name = 'cnp_instruments___%s' % k.replace('_','')
-                    summary_records.at[key, column_name] = '0'
+                    summary_records.at[key, column_name] = 0
                     new_summary_complete = 0
             
             try:

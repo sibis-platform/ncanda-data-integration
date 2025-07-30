@@ -102,9 +102,9 @@ def main(args):
         for sid in redcap_list_base['study_id'].drop_duplicates():
             tmp_sub_event = tmp_list_event[tmp_list_event['study_id'] == sid]
             if tmp_sub_event["visit_ignore___yes"].values == 1 :
-                tmp_list_visit_date = tmp_list_visit_date.append([['']],ignore_index=True)
+                tmp_list_visit_date = pandas.concat([tmp_list_visit_date, pandas.DataFrame([['']])], ignore_index=True)
             else :
-                tmp_list_visit_date = tmp_list_visit_date.append([tmp_sub_event['visit_date'].values],ignore_index=True)
+                tmp_list_visit_date = pandas.concat([tmp_list_visit_date, pandas.DataFrame([tmp_sub_event['visit_date'].values])], ignore_index=True)
 
         tmp_list_visit_date.columns=[event]
 
@@ -130,7 +130,7 @@ def main(args):
         for event in reversed(event_list):
             if sub_entry[event] != '':
                 max_date = (datetime.datetime.strptime(sub_entry[event], date_format_ymd) + time_added).strftime(date_format_ymd)
-                tmp_list_max_date = tmp_list_max_date.append([[max_date]],ignore_index=True)
+                tmp_list_max_date = pandas.concat([tmp_list_max_date, pandas.DataFrame([[max_date]])], ignore_index=True)
                 break
             time_added += datetime.timedelta(365)
 
@@ -165,7 +165,11 @@ def main(args):
                     for eid_sid in str(red_entry[scan_type]).split(' '):
                         eid,scan_id= eid_sid.split('/')
                         new_entry = [[red_entry['study_id'],red_entry['mri_xnat_sid'],eid,scan_id,scan_type,red_entry['visit_date'],red_entry['redcap_event_name']]] 
-                        redcap_xnat_list = redcap_xnat_list.append(pandas.DataFrame(new_entry,columns=column_list),ignore_index=True)
+                        redcap_xnat_list = pandas.concat(
+                            [redcap_xnat_list, pandas.DataFrame(new_entry, columns=column_list)],
+                            ignore_index=True
+                        )
+
 
         # First time write to directory so that if you run it multiple times you do not have to repeat it 
         # redcap_xnat_list.to_csv('/tmp/blubber.csv', index=False)

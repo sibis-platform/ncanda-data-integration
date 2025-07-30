@@ -52,9 +52,9 @@ def check_for_stroop( xnat, xnat_eid, redcap_key, verbose=False, no_upload=False
     for resource in list(experiment.resources):
         resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files' % ( xnat_eid, resource ) );
 
-        experiment_files += [ (resource, re.sub( '.*\/files\/', '', file['URI']) ) for file in resource_files if re.match( '^troop*.zip$', file['Name'] ) ]
+        experiment_files += [ (resource, re.sub( r'.*\/files\/', '', file['URI']) ) for file in resource_files if re.match( r'^troop*.zip$', file['Name'] ) ]
 
-        experiment_files += [ (resource, re.sub( '.*\/files\/', '', file['URI']) ) for file in resource_files if re.match( '^NCANDAStroopMtS_3cycles_7m53stask_.*.txt$', file['Name'] ) ]
+        experiment_files += [ (resource, re.sub( r'.*\/files\/', '', file['URI']) ) for file in resource_files if re.match( r'^NCANDAStroopMtS_3cycles_7m53stask_.*.txt$', file['Name'] ) ]
 
 
     # No matching files - nothing to do
@@ -93,7 +93,7 @@ def check_for_stroop( xnat, xnat_eid, redcap_key, verbose=False, no_upload=False
         if not no_upload:
             # Upload CSV file(s) (should only be one anyway)
             for file in added_files.split( '\n' ):
-                if re.match( '.*\.csv$', file ):
+                if re.match( r'.*\.csv$', file ):
                     if verbose:
                         print("Uploading ePrime Stroop scores",file)
                     subprocess.call( [ os.path.join( bindir, 'csv2redcap' ), file ] )
@@ -130,7 +130,7 @@ if not redcap_project :
 
     sys.exit()
 
-form_event_mapping = redcap_project.export_fem( format='df' )
+form_event_mapping = redcap_project.export_instrument_event_mappings( format_type='df' )
 
 # Open connection with XNAT server
 xnat = session.connect_server('xnat') 
@@ -143,7 +143,7 @@ if not xnat :
 #
 # Main program loop
 #
-visit_log_redcap = redcap_project.export_records(fields=['dob', 'exclude', 'visit_date', 'mri_xnat_eids', 'mr_session_report_complete', 'mri_stroop_complete'], event_name='unique', format='df' )
+visit_log_redcap = redcap_project.export_records(fields=['dob', 'exclude', 'visit_date', 'mri_xnat_eids', 'mr_session_report_complete', 'mri_stroop_complete'], event_name='unique', format_type='df' )
 
 # Select only events that have the "MRI Session Report" form
 mri_events_list = form_event_mapping[form_event_mapping['form_name'] == 'mr_session_report' ]['unique_event_name'].tolist()

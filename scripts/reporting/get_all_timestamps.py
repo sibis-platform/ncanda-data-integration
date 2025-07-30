@@ -20,7 +20,7 @@ def main():
     api = session.connect_server('data_entry')
 
     # Get the data, add event name as column, and generate corresponding events
-    data_entry = api.export_records(format='df', fields=['visit_date'])
+    data_entry = api.export_records(format_type='df', fields=['visit_date'])
     data_entry['redcap_name'] = data_entry.index.get_level_values('redcap_event_name')
     events = data_entry.index.get_level_values('redcap_event_name').unique().tolist()
     

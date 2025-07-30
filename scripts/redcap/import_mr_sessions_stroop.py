@@ -32,7 +32,7 @@ def check_for_stroop( xnat, xnat_eid_list, verbose=False ):
         # Get list of resource files that match the Stroop file name pattern
         for resource in list(experiment.resources):
             resource_files = xnat._get_json( '/data/experiments/%s/resources/%s/files' % ( xnat_eid, resource ) );
-            stroop_files += [ (xnat_eid, resource, re.sub( '.*\/files\/', '', file['URI']) ) for file in resource_files if re.match( '^NCANDAStroopMtS_3cycles_7m53stask_.*.txt$', file['Name'] ) ]
+            stroop_files += [ (xnat_eid, resource, re.sub( r'.*\/files\/', '', file['URI']) ) for file in resource_files if re.match( r'^NCANDAStroopMtS_3cycles_7m53stask_.*.txt$', file['Name'] ) ]
 
     # No matching files - nothing to do
     if len( stroop_files ) == 0:
@@ -84,7 +84,7 @@ def import_stroop_to_redcap( xnat, stroop_eid, stroop_resource, stroop_file, \
         if not no_upload:
             # Upload CSV file(s) (should only be one anyway)
             for file in added_files.decode('utf-8').split( '\n' ):
-                if re.match( '.*\.csv$', file ):
+                if re.match( r'.*\.csv$', file ):
                     if verbose:
                         print("Uploading ePrime Stroop scores",file)
                     cmd = str(os.path.join( bindir, 'csv2redcap' )) 

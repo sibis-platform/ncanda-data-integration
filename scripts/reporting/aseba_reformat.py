@@ -67,7 +67,7 @@ if __name__ == "__main__":
     if data['visit'].str.contains('_visit_arm_1', na=False).any():
         data['visit'] = (data['visit']
                          .str.replace('_visit_arm_1', '')
-                         .str.replace(r'^(\dy)$', r'followup_\1'))
+                         .str.replace(r'^(\dy)$', r'followup_\1', regex=True))
 
     # Cheap way to ensure that these three columns come first
     index_fields = ['subject', 'arm', 'visit']

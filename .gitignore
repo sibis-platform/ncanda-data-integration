@@ -72,3 +72,5 @@ target/
 *~
 *_
 scripts/import/webcnp/debug_script
+docker/pipeline-back/docker-compose.override.yml
+docker/pipeline-front/docker-compose.override.yml

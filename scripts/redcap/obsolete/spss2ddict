@@ -24,7 +24,7 @@ partial_line = None
 
 infile = open( args.spssfile, 'r' )
 for line in infile:
-    if re.match( '^[^"]*"[^"]*$', line ):
+    if re.match( r'^[^"]*"[^"]*$', line ):
         if partial_line:
             complete_lines.append( ''.join( [ partial_line, line ] ) )
             partial_line = None
@@ -52,19 +52,19 @@ for line in complete_lines:
             mode = 'variables'
     # Did we see "/VARIABLES"? Generate list of all variables with their respective types.
     elif mode == 'variables':        
-        match = re.match( '^\s+(\w+)\s+(A|F|DATETIME|SDATE)([0-9]+|[0-9]+\.[0-9]+)(\.?)$', line )
+        match = re.match( r'^\s+(\w+)\s+(A|F|DATETIME|SDATE)([0-9]+|[0-9]+\.[0-9]+)(\.?)$', line )
         if match:            
             variable = match.group(1)
             rowdict = dict()
-            if re.match( '^A', match.group(2) ):
+            if re.match( r'^A', match.group(2) ):
                 rowdict['type'] = ['text']
-            elif re.match( '^F', match.group(2) ):
+            elif re.match( r'^F', match.group(2) ):
                 rowdict['type'] = ['text']
                 if '.' in match.group( 3 ):
                     rowdict['validation'] = ['number']
                 else:
                     rowdict['validation'] = ['integer']
-            elif re.match( '^SDATE', match.group(2) ):
+            elif re.match( r'^SDATE', match.group(2) ):
                 rowdict['type'] = ['text']
                 rowdict['validation'] = ['date_ymd']
             else:
@@ -76,9 +76,9 @@ for line in complete_lines:
                 mode = ''
     # Did we see "VALUE LABELS"? Scan and generate list of radio button labels.
     elif mode == 'get_labels':
-        match = re.match( '\s+\"(\w+)\"\s+\"(.*)\"(.?)$', line )
+        match = re.match( r'\s+\"(\w+)\"\s+\"(.*)\"(.?)$', line )
         if not match:
-            match = re.match( '\s+([0-9]+)\s+\"(.*)\"(.?)$', line )
+            match = re.match( r'\s+([0-9]+)\s+\"(.*)\"(.?)$', line )
         if match:
             if str( datadict['choices'][variable] ) == 'nan':
                 datadict['choices'][variable] = '%s, %s' % (match.group(1), match.group(2))
@@ -89,10 +89,10 @@ for line in complete_lines:
         else:
             mode = ''
     # Is this "GET DATA"? Set mode accordingly
-    elif re.match( '^GET DATA\s*$', line ):
+    elif re.match( r'^GET DATA\s*$', line ):
         mode = 'get_data'
     else:
-        match = re.match( '^VALUE LABELS\s*(\w+)\s*$', line )
+        match = re.match( r'^VALUE LABELS\s*(\w+)\s*$', line )
         if match:
             mode = 'get_labels'
             variable = match.group( 1 )
@@ -101,9 +101,9 @@ for line in complete_lines:
             datadict['validation_min'][variable] = ''
             datadict['validation_max'][variable] = ''
         else:
-            match = re.match( '^VARIABLE LABELS\s+(\w+)\s+"(.*)"', line, flags=re.DOTALL )
+            match = re.match( r'^VARIABLE LABELS\s+(\w+)\s+"(.*)"', line, flags=re.DOTALL )
             if match:
-                match_name_group = re.match( '^\[([^\|\]]*)(\|[^|\]]*)?(\|[^|\]]*)?\]\s*(.*)$', match.group(2), flags=re.DOTALL )
+                match_name_group = re.match( r'^\[([^\|\]]*)(\|[^|\]]*)?(\|[^|\]]*)?\]\s*(.*)$', match.group(2), flags=re.DOTALL )
                 if match_name_group:
                     datadict['label'][match.group(1)] = '\n'.join( match_name_group.group(1).strip().split( '\\' ) )
                     datadict['section'][match.group(1)] = match_name_group.group(4).strip()
@@ -115,7 +115,7 @@ for line in complete_lines:
                 else:
                     datadict['label'][match.group(1)] = '\n'.join( match.group(2).strip().split( '\\' ) )
 
-            match = re.match( '^RENAME VARIABLE\s+\(\s+(\w+)\s+=\s+(\w+)', line )
+            match = re.match( r'^RENAME VARIABLE\s+\(\s+(\w+)\s+=\s+(\w+)', line )
             if match:
                 datadict['field_name'][match.group(1)] = match.group(2).lower()
                 if args.fieldname_to_notes:

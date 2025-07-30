@@ -51,10 +51,10 @@ year2_noscan = []
 i = 0
 while i < (len(y1_y2)):
     if type(y1_y2['Year1_notes'][i]) == type('str'):
-        if re.match(".*no mri", y1_y2['Year1_notes'][i].lower()) != None:
+        if re.match(r".*no mri", y1_y2['Year1_notes'][i].lower()) != None:
             year1_noscan.append(y1_y2['study_id'][i])
     if type(y1_y2['Year2_notes'][i]) == type('str'):
-        if re.match(".*no mri", y1_y2['Year2_notes'][i].lower()) != None:
+        if re.match(r".*no mri", y1_y2['Year2_notes'][i].lower()) != None:
             year2_noscan.append(y1_y2['study_id'][i])
     i += 1
 

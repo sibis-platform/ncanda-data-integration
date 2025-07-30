@@ -179,7 +179,7 @@ def main(argv=None):
                                      events=['baseline_visit_arm_1'],
                                      event_name='unique',
                                      export_data_access_groups=True, 
-                                     format='df')
+                                     format_type='df')
 
     # Filter by site, if so desired
     if site:

@@ -75,11 +75,11 @@ def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_
 
     # If filename is a pattern with substitution, check whether entire directory exists
     if '%' in filename_pattern:
-        pipeline_file_pattern = re.sub('%T%N','*',re.sub( '%n', '*', to_path_pattern)) + ".xml"
+        pipeline_file_pattern = re.sub(r'%T%N','*',re.sub( r'%n', '*', to_path_pattern)) + ".xml"
         eid_file_path = os.path.join( to_directory, 'eid' )
     else:
         pipeline_file_pattern = to_path_pattern + ".xml"
-        eid_file_path = re.sub( '\.[^/]*', '.eid', to_path_pattern )
+        eid_file_path = re.sub( r'\.[^/]*', '.eid', to_path_pattern )
 
     # Check if EID is still the same 
     eid_unchanged_flag = check_eid_file( eid_file_path, session_and_scan_list )
@@ -93,17 +93,17 @@ def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_
     xnat_file_search = []
     for session_and_scan in session_and_scan_list.split( ' ' ):
         [ session, scan ] = session_and_scan.split( '/' )
-        match = re.match( '.*(' + xnat_dir +'/.*)scan_.*_catalog.xml.*', xnat.raw_text(xnat.select.experiments[ session ].scans[ scan ]), re.DOTALL )
+        match = re.match( r'.*(' + xnat_dir +'/.*)scan_.*_catalog.xml.*', xnat.raw_text(xnat.select.experiments[ session ].scans[ scan ]), re.DOTALL )
         if match:
             dicom_path = match.group(1)
             if not os.path.exists( dicom_path ):
-                dicom_path = re.sub( 'storage/XNAT', 'ncanda-xnat', dicom_path )
+                dicom_path = re.sub( r'storage/XNAT', 'ncanda-xnat', dicom_path )
             dicom_path_list.append( dicom_path )
 
             # If pipeline already has created file check date to xnat file - assumes that check_new_sessions is always run before this script otherwise pipeline is run twice ! If not created then or eid changed then create dicoms 
             if eid_unchanged_flag and len(pipeline_file_list) : 
                 # Look for xnat file 
-                xnat_file_pattern = re.sub('/DICOM/','_*/image*.nii.xml',re.sub( '/SCANS/', '/RESOURCES/nifti/', dicom_path))
+                xnat_file_pattern = re.sub(r'/DICOM/','_*/image*.nii.xml',re.sub( r'/SCANS/', '/RESOURCES/nifti/', dicom_path))
                 xnat_file_search  = glob.glob(xnat_file_pattern)
 
                 # If date of xnat file is newer than in pipeline then update  
@@ -141,7 +141,7 @@ def export_series( redcap_visit_id, xnat, redcap_key, session_and_scan_list, to_
         # Remove existing files of that type to make sure we start with clean slate
         for xml_file in pipeline_file_list:
             os.remove(xml_file)
-            nii_file = re.sub('.nii.xml','.nii',xml_file)
+            nii_file = re.sub(r'.nii.xml','.nii',xml_file)
             if os.path.exists(nii_file):
                 os.remove(nii_file)
             nii_file += ".gz"
@@ -258,7 +258,7 @@ def copy_adni_phantom_t1w( redcap_visit_id, xnat, xnat_eid, to_directory ):
     experiment_files = []
     resource_list=get_resource_list(redcap_visit_id,xnat,xnat_eid,experiment.resources)
     for resource in resource_list:
-        experiment_files += [ (file['cat_ID'], re.sub( '.*\/files\/', '', file['URI']) ) for file in resource if re.match( '^t1.nii.gz$', file['Name'] ) ]
+        experiment_files += [ (file['cat_ID'], re.sub( r'.*\/files\/', '', file['URI']) ) for file in resource if re.match( r'^t1.nii.gz$', file['Name'] ) ]
 
     # No matching files - nothing to do
     if len( experiment_files ) == 0:
@@ -288,7 +288,7 @@ def copy_adni_phantom_xml( redcap_visit_id, xnat, xnat_eid, to_directory ):
     experiment_files = []
     resource_list=get_resource_list(redcap_visit_id,xnat,xnat_eid,experiment.resources)
     for resource in resource_list:
-        experiment_files += [ (file['cat_ID'], re.sub( '.*\/files\/', '', file['URI']) ) for file in resource if re.match( '^phantom.xml$', file['Name'] ) ]
+        experiment_files += [ (file['cat_ID'], re.sub( r'.*\/files\/', '', file['URI']) ) for file in resource if re.match( r'^phantom.xml$', file['Name'] ) ]
 
     # No matching files - nothing to do
     if len( experiment_files ) == 0:
@@ -334,7 +334,7 @@ def get_resource_list(redcap_visit_id,xnat,xnat_eid,exp_resources):
 #
 def copy_rsfmri_physio_files( redcap_visit_id, xnat, xnat_eid_and_scan, to_directory ):
     # Extract EID and scan from EID/Scan string
-    match = re.match( '^(NCANDA_E[0-9]*)/([0-9]+).*', xnat_eid_and_scan )
+    match = re.match( r'^(NCANDA_E[0-9]*)/([0-9]+).*', xnat_eid_and_scan )
     if not match:
         return False
     else:
@@ -345,22 +345,22 @@ def copy_rsfmri_physio_files( redcap_visit_id, xnat, xnat_eid_and_scan, to_direc
     experiment = xnat.select.experiments[ xnat_eid ]
 
     # Until we can look for "physio" tagged files, define list of filename patterns. Note that one type of files needs the scan number in the pattern to pick the right one
-    physio_filename_patterns = { '.*\.puls' : 'card_data_50hz',
-                                 '.*\.resp' : 'resp_data_50hz',
-                                 'cardiac_.*_%s' % xnat_scan : 'card_time_data_100hz',
-                                 'respir_.*_%s' % xnat_scan : 'resp_time_data_100hz',
-                                 'D.*\.txt' : 'card_trig_data_resp_data_1000hz',
-                                 'PPGData.*_epiRT' : 'card_data_100hz',
-                                 'PPGTrig.*_epiRT' : 'card_trig_100hz',
-                                 'RESPData.*_epiRT' : 'resp_data_25hz',
-                                 'RESPTrig.*_epiRT' : 'resp_trig_25hz' }
+    physio_filename_patterns = { r'.*\.puls' : 'card_data_50hz',
+                                 r'.*\.resp' : 'resp_data_50hz',
+                                 r'cardiac_.*_%s' % xnat_scan : 'card_time_data_100hz',
+                                 r'respir_.*_%s' % xnat_scan : 'resp_time_data_100hz',
+                                 r'D.*\.txt' : 'card_trig_data_resp_data_1000hz',
+                                 r'PPGData.*_epiRT' : 'card_data_100hz',
+                                 r'PPGTrig.*_epiRT' : 'card_trig_100hz',
+                                 r'RESPData.*_epiRT' : 'resp_data_25hz',
+                                 r'RESPTrig.*_epiRT' : 'resp_trig_25hz' }
 
     # Get list of resource files that match one of the physio file name patterns
     physio_files = []
     resource_list=get_resource_list(redcap_visit_id,xnat,xnat_eid,experiment.resources)
     for resource in resource_list:
         for (pattern,outfile_name) in list(physio_filename_patterns.items()):
-             physio_files += [ (file['cat_ID'], re.sub( '.*\/files\/', '', file['URI']), outfile_name ) for file in resource if re.match( pattern, file['Name'] ) ]
+             physio_files += [ (file['cat_ID'], re.sub( r'.*\/files\/', '', file['URI']), outfile_name ) for file in resource if re.match( pattern, file['Name'] ) ]
 
     # No matching files - nothing to do
     if len( physio_files ) == 0:
@@ -393,11 +393,11 @@ def copy_rsfmri_physio_files( redcap_visit_id, xnat, xnat_eid_and_scan, to_direc
                 try:
                     to_file = open( physio_file_path, 'w' )
                     for line in open( physio_file_path_cache ).readlines():
-                        match = re.match( '^.* - Voltage - (.*)\t.* - Voltage - (.*)\t.* - Voltage - (.*)$', line )
+                        match = re.match( r'^.* - Voltage - (.*)\t.* - Voltage - (.*)\t.* - Voltage - (.*)$', line )
                         if match:
                             to_file.write( '%s\t%s\t%s\n' % ( match.group(1), match.group(2), match.group(3) ) )
                         else:
-                            match = re.match( '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{1,4}\s+(.*)\s+[0-9]{1,2}/[0-9]{1,2}/[0-9]{1,4}\s+(.*)\s+[0-9]{1,2}/[0-9]{1,2}/[0-9]{1,4}\s+(.*)$', line )
+                            match = re.match( r'^[0-9]{1,2}/[0-9]{1,2}/[0-9]{1,4}\s+(.*)\s+[0-9]{1,2}/[0-9]{1,2}/[0-9]{1,4}\s+(.*)\s+[0-9]{1,2}/[0-9]{1,2}/[0-9]{1,4}\s+(.*)$', line )
                             if match:
                                 to_file.write( '%s\t%s\t%s\n' % ( match.group(1), match.group(2), match.group(3) ) )
                             else:
@@ -426,7 +426,7 @@ def copy_manual_pipeline_files( redcap_visit_id, xnat, xnat_eid, to_directory ):
     files = []
     resource_list=get_resource_list(redcap_visit_id,xnat,xnat_eid,experiment.resources)
     for resource in resource_list:
-        files += [ (file['cat_ID'], re.sub( '.*\/files\/', '', file['URI']) ) for file in resource if file['collection'] == 'pipeline' ]
+        files += [ (file['cat_ID'], re.sub( r'.*\/files\/', '', file['URI']) ) for file in resource if file['collection'] == 'pipeline' ]
 
         # No matching files - nothing to do
     if len( files ) == 0:
@@ -574,7 +574,7 @@ def export_to_workdir( redcap_visit_id, xnat, session_data, pipeline_workdir, re
 
     # Copy any manual pipeline override files from all involved experiments
     #   First, extract "Experiment ID" part from each "EID/SCAN" string, unless empty, then make into set of unique IDs.
-    all_sessions = set( [ eid for eid in [ re.sub( '/.*', '', session_data[series] ) for series in list(session_data.keys()) if 'mri_series_' in series ] if 'NCANDA_E' in eid ] )
+    all_sessions = set( [ eid for eid in [ re.sub( r'/.*', '', session_data[series] ) for series in list(session_data.keys()) if 'mri_series_' in series ] if 'NCANDA_E' in eid ] )
     for session in all_sessions:
         new_files_created = copy_manual_pipeline_files( redcap_visit_id, xnat, session, pipeline_workdir ) or new_files_created
 

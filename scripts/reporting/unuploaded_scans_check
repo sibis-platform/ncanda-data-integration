@@ -55,7 +55,7 @@ def main(args):
                    'mri_series_dti30b400', 'mri_series_dti60b1000', 'mri_series_dti_fieldmap',
                    'mri_series_rsfmri', 'mri_series_rsfmri_fieldmap']
     mr_sessions = redcap_api.export_records(forms=["visit_date", "mr_session_report"], 
-            records=args.subjects, events=args.events, format="df")
+            records=args.subjects, events=args.events, format_type="df")
     mr_sessions = mr_sessions[(mr_sessions['mri_missing'] != 1) & (mr_sessions["visit_ignore___yes"] != 1)]
     mr_sessions['ids'] = extract_scan_event_ids(mr_sessions, scan_fields)
 
@@ -71,7 +71,7 @@ def main(args):
                 hits = xnat[(xnat['experiment_id'] == experiment) & (xnat['scan_type'].str.contains(scan)) &
                             ((xnat['quality'] == 'usable-extra') | 
                                 ((xnat['quality'] == 'unusable') & ~xnat['has_note']))]
-                results = results.append(hits)  # handles empty data frames just fine
+                results = pd.concat([results, hits], ignore_index=True)
         mr_sessions.at[idx, "absent_scans"] = empty_scans
 
     return results.to_csv(args.outfile, index=False)
@@ -89,7 +89,7 @@ def extract_scan_event_ids(df, scan_fields):
                .apply(lambda x: " ".join(
                    [str(y) for y in x.drop_duplicates().tolist() if pd.notnull(y)]
                ), axis=1)
-               .str.replace(r'/\d{1,2} ?', ' ')  # remove scan specification
+               .str.replace(r'/\d{1,2} ?', ' ', regex=True)  # remove scan specification
                .apply(lambda x: list(set(x.strip().split(' ')))))
     return all_ids
 
