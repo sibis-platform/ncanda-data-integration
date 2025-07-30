@@ -239,13 +239,14 @@ subject_label_to_sid_dict = dict()
 for ( subject_label, subject_id, projects ) in subject_project_list:
     if subject_label not in list(subject_label_to_sid_dict.keys()):         
         subject_label_to_sid_dict[subject_label] = subject_id
-    elif (
-        len(subject_id) == 13 and
-        subject_id < subject_label_to_sid_dict[subject_label] and
-        len(subject_label_to_sid_dict[subject_label]) == 13
+    elif len(subject_id) == 13 and (
+        len(subject_label_to_sid_dict[subject_label]) != 13  # replace any non-canonical ID
+        or subject_id < subject_label_to_sid_dict[subject_label]  # or keep the smaller 13-char one
     ):
-        if args.verbose :
-            print('INFO: Modified link for',subject_label,'from', subject_label_to_sid_dict[subject_label], 'to', subject_id, '!')
+        if args.verbose:
+            print('INFO: Modified link for', subject_label,
+                'from', subject_label_to_sid_dict[subject_label],
+                'to', subject_id, '!')
         subject_label_to_sid_dict[subject_label] = subject_id
     elif args.verbose :
         print('INFO: Ignoring link',subject_label,'to',subject_id,'as already already linked to',subject_label_to_sid_dict[subject_label],'!')
@@ -258,7 +259,7 @@ baseline_events = ['baseline_visit_arm_1'] #, 'baseline_visit_arm_4']
 subject_fields = ['study_id', 'dob', 'exclude', 'enroll_exception',
                   'siblings_enrolled', 'siblings_id1', 'family_id',
                   'hispanic', 'race', 'race_other_code','ndar_guid_id', 'ndar_guid_pseudo_id',
-                  'ndar_consent', 'ndar_guid_anomaly', 'ndar_guid_anomaly_visit',
+                  'ndar_guid_anomaly', 'ndar_guid_anomaly_visit',
                   'ndar_guid_aud_dx_followup', 'ndar_guid_aud_dx_initial']
 subject_data = redcap_project.export_records(fields=subject_fields,
                                              events=baseline_events,
