@@ -217,15 +217,37 @@ def load_data(
                 "transmitted."
             )
         days_since_start = (datetime.now() - dates).dt.days
-        selected_idx = (((data['youth_report_2_complete'] == '2') |
-                         ((data['youth_report_2_complete'] == '1')
-                          & (days_since_start > 30))) &
-                        ~data['record_id'].isin(failed_conversions))
+        form_status_vars = [
+            'youth_report_2_complete',
+            'annual_interview_youth_report_1_complete',
+            'critical_item_report_complete',
+            'fitbit_intake_form_complete',
+            'mri_report_complete',
+            'participant_last_use_summary_plusnp_complete',
+            'sleep_study_evening_questionnaire_complete',
+            'sleep_study_presleep_questionnaire_complete',
+            'sleep_study_morning_questionnaire_complete'
+        ]
+
+        # Determine if each row should be selected
+        def is_useful(row, age):
+            statuses = [str(row.get(f, '0')) for f in form_status_vars]
+            return any(s == '2' for s in statuses) or (any(s == '1' for s in statuses) and age > 30)
+
+        selected_mask = [
+            is_useful(row, age) for (_, row), age in zip(data.iterrows(), days_since_start)
+        ]
+
+        selected_idx = pd.Series(selected_mask, index=data.index)
+        selected_idx &= ~data['record_id'].isin(failed_conversions)
+
         skipped_ids = data.loc[~selected_idx, 'record_id'].tolist()
         if verbose:
-            print("Skipping incomplete and younger-than-month records:")
+            print("Skipping records with only incomplete forms and <30 day age:")
             print("\n".join([f" - {x}" for x in skipped_ids]))
+
         return data.loc[selected_idx]
+
     return data
 
 
