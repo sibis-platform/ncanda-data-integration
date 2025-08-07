@@ -923,13 +923,39 @@ for [key, row] in mr_sessions_redcap.iterrows():
             default_site = site_map[subject_label[0]]   # default site based on first char in NCANDA ID
             visit_site = this_visit_data.iloc[0]             # visit_site from visit notes redcap form
 
+
+            # first choose the candidate
             if pd.isna(visit_site):
-                # if visit_notes is empty, first try default based on NCANDA ID
-                pid = f'{default_site}_incoming'
-                sid = proj_list[pid]
+                pid = f"{default_site}_incoming"
             else:
-                pid = f'{visit_site}_incoming'
-                sid = proj_list[pid]
+                pid = f"{visit_site}_incoming"
+
+            sid = proj_list.get(pid)
+
+            if sid is None:
+                if args.verbose:
+                    print(
+                        f"INFO: No XNAT subject found for {subject_label} in project "
+                        f"{pid}. Trying other projects: {list(proj_list.keys())}"
+                    )
+
+                # Try every other project that subject appears in
+                for retry_pid, retry_sid in proj_list.items():
+                    sid = retry_sid
+                    pid = retry_pid
+                    if args.verbose:
+                        print(f"   → Using {pid} (sid={sid}) instead")
+                    break          # take the first match and stop
+
+                # If still none, log and skip this row
+                if sid is None:
+                    if args.verbose:
+                        print(
+                        subject_label,
+                        f"No XNAT session found for visit {event}. "
+                        "Check visit_site in Visit-Notes or verify the scan was uploaded."
+                    )
+                    continue
             
             # either way pipe_id has to be default xnat subj id
             pipe_id = proj_list[f'{default_site}_incoming']
