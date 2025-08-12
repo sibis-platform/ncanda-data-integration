@@ -7,7 +7,7 @@ REDCAP_MARIA_CONTAINER_NAME=mariadb_redcap
 REDCAP_MYSQL_DATABASE=redcap
 REDCAP_MYSQL_ROOT_PASSWORD=root
 MYSQL_IGNORE="--ignore-table-data=redcap.redcap_log_view --ignore-table-data=redcap.redcap_log_event --ignore-table-data=redcap.redcap_log_view_old"
-MYSQL_DUMP="mysqldump -u root -p${REDCAP_MYSQL_ROOT_PASSWORD} ${MYSQL_IGNORE} --quick --compress --verbose --debug-info --single-transaction --databases ${REDCAP_MYSQL_DATABASE}"
+MYSQL_DUMP="mysqldump -u root -p${REDCAP_MYSQL_ROOT_PASSWORD} ${MYSQL_IGNORE} --quick --compress --verbose --single-transaction --databases ${REDCAP_MYSQL_DATABASE}"
 
 function current_timestamp() {
     # 20240321T034445z
