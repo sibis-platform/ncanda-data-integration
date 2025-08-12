@@ -101,7 +101,7 @@ summary_records = rc_summary.export_records(
     event_name='unique',
     format_type='df',
     export_data_access_groups=True,
-    df_kwargs={'low_memory': False})
+    df_kwargs={'low_memory': False, 'dtype': { 'cnp_age': str } })
 if summary_records.index.names != ['study_id', 'redcap_event_name']:
     summary_records = summary_records.reset_index(drop=False)
     summary_records = summary_records.set_index(['study_id', 'redcap_event_name'])
