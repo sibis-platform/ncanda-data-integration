@@ -130,7 +130,8 @@ if [ "$redcapFlag" == "1" ]; then
     fi 
     mkdir -p ${redDIR}
     for m in ${measures}; do
-      files="$(ls */*/*/measures/${m}.csv 2>/dev/null)"
+      #files="$(ls */*/*/measures/${m}.csv 2>/dev/null)"
+      files=$(ls -1 */*/*/measures/${m}.csv 2>/dev/null | LC_ALL=C sort -t/ -k1,1 -k3,3V)
       if [ "$files" != ""  ]; then 
         concat_csv ${redDIR}/${m}.csv ${files}
       else 
