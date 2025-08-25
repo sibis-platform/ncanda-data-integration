@@ -139,9 +139,12 @@ else:
 
 # filter columns so that they start with youthreport1_asr_section
 # only keep rows that have at least 100 responses
-aseba_df_answers = (aseba_df.filter(regex=form_specifics.form_field_regex)
-                    .dropna(axis=0, how='any', thresh=args.threshold)
-                    .fillna(value=9))
+if  args.threshold :
+    aseba_df_answers = (aseba_df.filter(regex=form_specifics.form_field_regex)
+                    .dropna(axis=0, how='any').fillna(value=9))
+else :
+    aseba_df_answers = (aseba_df.filter(regex=form_specifics.form_field_regex)
+                    .dropna(axis=0, thresh=args.threshold).fillna(value=9))
 
 # Check that all relevant columns were provided and form_field_regex didn't
 # under- or over-select
