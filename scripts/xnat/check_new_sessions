@@ -90,6 +90,10 @@ required_siemens = {
     "ncanda-dti60b1000-v1": 1,
     "ncanda-grefieldmap-v1": 2,
     "ncanda-rsfmri-v1": 1,
+    "ncanda-pe2-dti6b3000-v1": 1,
+    "ncanda-pe1-dti6b3000-v1": 1,
+    "ncanda-pe0-dti96b3000-v1": 1, 
+    "ncanda-alcpic-v1": 1    
 }
 required_ge = {
     "ncanda-t1spgr-v1": 1,
@@ -99,6 +103,9 @@ required_ge = {
     "ncanda-dti60b1000-v1": 1,
     "ncanda-grefieldmap-v1": 1,
     "ncanda-rsfmri-v1": 1,
+    "ncanda-pe1-dti6b3000-v1": 1,
+    "ncanda-pe0-dti96b3000-v1": 1, 
+    "ncanda-alcpic-v1": 1    
 }
 
 
@@ -128,6 +135,9 @@ expected_images["GE"] = {
     "ncanda-dti60b1000-v1": [62],
     "ncanda-grefieldmap-v1": [6, 9],
     "ncanda-rsfmri-v1": [274, 275, 330],
+    "ncanda-pe1-dti6b3000-v1": [7],
+    "ncanda-pe0-dti96b3000-v1": [108], 
+    "ncanda-alcpic-v1": [360]    
 }
 
 # Was originaly listed under Siemens  not sure why 
@@ -140,6 +150,10 @@ expected_images["SIEMENS"] = {
     "ncanda-dti60b1000-v1": [62],
     "ncanda-grefieldmap-v1": [1, 2],
     "ncanda-rsfmri-v1": [274, 275, 330],
+    "ncanda-pe2-dti6b3000-v1": [1],
+    "ncanda-pe1-dti6b3000-v1": [1],
+    "ncanda-pe0-dti96b3000-v1": [103], 
+    "ncanda-alcpic-v1": [360]    
 }
 
 #
@@ -154,6 +168,10 @@ frame_check_siemens = {
     "ncanda-dti60b1000-v1": ["62","3968"],
     "ncanda-grefieldmap-v1": [["64", "128"]],
     "ncanda-rsfmri-v1": ["275", "330","10560"],
+    "ncanda-pe2-dti6b3000-v1": "81",
+    "ncanda-pe1-dti6b3000-v1": "81",
+    "ncanda-pe0-dti96b3000-v1": "108", 
+    "ncanda-alcpic-v1": "360"  
 }
 
 frame_check_ge = {
@@ -164,6 +182,9 @@ frame_check_ge = {
     "ncanda-dti60b1000-v1": "3968",
     "ncanda-grefieldmap-v1": "384",
     "ncanda-rsfmri-v1": ["8768", "10560"],
+    "ncanda-pe1-dti6b3000-v1": "567",
+    "ncanda-pe0-dti96b3000-v1": "8748", 
+    "ncanda-alcpic-v1": "11520"   
 }
 
 #
@@ -180,6 +201,10 @@ voxelres_siemens = {
     "ncanda-dti60b1000-v1": [r'x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
     "ncanda-grefieldmap-v1": [r'x="2.5\d*" y="2.5\d*" z="2.5\d*"'],
     "ncanda-rsfmri-v1": [r'x="3.75\d*" y="3.75\d*" z="5.0\d*"'],
+    "ncanda-pe2-dti6b3000-v1": [r'x="1.714\d*" y="1.714\d*" z="1.7\d*"'],
+    "ncanda-pe1-dti6b3000-v1": [r'x="1.714\d*" y="1.714\d*" z="1.7\d*"'],
+    "ncanda-pe0-dti96b3000-v1": [r'x="1.714\d*" y="1.714\d*" z="1.7\d*"'], 
+    "ncanda-alcpic-v1": [r'x="3.75\d*" y="3.75\d*" z="5.0\d*"'] 
 }
 
 voxelres_ge = {
@@ -190,6 +215,10 @@ voxelres_ge = {
     "ncanda-dti60b1000-v1": [r'x="1.875\d*" y="1.875\d*" z="2.5\d*"',r'x="0.9375\d*" y="0.9375\d*" z="2.5\d*"'],
     "ncanda-grefieldmap-v1": [r'x="1.875\d*" y="1.875\d*" z="2.5\d*"'],
     "ncanda-rsfmri-v1": [r'x="3.75\d*" y="3.75\d*" z="5.0\d*"'],
+    "ncanda-pe1-dti6b3000-v1": [r'x="0.9375\d*" y="0.9375\d*" z="1.7\d*"'],
+    "ncanda-pe0-dti96b3000-v1": [r'x="1.714\d*" y="1.714\d*" z="1.7\d*"'], 
+    "ncanda-alcpic-v1": [r'x="3.75\d*" y="3.75\d*" z="5.0\d*"'] 
+
 }
 
 physio = [
@@ -282,6 +311,7 @@ def check_dti(
     #
     parameters = []
     for scan, scantype in dti_scans:
+        # for sequenceLabel in ["dti6b500pepolar", "dti60b1000", "dti30b400","dti6b3000","dti96b3000"]:
         for sequenceLabel in ["dti6b500pepolar", "dti60b1000", "dti30b400"]:
             if sequenceLabel in scantype:
                 if scan in incorrect_formatting_list:
@@ -311,14 +341,16 @@ def check_dti(
                 if not diffusionFlag:
                     errors.append("gradient check failed for " + scan_dir)
 
-                try:
-                    util = XNATSessionElementUtil(experiment.scans[scan])
-                    xnat_para = util.mget(scan_attrs)
-                    xnat_para.append(scan)
-                    parameters += [xnat_para]
+                # we need to probably check "dti6b3000" and "dti96b3000"
+                if  sequenceLabel in ["dti6b500pepolar", "dti60b1000", "dti30b400"]:                    
+                    try:
+                        util = XNATSessionElementUtil(experiment.scans[scan])
+                        xnat_para = util.mget(scan_attrs)
+                        xnat_para.append(scan)
+                        parameters += [xnat_para]
 
-                except Exception:
-                    errors.append("could not retrieve scan parameters for " + scan_dir)
+                    except Exception:
+                        errors.append("could not retrieve scan parameters for " + scan_dir)
 
     if len(parameters) > 1:
         te0, fovx0, fovy0, pixx0, pixy0, scan0 = parameters[0]
@@ -1283,7 +1315,7 @@ for (
         dti_scans = [
             (scan, scantype)
             for (scan, scantype, quality) in scantype_and_quality
-            if re.match(r"^ncanda-dti.*-v1$", scantype) and quality != "unusable"
+            if re.match(r"^ncanda-(?:pe\d-)?dti.*-v1$", scantype) and quality != "unusable"
         ]
         fmri_scans = [
             (scan, scantype)
