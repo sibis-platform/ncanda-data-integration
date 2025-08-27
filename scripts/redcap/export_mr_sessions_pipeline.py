@@ -516,6 +516,13 @@ def export_to_workdir( redcap_visit_id, xnat, session_data, pipeline_workdir, re
         if session_data['mri_series_dti_fieldmap'] != '':
             new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_dti_fieldmap'], os.path.join( pipeline_workdir_diffusion_native, 'fieldmap' ), 'fieldmap-%T%N.nii', xnat_dir, mr_session_report_complete, verbose=verbose ) or new_files_created
         
+        # dti6b3000 -> diffusion/native/dti6b3000/dti6b3000-%n.nii
+        if session_data.get('mri_series_dti6b3000', ''):
+            new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_dti6b3000'], os.path.join(pipeline_workdir_diffusion_native, 'dti6b3000'), 'dti6b3000-%n.nii', xnat_dir, mr_session_report_complete, verbose=verbose) or new_files_created
+
+        # dti96b3000 -> diffusion/native/dti96b3000/dti96b3000-%n.nii
+        if session_data.get('mri_series_dti96b3000', ''):
+            new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_dti96b3000'], os.path.join(pipeline_workdir_diffusion_native, 'dti96b3000'), 'dti96b3000-%n.nii', xnat_dir, mr_session_report_complete, verbose=verbose) or new_files_created
 
     else :
         missing_mri=""
