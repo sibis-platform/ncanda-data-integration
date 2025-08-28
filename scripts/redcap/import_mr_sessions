@@ -38,7 +38,8 @@ import export_mr_sessions_pipeline as mrpipeline
 # 
 today = time.strftime(sutils.date_format_ymd)
 
-ncanda_scan_types = [ 't1spgr', 'mprage', 't2fse', 'dti6b500pepolar', 'dti30b400', 'dti60b1000', 'rsfmri' ]
+ncanda_scan_types = [ 't1spgr', 'mprage', 't2fse', 'dti6b500pepolar', 'dti30b400', 'dti60b1000', 'rsfmri', 
+                     'dti6b3000', 'dti96b3000', 'alcpic' ]
 
 site_map = {
     'A': 'upmc',
@@ -173,24 +174,43 @@ def get_usable_scans_list( session, xnat_eid_list, redcap_visit_id, xnat_sid):
 # Get scans from a list, selected by type
 #
 
-def get_scans_by_type( red2cas, usable_scans_list, visit_date, redcap_visit_id):
-    result = dict()
-    for type in ncanda_scan_types:
-        # Get list of scans for this type; as we go, compute and sort by number of days between visit date and scan date
-        # scan type has to end with -v1 otherwise it is ignored 
-        scans = sorted( [ (eid, xnat_url, scan, red2cas.days_between_dates(visit_date,xnat_sessions_dict[eid][0])) for (scan_type,eid,xnat_url,scan) in usable_scans_list if re.match( '^ncanda-%s-v1$' % type, scan_type ) ], key=lambda x: abs(x[3]) )
- 
-        # Changed logic here should generally just be one scan across all sessions
-        # if (len( scans ) == 1) or (len( scans ) > 1 and scans[0][2] < scans[1][2]): 
-        if (len( scans ) == 1) :
-            # either only one usable scan, or unique usable scan with lowest number of days after "visit_date"
-            result[type] = scans[0]
-        elif len(scans) > 1:
-            slog.info(redcap_visit_id, 
-                      "ERROR: more than one scan of type {} on the same visit ".format(type),
-                      eid_and_scan_number=str(scans),
-                      type = str(type))
+def get_scans_by_type(red2cas, usable_scans_list, visit_date, redcap_visit_id):
+    MULTI_OK_TYPES = {'dti6b3000', 'dti96b3000'}  # multiples are normal here
+
+    result = {}
+    for typ in ncanda_scan_types:
+        pat = re.compile(rf'^ncanda-(?:pe\d-)?{re.escape(typ)}-v\d+$', re.IGNORECASE)
+
+        scans = sorted(
+            [
+                (eid, xnat_url, scan,
+                 red2cas.days_between_dates(visit_date, xnat_sessions_dict[eid][0]))
+                for (scan_type, eid, xnat_url, scan) in usable_scans_list
+                if pat.match(scan_type)
+            ],
+            key=lambda x: abs(x[3])  # closest to visit date
+        )
+
+        if not scans:
+            continue
+
+        # always take the closest
+        result[typ] = scans[0]
+
+        # only log multiples for types where that’s unexpected
+        if len(scans) > 1 and typ not in MULTI_OK_TYPES:
+            try:
+                shortlist = [(s[0], s[2], s[3]) for s in scans[:3]]
+            except Exception:
+                shortlist = None
+            slog.info(
+                redcap_visit_id,
+                f"INFO: multiple usable scans for type {typ}; choosing closest to visit date.",
+                eid_and_scan_number=str(shortlist) if shortlist else str(len(scans)),
+                type=str(typ),
+            )
     return result
+
 
 #
 # Get fieldmap series for a given scan series (either DTI or rs-fMRI) - this can be more than one, because Siemens writes two under the same type
@@ -254,6 +274,69 @@ def encode_session_and_scan( session_and_scan, type_list, match_eid = None ):
 
     return ""
 
+
+# Get URIs for ALCPIC E-Prime files (edat2/txt) wherever they exist at the experiment level
+def get_alcpic_uris(xnat_eid_list, redcap_key_str, latest_only=False):
+    """
+    Mimics get_spiral_uris style; returns a single space-separated string of
+    'EID/RESOURCE_ID/relative/path' tokens for ALCPIC files.
+    - redcap_key_str: the prefix used in filenames (e.g., 'A-00140-M-9')
+    - latest_only: if True, keep only the newest by date (YYYYMMDD) per EID
+    """
+    # Strict filename matcher (case-insensitive); captures the 8-digit date
+    pat = re.compile(
+        rf'^{re.escape(redcap_key_str)}-(\d{{8}})-alcpic\.(?:edat2|txt)$',
+        re.IGNORECASE
+    )
+
+    hits = []  # (eid, datestr, token)
+    for eid in xnat_eid_list:
+        # 1) list experiment-level resources
+        resources = xnat._get_json(f'/data/experiments/{eid}/resources/') or []
+
+        # Prefer resources that look relevant by tags/label/content
+        def _is_alcpic_res(r):
+            lbl = (r.get('label') or '').lower()
+            tags = (r.get('tags') or '').lower()
+            cnt  = (r.get('content') or '').lower()
+            return ('alcpic' in tags) or ('alpic' in tags) or \
+                   ('alcpic' in lbl)  or ('alpic' in lbl)  or \
+                   ('alcpic' in cnt)  or ('alpic' in cnt)
+
+        prioritized = [r for r in resources if _is_alcpic_res(r)]
+        to_scan = prioritized if prioritized else resources
+
+        # 2) list files for each resource, filter by filename rule
+        for r in to_scan:
+            rid = r.get('xnat_abstractresource_id')
+            if not rid:
+                continue
+            files = xnat._get_json(f'/data/experiments/{eid}/resources/{rid}/files') or []
+            for f in files:
+                rel = (f.get('Name') or f.get('name') or '').lstrip('/')  # may include subdirs
+                base = os.path.basename(rel)
+                m = pat.match(base)
+                if m:
+                    datestr = m.group(1)  # YYYYMMDD
+                    token = "/".join([eid, str(rid), rel])
+                    hits.append((eid, datestr, token))
+
+    if not hits:
+        return ''
+
+    # Sort newest-first (string sort works on YYYYMMDD)
+    hits.sort(key=lambda t: (t[0], t[1]), reverse=True)
+
+    if latest_only:
+        # keep only the latest per EID
+        latest_by_eid = {}
+        for eid, datestr, tok in hits:
+            latest_by_eid.setdefault(eid, (datestr, tok))
+        return " ".join(v[1] for v in latest_by_eid.values())
+
+    # All matches (newest first)
+    return " ".join(tok for _, _, tok in hits)
+
 #
 # Get data from XNAT for one subject/visit date
 #
@@ -287,9 +370,13 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     result['mri_series_dti6b500pepolar'] = ''
     result['mri_series_dti30b400'] = ''
     result['mri_series_dti60b1000'] = ''
+    result['mri_series_dti6b3000'] = ''
+    result['mri_series_dti96b3000'] = ''
     result['mri_series_dti_fieldmap'] = ''
     result['mri_series_rsfmri'] = ''
     result['mri_series_rsfmri_fieldmap'] = ''
+    result['mri_series_taskfmri_alcpic_scan'] = ''
+    result['mri_series_taskfmri_alcpic_eprime'] = ''
     result['mri_scanner'] = ''
     result['mri_site'] = ''
 
@@ -448,6 +535,41 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
 
         result['mri_rsfmri_date'] = xnat_sessions_dict[scans_by_type['rsfmri'][0]][0]
         result['mri_rsfmri_age'] = str(round(old_div(red2cas.days_between_dates(date_of_birth, result['mri_rsfmri_date']), 365.242),10))
+
+    # new dti6b and dti96b series
+    if 'dti6b3000' in list(scans_by_type.keys()) and 'dti96b3000' in list(scans_by_type.keys()) :
+        dti6_items = [
+            (eid, scan)
+            for (stype, eid, _url, scan) in usable_scans_list
+            if eid == dti_eid and re.match(r'^ncanda-(?:pe\d-)?dti6b3000-v\d+$', stype, re.IGNORECASE)
+        ]
+        dti96_items = [
+            (eid, scan)
+            for (stype, eid, _url, scan) in usable_scans_list
+            if eid == dti_eid and re.match(r'^ncanda-(?:pe\d-)?dti96b3000-v\d+$', stype, re.IGNORECASE)
+        ]
+
+        # Sort by scan number so output is stable (25 26, etc.)
+        try:
+            dti6_items.sort(key=lambda t: int(t[1]))
+            dti96_items.sort(key=lambda t: int(t[1]))
+        except Exception:
+            pass
+
+        if dti6_items:
+            result['mri_series_dti6b3000'] = ' '.join(f'{eid}/{scan}' for (eid, scan) in dti6_items)
+        if dti96_items:
+            result['mri_series_dti96b3000'] = ' '.join(f'{eid}/{scan}' for (eid, scan) in dti96_items)
+
+    # alpic task fMRI series
+    if 'alcpic' in scans_by_type:
+        result['mri_series_taskfmri_alcpic_scan'] = encode_session_and_scan(scans_by_type, ['alcpic'])
+
+        # Build the filename prefix your uploader uses; commonly just the subject ID
+        redcap_key_str = redcap_key[0] if isinstance(redcap_key, (list, tuple)) else redcap_key
+
+        # Exactly like spiral, we return "EID/RESOURCE_ID/Name" tokens (space-separated)
+        result['mri_series_taskfmri_alcpic_eprime'] = get_alcpic_uris(xnat_eid_list, redcap_key_str, latest_only=False)
 
 
     for xnat_eid in xnat_eid_list:
