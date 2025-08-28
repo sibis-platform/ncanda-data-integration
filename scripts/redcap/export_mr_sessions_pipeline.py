@@ -516,14 +516,6 @@ def export_to_workdir( redcap_visit_id, xnat, session_data, pipeline_workdir, re
         if session_data['mri_series_dti_fieldmap'] != '':
             new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_dti_fieldmap'], os.path.join( pipeline_workdir_diffusion_native, 'fieldmap' ), 'fieldmap-%T%N.nii', xnat_dir, mr_session_report_complete, verbose=verbose ) or new_files_created
         
-        # dti6b3000 -> diffusion/native/dti6b3000/dti6b3000-%n.nii
-        if session_data.get('mri_series_dti6b3000', ''):
-            new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_dti6b3000'], os.path.join(pipeline_workdir_diffusion_native, 'dti6b3000'), 'dti6b3000-%n.nii', xnat_dir, mr_session_report_complete, verbose=verbose) or new_files_created
-
-        # dti96b3000 -> diffusion/native/dti96b3000/dti96b3000-%n.nii
-        if session_data.get('mri_series_dti96b3000', ''):
-            new_files_created = export_series( redcap_visit_id, xnat, redcap_key, session_data['mri_series_dti96b3000'], os.path.join(pipeline_workdir_diffusion_native, 'dti96b3000'), 'dti96b3000-%n.nii', xnat_dir, mr_session_report_complete, verbose=verbose) or new_files_created
-
     else :
         missing_mri=""
         if session_data['mri_series_dti6b500pepolar'] == '' :
@@ -533,6 +525,38 @@ def export_to_workdir( redcap_visit_id, xnat, session_data, pipeline_workdir, re
         flag = delete_workdir(pipeline_workdir_diffusion_main,redcap_visit_id,mr_session_report_complete , missing_mri,verbose)
         if not flag:
             return new_files_created 
+        
+    # -------- 32ch diffusion (high-b DTI) --------
+    pipeline_workdir_32ch_diffusion_main   = os.path.join(pipeline_workdir, '32ch-diffusion')
+    pipeline_workdir_32ch_diffusion_native = os.path.join(pipeline_workdir_32ch_diffusion_main, 'native')
+
+    # dti6b3000 -> 32ch-diffusion/native/dti6b3000/dti6b3000-%n.nii
+    if session_data.get('mri_series_dti6b3000', ''):
+        new_files_created = export_series(
+            redcap_visit_id,
+            xnat,
+            redcap_key,
+            session_data['mri_series_dti6b3000'],
+            os.path.join(pipeline_workdir_32ch_diffusion_native, 'dti6b3000'),
+            'dti6b3000-%n.nii',
+            xnat_dir,
+            mr_session_report_complete,
+            verbose=verbose
+        ) or new_files_created
+
+    # dti96b3000 -> 32ch-diffusion/native/dti96b3000/dti96b3000-%n.nii
+    if session_data.get('mri_series_dti96b3000', ''):
+        new_files_created = export_series(
+            redcap_visit_id,
+            xnat,
+            redcap_key,
+            session_data['mri_series_dti96b3000'],
+            os.path.join(pipeline_workdir_32ch_diffusion_native, 'dti96b3000'),
+            'dti96b3000-%n.nii',
+            xnat_dir,
+            mr_session_report_complete,
+            verbose=verbose
+        ) or new_files_created
         
     # Export EPI functional data (from DICOM files)
     pipeline_workdir_functional_main = os.path.join( pipeline_workdir, 'restingstate');
