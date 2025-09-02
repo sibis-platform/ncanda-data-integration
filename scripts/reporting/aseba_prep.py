@@ -98,7 +98,7 @@ project_entry = session.connect_server('data_entry', True)
 if not args.demographics_file:
     if args.verbose:
         print("No demographics file provided; loading information from API.")
-    demo_cols = ['study_id', 'redcap_event_name', 'sex', 'age', 'mri_xnat_sid']
+    demo_cols = ['study_id', 'redcap_event_name', 'sex', 'agemonths', 'mri_xnat_sid']
     general_df = project_entry.export_records(fields=demo_cols,
                                               events=selected_events,
                                               format_type='df')
@@ -119,9 +119,11 @@ else:
 
 
 ## 2. Round age and remove records with uncalculated age
-general_df['age'] = general_df['age'].round(decimals=0)
-general_df = general_df.dropna(subset=['age'])
-general_df['age'] = general_df['age'].astype(int)
+# Before data release 10y  age in demographics  years - now age is age in months (as integer) 
+# 
+general_df['age'] = (general_df['agemonths']/12.0).round(decimals=0).astype(int)
+general_df = general_df.dropna(subset=['agemonths'])
+general_df['agemonths'] = general_df['agemonths'].astype(int)
 
 form_specifics = get_aseba_form(args.form)
 
@@ -141,10 +143,11 @@ else:
 # only keep rows that have at least 100 responses
 if  args.threshold :
     aseba_df_answers = (aseba_df.filter(regex=form_specifics.form_field_regex)
-                    .dropna(axis=0, how='any').fillna(value=9))
+                        .dropna(axis=0, thresh=args.threshold).fillna(value=9))
 else :
+    print("now")
     aseba_df_answers = (aseba_df.filter(regex=form_specifics.form_field_regex)
-                    .dropna(axis=0, thresh=args.threshold).fillna(value=9))
+                        .dropna(axis=0, how='any').fillna(value=9))
 
 # Check that all relevant columns were provided and form_field_regex didn't
 # under- or over-select
