@@ -108,6 +108,13 @@ required_ge = {
     "ncanda-alcpic-v1": 1    
 }
 
+optional_scans = [
+    "ncanda-pe2-dti6b3000-v1",
+    "ncanda-pe1-dti6b3000-v1",
+    "ncanda-pe0-dti96b3000-v1",
+    "ncanda-alcpic-v1"
+]
+
 
 scan_type_dictionary = {
     "GE": list(required_ge.keys()),
@@ -436,6 +443,11 @@ def incomplete_scan_check(
             missing_scans.remove("ncanda-dti30b400-v1")
             if not missing_scans:
                 return False
+            
+        # Don't flag optional scans as missing
+        missing_scans = [s for s in missing_scans if s not in optional_scans]
+        if not missing_scans:
+            return False
 
         # Lets see if missing_scans are part of exception
         missing_scans_exception = missing_scan_map.get(session_label)
