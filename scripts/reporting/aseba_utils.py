@@ -21,10 +21,10 @@ def process_demographics_file(filename):
     """
     df = pd.read_csv(filename)
     # df = df[df['visit'] == 'baseline']
-    df = df[['subject', 'arm', 'visit', 'participant_id', 'visit_age', 'sex']]
+    df = df[['subject', 'arm', 'visit', 'participant_id', 'visit_age_months', 'sex']]
     df['mri_xnat_sid'] = df['subject']
     df = df.rename(columns={'participant_id': 'study_id',
-                            'visit_age': 'age'})
+                            'visit_age_months': 'agemonths'})
     df.set_index(['subject', 'arm', 'visit'], inplace=True)
     return df
 
