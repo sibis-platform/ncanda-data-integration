@@ -119,9 +119,10 @@ else:
 
 
 ## 2. Round age and remove records with uncalculated age
-# Before data release 10y  age in demographics  years - now age is age in months (as integer) 
-# 
-general_df['age'] = (general_df['agemonths']/12.0).round(decimals=0).astype(int)
+# Before data release 10y,  age in demographics was in  years (and rounded)
+# now age is age in months (as integer)  and age below is not rounded anymore so that 
+# 18.6 years is 18 years not 19 ! 
+general_df['age'] = (general_df['agemonths']/12.0).astype(int)
 general_df = general_df.dropna(subset=['agemonths'])
 general_df['agemonths'] = general_df['agemonths'].astype(int)
 
