@@ -318,8 +318,7 @@ def check_dti(
     #
     parameters = []
     for scan, scantype in dti_scans:
-        # for sequenceLabel in ["dti6b500pepolar", "dti60b1000", "dti30b400","dti6b3000","dti96b3000"]:
-        for sequenceLabel in ["dti6b500pepolar", "dti60b1000", "dti30b400"]:
+        for sequenceLabel in ["dti6b500pepolar", "dti60b1000", "dti30b400","pe1-dti6b3000","pe2-dti6b3000", "dti96b3000"]:
             if sequenceLabel in scantype:
                 if scan in incorrect_formatting_list:
                     if args.verbose:
@@ -348,7 +347,6 @@ def check_dti(
                 if not diffusionFlag:
                     errors.append("gradient check failed for " + scan_dir)
 
-                # we need to probably check "dti6b3000" and "dti96b3000"
                 if  sequenceLabel in ["dti6b500pepolar", "dti60b1000", "dti30b400"]:                    
                     try:
                         util = XNATSessionElementUtil(experiment.scans[scan])
@@ -1036,7 +1034,8 @@ with open(os.path.join(sibis_config, "special_cases.yml"), "r") as fi:
 # Upload new QC results
 # Check the file exists, since we're now moving it after the upload, not only
 # when there's more questionable scans to be written to it
-if True:
+# if True:
+if not args.eid:
     upload_qc_file(sibis_session, os.path.join(log_dir, "scans_to_question"),".json", args.qc_json,False,args.verbose)
     upload_qc_file(sibis_session, os.path.join(log_dir, "scans_to_review"),".csv", args.qc_csv,(True if args.send_mail_to else False),args.verbose)
 else :
