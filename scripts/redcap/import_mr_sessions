@@ -38,8 +38,8 @@ import export_mr_sessions_pipeline as mrpipeline
 # 
 today = time.strftime(sutils.date_format_ymd)
 
-ncanda_scan_types = [ 't1spgr', 'mprage', 't2fse', 'dti6b500pepolar', 'dti30b400', 'dti60b1000', 'rsfmri', 
-                     'dti6b3000', 'dti96b3000', 'alcpic' ]
+# grefieldmap is not listed here as called dependent from  
+ncanda_scan_types = [ 't1spgr', 'mprage', 't2fse', 'dti6b500pepolar', 'dti30b400', 'dti60b1000', 'rsfmri', 'pe1-dti6b3000','pe2-dti6b3000', 'dti96b3000', 'alcpic' ]
 
 site_map = {
     'A': 'upmc',
@@ -48,6 +48,10 @@ site_map = {
     'D': 'ohsu',
     'E': 'ucsd',
 }
+
+#
+# Local Variables
+#
 
 #
 # Functions 
@@ -175,7 +179,6 @@ def get_usable_scans_list( session, xnat_eid_list, redcap_visit_id, xnat_sid):
 #
 
 def get_scans_by_type(red2cas, usable_scans_list, visit_date, redcap_visit_id):
-    MULTI_OK_TYPES = {'dti6b3000', 'dti96b3000'}  # multiples are normal here
 
     result = {}
     for typ in ncanda_scan_types:
@@ -197,8 +200,13 @@ def get_scans_by_type(red2cas, usable_scans_list, visit_date, redcap_visit_id):
         # always take the closest
         result[typ] = scans[0]
 
+        # multiples are normal here
+        # grefieldmap is not listed here bc it is downloaded by a seperate function
+        # Joe: I took out dti96b3000 as only one should exist
+        # MULTI_OK_TYPES = {'dti6b3000'}  
         # only log multiples for types where that’s unexpected
-        if len(scans) > 1 and typ not in MULTI_OK_TYPES:
+        # and typ not in MULTI_OK_TYPES:
+        if len(scans) > 1:
             try:
                 shortlist = [(s[0], s[2], s[3]) for s in scans[:3]]
             except Exception:
@@ -256,7 +264,7 @@ def get_eid_from_scan_list(session_and_scan, sType):
 #
 # Encode session and scan in a single string
 #
-def encode_session_and_scan( session_and_scan, type_list, match_eid = None ):
+def encode_session_and_scan(session_and_scan, type_list, match_eid = None ):
     # GE and siemens use different names for scans such as mprage and t1spgr
     for type in type_list:
         if type in list(session_and_scan.keys()): 
@@ -537,29 +545,18 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
         result['mri_rsfmri_age'] = str(round(old_div(red2cas.days_between_dates(date_of_birth, result['mri_rsfmri_date']), 365.242),10))
 
     # new dti6b and dti96b series
-    if 'dti6b3000' in list(scans_by_type.keys()) and 'dti96b3000' in list(scans_by_type.keys()) :
-        dti6_items = [
-            (eid, scan)
-            for (stype, eid, _url, scan) in usable_scans_list
-            if eid == dti_eid and re.match(r'^ncanda-(?:pe\d-)?dti6b3000-v\d+$', stype, re.IGNORECASE)
-        ]
-        dti96_items = [
-            (eid, scan)
-            for (stype, eid, _url, scan) in usable_scans_list
-            if eid == dti_eid and re.match(r'^ncanda-(?:pe\d-)?dti96b3000-v\d+$', stype, re.IGNORECASE)
-        ]
+    if 'pe1-dti6b3000' in list(scans_by_type.keys()) and 'dti96b3000' in list(scans_by_type.keys()) :
+        # Joe: removed dependcy from dti_eid - as it can be differernt session then dti6 !
+        # only importance is that dti96b3000 and dit6b3000 are from same session !
+        result['mri_series_dti96b3000'] = encode_session_and_scan(scans_by_type, ['dti96b3000'])
+        dti96_eid = get_eid_from_scan_list(scans_by_type,'dti96b3000')
 
-        # Sort by scan number so output is stable (25 26, etc.)
-        try:
-            dti6_items.sort(key=lambda t: int(t[1]))
-            dti96_items.sort(key=lambda t: int(t[1]))
-        except Exception:
-            pass
-
-        if dti6_items:
-            result['mri_series_dti6b3000'] = ' '.join(f'{eid}/{scan}' for (eid, scan) in dti6_items)
-        if dti96_items:
-            result['mri_series_dti96b3000'] = ' '.join(f'{eid}/{scan}' for (eid, scan) in dti96_items)
+        dti6p1=encode_session_and_scan( scans_by_type, ['pe1-dti6b3000'],dti96_eid)
+        dti6p2=encode_session_and_scan( scans_by_type, ['pe2-dti6b3000'],dti96_eid)
+        if dti6p2 :
+            result['mri_series_dti6b3000'] = "{} {}".format(dti6p1, dti6p2)
+        else :
+            result['mri_series_dti6b3000'] = dti6p1
 
     # alpic task fMRI series
     if 'alcpic' in scans_by_type:
