@@ -679,9 +679,19 @@ for form_prefix, form_name in forms.items():
         time_label=None, api_type="import_laptops", fields=fields_list, format_type="df"
     )
 
-    # First, get "compeete" and "exclude" fields for this form for all records to
+    # First, get "complete" and "exclude" fields for this form for all records to
     # find which ones actually have data and are not excluded.
     # Drop all empty form records (labelled 'incomplete')
+    if import_complete_records is None or not isinstance(import_complete_records, pandas.DataFrame):
+        error_id = f"{form_prefix}_{form_name}-export-records-failed"
+        slog.info(
+            error_id,
+            "Warning: stop processing as no records in import project for this form",
+            info="Was unable to get any records from import_laptops api for form. Check REDCap connection.",
+            study_id_list=args.study_id,
+        )
+        continue
+
     complete_records = import_complete_records[
         import_complete_records[complete_label] > 0
     ]
