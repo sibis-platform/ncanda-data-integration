@@ -21,6 +21,7 @@ import pandas
 from tqdm import tqdm
 
 import sibispy
+import sibispy.session
 from sibispy import sibislogger as slog
 from sibispy import redcap_to_casesdir
 from sibispy import utils as sutils
@@ -142,7 +143,7 @@ global uploads
 uploads = 0
 
 # Open connection with REDCap server
-session = sibispy.Session()
+session = sibispy.session.Session()
 if not session.configure(ordered_config_load_flag = True):
     if args.verbose:
         print("Error: session configure file was not found")
