@@ -674,20 +674,61 @@ for form_prefix, form_name in forms.items():
         subject_id_label = "%s_subject_id" % form_prefix
         fields_list.append(subject_id_label)
 
-    # ==> Export data from laptops for this form from REDCap.
-    import_complete_records = session.redcap_export_records_from_api(
-        time_label=None, api_type="import_laptops", fields=fields_list, format_type="df"
-    )
+    # ==> Export data from laptops for this form from REDCap (with retries).
+    MAX_TRIES = 3
+    SLEEP_SECS = 60
 
-    # First, get "complete" and "exclude" fields for this form for all records to
-    # find which ones actually have data and are not excluded.
-    # Drop all empty form records (labelled 'incomplete')
-    if import_complete_records is None or not isinstance(import_complete_records, pandas.DataFrame):
+    import_complete_records = None
+    last_exc = None
+
+    for attempt in range(1, MAX_TRIES + 1):
+        try:
+            import_complete_records = session.redcap_export_records_from_api(
+                time_label=None,
+                api_type="import_laptops",
+                fields=fields_list,
+                format_type="df",
+            )
+
+            # success: valid DataFrame and not empty
+            if isinstance(import_complete_records, pandas.DataFrame) and not import_complete_records.empty:
+                break
+
+            # not valid → retry
+            if args.verbose:
+                reason = (
+                    "empty DataFrame (0 rows)"
+                    if isinstance(import_complete_records, pandas.DataFrame)
+                    else "None or non-DataFrame result"
+                )
+                print(
+                    f"[Attempt {attempt}/{MAX_TRIES}] REDCap export returned {reason}. "
+                    + ("Retrying in 60s..." if attempt < MAX_TRIES else "No more retries.")
+                )
+
+        except Exception as e:
+            last_exc = e
+            if args.verbose:
+                print(
+                    f"[Attempt {attempt}/{MAX_TRIES}] Exception during export: {e}. "
+                    + ("Retrying in 60s..." if attempt < MAX_TRIES else "No more retries.")
+                )
+
+        if attempt < MAX_TRIES:
+            time.sleep(SLEEP_SECS)
+
+    # final failure after retries
+    if not (isinstance(import_complete_records, pandas.DataFrame) and not import_complete_records.empty):
         error_id = f"{form_prefix}_{form_name}-export-records-failed"
+        last_info = (
+            f"Last exception: {repr(last_exc)}"
+            if last_exc is not None
+            else "Received empty/invalid data in all attempts."
+        )
         slog.info(
             error_id,
-            "Warning: stop processing as no records in import project for this form",
-            info="Was unable to get any records from import_laptops api for form. Check REDCap connection.",
+            "Error: unable to fetch REDCap records after 3 attempts (60s intervals).",
+            info=last_info,
             study_id_list=args.study_id,
         )
         continue
