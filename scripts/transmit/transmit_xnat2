@@ -1,0 +1,168 @@
+#!/bin/bash -l
+
+##
+##  See COPYING file distributed along with the ncanda-data-integration package
+##  for the copyright and license terms
+##
+
+# proposed update:
+# - use folder structure and filenames to track progress instead of database
+#
+# - dest folder structure:
+#      ncanda/xnat/<prj>/<arc>/<session_name><separator><backup-timestamp>.tar.xz.aes   
+# - <separator> has to be something that never appears in <session_name>
+#  
+#   or
+#
+# - make each session backup incremental
+# - dest folder structure:
+#      dest/xnat/sessions/<session_name>/  
+#                             <session_name>-<backup-timestamp3>.tar.xz.aes   # incremental from 2
+#                             <session_name>-<backup-timestamp2>.tar.xz.aes   # incremental from 1
+#                             <session_name>-<backup-timestamp1>.tar.xz.aes   
+
+# Root directory of the XNAT storage file system
+XNAT_DATA_ROOT=/fs/storage/xnat
+
+# Path of the S3 history database file
+DBFILE=${HOME}/xnat_archive.sqlite
+
+# Current date in seconds since 0:00 a.m., 1-1-1970.
+CURRENT_DATE_EPOCH=`date +%s`
+
+# Convert number of days to seconds
+days_to_seconds() { expr $1 \* 86400; }
+
+# Maturation period - sessions older than this threshold will be transmitted
+ARCHIVE_AFTER=`days_to_seconds 7`
+
+# Time after which files are migrated to Glacier (this happens automatically - we only need this here to tell the script how long we can modify uploaded data in S3)
+#  As a matter of fact, the actual time configured in S3 should be at least 1 day more than the value set here.
+GLACIER_AFTER=`days_to_seconds 28`
+
+# Time after which files migrated to Glacier can be replaced with updated versions (this avoids early deletion fees)
+GLACIER_REPLACE_AFTER=`days_to_seconds 120`
+
+# Session name matching pattern - sessions not matching this will be skipped
+MATCH_SESSION="[A-EX]-[0-9]{5}-[MFPT]-[0-9]-20[1,2][0-9][0,1][0-9][0,1,2,3][0-9](-[0-9]?)?"
+
+S3_ROOT="s3://ncanda/xnat2"
+ARCHIVE_FILENAME_SEPARATOR="^"
+
+# Wrap up, encrypt, and send a scan session
+transmit_session()
+{
+    local prj=$1
+    local arc=$2
+    local ses=$3
+    local session_date=$4
+    local prj_arc_ses="${prj}/${arc}/${ses}"
+    local searchspec="${S3_ROOT}/${prj_arc_ses}${ARCHIVE_FILENAME_SEPARATOR}*"
+    local src_session_folder="${XNAT_DATA_ROOT}/archive/${prj_arc_ses}"
+
+    # Check if this archive already exists
+
+    local s3match=$(s4cmd ls ${searchspec} | sort -r | head -n 1 | awk '{print $4}')    
+    if [ "${s3match}" == "" ]; then
+        echo "INFO: ${prj_arc_ses}. No prior archive found. Search spec: ${searchspec}"
+    else
+        #echo "DEBUG: found most recent archive: ${s3match}"
+        local s3match_basename=$(basename "${s3match}")
+        local prev_archive_epoch="${s3match_basename#*${ARCHIVE_FILENAME_SEPARATOR}}"
+        #echo "DEBUG: extract1: ${prev_archive_epoch}"
+        prev_archive_epoch="${prev_archive_epoch%.*.*.*}"
+        if [ "${prev_archive_epoch}" != "" ]; then
+        	# Check if any files inside the session have been added or changed since last archive upload
+            local prev_archive_date=`date --date="@${prev_archive_epoch}"`
+            #echo "DEBUG: prev_archive_date: ${prev_archive_date}, epoch: ${prev_archive_epoch}"
+            #find_cmd="find ${src_session_folder} -type f -newermt @${prev_archive_epoch} -print -quit | wc -l"
+            #echo "DEBUG: searching for session modification: ${find_cmd}"
+            local modified_count=`find ${src_session_folder} -type f -newermt @${prev_archive_epoch} -print -quit | wc -l`
+            if [ ${modified_count} -gt 0 ]; then
+                local age_in_s3=`expr ${CURRENT_DATE_EPOCH} - ${prev_archive_epoch}`
+                if [ ${age_in_s3} -gt ${GLACIER_AFTER} ]; then
+                    if [ ${age_in_s3} -lt ${GLACIER_REPLACE_AFTER} ]; then
+                        echo "COLLISION: ${s3match} from ${prev_archive_date} has already been moved to cold storage, but too recent to be replaced"
+                        return
+                    fi
+                fi
+            
+                echo "INFO: ${prj_arc_ses}. ${modified_count} files have changed since ${prev_archive_date} in ${src_session_folder}. ${s3match} will be replaced in S3"
+            else
+                # Already there and not updated - nothing to do
+                echo "INFO: ${prj_arc_ses}. No files have changed since ${prev_archive_date} in ${src_session_folder}. ${s3match} is up to date"
+                return
+            fi
+        else    
+            echo "ERROR: ${prj_arc_ses}. failed to extract archive date from filename: ${s3match}"
+            return
+        fi
+    fi
+
+	# All go - make archive
+    local archive_new="${ses}${ARCHIVE_FILENAME_SEPARATOR}${CURRENT_DATE_EPOCH}.tar.xz.aes"
+    local s3uri_new="${S3_ROOT}/${prj}/${arc}/${archive_new}"
+    local archive_temp="${ses}${ARCHIVE_FILENAME_SEPARATOR}.tar.xz.aes"
+    local local_temp="/var/tmp/${archive_temp}"
+
+    echo "INFO ${prj_arc_ses}. Creating: ${local_temp} and uploading to ${s3uri_new}"
+
+    cd ${XNAT_DATA_ROOT}/archive/${prj}/${arc}
+    gtar -cf - ${ses} | xz -9 -c --threads 8 | aespipe -P ${HOME}/aes/keys -e aes256 > ${local_temp}
+
+	# Upload
+    s4cmd put ${local_temp} ${s3uri_new} --API-ServerSideEncryption=AES256
+
+    # delete old files
+    if ${cmd}; then
+        #echo "DEBUG: Copied ${local_temp} -> ${s3uri}"
+        local remote_files=$(s4cmd ls "${searchspec}" | sort -r)
+        #echo "DEBUG: remote_files: ${remote_files}"
+        local file_to_keep=$(echo "${remote_files}" | head -n 1 | awk '{print $4}')
+        #echo "DEBUG: remote file to keep: ${file_to_keep}"
+        local files_to_delete=$(echo "${remote_files}" | tail -n +2 | awk '{print $4}')
+        echo "INFO: remote files to delete: ${files_to_delete}"
+        # GM TODO delete old archives with:
+        #echo "${files_to_delete}" | xargs s4cmd del
+    else
+        echo "ERROR: failed to upload archive"
+        echo $cmd
+    fi
+    rm "${local_temp}"
+}
+
+update_archive()
+{
+    local prj=$1
+    local arc=$2
+
+    local SESSIONS=`cd ${XNAT_DATA_ROOT}/archive/${prj}/${arc}; ls`
+    for session in ${SESSIONS}; do
+        if [[ "${session}" =~ ${MATCH_SESSION} ]]; then
+            local session_dir=${XNAT_DATA_ROOT}/archive/${prj}/${arc}/${session}
+            local session_date=`stat --format=%Z ${session_dir}`
+            local session_age=`expr ${CURRENT_DATE_EPOCH} - ${session_date}`
+            # archive if older than maturation period 
+            if [ ${session_age} -gt ${ARCHIVE_AFTER} ]; then
+                transmit_session ${prj} ${arc} ${session} ${session_date}
+            fi
+        else
+            echo "WARNING: session ${session} does not match pattern and will be ignored"
+        fi
+    done
+}
+
+update_project()
+{
+    local prj=$1
+    local ARCHIVES=`cd ${XNAT_DATA_ROOT}/archive/${prj}; ls`
+    for arc in ${ARCHIVES}; do
+    	update_archive ${prj} ${arc}
+    done
+}
+
+XNAT_PROJECTS=`cd ${XNAT_DATA_ROOT}/archive/; ls`
+for prj in ${XNAT_PROJECTS}; do
+    update_project ${prj}
+done
+
