@@ -7,6 +7,9 @@
 
 MAILTO="ncanda-admin@sri.com,jim.klo@sri.com"
 bindir=`dirname $0`
-$bindir/transmit_xnat || echo "transmit_xnat failed"
 $bindir/transmit_dbs || echo "transmit_dbs failed"
 $bindir/transmit_svn || echo "transmit_svn failed"
+
+# 2025.08.12 disabled transmit_xnat -- it is hanging -- need to debug -- see trello issue
+# 2025.09.19 switch to transmit_xnat2
+$bindir/transmit_xnat2 || echo "transmit_xnat2 failed"
