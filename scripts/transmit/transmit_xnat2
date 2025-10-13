@@ -49,6 +49,21 @@ MATCH_SESSION="[A-EX]-[0-9]{5}-[MFPT]-[0-9]-20[1,2][0-9][0,1][0-9][0,1,2,3][0-9]
 S3_ROOT="s3://ncanda/xnat2"
 ARCHIVE_FILENAME_SEPARATOR="^"
 
+lock_file=/fs/storage/transmit_xnat2.lock
+if [[ -e "$lock_file" ]]; then
+  printf 'Lockfile: %s exists, aborting.\n' "$lock_file"
+  exit 0
+else
+  printf '%s\n%s\n' "$START_TIME" "$$" > $lock_file
+fi
+
+function remove_lock() {
+  rm -rf $lock_file
+  exit 0
+}
+trap "remove_lock" EXIT
+
+
 # Wrap up, encrypt, and send a scan session
 transmit_session()
 {
@@ -61,10 +76,11 @@ transmit_session()
     local src_session_folder="${XNAT_DATA_ROOT}/archive/${prj_arc_ses}"
 
     # Check if this archive already exists
-
+    local do_backup=0
     local s3match=$(s4cmd ls ${searchspec} | sort -r | head -n 1 | awk '{print $4}')    
     if [ "${s3match}" == "" ]; then
         echo "INFO: ${prj_arc_ses}. No prior archive found. Search spec: ${searchspec}"
+        do_backup=1
     else
         #echo "DEBUG: found most recent archive: ${s3match}"
         local s3match_basename=$(basename "${s3match}")
@@ -88,10 +104,10 @@ transmit_session()
                 fi
             
                 echo "INFO: ${prj_arc_ses}. ${modified_count} files have changed since ${prev_archive_date} in ${src_session_folder}. ${s3match} will be replaced in S3"
+                do_backup=1
             else
                 # Already there and not updated - nothing to do
                 echo "INFO: ${prj_arc_ses}. No files have changed since ${prev_archive_date} in ${src_session_folder}. ${s3match} is up to date"
-                return
             fi
         else    
             echo "ERROR: ${prj_arc_ses}. failed to extract archive date from filename: ${s3match}"
@@ -99,36 +115,39 @@ transmit_session()
         fi
     fi
 
-	# All go - make archive
-    local archive_new="${ses}${ARCHIVE_FILENAME_SEPARATOR}${CURRENT_DATE_EPOCH}.tar.xz.aes"
-    local s3uri_new="${S3_ROOT}/${prj}/${arc}/${archive_new}"
-    local archive_temp="${ses}${ARCHIVE_FILENAME_SEPARATOR}.tar.xz.aes"
-    local local_temp="/var/tmp/${archive_temp}"
+	# Do the backup if needed
+    if [ "${do_backup}" == "1" ]; then
+        local archive_new="${ses}${ARCHIVE_FILENAME_SEPARATOR}${CURRENT_DATE_EPOCH}.tar.xz.aes"
+        local s3uri_new="${S3_ROOT}/${prj}/${arc}/${archive_new}"
+        local archive_temp="${ses}${ARCHIVE_FILENAME_SEPARATOR}.tar.xz.aes"
+        local local_temp="/var/tmp/${archive_temp}"
 
-    echo "INFO ${prj_arc_ses}. Creating: ${local_temp} and uploading to ${s3uri_new}"
+        echo "INFO ${prj_arc_ses}. Creating: ${local_temp} and uploading to ${s3uri_new}"
 
-    cd ${XNAT_DATA_ROOT}/archive/${prj}/${arc}
-    gtar -cf - ${ses} | xz -9 -c --threads 8 | aespipe -P ${HOME}/aes/keys -e aes256 > ${local_temp}
+        cd ${XNAT_DATA_ROOT}/archive/${prj}/${arc}
+        gtar -cf - ${ses} | xz -9 -c --threads 8 | aespipe -P ${HOME}/aes/keys -e aes256 > ${local_temp}
 
-	# Upload
-    s4cmd put ${local_temp} ${s3uri_new} --API-ServerSideEncryption=AES256
+        # Upload
+        s4cmd put ${local_temp} ${s3uri_new} --API-ServerSideEncryption=AES256
+        rm "${local_temp}"
+    fi
 
-    # delete old files
-    if ${cmd}; then
+    # delete old files if needed
+    local do_prune=1
+    if [ "${do_prune}" == "1" ]; then
         #echo "DEBUG: Copied ${local_temp} -> ${s3uri}"
         local remote_files=$(s4cmd ls "${searchspec}" | sort -r)
         #echo "DEBUG: remote_files: ${remote_files}"
         local file_to_keep=$(echo "${remote_files}" | head -n 1 | awk '{print $4}')
         #echo "DEBUG: remote file to keep: ${file_to_keep}"
         local files_to_delete=$(echo "${remote_files}" | tail -n +2 | awk '{print $4}')
-        echo "INFO: remote files to delete: ${files_to_delete}"
-        # GM TODO delete old archives with:
-        #echo "${files_to_delete}" | xargs s4cmd del
-    else
-        echo "ERROR: failed to upload archive"
-        echo $cmd
+
+        if [ -n "${files_to_delete}" ]; then
+            echo "INFO: remote files to delete: ${files_to_delete}"
+            # GM TODO delete old archives with:
+            #echo "${files_to_delete}" | xargs s4cmd del
+        fi
     fi
-    rm "${local_temp}"
 }
 
 update_archive()
