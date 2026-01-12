@@ -49,6 +49,21 @@ MATCH_SESSION="[A-EX]-[0-9]{5}-[MFPT]-[0-9]-20[1,2][0-9][0,1][0-9][0,1,2,3][0-9]
 S3_ROOT="s3://ncanda/xnat2"
 ARCHIVE_FILENAME_SEPARATOR="^"
 
+lock_file=/fs/storage/transmit_xnat2.lock
+if [[ -e "$lock_file" ]]; then
+  printf 'Lockfile: %s exists, aborting.\n' "$lock_file"
+  exit 0
+else
+  printf '%s\n%s\n' "$START_TIME" "$$" > $lock_file
+fi
+
+function remove_lock() {
+  rm -rf $lock_file
+  exit 0
+}
+trap "remove_lock" EXIT
+
+
 # Wrap up, encrypt, and send a scan session
 transmit_session()
 {
@@ -56,15 +71,20 @@ transmit_session()
     local arc=$2
     local ses=$3
     local session_date=$4
+    local index=$5
+    local s3allprjarc=$6
     local prj_arc_ses="${prj}/${arc}/${ses}"
-    local searchspec="${S3_ROOT}/${prj_arc_ses}${ARCHIVE_FILENAME_SEPARATOR}*"
+    local searchspec="${S3_ROOT}/${prj_arc_ses}${ARCHIVE_FILENAME_SEPARATOR}"
     local src_session_folder="${XNAT_DATA_ROOT}/archive/${prj_arc_ses}"
 
     # Check if this archive already exists
-
-    local s3match=$(s4cmd ls ${searchspec} | sort -r | head -n 1 | awk '{print $4}')    
+    local do_backup=0
+    local s3allprjarcses=$(grep "${searchspec}" <<< "${s3allprjarc}")    
+    local s3match=$(head -n 1 <<< "${s3allprjarcses}")    
     if [ "${s3match}" == "" ]; then
-        echo "INFO: ${prj_arc_ses}. No prior archive found. Search spec: ${searchspec}"
+        echo "INFO: #${index} ${prj_arc_ses}. No prior archive found. Search spec: ${searchspec}"
+        #echo "DEBUG: s4 contents: ${s3allprjarc}"
+        do_backup=1
     else
         #echo "DEBUG: found most recent archive: ${s3match}"
         local s3match_basename=$(basename "${s3match}")
@@ -82,61 +102,78 @@ transmit_session()
                 local age_in_s3=`expr ${CURRENT_DATE_EPOCH} - ${prev_archive_epoch}`
                 if [ ${age_in_s3} -gt ${GLACIER_AFTER} ]; then
                     if [ ${age_in_s3} -lt ${GLACIER_REPLACE_AFTER} ]; then
-                        echo "COLLISION: ${s3match} from ${prev_archive_date} has already been moved to cold storage, but too recent to be replaced"
+                        echo "COLLISION:#${index} ${s3match} from ${prev_archive_date} has already been moved to cold storage, but too recent to be replaced"
                         return
                     fi
                 fi
             
-                echo "INFO: ${prj_arc_ses}. ${modified_count} files have changed since ${prev_archive_date} in ${src_session_folder}. ${s3match} will be replaced in S3"
+                echo "INFO: #${index} ${prj_arc_ses}. ${modified_count} files have changed since ${prev_archive_date} in ${src_session_folder}. ${s3match} will be replaced in S3"
+                do_backup=1
             else
                 # Already there and not updated - nothing to do
-                echo "INFO: ${prj_arc_ses}. No files have changed since ${prev_archive_date} in ${src_session_folder}. ${s3match} is up to date"
-                return
+                echo "INFO: #${index} ${prj_arc_ses}. No files have changed since ${prev_archive_date} in ${src_session_folder}. ${s3match} is up to date"
             fi
         else    
-            echo "ERROR: ${prj_arc_ses}. failed to extract archive date from filename: ${s3match}"
+            echo "ERROR: #${index} ${prj_arc_ses}. failed to extract archive date from filename: ${s3match}"
             return
         fi
     fi
 
-	# All go - make archive
-    local archive_new="${ses}${ARCHIVE_FILENAME_SEPARATOR}${CURRENT_DATE_EPOCH}.tar.xz.aes"
-    local s3uri_new="${S3_ROOT}/${prj}/${arc}/${archive_new}"
-    local archive_temp="${ses}${ARCHIVE_FILENAME_SEPARATOR}.tar.xz.aes"
-    local local_temp="/var/tmp/${archive_temp}"
+	# Do the backup if needed
+    local backup_done=0
+    if [ "${do_backup}" == "1" ]; then
+        local archive_new="${ses}${ARCHIVE_FILENAME_SEPARATOR}${CURRENT_DATE_EPOCH}.tar.xz.aes"
+        local s3uri_new="${S3_ROOT}/${prj}/${arc}/${archive_new}"
+        local archive_temp="${ses}${ARCHIVE_FILENAME_SEPARATOR}.tar.xz.aes"
+        local local_temp="/var/tmp/${archive_temp}"
 
-    echo "INFO ${prj_arc_ses}. Creating: ${local_temp} and uploading to ${s3uri_new}"
+        echo "INFO: #${index} ${prj_arc_ses}. Creating: ${local_temp} and uploading to ${s3uri_new}"
 
-    cd ${XNAT_DATA_ROOT}/archive/${prj}/${arc}
-    gtar -cf - ${ses} | xz -9 -c --threads 8 | aespipe -P ${HOME}/aes/keys -e aes256 > ${local_temp}
+        cd ${XNAT_DATA_ROOT}/archive/${prj}/${arc}
+        gtar -cf - ${ses} | xz -9 -c --threads 8 | aespipe -P ${HOME}/aes/keys -e aes256 > ${local_temp}
 
-	# Upload
-    s4cmd put ${local_temp} ${s3uri_new} --API-ServerSideEncryption=AES256
-
-    # delete old files
-    if ${cmd}; then
-        #echo "DEBUG: Copied ${local_temp} -> ${s3uri}"
-        local remote_files=$(s4cmd ls "${searchspec}" | sort -r)
-        #echo "DEBUG: remote_files: ${remote_files}"
-        local file_to_keep=$(echo "${remote_files}" | head -n 1 | awk '{print $4}')
-        #echo "DEBUG: remote file to keep: ${file_to_keep}"
-        local files_to_delete=$(echo "${remote_files}" | tail -n +2 | awk '{print $4}')
-        echo "INFO: remote files to delete: ${files_to_delete}"
-        # GM TODO delete old archives with:
-        #echo "${files_to_delete}" | xargs s4cmd del
-    else
-        echo "ERROR: failed to upload archive"
-        echo $cmd
+        # Upload
+        s4cmd put ${local_temp} ${s3uri_new} --API-ServerSideEncryption=AES256
+        backup_done=1
+        rm "${local_temp}"
     fi
-    rm "${local_temp}"
+
+    # delete old files if needed
+    local do_prune=1
+    if [ "${do_prune}" == "1" ]; then
+
+        local keepcount=1
+        local deleteidx=2
+        if [ "${backup_done}" == "1" ]; then
+            keepcount=0
+            deleteidx=1
+        fi        
+
+        local file_to_keep=$(head -n ${keepcount} <<< "${s3allprjarcses}")
+        # if [ -n "${file_to_keep}" ]; then
+        #     echo "DEBUG: #${index} remote file to keep: ${file_to_keep}"
+        # fi
+
+        local files_to_delete=$(tail -n +${deleteidx} <<< "${s3allprjarcses}")
+        if [ -n "${files_to_delete}" ]; then
+            echo "INFO: #${index} deleting remote files: ${files_to_delete}"
+            echo "${files_to_delete}" | xargs -L1 s4cmd del
+        fi
+    fi
 }
 
 update_archive()
 {
     local prj=$1
     local arc=$2
-
+    local counter=0
     local SESSIONS=`cd ${XNAT_DATA_ROOT}/archive/${prj}/${arc}; ls`
+
+    # get entire folder listing once and use it for all sessions in this archive
+    local prj_arc="${prj}/${arc}"
+    local searchspec="${S3_ROOT}/${prj_arc}"
+    local s3allprjarc=$(s4cmd ls ${searchspec} | sort -r | awk '{print $4}')    
+
     for session in ${SESSIONS}; do
         if [[ "${session}" =~ ${MATCH_SESSION} ]]; then
             local session_dir=${XNAT_DATA_ROOT}/archive/${prj}/${arc}/${session}
@@ -144,7 +181,7 @@ update_archive()
             local session_age=`expr ${CURRENT_DATE_EPOCH} - ${session_date}`
             # archive if older than maturation period 
             if [ ${session_age} -gt ${ARCHIVE_AFTER} ]; then
-                transmit_session ${prj} ${arc} ${session} ${session_date}
+                transmit_session ${prj} ${arc} ${session} ${session_date} $((++counter)) "${s3allprjarc}"
             fi
         else
             echo "WARNING: session ${session} does not match pattern and will be ignored"
@@ -165,4 +202,3 @@ XNAT_PROJECTS=`cd ${XNAT_DATA_ROOT}/archive/; ls`
 for prj in ${XNAT_PROJECTS}; do
     update_project ${prj}
 done
-
