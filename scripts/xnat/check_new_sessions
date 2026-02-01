@@ -396,7 +396,18 @@ def incomplete_scan_check(
     experiment, manufacturer, session_label, eid, xnat_url, scan_types, missing_scan_map
 ):
     missing_scans = []
-    scan_types_set = set(scan_types)
+
+    # Minimal normalization: treat "ncanda-grefieldmap-v1-bad" as "ncanda-grefieldmap-v1"
+    scan_types_norm = []
+    for st in scan_types:
+        if not st:
+            continue
+        st = str(st)
+        if st == "ncanda-grefieldmap-v1-bad":
+            st = "ncanda-grefieldmap-v1"
+        scan_types_norm.append(st)
+
+    scan_types_set = set(scan_types_norm)
     ge_scan_types = set(scan_type_dictionary["GE"])
     siemens_scan_types = set(scan_type_dictionary["SIEMENS"])
     siemens_gradient_flag = False
@@ -410,12 +421,12 @@ def incomplete_scan_check(
     elif manufacturer == "SIEMENS":
         if (
             siemens_scan_types.issubset(scan_types_set)
-            and scan_types.count("ncanda-grefieldmap-v1") == 2
+            and scan_types_norm.count("ncanda-grefieldmap-v1") == 2
         ):
             return False
         else:
             missing_scans = list(siemens_scan_types.difference(scan_types_set))
-            if scan_types.count("ncanda-grefieldmap-v1") < 2:
+            if scan_types_norm.count("ncanda-grefieldmap-v1") < 2:
                 # If field was present 0 times, it's already included once in
                 # missing_scans, and we want it to appear twice.
                 # if field was present 1 time, we want to mark it as one more
@@ -428,7 +439,7 @@ def incomplete_scan_check(
             "Do not support manufacturer {}".format(manufacturer),
             eid=eid,
             xnat_url=xnat_url,
-            site_resolution="Ask site to upload scans where scanner/manufacturer starts with SIEMENS or GE!"
+            site_resolution="Ask site to upload scans where scanner/manufacturer starts with SIEMENS or GE!",
         )
         return True
 
@@ -441,7 +452,7 @@ def incomplete_scan_check(
             missing_scans.remove("ncanda-dti30b400-v1")
             if not missing_scans:
                 return False
-            
+
         # Don't flag optional scans as missing
         missing_scans = [s for s in missing_scans if s not in optional_scans]
         if not missing_scans:
@@ -481,6 +492,7 @@ def incomplete_scan_check(
             "that they can set an exception.",
         )
         return True
+
 
 
 def voxelres_get(experiment, scan):
