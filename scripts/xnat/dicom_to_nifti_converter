@@ -1,0 +1,20 @@
+#!/bin/bash
+# Manually convert dicom to nifit
+DICOM_DIR=$1
+OUT_NIFTI_DIR=$2
+if  [ "$OUT_NIFTI_DIR" == "" ]; then
+  echo "ERROR: define output dir!"
+  exit 1
+fi
+
+if [ `ls -1 $DICOM_DIR/*.dcm 2> /dev/null | wc -l ` -eq 0 ]; then
+    echo "ERROR: No dicoms in $DICOM_DIR !"
+    exit 1
+fi 
+
+mkdir -p $OUT_NIFTI_DIR
+echo "start conversion"
+dcm2image --tolerance 1e-3 --write-single-slices --no-progress  --include-ndar --strict-xml  -rvxO $OUT_NIFTI_DIR/I%n.nii $DICOM_DIR  2>&1 | tee  $OUT_NIFTI_DIR/cmd.log
+
+echo "Output in $OUT_NIFTI_DIR"
+
