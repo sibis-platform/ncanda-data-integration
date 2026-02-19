@@ -55,6 +55,54 @@ site_map = {
 #
 
 #
+# Recovery arm helpers
+#
+RECOVERY_EVENTS = ("recovery_baseline_arm_2", "recovery_final_arm_2")
+RECOVERY_FINAL_EVENT = "recovery_final_arm_2"
+
+def is_recovery_event(event_label):
+    return event_label in RECOVERY_EVENTS
+
+def get_recovery_event_dates_for_subject(visit_log_redcap, subject_label):
+    out = []
+    for ev in RECOVERY_EVENTS:
+        try:
+            d = visit_log_redcap.loc[(subject_label, ev), "visit_date"]
+        except Exception:
+            continue
+        if d is not None and str(d) != "nan":
+            out.append((ev, str(d)))
+    return out
+
+def get_recovery_final_date_for_subject(visit_log_redcap, subject_label):
+    """
+    Treat subject as being in recovery arm iff recovery_final_arm_2
+    exists and has a non-null visit_date in REDCap.
+    Returns YYYY-MM-DD string or None.
+    """
+    try:
+        d = visit_log_redcap.loc[(subject_label, RECOVERY_FINAL_EVENT), "visit_date"]
+    except Exception:
+        return None
+    if d is None:
+        return None
+    d = str(d)
+    return None if d == "nan" else d
+
+def in_recovery_final_window(session_date, recovery_final_date, inclusive_end=True):
+    """
+    True iff session_date is within [recovery_final_date, recovery_final_date+3d]
+    (inclusive_end controls whether +3d is inclusive).
+    Dates are YYYY-MM-DD strings.
+    """
+    if not recovery_final_date:
+        return False
+    end = (datetime.datetime.strptime(recovery_final_date, sutils.date_format_ymd)
+           + datetime.timedelta(3)).strftime(sutils.date_format_ymd)
+    return (session_date >= recovery_final_date) and ((session_date <= end) if inclusive_end else (session_date < end))
+
+
+#
 # Functions 
 # 
 def get_sessions_in_range(redcap_visit_id,xnat, subject_label, project_id, subject_id, date_range_from, date_range_to, verbose, inclusive_end=True):
@@ -147,7 +195,7 @@ def get_usable_scans_list( session, xnat_eid_list, redcap_visit_id, xnat_sid):
         xnat_exp = session.xnat_get_experiment(xnat_eid)
         xnat_url = session.get_xnat_session_address(xnat_eid)
         if not xnat_exp : 
-            slog.info(redcap_visit_id + "-" +  + hashlib.sha1(xnat_eid.encode()).hexdigest()[0:6],"ERROR: could not get experiment",
+            slog.info(redcap_visit_id + "-" + hashlib.sha1(xnat_eid.encode()).hexdigest()[0:6],"ERROR: could not get experiment",
                       info="Most likely due to internet connection! Please rerun script for subject and visit", 
                       redcap_visit_id = redcap_visit_id,
                       xnat_sid = xnat_sid)
@@ -285,7 +333,7 @@ def encode_session_and_scan(session_and_scan, type_list, match_eid = None ):
 
 
 # Get URIs for ALCPIC E-Prime files (edat2/txt) wherever they exist at the experiment level
-def get_alcpic_uris(xnat_eid_list, redcap_key_str, xnat_pid):
+def get_alcpic_uris(xnat_eid_list, redcap_key_str, xnat_pid, match_eid=None):
     """
     Mimics get_spiral_uris style; returns a single space-separated string of
     'EID/RESOURCE_ID/relative/path' tokens for ALCPIC files.
@@ -301,6 +349,8 @@ def get_alcpic_uris(xnat_eid_list, redcap_key_str, xnat_pid):
         r'(?:(\d{8}).*)?al(?:c)?pic\.(?:edat\d+|txt)$', re.IGNORECASE
     )
 
+    if match_eid is not None:
+        xnat_eid_list = [eid for eid in xnat_eid_list if eid == match_eid]
 
     hits = []  # (eid, datestr, token)
     for eid in xnat_eid_list:
@@ -361,8 +411,8 @@ def get_alcpic_uris(xnat_eid_list, redcap_key_str, xnat_pid):
         return ''
 
     # Sort newest-first (string sort works on YYYYMMDD)
-    hits.sort(key=lambda t: (t[0], t[1]), reverse=True)
-
+    hits.sort(key=lambda t: (t[1] or ""), reverse=True)
+    
     # All matches (newest first)
     return " ".join(tok for _, _, tok in hits)
 
@@ -377,6 +427,8 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
                   mri_session_report_eid, verbose=None):
     subject = redcap_key[0]
     event = redcap_key[1]
+
+    recovery_final_date = get_recovery_final_date_for_subject(visit_log_redcap, subject)
 
     result = dict()
 
@@ -412,10 +464,14 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
 
     # First, see if this subject is in the XNAT database and has a scan session
     # for the given date or later
-    visit_date_plusNd = (datetime.datetime.strptime( visit_date, sutils.date_format_ymd) + datetime.timedelta(args.max_days_after_visit)).strftime(sutils.date_format_ymd)
-    # If we have a date for the next visit, and it's earlier than +N days (could
-    # be for "Recovery" final visit), then use that date instead
-    if next_visit_date and next_visit_date < visit_date_plusNd:
+    max_after = 3 if is_recovery_event(event) else args.max_days_after_visit
+    visit_date_plusNd = (
+        datetime.datetime.strptime(visit_date, sutils.date_format_ymd)
+        + datetime.timedelta(max_after)
+    ).strftime(sutils.date_format_ymd)
+
+    # only truncate by next visit for non-recovery events
+    if (not is_recovery_event(event)) and next_visit_date and next_visit_date < visit_date_plusNd:
         visit_date_plusNd = next_visit_date
         if verbose:
             print("Due to next visit date being within visit date range, the visit date range is shortened to (", visit_date , ", " , visit_date_plusNd +").")  
@@ -458,6 +514,21 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
 
     if verbose:
         print("XNAT Session Data:", xnat_session_data)
+
+    # For standard-arm events, do NOT pull in sessions that fall within the recovery-final
+    # [recovery_final_date, recovery_final_date+3d] window (if recovery_final_date exists).
+    # This prevents recovery-final scans from contaminating standard-arm rescans window while
+    # still allowing shared standard/recovery-baseline sessions.
+    if (not is_recovery_event(event)) and recovery_final_date and xnat_session_data:
+        before = list(xnat_session_data)
+        xnat_session_data = [
+            (sid, proj, dt)
+            for (sid, proj, dt) in xnat_session_data
+            if not in_recovery_final_window(dt, recovery_final_date, inclusive_end=True)
+        ]
+        if verbose and len(before) != len(xnat_session_data):
+            removed = [(sid, proj, dt) for (sid, proj, dt) in before if (sid, proj, dt) not in xnat_session_data]
+            print("INFO: Excluding sessions in recovery-final window for standard event {}: {}".format(event, removed))
 
     if not xnat_session_data:
         if today > visit_date_plusNd:
@@ -588,7 +659,8 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
         redcap_key_str = redcap_key[0] if isinstance(redcap_key, (list, tuple)) else redcap_key
 
         # Exactly like spiral, we return "EID/RESOURCE_ID/Name" tokens (space-separated)
-        result['mri_series_taskfmri_alcpic_eprime'] = get_alcpic_uris(xnat_eid_list, redcap_key_str, xnat_pid)        
+        chosen_eid = scans_by_type['alcpic'][0]
+        result['mri_series_taskfmri_alcpic_eprime'] = get_alcpic_uris(xnat_eid_list, redcap_key_str, xnat_pid, match_eid=chosen_eid)        
 
     for xnat_eid in xnat_eid_list:
         result['mri_xnat_eids'] += xnat_eid + ' '
@@ -612,7 +684,10 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
             redcap_key_str = redcap_key[0] if isinstance(redcap_key, (list, tuple)) else redcap_key
 
             # Exactly like spiral, we return "EID/RESOURCE_ID/Name" tokens (space-separated)
-            result['mri_series_taskfmri_alcpic_eprime'] = get_alcpic_uris(xnat_eid_list, redcap_key_str, xnat_pid)
+            chosen_eid = scans_by_type['mlalcpic'][0]
+            result['mri_series_taskfmri_alcpic_eprime'] = get_alcpic_uris(
+                xnat_eid_list, redcap_key_str, xnat_pid, match_eid=chosen_eid
+            )
 
 
     # Get the uri's for the spiral task and spiral resting state
@@ -700,7 +775,10 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
 # collected after the next visit date, but still within N days
 def get_subject_next_visit_date(subject, after_visit_date):
     subject_visit_dates = visit_log_redcap.xs( subject, level=0 )['visit_date'].dropna()
-    subject_visit_dates = subject_visit_dates[ subject_visit_dates.index.map( lambda key: key != 'recovery_baseline_arm_2' ) ] # Exclude "Recovery" baseline from list - this will usually be the MR day of a normal visit
+    # Remove recovery baseline and final events from being the subject next visit date.
+    subject_visit_dates = subject_visit_dates[
+        ~subject_visit_dates.index.isin(["recovery_baseline_arm_2", "recovery_final_arm_2"])
+    ]
     later_visits_this_subject = sorted( [ date for date in subject_visit_dates.tolist() if date > after_visit_date ] )
     if len( later_visits_this_subject ) > 0:
         return later_visits_this_subject[0]
@@ -1182,8 +1260,16 @@ for [key, row] in mr_sessions_redcap.iterrows():
 
                 # Check if pipeline directory given and export imaging series there
                 if args.pipeline_root_dir and (this_subject_data['exclude'] != 1):
-                    if mrpipeline.export_and_queue(red2cas, redcap_visit_id, xnat, xnat_data, key, args.pipeline_root_dir, xnat_dir, row['mr_session_report_complete'],run_pipeline_script=args.run_pipeline_script,stroop=(stroop_eid,stroop_resource,stroop_file), verbose=args.verbose , timerFlag = runTimerForImportToPipeline) :
-                        # only run timer once - otherwise collect too much data
+                    did_export = mrpipeline.export_and_queue(
+                        red2cas, redcap_visit_id, xnat, xnat_data, key,
+                        args.pipeline_root_dir, xnat_dir,
+                        row['mr_session_report_complete'],
+                        run_pipeline_script=args.run_pipeline_script,
+                        stroop=(stroop_eid, stroop_resource, stroop_file),
+                        verbose=args.verbose,
+                        timerFlag=runTimerForImportToPipeline
+                    )
+                    if did_export:
                         runTimerForImportToPipeline = False
 
             if not args.no_upload and (int(xnat_data['mr_session_report_complete']) > 0 or args.force_update):
