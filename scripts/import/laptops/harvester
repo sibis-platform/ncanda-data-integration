@@ -364,12 +364,12 @@ if not args.omit_svn_update:
 
     try : 
         svn_updates = svn_client.update()
-    except Exception as err_msg:
+    except Exception as e:
         print("ERROR: harvester failed to perform svn update !")
-        (svn_list, err_msg) = session.__list_running_process__("[s]vn")
-        # Make sure no other svn processs are running and that is while it is failing 
-        print("INFO:svn processes running:", svn_list.decode("utf-8"))
-        print(str(err_msg))
+        (svn_list, ps_err) = session.__list_running_process__("[s]vn")
+        print("INFO: svn processes running:", svn_list.decode("utf-8"))
+        print("ERROR: Original svn.update error:", repr(e))
+        print("ERROR: ps error:", repr(ps_err))
         sys.exit(1) 
          
     if len(svn_updates.errors) > 0:
