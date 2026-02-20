@@ -800,7 +800,8 @@ for form_prefix, form_name in forms.items():
 
     forms = [form_name]
     return_format = "df"
-    df_kwargs = {"index_col": import_project.def_field, "dtype": "object"}
+    df_kwargs = {"index_col": import_project.def_field, "dtype": "object", "keep_default_na": False,
+                 "na_values": ["", "NA", "N/A", "NaN", "nan", "NULL", "null", "n/a"]} # intentionally NOT including "None"
     returned_records = []
 
     for record_batch in batch(records, n=100):
