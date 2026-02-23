@@ -60,6 +60,11 @@ def parse_args(arg_input=None):
         "-p", "--post-to-github",
         help="Post all issues to GitHub instead of stdout.",
         action="store_true")
+    parser.add_argument(
+        "--no-url",
+        help="Skip generating REDCap form URLs (useful if DB backing URL lookup is unavailable).",
+        action="store_true",
+    )   
     output = parser.add_mutually_exclusive_group()
     output.add_argument(
         '-o', '--output',
@@ -292,7 +297,17 @@ if __name__ == '__main__':
     # Add urls to marks
     url_info = marks.reset_index()[['study_id', 'form', 'redcap_event_name']]
     url_info['project_id'] = redcap_api.export_project_info()['project_id']
-    marks['url'] = list(map(session.get_formattable_redcap_form_address, url_info['project_id'], url_info['redcap_event_name'], url_info['study_id'], url_info['form']))
+    marks["url"] = [
+        session.get_formattable_redcap_form_address(
+            pid, evt, sid, frm, no_url=args.no_url
+        )
+        for pid, evt, sid, frm in zip(
+            url_info["project_id"],
+            url_info["redcap_event_name"],
+            url_info["study_id"],
+            url_info["form"],
+        )
+    ]
 
     # Changeable UID template for logging each dataframe by row
     UID_TEMPLATE = "WrongDate-{study_id}/{redcap_event_name}/{form_date_var}"

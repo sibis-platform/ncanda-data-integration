@@ -491,6 +491,13 @@ parser.add_argument(
     "--progress-bar", help="Show TQDM progress bar", action="store_true"
 )
 
+parser.add_argument(
+    "--no-url",
+    help="Skip generating REDCap form URLs (avoid MySQL lookup).",
+    action="store_true",
+    default=False,
+)
+
 args = parser.parse_args()
 
 
@@ -921,7 +928,13 @@ for form_prefix, form_name in forms.items():
         study_id = key[0]
         redcap_event_name = key[1]
         
-        redcap_url = session.get_formattable_redcap_form_address(project_id, redcap_event_name, study_id, form_name)
+        redcap_url = session.get_formattable_redcap_form_address(
+            project_id,
+            redcap_event_name,
+            study_id,
+            form_name,
+            no_url=args.no_url,
+        )
         
         if args.verbose:
             print("Processing", key)
