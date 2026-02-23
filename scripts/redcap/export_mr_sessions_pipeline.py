@@ -621,9 +621,8 @@ def export_to_workdir( redcap_visit_id, xnat, session_data, pipeline_workdir, re
     # --- ALCPIC task fMRI (DICOM -> NIfTI) ---
     pipeline_workdir_alcpic_main   = os.path.join(pipeline_workdir, 'alcpic')
     pipeline_workdir_alcpic_native = os.path.join(pipeline_workdir_alcpic_main, 'native')
-    if session_data.get('mri_series_taskfmri_alcpic_scan', '') and session_data.get('mri_series_rsfmri_fieldmap', ''):
+    if session_data.get('mri_series_taskfmri_alcpic_scan', ''):
         alcpic_task_dir     = os.path.join(pipeline_workdir_alcpic_native, 'task-fMRI')
-        alcpic_fieldmap_dir = os.path.join(pipeline_workdir_alcpic_native, 'fieldmap')
         alcpic_eprime_dir   = os.path.join(pipeline_workdir_alcpic_native, 'eprime')
 
         # 1) Export ALCPIC scan(s) to alcpic/native/task-fMRI
@@ -639,20 +638,7 @@ def export_to_workdir( redcap_visit_id, xnat, session_data, pipeline_workdir, re
             verbose=verbose
         ) or new_files_created
         
-        # 2) Reuse the rs-fMRI fieldmap for ALCPIC -> alcpic/native/fieldmap
-        new_files_created = export_series(
-                redcap_visit_id,
-                xnat,
-                redcap_key,
-                session_data['mri_series_rsfmri_fieldmap'],
-                alcpic_fieldmap_dir,
-                'fieldmap-%T%N.nii',
-                xnat_dir,
-                mr_session_report_complete,
-                verbose=verbose
-            ) or new_files_created
-        
-        # 3) Export ALCPIC task fMRI E-Prime files (experiment-level resources)
+        # 2) Export ALCPIC task fMRI E-Prime files (experiment-level resources)
         # session_data['mri_series_taskfmri_alcpic_eprime'] is a space-separated "EID/RID/REL" token list
         if session_data.get('mri_series_taskfmri_alcpic_eprime', ''):
             new_files_created = export_alcpic_files(
@@ -668,8 +654,6 @@ def export_to_workdir( redcap_visit_id, xnat, session_data, pipeline_workdir, re
         missing_mri=""
         if session_data['mri_series_taskfmri_alcpic_scan'] == '' :
             missing_mri = "ncanda-alcpic-v1 "
-        if  session_data['mri_series_rsfmri_fieldmap'] == '':
-            missing_mri+= "ncanda-grefieldmap-v1"
             
         flag = delete_workdir(pipeline_workdir_alcpic_main,redcap_visit_id,mr_session_report_complete , missing_mri,verbose)
         if not flag:
