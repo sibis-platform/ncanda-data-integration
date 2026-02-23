@@ -251,36 +251,28 @@ def get_scans_by_type(red2cas, usable_scans_list, visit_date, redcap_visit_id,
         # always take the closest
         result[typ] = scans[0]
 
-        # multiples are normal here
-        # grefieldmap is not listed here bc it is downloaded by a seperate function
-        # Joe: I took out dti96b3000 as only one should exist
-        # MULTI_OK_TYPES = {'dti6b3000'}  
-        # only log multiples for types where that’s unexpected
-        # and typ not in MULTI_OK_TYPES:
         if len(scans) > 1:
             # Suppress "multiple usable scans" info if the only extras are on recovery event dates
             suppress = False
             if event_label and (not is_recovery_event(event_label)) and recovery_event_dates:
-                # all candidate EID dates
                 cand_dates = [xnat_sessions_dict[eid][0] for (eid, _, _, _) in scans]
-                # if there exists at least one non-recovery candidate, and every *other* candidate is recovery-dated
-                # we treat this as expected (shared/nearby recovery baseline/final) and suppress the info log.
                 nonrec = [d for d in cand_dates if d not in recovery_event_dates]
                 rec    = [d for d in cand_dates if d in recovery_event_dates]
-                suppress = (len(nonrec) >= 1 and len(rec) >= 1 and (len(nonrec) + len(rec) == len(cand_dates)))
 
-            if suppress:
-                continue
-            try:
-                shortlist = [(s[0], s[2], s[3]) for s in scans[:3]]
-            except Exception:
-                shortlist = None
-            slog.info(
-                redcap_visit_id,
-                f"INFO: multiple usable scans for type {typ}; choosing closest to visit date.",
-                eid_and_scan_number=str(shortlist) if shortlist else str(len(scans)),
-                type=str(typ),
-            )
+                # suppress iff there's exactly one non-recovery candidate and at least one recovery-dated extra
+                suppress = (len(nonrec) == 1 and len(rec) >= 1)
+
+            if not suppress:
+                try:
+                    shortlist = [(s[0], s[2], s[3]) for s in scans[:3]]
+                except Exception:
+                    shortlist = None
+                slog.info(
+                    redcap_visit_id,
+                    f"INFO: multiple usable scans for type {typ}; choosing closest to visit date.",
+                    eid_and_scan_number=str(shortlist) if shortlist else str(len(scans)),
+                    type=str(typ),
+                )
     return result
 
 
