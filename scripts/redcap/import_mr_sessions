@@ -443,6 +443,12 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     subject = redcap_key[0]
     event = redcap_key[1]
 
+    # normalize NaN/None to empty string
+    if mri_session_report_eid is None or (isinstance(mri_session_report_eid, float) and pd.isna(mri_session_report_eid)):
+        mri_session_report_eid = ''
+    else:
+        mri_session_report_eid = str(mri_session_report_eid)
+
     recovery_final_date = get_recovery_final_date_for_subject(visit_log_redcap, subject)
 
     result = dict()
