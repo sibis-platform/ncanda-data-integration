@@ -228,7 +228,8 @@ def get_usable_scans_list( session, xnat_eid_list, redcap_visit_id, xnat_sid):
 # Get scans from a list, selected by type
 #
 
-def get_scans_by_type(red2cas, usable_scans_list, visit_date, redcap_visit_id):
+def get_scans_by_type(red2cas, usable_scans_list, visit_date, redcap_visit_id,
+                      event_label=None, recovery_event_dates=None):
 
     result = {}
     for typ in ncanda_scan_types:
@@ -257,6 +258,19 @@ def get_scans_by_type(red2cas, usable_scans_list, visit_date, redcap_visit_id):
         # only log multiples for types where that’s unexpected
         # and typ not in MULTI_OK_TYPES:
         if len(scans) > 1:
+            # Suppress "multiple usable scans" info if the only extras are on recovery event dates
+            suppress = False
+            if event_label and (not is_recovery_event(event_label)) and recovery_event_dates:
+                # all candidate EID dates
+                cand_dates = [xnat_sessions_dict[eid][0] for (eid, _, _, _) in scans]
+                # if there exists at least one non-recovery candidate, and every *other* candidate is recovery-dated
+                # we treat this as expected (shared/nearby recovery baseline/final) and suppress the info log.
+                nonrec = [d for d in cand_dates if d not in recovery_event_dates]
+                rec    = [d for d in cand_dates if d in recovery_event_dates]
+                suppress = (len(nonrec) >= 1 and len(rec) >= 1 and (len(nonrec) + len(rec) == len(cand_dates)))
+
+            if suppress:
+                continue
             try:
                 shortlist = [(s[0], s[2], s[3]) for s in scans[:3]]
             except Exception:
@@ -605,7 +619,12 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
 
     # Now each of the standard NCANDA scans from the usable list - select
     # closes to "visit_date" if there is more than one for a given type
-    scans_by_type = get_scans_by_type(red2cas,usable_scans_list, visit_date, redcap_visit_id)
+    # precompute subject recovery event dates (used only to suppress benign multi-scan INFO)
+    recovery_event_dates = set(d for (_, d) in get_recovery_event_dates_for_subject(visit_log_redcap, subject))
+    scans_by_type = get_scans_by_type(
+        red2cas, usable_scans_list, visit_date, redcap_visit_id,
+        event_label=event, recovery_event_dates=recovery_event_dates
+    )
 
     result['mri_series_t2'] = encode_session_and_scan(scans_by_type, ['t2fse'])
     # Make sure sessions are from the same experiment 
