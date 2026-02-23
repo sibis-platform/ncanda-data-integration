@@ -59,6 +59,7 @@ site_map = {
 #
 RECOVERY_EVENTS = ("recovery_baseline_arm_2", "recovery_final_arm_2")
 RECOVERY_FINAL_EVENT = "recovery_final_arm_2"
+RECOVERY_DAYS_WINDOW = 3        # used to establish search window for recovery arm events
 
 def is_recovery_event(event_label):
     return event_label in RECOVERY_EVENTS
@@ -91,14 +92,14 @@ def get_recovery_final_date_for_subject(visit_log_redcap, subject_label):
 
 def in_recovery_final_window(session_date, recovery_final_date, inclusive_end=True):
     """
-    True iff session_date is within [recovery_final_date, recovery_final_date+3d]
-    (inclusive_end controls whether +3d is inclusive).
+    True iff session_date is within [recovery_final_date, recovery_final_date+RECOVERY_DAYS_WINDOW]
+    (inclusive_end controls whether +RECOVERY_DAYS_WINDOW is inclusive).
     Dates are YYYY-MM-DD strings.
     """
     if not recovery_final_date:
         return False
     end = (datetime.datetime.strptime(recovery_final_date, sutils.date_format_ymd)
-           + datetime.timedelta(3)).strftime(sutils.date_format_ymd)
+           + datetime.timedelta(RECOVERY_DAYS_WINDOW)).strftime(sutils.date_format_ymd)
     return (session_date >= recovery_final_date) and ((session_date <= end) if inclusive_end else (session_date < end))
 
 
@@ -464,7 +465,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
 
     # First, see if this subject is in the XNAT database and has a scan session
     # for the given date or later
-    max_after = 3 if is_recovery_event(event) else args.max_days_after_visit
+    max_after = RECOVERY_DAYS_WINDOW if is_recovery_event(event) else args.max_days_after_visit
     visit_date_plusNd = (
         datetime.datetime.strptime(visit_date, sutils.date_format_ymd)
         + datetime.timedelta(max_after)
