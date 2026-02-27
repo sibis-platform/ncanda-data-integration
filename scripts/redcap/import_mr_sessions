@@ -64,16 +64,32 @@ RECOVERY_DAYS_WINDOW = 3        # used to establish search window for recovery a
 def is_recovery_event(event_label):
     return event_label in RECOVERY_EVENTS
 
+def _get_visit_date_from_vlr(vlr, subject_label, event_name):
+    """
+    Supports two index shapes:
+      A) MultiIndex: (study_id, redcap_event_name)
+      B) SingleIndex: (redcap_event_name) after xs(study_id)
+    """
+    try:
+        # MultiIndex case
+        return vlr.loc[(subject_label, event_name), "visit_date"]
+    except Exception:
+        pass
+    try:
+        # SingleIndex case (already sliced by subject)
+        return vlr.loc[event_name, "visit_date"]
+    except Exception:
+        return None
+
+
 def get_recovery_event_dates_for_subject(visit_log_redcap, subject_label):
     out = []
     for ev in RECOVERY_EVENTS:
-        try:
-            d = visit_log_redcap.loc[(subject_label, ev), "visit_date"]
-        except Exception:
-            continue
+        d = _get_visit_date_from_vlr(visit_log_redcap, subject_label, ev)
         if d is not None and str(d) != "nan":
             out.append((ev, str(d)))
     return out
+
 
 def get_recovery_final_date_for_subject(visit_log_redcap, subject_label):
     """
@@ -81,10 +97,7 @@ def get_recovery_final_date_for_subject(visit_log_redcap, subject_label):
     exists and has a non-null visit_date in REDCap.
     Returns YYYY-MM-DD string or None.
     """
-    try:
-        d = visit_log_redcap.loc[(subject_label, RECOVERY_FINAL_EVENT), "visit_date"]
-    except Exception:
-        return None
+    d = _get_visit_date_from_vlr(visit_log_redcap, subject_label, RECOVERY_FINAL_EVENT)
     if d is None:
         return None
     d = str(d)
@@ -441,7 +454,10 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     else:
         mri_session_report_eid = str(mri_session_report_eid)
 
-    recovery_final_date = get_recovery_final_date_for_subject(visit_log_redcap, subject)
+    # use subject-level visit log when available (i.e., --study-id mode)
+    _vlr = visit_log_subject if visit_log_subject is not None else visit_log_redcap
+
+    recovery_final_date = get_recovery_final_date_for_subject(_vlr, subject)
 
     result = dict()
 
@@ -618,7 +634,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     # Now each of the standard NCANDA scans from the usable list - select
     # closes to "visit_date" if there is more than one for a given type
     # precompute subject recovery event dates (used only to suppress benign multi-scan INFO)
-    recovery_event_dates = set(d for (_, d) in get_recovery_event_dates_for_subject(visit_log_redcap, subject))
+    recovery_event_dates = set(d for (_, d) in get_recovery_event_dates_for_subject(_vlr, subject))
     scans_by_type = get_scans_by_type(
         red2cas, usable_scans_list, visit_date, redcap_visit_id,
         event_label=event, recovery_event_dates=recovery_event_dates
@@ -792,16 +808,21 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
 # Function to get a subject's next visit - this is so we can exclude MRI
 # collected after the next visit date, but still within N days
 def get_subject_next_visit_date(subject, after_visit_date):
-    subject_visit_dates = visit_log_redcap.xs( subject, level=0 )['visit_date'].dropna()
+    vlr = visit_log_subject if visit_log_subject is not None else visit_log_redcap
+    subject_visit_dates = vlr.xs(subject, level=0)['visit_date'].dropna() if isinstance(vlr.index, pd.MultiIndex) else vlr['visit_date'].dropna()
+
     # Remove recovery baseline and final events from being the subject next visit date.
-    subject_visit_dates = subject_visit_dates[
-        ~subject_visit_dates.index.isin(["recovery_baseline_arm_2", "recovery_final_arm_2"])
-    ]
-    later_visits_this_subject = sorted( [ date for date in subject_visit_dates.tolist() if date > after_visit_date ] )
-    if len( later_visits_this_subject ) > 0:
-        return later_visits_this_subject[0]
+    if isinstance(subject_visit_dates.index, pd.MultiIndex):
+        # shouldn't happen in this path, but safe
+        idx = subject_visit_dates.index.get_level_values(-1)
+        subject_visit_dates = subject_visit_dates[~idx.isin(["recovery_baseline_arm_2", "recovery_final_arm_2"])]
     else:
-        return None
+        subject_visit_dates = subject_visit_dates[~subject_visit_dates.index.isin(["recovery_baseline_arm_2", "recovery_final_arm_2"])]
+
+    # Use real datetime comparisons (avoid brittle string compare)
+    later = pd.to_datetime(subject_visit_dates, errors="coerce").dropna()
+    later = later[later > pd.to_datetime(after_visit_date)]
+    return later.min().strftime(sutils.date_format_ymd) if not later.empty else None
 
 
 def get_sibling_id1(subject_label):
@@ -1018,26 +1039,37 @@ if args.site:
     sites = args.site.lower().split( ',' )
     visit_log_redcap = visit_log_redcap[ visit_log_redcap['redcap_data_access_group'].map( lambda dag: dag in sites ) ]
 
+visit_log_redcap_all = visit_log_redcap.copy()
+
 # Limit export by site id (e.g., A-00000-F-1)
 if args.study_id:
-    try : 
-        visit_log_redcap = visit_log_redcap.xs(args.study_id)
-    except:
-            print("ERROR: study_id " + args.study_id + " not found in redcap!")
-            sys.exit(1)
-            
-    visit_log_redcap.reset_index(inplace=True)
-    visit_log_redcap['study_id'] = args.study_id
-    event="" 
-    if args.event : 
-        visit_log_redcap =  visit_log_redcap[ visit_log_redcap['redcap_event_name'] == args.event ]
-        event="-"+args.event
+    try:
+        # subject-only view (keeps recovery rows) from the full export
+        visit_log_subject = visit_log_redcap_all.xs(args.study_id, level=0)
 
-    if len(visit_log_redcap) == 0 : 
+        # processing view starts as subject-only, optionally filtered to one event
+        visit_log_redcap = visit_log_subject.reset_index()
+
+    except Exception:
+        print("ERROR: study_id " + args.study_id + " not found in redcap!")
+        sys.exit(1)
+
+    visit_log_redcap['study_id'] = args.study_id
+    event = ""
+    if args.event:
+        visit_log_redcap = visit_log_redcap[visit_log_redcap['redcap_event_name'] == args.event]
+        event = "-" + args.event
+
+    if len(visit_log_redcap) == 0:
         slog.info(args.study_id + event, "No data for this subject (and event)")
         sys.exit(1)
 
-    visit_log_redcap.set_index(['study_id', 'redcap_event_name'],inplace=True)
+    # restore the standard index expected by the rest of the script
+    visit_log_redcap.set_index(['study_id', 'redcap_event_name'], inplace=True)
+
+else:
+    # when not filtering to one subject, the "subject view" is just the full df
+    visit_log_subject = None
       
         
 
