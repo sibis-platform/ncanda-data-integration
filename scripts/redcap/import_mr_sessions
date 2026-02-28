@@ -717,22 +717,17 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
         else :
             result['mri_series_dti6b3000'] = dti6p1
 
-    # After scans_by_type is computed:
+    # Grab alcpic/mlalcpic 
     if 'alcpic' not in scans_by_type and 'mlalcpic' in scans_by_type:
         scans_by_type['alcpic'] = scans_by_type['mlalcpic']
 
-    # Unified handling with the original guard semantics (apply to mlalcpic-derived too)
     if 'alcpic' in scans_by_type:
         chosen_eid = scans_by_type['alcpic'][0]
-        is_from_mlalcpic = ('mlalcpic' in scans_by_type and scans_by_type['alcpic'] == scans_by_type['mlalcpic'])
-
-        # Only enforce the "existing EIDs must include chosen_eid" guard when the source is mlalcpic
-        if (not is_from_mlalcpic) or (mri_session_report_eid == '' or mri_session_report_eid in result['mri_xnat_eids']):
-            result['mri_series_taskfmri_alcpic_scan'] = encode_session_and_scan(scans_by_type, ['alcpic'])
-            redcap_key_str = redcap_key[0] if isinstance(redcap_key, (list, tuple)) else redcap_key
-            result['mri_series_taskfmri_alcpic_eprime'] = get_alcpic_uris(
-                xnat_eid_list, redcap_key_str, xnat_pid, match_eid=chosen_eid
-            )
+        result['mri_series_taskfmri_alcpic_scan'] = encode_session_and_scan(scans_by_type, ['alcpic'])
+        redcap_key_str = redcap_key[0] if isinstance(redcap_key, (list, tuple)) else redcap_key
+        result['mri_series_taskfmri_alcpic_eprime'] = get_alcpic_uris(
+            xnat_eid_list, redcap_key_str, xnat_pid, match_eid=chosen_eid
+        )
 
     for xnat_eid in xnat_eid_list:
         result['mri_xnat_eids'] += xnat_eid + ' '
