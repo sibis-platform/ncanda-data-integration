@@ -61,47 +61,77 @@ RECOVERY_EVENTS = ("recovery_baseline_arm_2", "recovery_final_arm_2")
 RECOVERY_FINAL_EVENT = "recovery_final_arm_2"
 RECOVERY_DAYS_WINDOW = 3        # used to establish search window for recovery arm events
 
+def _norm_ymd(d):
+    if d is None:
+        return None
+    try:
+        if pd.isna(d):
+            return None
+    except Exception:
+        pass
+
+    dt = pd.to_datetime(d, errors="coerce")
+    if pd.isna(dt):
+        return None
+    return dt.strftime(sutils.date_format_ymd)
+
 def is_recovery_event(event_label):
     return event_label in RECOVERY_EVENTS
 
-def _get_visit_date_from_vlr(vlr, subject_label, event_name):
+def _get_recovery_anchor_date_from_vlr(vlr, subject_label, event_name):
     """
-    Supports two index shapes:
-      A) MultiIndex: (study_id, redcap_event_name)
-      B) SingleIndex: (redcap_event_name) after xs(study_id)
+    For recovery events: use visit_date if present, else mri_t1_date.
+    Returns raw value (will be normalized by _norm_ymd).
     """
+    # MultiIndex (study_id, redcap_event_name)
     try:
-        # MultiIndex case
-        return vlr.loc[(subject_label, event_name), "visit_date"]
-    except Exception:
-        pass
-    try:
-        # SingleIndex case (already sliced by subject)
-        return vlr.loc[event_name, "visit_date"]
-    except Exception:
+        row = vlr.loc[(subject_label, event_name)]
+    except KeyError:
         return None
 
+    d = row.get("visit_date")
+    d = _norm_ymd(d)
+    if d:
+        return d
+
+    # fallback
+    d = row.get("mri_t1_date")
+    return _norm_ymd(d)
+    
+def _is_recovery_session_date(session_date_ymd, recovery_event_dates):
+    """
+    True iff session_date_ymd is within +/- RECOVERY_DAYS_WINDOW days of
+    ANY recovery event date (baseline or final).
+    Inputs are 'YYYY-MM-DD' strings.
+    """
+    if not session_date_ymd or not recovery_event_dates:
+        return False
+
+    try:
+        sdt = datetime.datetime.strptime(session_date_ymd, sutils.date_format_ymd).date()
+    except Exception:
+        return False
+
+    for rd in recovery_event_dates:
+        try:
+            rdt = datetime.datetime.strptime(rd, sutils.date_format_ymd).date()
+        except Exception:
+            continue
+        if abs((sdt - rdt).days) <= RECOVERY_DAYS_WINDOW:
+            return True
+
+    return False
 
 def get_recovery_event_dates_for_subject(visit_log_redcap, subject_label):
     out = []
     for ev in RECOVERY_EVENTS:
-        d = _get_visit_date_from_vlr(visit_log_redcap, subject_label, ev)
-        if d is not None and str(d) != "nan":
-            out.append((ev, str(d)))
+        d = _get_recovery_anchor_date_from_vlr(visit_log_redcap, subject_label, ev)
+        if d:
+            out.append((ev, d))
     return out
 
-
 def get_recovery_final_date_for_subject(visit_log_redcap, subject_label):
-    """
-    Treat subject as being in recovery arm iff recovery_final_arm_2
-    exists and has a non-null visit_date in REDCap.
-    Returns YYYY-MM-DD string or None.
-    """
-    d = _get_visit_date_from_vlr(visit_log_redcap, subject_label, RECOVERY_FINAL_EVENT)
-    if d is None:
-        return None
-    d = str(d)
-    return None if d == "nan" else d
+    return _get_recovery_anchor_date_from_vlr(visit_log_redcap, subject_label, RECOVERY_FINAL_EVENT)
 
 def in_recovery_final_window(session_date, recovery_final_date, inclusive_end=True):
     """
@@ -241,8 +271,7 @@ def get_usable_scans_list( session, xnat_eid_list, redcap_visit_id, xnat_sid):
 # Get scans from a list, selected by type
 #
 
-def get_scans_by_type(red2cas, usable_scans_list, visit_date, redcap_visit_id,
-                      event_label=None, recovery_event_dates=None):
+def get_scans_by_type(red2cas, usable_scans_list, visit_date, redcap_visit_id, recovery_event_dates=None):
 
     result = {}
     for typ in ncanda_scan_types:
@@ -265,15 +294,18 @@ def get_scans_by_type(red2cas, usable_scans_list, visit_date, redcap_visit_id,
         result[typ] = scans[0]
 
         if len(scans) > 1:
-            # Suppress "multiple usable scans" info if the only extras are on recovery event dates
             suppress = False
-            if event_label and (not is_recovery_event(event_label)) and recovery_event_dates:
-                cand_dates = [xnat_sessions_dict[eid][0] for (eid, _, _, _) in scans]
-                nonrec = [d for d in cand_dates if d not in recovery_event_dates]
-                rec    = [d for d in cand_dates if d in recovery_event_dates]
+            chosen_eid = scans[0][0]
+            chosen_date = _norm_ymd(xnat_sessions_dict[chosen_eid][0])
 
-                # suppress iff there's exactly one non-recovery candidate and at least one recovery-dated extra
-                suppress = (len(nonrec) == 1 and len(rec) >= 1)
+            if chosen_date and recovery_event_dates:
+                for (eid, _, _, _) in scans[1:]:
+                    d = _norm_ymd(xnat_sessions_dict[eid][0])
+                    if not d:
+                        continue
+                    if d > chosen_date and _is_recovery_session_date(d, recovery_event_dates):
+                        suppress = True
+                        break
 
             if not suppress:
                 try:
@@ -454,10 +486,8 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     else:
         mri_session_report_eid = str(mri_session_report_eid)
 
-    # use subject-level visit log when available (i.e., --study-id mode)
-    _vlr = visit_log_subject if visit_log_subject is not None else visit_log_redcap
-
-    recovery_final_date = get_recovery_final_date_for_subject(_vlr, subject)
+    # Always use the stable, full MultiIndex visit log export for recovery lookups
+    recovery_final_date = get_recovery_final_date_for_subject(visit_log_redcap_all, subject)
 
     result = dict()
 
@@ -634,10 +664,12 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     # Now each of the standard NCANDA scans from the usable list - select
     # closes to "visit_date" if there is more than one for a given type
     # precompute subject recovery event dates (used only to suppress benign multi-scan INFO)
-    recovery_event_dates = set(d for (_, d) in get_recovery_event_dates_for_subject(_vlr, subject))
+    recovery_event_dates = set(
+        d for (_, d) in get_recovery_event_dates_for_subject(visit_log_redcap_all, subject) if d
+    )
     scans_by_type = get_scans_by_type(
         red2cas, usable_scans_list, visit_date, redcap_visit_id,
-        event_label=event, recovery_event_dates=recovery_event_dates
+        recovery_event_dates=recovery_event_dates
     )
 
     result['mri_series_t2'] = encode_session_and_scan(scans_by_type, ['t2fse'])
@@ -685,16 +717,22 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
         else :
             result['mri_series_dti6b3000'] = dti6p1
 
-    # alpic task fMRI series
+    # After scans_by_type is computed:
+    if 'alcpic' not in scans_by_type and 'mlalcpic' in scans_by_type:
+        scans_by_type['alcpic'] = scans_by_type['mlalcpic']
+
+    # Unified handling with the original guard semantics (apply to mlalcpic-derived too)
     if 'alcpic' in scans_by_type:
-        result['mri_series_taskfmri_alcpic_scan'] = encode_session_and_scan(scans_by_type, ['alcpic'])
-
-        # Build the filename prefix your uploader uses; commonly just the subject ID
-        redcap_key_str = redcap_key[0] if isinstance(redcap_key, (list, tuple)) else redcap_key
-
-        # Exactly like spiral, we return "EID/RESOURCE_ID/Name" tokens (space-separated)
         chosen_eid = scans_by_type['alcpic'][0]
-        result['mri_series_taskfmri_alcpic_eprime'] = get_alcpic_uris(xnat_eid_list, redcap_key_str, xnat_pid, match_eid=chosen_eid)        
+        is_from_mlalcpic = ('mlalcpic' in scans_by_type and scans_by_type['alcpic'] == scans_by_type['mlalcpic'])
+
+        # Only enforce the "existing EIDs must include chosen_eid" guard when the source is mlalcpic
+        if (not is_from_mlalcpic) or (mri_session_report_eid == '' or mri_session_report_eid in result['mri_xnat_eids']):
+            result['mri_series_taskfmri_alcpic_scan'] = encode_session_and_scan(scans_by_type, ['alcpic'])
+            redcap_key_str = redcap_key[0] if isinstance(redcap_key, (list, tuple)) else redcap_key
+            result['mri_series_taskfmri_alcpic_eprime'] = get_alcpic_uris(
+                xnat_eid_list, redcap_key_str, xnat_pid, match_eid=chosen_eid
+            )
 
     for xnat_eid in xnat_eid_list:
         result['mri_xnat_eids'] += xnat_eid + ' '
@@ -706,23 +744,6 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     # Take off extra spaces
     result['mri_xnat_eids'] = result['mri_xnat_eids'].strip()
     result['mri_notes'] = result['mri_notes'].strip()
-
-    # mlalcpic task fMRI series (could be recovery or standard arm, only take what is for standard currently)
-    if 'mlalcpic' in scans_by_type and 'alcpic' not in scans_by_type:
-        # If there is no EID, this is the first scan being uploaded, assuming standard arm scan
-        # or if there is an EID, check that current session eid matches what is already in mr_session_report
-        if mri_session_report_eid == '' or mri_session_report_eid in result['mri_xnat_eids']:
-            result['mri_series_taskfmri_alcpic_scan'] = encode_session_and_scan(scans_by_type, ['mlalcpic'])
-
-            # Build the filename prefix your uploader uses; commonly just the subject ID
-            redcap_key_str = redcap_key[0] if isinstance(redcap_key, (list, tuple)) else redcap_key
-
-            # Exactly like spiral, we return "EID/RESOURCE_ID/Name" tokens (space-separated)
-            chosen_eid = scans_by_type['mlalcpic'][0]
-            result['mri_series_taskfmri_alcpic_eprime'] = get_alcpic_uris(
-                xnat_eid_list, redcap_key_str, xnat_pid, match_eid=chosen_eid
-            )
-
 
     # Get the uri's for the spiral task and spiral resting state
     (result['mri_eid_spiral_stroop'], result['mri_eid_spiral_rest']) = get_spiral_uris(xnat_eid_list)
@@ -808,8 +829,8 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
 # Function to get a subject's next visit - this is so we can exclude MRI
 # collected after the next visit date, but still within N days
 def get_subject_next_visit_date(subject, after_visit_date):
-    vlr = visit_log_subject if visit_log_subject is not None else visit_log_redcap
-    subject_visit_dates = vlr.xs(subject, level=0)['visit_date'].dropna() if isinstance(vlr.index, pd.MultiIndex) else vlr['visit_date'].dropna()
+    vlr = visit_log_redcap_all  # stable MultiIndex
+    subject_visit_dates = vlr.xs(subject, level=0)['visit_date'].dropna()
 
     # Remove recovery baseline and final events from being the subject next visit date.
     if isinstance(subject_visit_dates.index, pd.MultiIndex):
@@ -1024,7 +1045,8 @@ visit_log_redcap = session.redcap_export_records("visit_log",
                                                          'mri_xnat_eids',
                                                          'mri_stroop_complete',
                                                          'mri_inspection',
-                                                         'mri_missing'],
+                                                         'mri_missing',
+                                                         'mri_t1_date'],
                                                  event_name='unique',
                                                  export_data_access_groups=True,
                                                  format_type='df')
