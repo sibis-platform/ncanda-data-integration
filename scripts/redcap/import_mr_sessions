@@ -409,18 +409,9 @@ def get_alcpic_uris(xnat_eid_list, redcap_key_str, xnat_pid, match_eid=None):
         # 1) list experiment-level resources
         resources = xnat._get_json(f'/data/experiments/{eid}/resources/') or []
 
-        # Prefer resources that look relevant by tags/label/content first
-        def _is_alcpic_res(r):
-            lbl = (r.get('label') or '').lower()
-            tags = (r.get('tags') or '').lower()
-            cnt  = (r.get('content') or '').lower()
-            return ('alcpic' in tags) or ('alpic' in tags) or \
-                   ('alcpic' in lbl)  or ('alpic' in lbl)  or \
-                   ('alcpic' in cnt)  or ('alpic' in cnt)
-
-        prioritized = [r for r in resources if _is_alcpic_res(r)]
-        to_scan = prioritized if prioritized else resources
-
+        # Don't parse through the nifti directory looking for eprime files
+        to_scan = [r for r in resources if (r.get('label') or '').lower() != 'nifti']
+    
         # 2) list files for each resource, filter by filename rule
         for r in to_scan:
             rid = r.get('xnat_abstractresource_id')
