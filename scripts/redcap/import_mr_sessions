@@ -699,11 +699,26 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
 
     if 'alcpic' in scans_by_type:
         chosen_eid = scans_by_type['alcpic'][0]
-        result['mri_series_taskfmri_alcpic_scan'] = encode_session_and_scan(scans_by_type, ['alcpic'])
         redcap_key_str = redcap_key[0] if isinstance(redcap_key, (list, tuple)) else redcap_key
         result['mri_series_taskfmri_alcpic_eprime'] = get_alcpic_uris(
             xnat_eid_list, redcap_key_str, xnat_pid, match_eid=chosen_eid
         )
+        # Do not run import when there are no instance of eprime file
+        if not result['mri_series_taskfmri_alcpic_eprime']:
+            error = 'No Eprime files found for task-fMRI in XNAT.'
+            slog.info(
+                redcap_visit_id,
+                chosen_eid, 
+                error,
+                xnat_project_id=xnat_pid,
+                xnat_subject_id=xnat_sid,
+                subject_id=redcap_key_str,
+                error_description="There is no Eprime file found for the alcpic "
+                "task-fMRI in XNAT. There should be one .txt and one .edat2 eprime file.",
+                site_resolution="Please upload eprime files with the task-fMRI scan."
+            )
+            return [None,True]
+        result['mri_series_taskfmri_alcpic_scan'] = encode_session_and_scan(scans_by_type, ['alcpic'])
 
     for xnat_eid in xnat_eid_list:
         result['mri_xnat_eids'] += xnat_eid + ' '
