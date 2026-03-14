@@ -697,27 +697,36 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     if 'alcpic' not in scans_by_type and 'mlalcpic' in scans_by_type:
         scans_by_type['alcpic'] = scans_by_type['mlalcpic']
 
+    # if alcpic scan is available for this session, import
     if 'alcpic' in scans_by_type:
         chosen_eid = scans_by_type['alcpic'][0]
         redcap_key_str = redcap_key[0] if isinstance(redcap_key, (list, tuple)) else redcap_key
-        result['mri_series_taskfmri_alcpic_eprime'] = get_alcpic_uris(
-            xnat_eid_list, redcap_key_str, xnat_pid, match_eid=chosen_eid
-        )
-        # Do not run import when there are no instance of eprime file
-        if not result['mri_series_taskfmri_alcpic_eprime']:
-            error = 'No Eprime files found for task-fMRI in XNAT.'
-            slog.info(
-                redcap_visit_id,
-                chosen_eid, 
-                error,
-                xnat_project_id=xnat_pid,
-                xnat_subject_id=xnat_sid,
-                subject_id=redcap_key_str,
-                error_description="There is no Eprime file found for the alcpic "
-                "task-fMRI in XNAT. There should be one .txt and one .edat2 eprime file.",
-                site_resolution="Please upload eprime files with the task-fMRI scan."
+        
+        # Retrieve all matching E-Prime URIs from XNAT
+        alcpic_uris = get_alcpic_uris(
+                xnat_eid_list, redcap_key_str, xnat_pid, match_eid=chosen_eid
             )
-            return [None,True]
+
+        # Validate that BOTH .txt and .edat files are present
+        found_txt = any(uri.endswith('.txt') for uri in alcpic_uris)
+        found_edat = any(uri.endswith(('.edat2', '.edat3')) for uri in alcpic_uris)
+
+        if not (found_txt and found_edat):
+            error_msg = (f"Missing one or more required E-Prime files for alcpic scan {chosen_eid}. "
+                         f"Found .txt: {found_txt}, Found .edatX: {found_edat}.")
+            
+            slog.info(redcap_visit_id, chosen_eid, error_msg, 
+                      xnat_project_id=xnat_pid, 
+                      xnat_subject_id=xnat_sid, 
+                      subject_id=redcap_key_str, 
+                      error_description="The session is missing E-PRIME file.",
+                      site_resolution="Please ensure both the .txt and the .edat2 files are uploaded to the E-PRIME resource.")
+            
+            # Stop the import
+            return [None, True]
+
+        # If validation passes, assign the URIs to the result dictionary
+        result['mri_series_taskfmri_alcpic_eprime'] = alcpic_uris
         result['mri_series_taskfmri_alcpic_scan'] = encode_session_and_scan(scans_by_type, ['alcpic'])
 
     for xnat_eid in xnat_eid_list:
