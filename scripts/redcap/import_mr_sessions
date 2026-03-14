@@ -697,7 +697,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
     if 'alcpic' not in scans_by_type and 'mlalcpic' in scans_by_type:
         scans_by_type['alcpic'] = scans_by_type['mlalcpic']
 
-    # if alcpic scan is available for this session, import
+    # if alcpic scan and corresponding e-prime files are available for this session, import them
     if 'alcpic' in scans_by_type:
         chosen_eid = scans_by_type['alcpic'][0]
         redcap_key_str = redcap_key[0] if isinstance(redcap_key, (list, tuple)) else redcap_key
@@ -720,7 +720,7 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
                       xnat_subject_id=xnat_sid, 
                       subject_id=redcap_key_str, 
                       error_description="The session is missing E-PRIME file.",
-                      site_resolution="Please ensure both the .txt and the .edat2 files are uploaded to the E-PRIME resource.")
+                      site_resolution="Please ensure both the .txt and the .edat files are uploaded to the E-PRIME resource.")
             
             # Stop the import
             return [None, True]
