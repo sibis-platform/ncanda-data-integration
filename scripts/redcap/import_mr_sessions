@@ -722,10 +722,10 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
                       subject_id=redcap_key_str, 
                       error_description="The session is missing E-PRIME file.",
                       site_resolution="Please ensure both the .txt and the .edat files are uploaded to the E-PRIME resource.")
-
-        # If validation passes, assign the URIs to the result dictionary
-        result['mri_series_taskfmri_alcpic_eprime'] = alcpic_uris
-        result['mri_series_taskfmri_alcpic_scan'] = encode_session_and_scan(scans_by_type, ['alcpic'])
+        else:
+            # If validation passes, assign the eprime and scan to the corresponding result dictionary
+            result['mri_series_taskfmri_alcpic_eprime'] = alcpic_uris
+            result['mri_series_taskfmri_alcpic_scan'] = encode_session_and_scan(scans_by_type, ['alcpic'])
 
     for xnat_eid in xnat_eid_list:
         result['mri_xnat_eids'] += xnat_eid + ' '
