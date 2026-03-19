@@ -706,27 +706,33 @@ def get_xnat_data(session,red2cas, redcap_key, xnat, xnat_sid, xnat_pid, pipe_id
         alcpic_uris = get_alcpic_uris(
                 xnat_eid_list, redcap_key_str, xnat_pid, match_eid=chosen_eid
             )
-        alcpic_uris_list = alcpic_uris.split(' ')
+        alcpic_uris_list = (alcpic_uris or '').split()
 
         # Validate that BOTH .txt and .edat files are present
         found_txt = any(uri.endswith('.txt') for uri in alcpic_uris_list)
         found_edat = any(uri.endswith(('.edat2', '.edat3')) for uri in alcpic_uris_list)
 
-        if found_txt and found_edat:
+        is_missing_eprime_exception = chosen_eid in exceptions_missing_eprime
+
+        if (found_txt and found_edat) or is_missing_eprime_exception:
             # If validation passes, assign the eprime and scan to the corresponding result dictionary
             result['mri_series_taskfmri_alcpic_eprime'] = alcpic_uris
             result['mri_series_taskfmri_alcpic_scan'] = encode_session_and_scan(scans_by_type, ['alcpic'])
         else:
             # If either or both of eprime files are missing
-            error_msg = (f"Missing one or more required E-Prime files for alcpic scan {chosen_eid}. "
-                         f"Found .txt: {found_txt}, Found .edatX: {found_edat}.")
+            error_msg = (f"Missing one or more required E-Prime files")
             
-            slog.info(redcap_visit_id, chosen_eid, error_msg, 
-                      xnat_project_id=xnat_pid, 
-                      xnat_subject_id=xnat_sid, 
-                      subject_id=redcap_key_str, 
-                      error_description="The session is missing E-PRIME file.",
-                      site_resolution="Please ensure both the .txt and the .edat files are uploaded to the E-PRIME resource.")
+            slog.info(
+                redcap_visit_id,
+                error_msg,
+                xnat_eid=chosen_eid,
+                xnat_project_id=xnat_pid,
+                xnat_subject_id=xnat_sid,
+                subject_id=redcap_key_str,
+                error_description=f"The session is missing one or more required E-Prime files for alcpic scan {chosen_eid}. "
+                    f"Found .txt: {found_txt}, Found .edatX: {found_edat}.",
+                site_resolution="Please ensure both the .txt and the .edat files are uploaded to the E-PRIME resource."
+            )
 
     for xnat_eid in xnat_eid_list:
         result['mri_xnat_eids'] += xnat_eid + ' '
@@ -950,6 +956,7 @@ with open(os.path.join(sibis_config, 'special_cases.yml')) as fi:
     exceptions_window = special_cases.get('outside_visit_window')
     exceptions_num_type = special_cases.get('more_of_type')
     merge_xnat_sessions = special_cases.get('merge_xnat_sessions')
+    exceptions_missing_eprime = special_cases.get('missing_eprime')
 
 form_event_mapping = redcap_project.export_instrument_event_mappings( format_type='df' )
 form_key = session.get_redcap_form_key()
