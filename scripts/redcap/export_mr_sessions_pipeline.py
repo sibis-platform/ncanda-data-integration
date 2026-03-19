@@ -623,7 +623,7 @@ def export_to_workdir( redcap_visit_id, xnat, session_data, pipeline_workdir, re
     pipeline_workdir_alcpic_native = os.path.join(pipeline_workdir_alcpic_main, 'native')
     if session_data.get('mri_series_taskfmri_alcpic_scan', ''):
         alcpic_task_dir     = os.path.join(pipeline_workdir_alcpic_native, 'task-fMRI')
-        alcpic_eprime_dir   = os.path.join(pipeline_workdir_alcpic_native, 'eprime')
+        alcpic_fieldmap_dir = os.path.join(pipeline_workdir_alcpic_native, 'fieldmap')
 
         # 1) Export ALCPIC scan(s) to alcpic/native/task-fMRI
         new_files_created = export_series(
@@ -637,8 +637,22 @@ def export_to_workdir( redcap_visit_id, xnat, session_data, pipeline_workdir, re
             mr_session_report_complete,
             verbose=verbose
         ) or new_files_created
+
+        # 2) Export shared rsfMRI fieldmap to alcpic/native/fieldmap
+        if session_data.get('mri_series_rsfmri_fieldmap', ''):
+            new_files_created = export_series(
+                redcap_visit_id,
+                xnat,
+                redcap_key,
+                session_data['mri_series_rsfmri_fieldmap'],
+                alcpic_fieldmap_dir,
+                'fieldmap-%T%N.nii',
+                xnat_dir,
+                mr_session_report_complete,
+                verbose=verbose
+            ) or new_files_created
         
-        # 2) Export ALCPIC task fMRI E-Prime files (experiment-level resources)
+        # 3) Export ALCPIC task fMRI E-Prime files (experiment-level resources)
         # session_data['mri_series_taskfmri_alcpic_eprime'] is a space-separated "EID/RID/REL" token list
         if session_data.get('mri_series_taskfmri_alcpic_eprime', ''):
             new_files_created = export_alcpic_files(
