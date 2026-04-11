@@ -13,9 +13,14 @@ import pandas
 #
 # Each dict entry is a dict of fields for a specific survey type (key is survey prefix).
 #
-# For each survey, the dict keys are the Y/N fields to be recovered. The dict values are vectors 
-# of dependent fields. A missing Y/N field is set to "Y" if ANY of the dependent fields is set,
-# and to "N" if none of them are set.
+# For each survey, the dict keys are the Y/N fields to be recovered. The dict values are vectors
+# of dependent fields.
+#
+# A missing Y/N field is set to:
+# - "Y" if ANY dependent field is set
+# - "N" if NONE of the dependent fields is set
+#
+# Existing non-missing values are preserved and never overwritten.
 #
 recovery_full_dict = dict()
 recovery_full_dict['youthreport1'] = { "youthreport1_cddr1" : [ "youthreport1_cddr2" ],
@@ -124,24 +129,26 @@ recovery_yesonly_dict['youthreport1'] = { "youthreport1_tbimore" : [ "youthrepor
                                           "youthreport1_1yei13" : [ "youthreport1_1yei13b" ],
                                           "youthreport1_ydi5" : [ "youthreport1_ydi5b" ],
                                           "youthreport1_yfhi5" : [ "youthreport1_yfhi5a" ],
-                                          "youthreport1_ses3a" : [ "youthreport1_ses3b" ] }
+                                          "youthreport1_ses3a" : [ "youthreport1_ses10", "youthreport1_ses11a", "youthreport1_ses12a", "youthreport1_ses13" ] }
 # Apply yes-only recovery
-def recover_full( row, recovery_dict ):
+def recover_yesonly( row, recovery_dict ):
     for field in row.index:
         if field in list(recovery_dict.keys()):
-            for dep in recovery_dict[field]:
-                if str(row[dep]) != 'nan':
-                    row[field] = 'Y'
+            if str(row[field]) == 'nan':
+                for dep in recovery_dict[field]:
+                    if str(row[dep]) != 'nan':
+                        row[field] = 'Y'
     return row
 
 # Apply full recovery
 def recover_full( row, recovery_dict ):
     for field in row.index:
         if field in list(recovery_dict.keys()):
-            row[field] = 'N' # This is the only difference to yes-only recovery: if non of the dependent fields are set, this gets a 'N'
-            for dep in recovery_dict[field]:
-                if str(row[dep]) != 'nan':
-                    row[field] = 'Y'
+            if str(row[field]) == 'nan':
+                row[field] = 'N' # This is the only difference to yes-only recovery: if non of the dependent fields are set, this gets a 'N'
+                for dep in recovery_dict[field]:
+                    if str(row[dep]) != 'nan':
+                        row[field] = 'Y'
     return row
 
 
@@ -150,5 +157,5 @@ def recover( row, form_prefix ):
     if form_prefix in list(recovery_full_dict.keys()):
         row = recover_full( row, recovery_full_dict[form_prefix] )
     if form_prefix in list(recovery_yesonly_dict.keys()):
-        row = recover_full( row, recovery_yesonly_dict[form_prefix] )
+        row = recover_yesonly( row, recovery_yesonly_dict[form_prefix] )
     return row
