@@ -118,7 +118,9 @@ catch_output_email "${SCRIPT_LABEL}:REDCap: Undeclared Drinking Exceptions (chec
 if [ ${PIPELINE_UPDATE_FLAG} == 1 ]; then
     if [ ${IMAGE_PROCESS_FLAG} == 1 ]; then
 	# Import data from XNAT into REDCap and feed image analysis pipeline
-	catch_output_email "${SCRIPT_LABEL}:REDCap: Import MR to Pipeline (import_mr_sessions)" ${SIBIS}/scripts/redcap/import_mr_sessions -p --max-days-after-visit 120 --pipeline-root-dir ${SIBIS_CASES_DIR} --run-pipeline-script ${SIBIS_IMAGE_SCRIPTS_DIR}/bin/ncanda_all_pipelines -t ${LOG_DIR}
+	# catch_output_email "${SCRIPT_LABEL}:REDCap: Import MR to Pipeline (import_mr_sessions)" ${SIBIS}/scripts/redcap/import_mr_sessions -p --max-days-after-visit 120 --pipeline-root-dir ${SIBIS_CASES_DIR} --run-pipeline-script ${SIBIS_IMAGE_SCRIPTS_DIR}/bin/ncanda_all_pipelines -t ${LOG_DIR}
+    # From Killian on Slack 2026.05.19
+    catch_output_email "${SCRIPT_LABEL}:REDCap: Import MR to Pipeline (import_mr_sessions)" ${SIBIS}/scripts/redcap/import_mr_sessions -p --max-days-after-visit 120 --pipeline-root-dir ${SIBIS_CASES_DIR} -t ${LOG_DIR}
     fi 
 
     # Export NP/clinical/dempgraphics data into image analysis pipeline directories

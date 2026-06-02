@@ -1,3 +1,6 @@
-MAILTO=ncanda-admin@sri.com
-0 * * * *      /sibis-software/ncanda-data-integration/scripts/crond/front-hourly
+# 2026.06.02
+# note these scripts are created by 01_fix_file_permissions.sh
+# this runs both "pipeline-front" and "pipeline-back" now
+13 *	* * *		/home/ncanda/pipeline-hourly.sh
+13 23	* * *		/home/ncanda/pipeline-daily.sh
 
