@@ -5,7 +5,7 @@
 ##  for the copyright and license terms
 ##
 
-MAILTO="ncanda-admin@sri.com,jim.klo@sri.com"
+#MAILTO="ncanda-admin@sri.com,jim.klo@sri.com"
 bindir=`dirname $0`
 $bindir/transmit_dbs || echo "transmit_dbs failed"
 $bindir/transmit_svn || echo "transmit_svn failed"
