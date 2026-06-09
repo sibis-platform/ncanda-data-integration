@@ -50,14 +50,26 @@ upload_to_s3_subdir()
     return 0
 }
 
-delete_oldest_files()
+delete_oldest_files_s3()
 {
     local subdir=${1}
     local filespec=${2}
     local keep=${3}
 
     fullspec=${ROOT_FOLDER}/${subdir}/${filespec}
+    printf "Keeping $keep files for $fullspec\n"
     # sort by date, keep the first ${keep} files, delete the rest
     s4cmd ls ${fullspec} | sort -r | tail -n +${keep} | awk '{print $4}'
     # to delete add: | xargs s4cmd del
+}
+
+delete_oldest_files()
+{
+    local filespec=${1}
+    local keep=${2}
+
+    printf "Keeping $keep files for $filespec\n"
+    # sort by date, keep the first ${keep} files, delete the rest
+    ls -1tr ${filespec} | tail -n +${keep} | awk '{print $1}'
+    # to delete add: | xargs rm
 }
