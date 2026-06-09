@@ -37,7 +37,10 @@ upload_to_s3_subdir()
     local rm_on_success=${2:-0}
     local subdir=${3}
 
-    if ! s4cmd put --force  ${1} ${ROOT_FOLDER}/${subdir}/${fname} --API-ServerSideEncryption=AES256; then
+    DST_FILE=${ROOT_FOLDER}/${subdir}/${fname}
+    printf "uploading backup: $DST_FILE\n"
+
+    if ! s4cmd put --force  ${1} ${DST_FILE} --API-ServerSideEncryption=AES256; then
         echo "FAILURE: unable to upload database archive ${1} to S3"
         return 1
     else

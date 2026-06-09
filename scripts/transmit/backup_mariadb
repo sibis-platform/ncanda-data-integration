@@ -44,8 +44,11 @@ trap trap_delete_incomplete INT
 function backup_and_rotate() {
 
   fq_spec=$1
-  fq_aes_spec=${fq_spec}${aes_extension}
-  aes_glob=`basename ${fq_aes_spec}` 
+  fq_aes_spec="${fq_spec}${aes_extension}"
+  aes_glob=`basename "${fq_aes_spec}"` 
+
+
+  printf "backup_and_rotate: fq_spec=${fq_spec}, aes_glob=${aes_glob}\n"
 
   # get most recent archive
   archive_file=$(ls -t ${fq_spec} 2> /dev/null | grep -v "\-latest" | head -n 1)
@@ -75,9 +78,10 @@ function backup_and_rotate() {
   set +e
   # s3://ncanda/db/redcap-mariadb/redcap*.aes
   delete_oldest_files_s3 ${mariadb_subdir} ${aes_glob} ${s3_backups_to_retain}
-  delete_oldest_files ${fq_aes_spec} ${local_backups_to_retain}
+  delete_oldest_files "${fq_aes_spec}" ${local_backups_to_retain}
+  printf "\n"
 }
 
-backup_and_rotate ${backup_src}/${backup_db_file_glob}
-backup_and_rotate ${backup_src}/${backup_event_table_file_glob}
-backup_and_rotate ${backup_src}/${backup_view_table_file_glob}
+backup_and_rotate "${backup_src}/${backup_db_file_glob}"
+backup_and_rotate "${backup_src}/${backup_event_table_file_glob}"
+backup_and_rotate "${backup_src}/${backup_view_table_file_glob}"
