@@ -36,8 +36,19 @@ upload_to_s3_subdir()
     local fname=`basename $1`
     local rm_on_success=${2:-0}
     local subdir=${3}
+    local skip_existing=${4:-1}
 
-    DST_FILE=${ROOT_FOLDER}/${subdir}/${fname}
+    local DST_FILE=${ROOT_FOLDER}/${subdir}/${fname}
+
+    if [[ $skip_existing == 0 ]]; then
+        # Store the result of the s4cmd lookup
+        local file_check=$(s4cmd ls ${DST_FILE})
+        if [ -n "$file_check" ]; then
+            echo "INFO: Skipping existing file: ${DST_FILE}"
+            return 0
+        fi    
+    fi
+
     printf "uploading backup: $DST_FILE\n"
 
     if ! s4cmd put --force  ${1} ${DST_FILE} --API-ServerSideEncryption=AES256; then
