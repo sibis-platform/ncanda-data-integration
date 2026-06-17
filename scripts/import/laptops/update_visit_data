@@ -262,9 +262,15 @@ def add_to_upload(
             else:
                 if key in summary_fields_yn:
                     strval = map_yn_to_binary(strval)
-                strval = re.sub(r"&quot;", '"', re.sub(r"\.0$", "", strval))
-                record[key] = strval.strip()  # <-- ensure final value is stripped
 
+                strval = re.sub(r"&quot;", '"', re.sub(r"\.0$", "", strval)).strip()
+
+                # REDCap categorical fields may reject leading-zero codes like "09"
+                # when the target dictionary defines the category as "9".
+                if key == "lssaga1_youth_dm15" and re.match(r"^0+\d+$", strval):
+                    strval = str(int(strval))
+
+                record[key] = strval
     # Set actual age - do this after everything else, because some surveys have "age" fields; we want to overwrite those
     record["%s_age" % form_prefix] = subject_age
 
