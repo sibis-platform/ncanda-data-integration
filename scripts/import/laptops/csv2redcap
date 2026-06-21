@@ -8,11 +8,13 @@
 from __future__ import print_function
 from builtins import str
 import re
-import os 
+import os
 import sys
 import string
 import argparse
 import hashlib
+import csv
+import io
 
 import pandas as pd
 
@@ -89,6 +91,175 @@ if not project:
 failed = []
 
 
+def is_form_status_field(field_name):
+    """
+    REDCap form status fields end in '_complete'.
+
+    This intentionally does not match LimeSurvey timestamp fields such as
+    'lssaga1_youth_completed'.
+    """
+    return field_name.endswith("_complete")
+
+
+def normalize_redcap_value(value):
+    """
+    Normalize values before comparing CSV input to REDCap export values.
+
+    This avoids false differences due to NaN/None/empty string, whitespace,
+    or integer-like values represented as floats, e.g. 2.0 vs 2.
+    """
+    if pd.isna(value):
+        return ""
+
+    value = str(value).strip()
+
+    if re.match(r"^-?\d+\.0$", value):
+        value = re.sub(r"\.0$", "", value)
+
+    return value
+
+
+def parse_locked_form_fields(err_msg):
+    """
+    Parse REDCap locked-form upload errors and return the rejected field names.
+
+    Expected REDCap error pattern is something like:
+
+    '"E-70075-M-7-2026-03-11",
+      "limesurvey_ssaga_part_1_youth_complete",
+      "1",
+      "This field is located on a form that is locked..."'
+    """
+    err_text = str(err_msg)
+
+    if "This field is located on a form that is locked" not in err_text:
+        return []
+
+    locked_fields = []
+
+    # REDCap/PyCap often gives a dict-like string:
+    # {'error': '"record","field","value","message"'}
+    # Strip the outer wrapper when possible, then parse the inner CSV row.
+    csv_text = err_text
+    if csv_text.startswith("{'error': '") and csv_text.endswith("'}"):
+        csv_text = csv_text[len("{'error': '"):-2]
+
+    try:
+        reader = csv.reader(io.StringIO(csv_text))
+        for row in reader:
+            if len(row) >= 4 and "form that is locked" in row[3]:
+                locked_fields.append(row[1])
+    except Exception:
+        pass
+
+    # Fallback regex in case the above CSV parsing fails.
+    if not locked_fields:
+        locked_fields = re.findall(
+            r'"[^"]+","([^"]+)","[^"]*","[^"]*form that is locked[^"]*"',
+            err_text,
+        )
+
+    return list(set(locked_fields))
+
+
+def only_import_laptops_complete_lock_difference(
+    project,
+    record_list,
+    locked_fields,
+    verbose=False,
+):
+    """
+    Return True only for the known benign import_laptops locked-form case.
+
+    Benign case:
+      - REDCap rejected the upload because a form is locked.
+      - The rejected locked field is a REDCap form status field.
+      - Incoming CSV has that form status as 1.
+      - Existing import_laptops REDCap record has that form status as 2.
+      - No substantive fields differ.
+
+    redcap_data_access_group is intentionally excluded from the comparison
+    because it can be imported but is not a regular REDCap export field.
+    """
+    if not locked_fields:
+        return False
+
+    if not all(is_form_status_field(field) for field in locked_fields):
+        return False
+
+    incoming_records = {
+        record["record_id"]: record
+        for record in record_list
+        if "record_id" in record
+    }
+
+    if not incoming_records:
+        return False
+
+    fields_to_check = sorted({
+        field
+        for record in record_list
+        for field in record.keys()
+        if field not in ["record_id", "redcap_data_access_group"]
+    })
+
+    try:
+        existing_df = project.export_records(
+            records=list(incoming_records.keys()),
+            fields=fields_to_check,
+            format_type="df",
+        )
+    except Exception as export_err:
+        if verbose:
+            print("Could not export existing REDCap records for locked-form check:",
+                  export_err)
+        return False
+
+    for record_id, incoming in incoming_records.items():
+        if record_id not in existing_df.index:
+            if verbose:
+                print("Record not found in REDCap during locked-form check:",
+                      record_id)
+            return False
+
+        existing = existing_df.loc[record_id]
+
+        for field, incoming_value in incoming.items():
+            if field in ["record_id", "redcap_data_access_group"]:
+                continue
+
+            existing_value = existing[field] if field in existing.index else ""
+
+            incoming_norm = normalize_redcap_value(incoming_value)
+            existing_norm = normalize_redcap_value(existing_value)
+
+            if incoming_norm == existing_norm:
+                continue
+
+            # The only allowed difference:
+            # incoming CSV says form status 1, existing REDCap says status 2.
+            if (
+                field in locked_fields
+                and is_form_status_field(field)
+                and incoming_norm == "1"
+                and existing_norm == "2"
+            ):
+                continue
+
+            if verbose:
+                print(
+                    "Non-benign locked-form difference:",
+                    record_id,
+                    field,
+                    "existing=%r" % existing_norm,
+                    "incoming=%r" % incoming_norm,
+                )
+
+            return False
+
+    return True
+
+
 # Process one file.
 # FIXME: The contents of the function depend on the `args` variable from the
 #        top-level scope. (As well as the actually declared globals.)
@@ -124,18 +295,20 @@ def process_file(fname):
         site = None
     data['redcap_data_access_group'] = site
 
-    # Get "complete" field of existing records so we can protect "Complete"
-    # records from overwriting
-    complete_field = None
-    for var in data.columns:
-        if re.match(r'.*_completed$', var) and \
-                not var == 'visit_information_complete':
-            complete_field = var
+    # Get REDCap form-status fields of existing records so we can protect
+    # records already marked Complete from overwriting.
+    #
+    # Previously this looked for '*_completed', which matched LimeSurvey
+    # timestamp fields such as 'lssaga1_youth_completed'. REDCap form status
+    # fields are '*_complete'.
+    complete_fields = [
+        var for var in data.columns
+        if is_form_status_field(var)
+        and var != 'visit_information_complete'
+    ]
 
-    # Is there a "complete" field? Then get existing records and ditch all
-    # records from new data that are "Complete"
-    if complete_field:
-        existing_data = project.export_records(fields=[complete_field],
+    if complete_fields:
+        existing_data = project.export_records(fields=complete_fields,
                                                format_type='df')
 
     # Make list of dicts for REDCap import
@@ -156,9 +329,15 @@ def process_file(fname):
         row['record_id'] = re.sub(r'(#|&|\+|\')', '?', row['record_id'])
 
         record_id = row['record_id']
-        if complete_field:
+        if complete_fields:
             if record_id in existing_data.index.tolist():
-                if existing_data[complete_field][record_id] == 2:
+                already_complete = any(
+                    normalize_redcap_value(existing_data[field][record_id]) == "2"
+                    for field in complete_fields
+                    if field in existing_data.columns
+                )
+
+                if already_complete:
                     if args.force_update:
                         print("Forcing update of 'Complete' record", record_id)
                     else:
@@ -175,21 +354,72 @@ def process_file(fname):
         record = dict(row.dropna().apply(lambda s: re.sub(r'&quot;', '""', s)))
         record_list.append(record)
 
+    # If every record was skipped because it was already complete, there is
+    # nothing to upload. Treat this as success.
+    if len(record_list) == 0:
+        records += len(data)
+        if args.verbose:
+            print("%s: No records to upload after Complete-record protection."
+                  % fname)
+        return True
+
     # Upload new data to REDCap
-    try: 
-        import_response = project.import_records(record_list, overwrite='overwrite')
+    try:
+        import_response = project.import_records(record_list,
+                                                 overwrite='overwrite')
 
-    except Exception as err_msg: 
-        justFile = os.path.basename(fname)
-        slog.info( str(args.data_access_group) + "-" + hashlib.sha1((fname + str(err_msg)).encode()).hexdigest()[0:6], "Upload error to redcap for file " + justFile,
-                   error_msg=str(err_msg),
-                   record_list =str(record_list), 
-                   cmd = " ".join(sys.argv),
-                   file_name = fname,
-                   project=args.project)
-        return False
+    except Exception as err_msg:
+        locked_fields = parse_locked_form_fields(err_msg)
 
-        
+        if (
+            args.project == "import_laptops"
+            and locked_fields
+            and only_import_laptops_complete_lock_difference(
+                project,
+                record_list,
+                locked_fields=locked_fields,
+                verbose=args.verbose,
+            )
+        ):
+            if args.verbose:
+                print(
+                    "WARNING: %s: Skipping benign import_laptops locked-form "
+                    "status-only difference." % fname
+                )
+                print(
+                    "WARNING: Existing import_laptops record is Complete/locked "
+                    "with REDCap form status 2, while incoming CSV has form "
+                    "status 1."
+                )
+                print(
+                    "WARNING: No substantive data differences were found; "
+                    "treating as benign no-op."
+                )
+                print(
+                    "WARNING: Locked form-status field(s): %s"
+                    % ", ".join(sorted(locked_fields))
+                )
+
+            import_response = {
+                "count": 0,
+                "benign_import_laptops_locked_complete_status": True,
+                "fields": locked_fields,
+            }
+
+        else:
+            justFile = os.path.basename(fname)
+            slog.info(
+                str(args.data_access_group) + "-" +
+                hashlib.sha1((fname + str(err_msg)).encode()).hexdigest()[0:6],
+                "Upload error to redcap for file " + justFile,
+                error_msg=str(err_msg),
+                record_list=str(record_list),
+                cmd=" ".join(sys.argv),
+                file_name=fname,
+                project=args.project
+            )
+            return False
+
     # If there were any errors, try to print them as well as possible
     if 'error' in list(import_response.keys()):
         error = "Upload error"
@@ -209,7 +439,7 @@ def process_file(fname):
         uploaded += import_response['count']
         records += len(data)
         if args.verbose:
-            print(("%s: Successfully uploaded %d/%d records to REDCap.") % \
+            print(("%s: Successfully uploaded %d/%d records to REDCap.") %
                   (fname, import_response['count'], len(data)))
     else:
         failed.append(fname)
@@ -218,8 +448,8 @@ def process_file(fname):
 
 
 def get_dag_from_df(df, dag_field_regex=r'_[sS]ite\d?', site_lookup=None,
-                      default_site=None, preserve_invalid_dag=False,
-                      verbose=False):
+                    default_site=None, preserve_invalid_dag=False,
+                    verbose=False):
     """
     If present, extract and translate the content of the DAG field in the file.
 
@@ -259,15 +489,18 @@ def get_dag_from_df(df, dag_field_regex=r'_[sS]ite\d?', site_lookup=None,
 # Process all files from the command line
 uploaded = 0
 records = 0
-uploadedFlag=True
+uploadedFlag = True
 for f in args.csvfile:
     uploadedFlag &= process_file(f)
 
 # Print failures
 if len(failed) > 0:
-    slog.info(hashlib.sha1('import-laptops-csv2redcap {}'.format(' '.join(failed)).encode()).hexdigest()[0:6], "ERROR uploading file(s)", 
-              files_not_uploaded = str(failed) )
+    slog.info(hashlib.sha1('import-laptops-csv2redcap {}'.format(' '.join(failed)).encode()).hexdigest()[0:6], "ERROR uploading file(s)",
+              files_not_uploaded=str(failed))
     sys.exit()
+
 # Only take timer if all were uploaded
-if uploadedFlag: 
-    slog.takeTimer1("script_time","{'records': " + str(records) +  ", 'uploads': " +  str(uploaded) + "}")
+if uploadedFlag:
+    slog.takeTimer1("script_time",
+                    "{'records': " + str(records) +
+                    ", 'uploads': " + str(uploaded) + "}")

@@ -257,6 +257,20 @@ def add_to_upload(
     for key, value in dict(data).items():
         if (key in summary_field_names) or (key == "%s_complete" % form_name):
             strval = str(value).strip()  # <-- strip whitespace
+
+            # One-off exception:
+            # For ssaga_youth_dm8c_spec, treat blank/None-like import values as
+            # no-op values. Do not upload this field when the Import project value
+            # is empty/None, so Data Entry is left unchanged.
+            if key == "ssaga_youth_dm8c_spec" and strval in ("", "None", "none", "nan"):
+                if verbose:
+                    print(
+                        "WARNING: Ignoring empty/None import value for "
+                        "ssaga_youth_dm8c_spec on record %s"
+                        % data.name
+                    )
+                continue
+
             if strval == "nan":
                 record[key] = ""
             else:
