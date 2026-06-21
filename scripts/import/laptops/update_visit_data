@@ -88,6 +88,16 @@ forms_date_increments = {
     "sleepmor": 1,
 }
 
+# Field-specific import values that should be treated as no-op values.
+# These values are known legacy/import placeholders that should not be pushed
+# into Data Entry because they either fail REDCap validation or represent
+# semantic empty/non-values. The Data Entry value is left unchanged.
+IGNORE_IMPORT_FIELD_VALUES = {
+    "ssaga_youth_dm8c_spec": {"", "none", "nan"},
+    "ssaga_parent_dm8c_spec": {"", "none", "nan"},
+    "youthreport2_sbq5": {"-oth-"},
+}
+
 #
 # Functions
 #
@@ -258,16 +268,12 @@ def add_to_upload(
         if (key in summary_field_names) or (key == "%s_complete" % form_name):
             strval = str(value).strip()  # <-- strip whitespace
 
-            # One-off exception:
-            # For ssaga_youth_dm8c_spec, treat blank/None-like import values as
-            # no-op values. Do not upload this field when the Import project value
-            # is empty/None, so Data Entry is left unchanged.
-            if key == "ssaga_youth_dm8c_spec" and strval in ("", "None", "none", "nan"):
+            ignore_values = IGNORE_IMPORT_FIELD_VALUES.get(key)
+            if ignore_values and strval.lower() in ignore_values:
                 if verbose:
                     print(
-                        "WARNING: Ignoring empty/None import value for "
-                        "ssaga_youth_dm8c_spec on record %s"
-                        % data.name
+                        "WARNING: Ignoring import value %r for %s on record %s"
+                        % (strval, key, data.name)
                     )
                 continue
 
