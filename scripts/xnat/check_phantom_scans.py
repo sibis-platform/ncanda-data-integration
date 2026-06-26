@@ -212,6 +212,13 @@ def check_experiment(session, ifc, sibis_config, args, email, eid, xnat_url, exp
         )
         return False
 
+    if prj == "ucsd_incoming":
+        # example github issue #22061 - for some reason UCSD uses XXX,KECKMR for main scan and KECKMR for phantom scan
+        scanner = scanner.split(",", 1)[1].strip() if "," in scanner else scanner
+    elif prj == "sri_incoming":
+        # example github issue #22745 - SRI sometimes calls it 750clic,X  
+        scanner = scanner.split(",", 1)[0].strip() if "," in scanner else scanner
+
     # RegExp pattern for subject IDs
     subject_id_pattern_nophantom = r"^([A-F])-[0-9]{5}-[MF]-[0-9]$"
     subject_label_match = re.match(
@@ -268,7 +275,7 @@ def check_experiment(session, ifc, sibis_config, args, email, eid, xnat_url, exp
             ]
             if args.verbose:
                 print("Phantom scans: {0}".format(phantom_scans))
-                
+
             if scanner not in phantom_scanners and len(phantom_scans) != 0:
 
                 err = "Error: {0} - scanner mismatch for session {1} (scanner: {2}) and phantom {3} (scanner: {4}).".format(

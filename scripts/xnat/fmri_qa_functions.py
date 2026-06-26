@@ -125,7 +125,7 @@ def run_phantom_qa( interface, project, subject, session, label, dicom_path ):
 # Process a phantom MR imaging session
 def process_phantom_session( interface, project, subject, session, label, xnat_dir,force_updates=False ):
     # Get the experiment object
-    experiment = interface.select.experiment[session]
+    experiment = interface.select.experiments[session]
 
     # First, see if the QA files are already there
     files = [ fn.id for fn in list(r.files.values()) for r in list(experiment.resources.values()) ]

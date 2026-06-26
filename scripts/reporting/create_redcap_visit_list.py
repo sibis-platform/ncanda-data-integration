@@ -4,10 +4,10 @@
 ##  for the copyright and license terms
 ##
 """
-Creates a csv files containing all visits of cases included in the study. Run -h for options 
+Creates a csv files containing all visits of cases included in the study. Run -h for options
 
 Usage:
-python create_redcap_visit_list.py 
+python create_redcap_visit_list.py
 """
 from __future__ import print_function
 import os
@@ -94,7 +94,7 @@ if __name__ == '__main__':
                         help="A list containg the events of interest. {}".format(default))
     parser.add_argument('--all-events', help="Download data from all events", action='store_true')
     parser.add_argument('-f', '--fields', dest="fields",
-                        default="visit_ignore___yes,mri_missing,visit_date,mri_xnat_sid,mri_xnat_eids,mri_series_t1,mri_series_t2,mri_series_dti6b500pepolar,mri_series_dti30b400,mri_series_dti60b1000,mri_series_dti_fieldmap,mri_series_rsfmri,mri_series_rsfmri_fieldmap",
+                        default="visit_ignore___yes,mri_missing,visit_date,mri_xnat_sid,mri_xnat_eids,mri_series_t1,mri_series_t2,mri_series_dti6b500pepolar,mri_series_dti30b400,mri_series_dti60b1000,mri_series_dti_fieldmap,mri_series_rsfmri,mri_series_rsfmri_fieldmap,mri_series_taskfmri_alcpic_scan",
                         help="A list containing the fields to be printed out. {}".format(default),
                         action='store')
     parser.add_argument('-o', '--outfile', dest="outfile",

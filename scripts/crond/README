@@ -1,4 +1,3 @@
 source crontools in shell:
 bash
-SCRIPT_LABEL="back-nightly"
-. ./crontools.sh
+. ./crontools.sh force

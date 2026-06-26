@@ -14,9 +14,9 @@ that to create the XML file cache you need to run with --update
 
 Example
 =======
-- When running for the first time run 
+- When running for the first time run
   ./xnat_sessions_report.py --update
-  so that the cach (located at experimentsdir) is created 
+  so that the cach (located at experimentsdir) is created
 
 - Update the cache (stored in experimentsdir) and generate the baseline report
   ./xnat_sessions_report.py --update --baseline
@@ -66,7 +66,7 @@ def get_scan_type_pairs(modality):
 def main(args=None):
     # TODO: Handle when T1 and T2 are in separate session (i.e., rescan)
 
-    # Upload all data experimentsdir 
+    # Upload all data experimentsdir
     if args.update:
         slog.init_log(False, False,'xnat_sesions_report', 'xnat_sesions_report',None)
         session = sibispy.Session()
@@ -78,16 +78,16 @@ def main(args=None):
 
         server = session.connect_server('xnat_http', True)
         if not server:
-            print("Error: could not connect to xnat server!") 
+            print("Error: could not connect to xnat server!")
             sys.exit()
 
         xe.extract_experiment_xml(session,args.experimentsdir, args.num_extract)
 
     # extract info from the experiment XML files
     experiment = xe.get_experiments_dir_info(args.experimentsdir)
-    # Scan specific information 
+    # Scan specific information
     scan = xe.get_experiments_dir_scan_info(args.experimentsdir)
-    # Session info 
+    # Session info
     reading = xe.get_experiments_dir_reading_info(args.experimentsdir)
     df = xe.merge_experiments_scans_reading(experiment, scan, reading)
 
@@ -95,41 +95,41 @@ def main(args=None):
     site_id_pattern = '[A-E]-[0-9]{5}-[MF]-[0-9]'
     df = df[df.site_id.str.contains(site_id_pattern)]
 
-    # exclude subjects not part of study 
+    # exclude subjects not part of study
     df = df[df['subject_id'] != 'NCANDA_S00127']
 
-    if args.unknown : 
+    if args.unknown :
         print("Sessions that have not yet been quality controlled")
-        scanCheckList = pd.DataFrame()  
+        scanCheckList = pd.DataFrame()
         required_scans = ['ncanda-mprage-v1','ncanda-t1spgr-v1','ncanda-t2fse-v1','ncanda-dti6b500pepolar-v1','ncanda-dti30b400-v1','ncanda-dti60b1000-v1','ncanda-grefieldmap-v1','ncanda-rsfmri-v1']
 
         for eid in df.experiment_id.drop_duplicates():
             eid_df = df[df.experiment_id == eid]
-            eid_df = eid_df[~pd.isnull(eid_df['quality'])] 
+            eid_df = eid_df[~pd.isnull(eid_df['quality'])]
             if not len(eid_df[eid_df['quality'] != 'unknown']) :
-                print(eid)
-            else : 
+                print(eid,eid_df['site_experiment_id'].iloc[0])
+            else :
                 unknownScanDF = eid_df[eid_df['quality'] == 'unknown']
                 mandatoryCheck = unknownScanDF[unknownScanDF['scan_type'].isin(required_scans)]
-                if len(mandatoryCheck) : 
+                if len(mandatoryCheck) :
                     scanCheckList = pd.concat([scanCheckList, mandatoryCheck], ignore_index=True)
-
-        print(" ") 
+        print(" ")
         print("Mandatory scans that have not yet been quality controlled (status unknown)")
-        if len(scanCheckList) : 
+        if len(scanCheckList) :
             pd.set_option('display.max_rows', len(scanCheckList))
-            print(scanCheckList['scan_type'])
+            # print(scanCheckList)
+            print(scanCheckList[['subject_id','site_experiment_id','scan_type']])
 
         sys.exit()
 
-    if args.ignore_window or args.session_notes or args.scan_notes : 
-        if args.usable : 
+    if args.ignore_window or args.session_notes or args.scan_notes :
+        if args.usable :
             df = df[df['quality'] == 'usable']
 
         columns = ['site_id', 'subject_id', 'experiment_id', 'experiment_date','excludefromanalysis']
-        if args.ignore_window or args.scan_notes : 
+        if args.ignore_window or args.scan_notes :
             columns = columns + ['scan_id', 'scan_type', 'quality']
-            if args.scan_notes : 
+            if args.scan_notes :
                 columns = columns + [ 'scan_note']
 
         if args.session_notes :
@@ -137,7 +137,7 @@ def main(args=None):
 
         result = df[columns]
 
-        # print result 
+        # print result
     else :
         df.loc[:, 'experiment_date'] = df.experiment_date.astype('datetime64')
         result = pd.DataFrame()
@@ -170,7 +170,7 @@ def main(args=None):
                 followup_df = baseline_df
 
             # filter for specific scan types
-       
+
             scan_type_pairs = get_scan_type_pairs(args.modality)
             scan1 = scan_type_pairs.get('scan1')
             scan2 = scan_type_pairs.get('scan2')
@@ -178,10 +178,10 @@ def main(args=None):
             scan2_df = followup_df[followup_df.scan_type.isin(scan2)]
 
             # Filter quality column
-            if args.usable : 
+            if args.usable :
                 scan1_selected = scan1_df[scan1_df.quality == 'usable']
                 scan2_selected = scan2_df[scan2_df.quality == 'usable']
-            else : 
+            else :
                 scan1_selected = scan1_df
                 scan2_selected = scan2_df
 
@@ -206,7 +206,7 @@ def main(args=None):
             if scan1_scan2_report.shape[0]:
                 result = result.append(scan1_scan2_report)
     #
-    # Write out results 
+    # Write out results
     #
 
     # Remove any duplicate rows due to extra usable scan types (i.e., fieldmaps)
