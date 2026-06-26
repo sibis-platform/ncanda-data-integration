@@ -4,6 +4,7 @@ config="/fs/storage/share/operations/secrets/.sibis/.sibis-general-config.yml"
 backup_src=/fs/storage/mariadb-redcap-archive
 backup_lock=/fs/storage/ncanda_redcap_backup.lock
 retain_local_copy=${1:-1}
+skip_existing=${1:-0}
 backup_db_file_glob="redcap_mariadb_backup-*.sql.gz"
 backup_event_table_file_glob="redcap_log_event-export-*.csv.gz"
 backup_view_table_file_glob="redcap_log_view-export-*.csv.gz"
@@ -60,8 +61,7 @@ function backup_and_rotate() {
   fi
 
   if [ -f "${archive_file_aes}" ]; then
-    printf "INFO: Latest archive already has encrypted version: ${archive_file_aes}\n"
-    printf 'INFO: It should have been backed up already. Retrying.\n'
+    printf "INFO: Latest archive already encrypted: ${archive_file_aes}\n"
   else
     TRAP_DELETE="${archive_file_aes}"
     printf "INFO: encrypting archive before upload: ${archive_file_aes}\n"
@@ -74,7 +74,7 @@ function backup_and_rotate() {
   fi
 
   set -e
-  upload_to_s3_subdir $archive_file_aes ${retain_local_copy} ${mariadb_subdir} 
+  upload_to_s3_subdir $archive_file_aes ${retain_local_copy} ${mariadb_subdir} ${skip_existing}
   set +e
   # s3://ncanda/db/redcap-mariadb/redcap*.aes
   delete_oldest_files_s3 ${mariadb_subdir} ${aes_glob} ${s3_backups_to_retain}
