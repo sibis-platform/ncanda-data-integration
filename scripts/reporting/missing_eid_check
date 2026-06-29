@@ -34,6 +34,26 @@ def in_dataframe(df_entry,df_list):
         return True
     return False
 
+def normalize_xnat_scan_type(scan_type):
+    """
+    Treat mlalcpic and alcpic as the same scan type for this report.
+
+    XNAT may contain ncanda-mlalcpic-v1, while REDCap stores the
+    corresponding series in mri_series_taskfmri_alcpic_scan.
+    """
+    if pandas.isnull(scan_type):
+        return scan_type
+
+    scan_type = str(scan_type)
+
+    if scan_type == "ncanda-mlalcpic-v1":
+        return "ncanda-alcpic-v1"
+
+    if scan_type == "ncanda-mlalcpic-v1_bad":
+        return "ncanda-alcpic-v1_bad"
+
+    return scan_type
+
 def main(args):
 
     #
@@ -184,6 +204,9 @@ def main(args):
     #
 
     xnat_list = pandas.read_csv(args.xnatcsv)
+
+    # Treat mlalcpic as equivalent to alcpic for XNAT/REDCap comparison.
+    xnat_list['scan_type'] = xnat_list['scan_type'].apply(normalize_xnat_scan_type)
 
     # account for subjects changing sites so they have multiple subject numbers
     xnat_list = xnat_list[xnat_list.subject_id.isin(subject_list + special_subject_list)]
