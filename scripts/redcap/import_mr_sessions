@@ -869,6 +869,11 @@ parser.add_argument("--max-days-after-visit",
                     action="store",
                     default=120,
                     type=int)
+parser.add_argument("--recovery-days-window",
+                    help="Maximum number of days after a recovery visit date that an XNAT session can be assigned to the recovery event.",
+                    action="store",
+                    default=RECOVERY_DAYS_WINDOW,
+                    type=int)
 parser.add_argument("--site",
                     help="Limit processing by site (SRI, UCSD, OHSU, UPMC, DUKE). Multiple sites can be listed, separated by comma (',')",
                     action="store",
@@ -911,6 +916,8 @@ parser.add_argument("-t","--time-log-dir",
 args = parser.parse_args()
 
 verbose = args.verbose
+
+RECOVERY_DAYS_WINDOW = args.recovery_days_window
 
 if args.verbose:
     print(args)
