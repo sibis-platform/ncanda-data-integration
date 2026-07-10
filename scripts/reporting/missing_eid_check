@@ -137,6 +137,43 @@ def is_recovery_arm_scan(scan_entry, recovery_eid_set, recovery_series_set):
     return eid in recovery_eid_set or (eid, scan_id) in recovery_series_set
 
 
+def build_omit_scan_session_set(special_cases):
+    """
+    Build a set of XNAT experiment/session IDs from special_cases.yml that
+    should be ignored in XNAT-side missing EID reports.
+
+    Expected YAML format:
+      omit_scan_sessions:
+        - NCANDA_E08607
+        - NCANDA_E08272
+        - NCANDA_E07725
+    """
+    omit_scan_session_set = set()
+
+    if not special_cases:
+        return omit_scan_session_set
+
+    for eid in special_cases.get('omit_scan_sessions', []) or []:
+        if eid is None:
+            continue
+
+        eid = str(eid).strip()
+
+        if eid:
+            omit_scan_session_set.add(eid)
+
+    return omit_scan_session_set
+
+
+def is_omitted_scan_session(scan_entry, omit_scan_session_set):
+    """
+    Return True if this row belongs to an XNAT session that is intentionally
+    present in XNAT but omitted from REDCap.
+    """
+    eid = str(scan_entry['experiment_id'])
+    return eid in omit_scan_session_set
+
+
 def main(args):
 
     #
@@ -148,16 +185,33 @@ def main(args):
     # Identify special cases that switched sites (important for xnat check)
     special_subject_list = []
     with open(args.special_cases) as fi:
-        export_measures_map = yaml.safe_load(fi).get('site_change').get('export_measures')
-        for sub in export_measures_map.keys():
-            sub_map = export_measures_map.get(sub)
+        special_cases = yaml.safe_load(fi) or {}
 
-            if sub_map.get('default').get('subject') in subject_list:
-                for visit in sub_map.keys():
-                    visit_map = sub_map.get(visit)
-                    if 'xnat_subject_id' in iter(visit_map.keys()):
-                        subject_id = visit_map.get('xnat_subject_id')
-                        special_subject_list += [subject_id]
+    export_measures_map = (
+        (special_cases.get('site_change') or {}).get('export_measures') or {}
+    )
+
+    for sub in export_measures_map.keys():
+        sub_map = export_measures_map.get(sub) or {}
+
+        if (sub_map.get('default') or {}).get('subject') in subject_list:
+            for visit in sub_map.keys():
+                visit_map = sub_map.get(visit) or {}
+
+                if 'xnat_subject_id' in visit_map:
+                    subject_id = visit_map.get('xnat_subject_id')
+
+                    if subject_id and subject_id not in special_subject_list:
+                        special_subject_list.append(subject_id)
+
+    omit_scan_session_set = build_omit_scan_session_set(special_cases)
+
+    if omit_scan_session_set:
+        print(" ")
+        print(
+            "XNAT scan sessions omitted by special_cases.yml omit_scan_sessions: ",
+            sorted(omit_scan_session_set)
+        )
 
     #
     # Setup REDCap Check
@@ -423,6 +477,11 @@ def main(args):
             # Ignore them in the missing EID report entirely.
             if is_recovery_arm_scan(xnat_entry, recovery_eid_set, recovery_series_set):
                 continue
+            
+            # special_cases.yml omit_scan_sessions lists XNAT sessions that are
+            # intentionally present in XNAT but absent from REDCap.
+            if is_omitted_scan_session(xnat_entry, omit_scan_session_set):
+                continue
 
             if not series_in_dataframe(xnat_entry, redcap_xnat_list):
                 # this is here a little bit more complicated as one has to consider if scan is still in possible visit window
@@ -468,6 +527,10 @@ def main(args):
 
             # Recovery-arm scans are outside the standard release check.
             if is_recovery_arm_scan(xnat_entry, recovery_eid_set, recovery_series_set):
+                continue
+
+            # special_cases.yml omit_scan_sessions lists XNAT sessions that are present in XNAT but absent from REDCap.
+            if is_omitted_scan_session(xnat_entry, omit_scan_session_set):
                 continue
 
             print(xnat_entry.values)
