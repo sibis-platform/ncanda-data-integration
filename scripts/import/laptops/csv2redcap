@@ -118,6 +118,21 @@ def normalize_redcap_value(value):
 
     return value
 
+# SSAGA sex fields (e.g. lssaga1_youth_dm14sex1 ... dm14sex21) are supposed to
+# be REDCap-coded 1=Male, 2=Female, but some source CSVs encode them as 'M'/'F'
+# strings, which REDCap rejects on import. Normalize before upload.
+SEX_FIELD_REGEX = re.compile(r'dm14sex\d+$')
+SEX_VALUE_MAP = {'M': '1', 'F': '2'}
+
+def normalize_sex_fields(df):
+    sex_cols = [c for c in df.columns if SEX_FIELD_REGEX.search(c)]
+    for col in sex_cols:
+        df[col] = df[col].apply(
+            lambda v: SEX_VALUE_MAP.get(str(v).strip().upper(), v)
+            if pd.notna(v) else v
+        )
+    return df
+
 
 def parse_locked_form_fields(err_msg):
     """
@@ -273,6 +288,8 @@ def process_file(fname):
     # Replace periods in column labels with underscores
     data.rename(columns=lambda s: s.replace('.', '_').lower(),
                 inplace=True)
+
+    data = normalize_sex_fields(data)   # resolve the lssaga dm14 sex mapping
 
     # Bring original "siteid" column back to assign each record to the correct
     # data access group
