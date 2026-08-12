@@ -168,6 +168,20 @@ else:
     summary_records_secondary = summary_records[ summary_records['cnp_datasetid'] != '' ]
     summary_records = summary_records[ summary_records['cnp_datasetid'] == '' ]
 
+    # Don't overwrite complete cnp forms by default (those marked missing and complete have no datasetid)
+    already_complete = pandas.to_numeric(summary_records['cnp_summary_complete'], errors='coerce') == 2
+    if args.verbose and already_complete.any():
+        if args.study_id:
+            print("Skipping {} record(s) already marked complete (use -a/--force to override): {}".format(
+                already_complete.sum(),
+                summary_records[already_complete].index.tolist()
+            ))
+        else:
+            print("Skipping {} record(s) already marked complete (use -a/--force to override)".format(
+                already_complete.sum()
+            ))
+    summary_records = summary_records[ ~already_complete ]
+
     # list all entries for which 'cnp_exam_location' or device is empty but the reset of the form is defined 
     summary_records_secondary =  summary_records_secondary[summary_records_secondary['cnp_test_sessions_dotest'] >= "2020-10-01"]
     summary_records_secondary =  summary_records_secondary[(summary_records_secondary['cnp_exam_location'] == 'nan')  | (summary_records_secondary['cnp_input_device'] == 'nan')  ]
