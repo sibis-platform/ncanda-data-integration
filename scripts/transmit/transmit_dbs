@@ -5,11 +5,11 @@
 ##  for the copyright and license terms
 ##
 script_dir=`dirname $0`
-backup_tmp=/fs/snapshots
-retain_local_redcap=0
+# backup_tmp=/fs/snapshots
+# retain_local_redcap=0
 
 # Load common transmit utils
-source $script_dir/transmit_utils
+# source $script_dir/transmit_utils
 
 # MariaDB first - this can be run as root
 ${script_dir}/backup_mariadb
