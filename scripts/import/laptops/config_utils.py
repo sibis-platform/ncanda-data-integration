@@ -23,6 +23,16 @@ def flatten_path_dict(path_dict, base_prefix="", delimiter=os.sep):
     #     '/fs/storage/laptops/import/ohsu/pasat/A-31',
     #     '/fs/storage/laptops/import/ohsu/pasat/B-32',
     #     '/fs/storage/laptops/import/ohsu/pasat/example/C-20']
+
+    A leaf can also be spelled as a key with no value, which is what YAML set
+    syntax and merge keys (`<<: *ANCHOR`) produce:
+
+    paths = {'ohsu': {'pasat': {'A-31': None, 'B-32': None}}}
+
+    flatten_path_dict(paths, base_prefix='/fs/storage/laptops/import')
+
+    # => ['/fs/storage/laptops/import/ohsu/pasat/A-31',
+    #     '/fs/storage/laptops/import/ohsu/pasat/B-32']
     """
     # NOTE: On reflection, this is not well-recursed; working towards a string
     # base case would have been more elegant and possibly more robust.
@@ -44,4 +54,7 @@ def flatten_path_dict(path_dict, base_prefix="", delimiter=os.sep):
                             for item in val if isinstance(item, dict)]))
         elif isinstance(val, string_types):
             output.append(new_prefix + delimiter + val)
+        elif val is None:
+            # A value-less key is itself the leaf, not a directory to descend
+            output.append(new_prefix)
     return output
