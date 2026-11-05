@@ -132,8 +132,7 @@ if [ ${PIPELINE_UPDATE_FLAG} == 1 ]; then
 
     # Check which cases haven't been touched by export_measures (Only running on weekly basis)
     if [ -z "$update_args" ]; then
-    :
-#        catch_output_email "${SCRIPT_LABEL}: REDCap: Export Measures Check (check_updated_cases)" ${SIBIS_PYTHON_PATH}/sibispy/cmds/check_updated_cases.py -p -d ${SIBIS_CASES_DIR}
+        catch_output_email "${SCRIPT_LABEL}: REDCap: Export Measures Check (check_updated_cases)" ${SIBIS_PYTHON_PATH}/sibispy/cmds/check_updated_cases.py -p -d ${SIBIS_CASES_DIR}
     fi 
 else 
     echo "back-nightly: Warning: Pipeline is not updated !"   

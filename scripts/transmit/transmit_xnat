@@ -126,7 +126,7 @@ transmit_session()
 
 	# All go - make archive
     cd ${XNAT_DATA_ROOT}/archive/${prj}/${arc}
-    gtar -cf - ${ses} | xz -9 -c --threads 8 | aespipe -P ${HOME}/aes/keys -e aes256 > /var/tmp/${archive}
+    gtar -cf - ${ses} | xz -9 -c -T0 | aespipe -P ${HOME}/aes/keys -e aes256 > /var/tmp/${archive}
 
 	# Upload
     cmd="s4cmd put /var/tmp/${archive} ${s3uri} --API-ServerSideEncryption=AES256"
