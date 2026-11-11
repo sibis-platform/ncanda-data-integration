@@ -9,6 +9,7 @@
 from __future__ import print_function
 from builtins import str
 import os
+import re
 import shutil
 import fnmatch
 import tempfile
@@ -197,14 +198,25 @@ def export_spiral_files(redcap_visit_id, xnat, redcap_key,
     return result
 
 
+_ALCPIC_EPRIME_EXT = re.compile(r'\.(txt|edat\d+)$', re.IGNORECASE)
+
+
+def _alcpic_eprime_target_name(rel):
+    """B-00306-F-5-20251111-alpic.edat3 -> alcpic.edat3 (drops site ID and scan date)."""
+    m = _ALCPIC_EPRIME_EXT.search(os.path.basename(rel))
+    return "alcpic." + m.group(1).lower() if m else None
+
+
 def export_alcpic_files(redcap_visit_id, xnat, redcap_key,
                         resource_locations, to_directory, verbose=None):
     """
-    Download ALCPIC E-Prime files (edat2/txt) referenced by one or more tokens.
+    Download ALCPIC E-Prime files (txt/edatN) referenced by one or more tokens.
       - resource_locations: space-separated string OR list of 'EID/RID/REL'
-      - Files are written under: <to_directory>/native/alcpic/<REL>
-      - Preserves any subdirectories contained in the REL portion.
-    Returns True if at least one new file was saved.
+      - Files are written to <to_directory>/native/eprime/alcpic.<ext>; the
+        site ID and scan date in the XNAT file name are not carried over.
+        The original names stay in REDCap (mri_series_taskfmri_alcpic_eprime).
+      - A file exported earlier under its original name is renamed in place.
+    Returns True if at least one new file was downloaded.
     """
     if verbose:
         print("Exporting alcpic files {} to {}".format(resource_locations, to_directory))
@@ -217,30 +229,51 @@ def export_alcpic_files(redcap_visit_id, xnat, redcap_key,
             print("...no ALCPIC tokens to export.")
         return result
 
-    base_out = os.path.join(to_directory, 'native', 'eprime')
-    os.makedirs(base_out, exist_ok=True)
-
+    # Plan every target name first so a collision writes nothing
+    planned = []
+    seen = {}
     for tok in tokens:
         try:
             eid, rid, rel = _split_resource_token(tok)
         except ValueError as ve:
             slog.info(str(redcap_visit_id), "Bad ALCPIC token; skipping", token=str(tok), err=str(ve))
             continue
+        target = _alcpic_eprime_target_name(rel)
+        if target is None:
+            slog.info(str(redcap_visit_id), "ALCPIC E-Prime file has an unexpected extension; skipping",
+                      token=str(tok))
+            continue
+        if target in seen:
+            slog.info(str(redcap_visit_id), "Two ALCPIC E-Prime files map to the same name; nothing exported",
+                      target=target, tokens="{} {}".format(seen[target], tok),
+                      site_resolution="Remove the duplicate E-Prime file from the XNAT resource.")
+            return result
+        seen[target] = tok
+        planned.append((tok, eid, rid, rel, target))
 
-        # Flatten: always write just the basename into .../native/eprime/
-        fname = os.path.basename(rel)
-        local_path = os.path.join(base_out, fname)
+    base_out = os.path.join(to_directory, 'native', 'eprime')
+    os.makedirs(base_out, exist_ok=True)
 
+    for tok, eid, rid, rel, target in planned:
+        local_path = os.path.join(base_out, target)
         if os.path.exists(local_path):
             continue  # idempotent
 
+        # Already exported under the original name: rename rather than re-download
+        legacy_path = os.path.join(base_out, os.path.basename(rel))
+        if os.path.exists(legacy_path):
+            os.rename(legacy_path, local_path)
+            if verbose:
+                print("Renamed {} -> {}".format(legacy_path, local_path))
+            continue
+
         tmpdir = tempfile.mkdtemp()
         try:
-            tmpfile = _download_token_to_tempfile(xnat, tok, tmpdir, out_basename=fname)
+            tmpfile = _download_token_to_tempfile(xnat, tok, tmpdir, out_basename=target)
             shutil.move(tmpfile, local_path)
             result = True
         except Exception as err_msg:
-            slog.info(f"{eid}_{rid}", "Error: failed to download ALCPIC file",
+            slog.info("{}_{}".format(eid, rid), "Error: failed to download ALCPIC file",
                       resource_rel=rel, err_msg=str(err_msg))
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
